@@ -38,16 +38,41 @@ GEMMA_SYS = (
     'Use STOP if mission is complete. Use SPEAK to say something to a person.'
 )
 
-def gemma_decide(context):
+def gemma_decide(context, image_path=None):
+    """
+    Call Gemma with text context and optional image.
+    image_path: if provided Gemma sees the actual photo
+    """
+    import base64
+
+    # Build text prompt
     prompt = (
         '<start_of_turn>user\n' + GEMMA_SYS + '\n\n' + context +
         '<end_of_turn>\n<start_of_turn>model\n'
     )
+
+    payload = {
+        'prompt': prompt,
+        'n_predict': 40,
+        'temperature': 0.1,
+        'stop': ['<end_of_turn>']
+    }
+
+    # Add image if provided and file exists
+    if image_path and os.path.exists(image_path):
+        try:
+            with open(image_path, 'rb') as f:
+                img_b64 = base64.b64encode(f.read()).decode()
+            payload['image_data'] = [{'data': img_b64, 'id': 1}]
+            payload['prompt'] = payload['prompt'].replace(
+                '<start_of_turn>user\n',
+                '<start_of_turn>user\n[img-1]\n'
+            )
+        except:
+            pass  # fall back to text only if image fails
+
     try:
-        resp = requests.post(GEMMA_URL, json={
-            'prompt': prompt, 'n_predict': 40,
-            'temperature': 0.1, 'stop': ['<end_of_turn>']
-        }, timeout=30)
+        resp = requests.post(GEMMA_URL, json=payload, timeout=45)
         return resp.json()['content'].strip()
     except:
         return 'FORWARD default'
@@ -240,14 +265,27 @@ class Robot:
         move = self.navigate_rules(results, distance)
         print(f'  [NAV] {move}')
 
-        # Gemma check — every N cycles or when person found
-        person_found = any(r[0] == 'person' for r in results)
-        use_gemma = (self.cycle % GEMMA_INTERVAL == 0) or (person_found and move == 'STOP')
+        # Gemma check — every N cycles or triggered
+        person_found  = any(r[0] == 'person' for r in results)
+        every_5       = (self.cycle % 5 == 0)
+        every_3       = (self.cycle % GEMMA_INTERVAL == 0)
+        goal_reached  = (move == 'STOP')
+        new_room      = len(self.known_rooms) > getattr(self, '_prev_rooms', 0)
+        self._prev_rooms = len(self.known_rooms)
+
+        use_gemma  = every_3 or every_5 or person_found or goal_reached or new_room
+        use_vision = every_5 or person_found or goal_reached or new_room
 
         if use_gemma and self.mission:
-            print(f'  [GEMMA] Consulting...')
+            trigger = []
+            if every_3:      trigger.append('interval')
+            if every_5:      trigger.append('vision')
+            if person_found: trigger.append('person')
+            if goal_reached: trigger.append('goal')
+            if new_room:     trigger.append('new_room')
+            print(f'  [GEMMA] Consulting ({"+".join(trigger)})...')
             context = self.gemma_context(scene)
-            response = gemma_decide(context)
+            response = gemma_decide(context, image_path=path if use_vision else None)
             print(f'  [GEMMA] {response}')
             words = response.upper().split()
             for w in words:

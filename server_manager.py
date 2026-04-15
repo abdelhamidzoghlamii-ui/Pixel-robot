@@ -60,9 +60,9 @@ def start_setup(setup_name):
     elif setup_name == "setup_d_old":
         # Qwen on 8080 for LLM, E2B on 8081 for vision
         kill_servers()
-        cmd1 = LLAMA_SERVER + " -m " + HOME + "/models/qwen2.5-3b-instruct-q4_k_m.gguf --port 8080 --ctx-size 2048 --host 127.0.0.1 2>/dev/null &"
+        cmd1 = LLAMA_SERVER + " -m " + HOME + "/models/qwen2.5-3b-instruct-q4_k_m.gguf --port 8080 --ctx-size 2048 --threads 8 --threads-batch 8 --host 127.0.0.1 2>/dev/null &"
         os.system(cmd1)
-        cmd2 = LLAMA_SERVER + " -m " + HOME + "/models/gemma-4-e2b-it-q8_0.gguf --port 8081 --ctx-size 2048 --host 127.0.0.1 2>/dev/null &"
+        cmd2 = LLAMA_SERVER + " -m " + HOME + "/models/gemma-4-e2b-it-q8_0.gguf --port 8081 --ctx-size 2048 --threads 8 --threads-batch 8 --host 127.0.0.1 2>/dev/null &"
         os.system(cmd2)
         print("[SERVER] Starting Qwen 3B on 8080 + E2B on 8081...")
         import urllib.request

@@ -7,7 +7,7 @@ SERVER = "/data/data/com.termux/files/home/llama.cpp/build/bin/llama-server"
 WARN_TEMP  = 75000  # pause 5s
 KILL_TEMP  = 88000  # emergency stop
 COOL_TEMP  = 48000  # target after each cycle
-CYCLE_REST = 4.0    # base rest between cycles (tune this)
+CYCLE_REST = 1.5    # base rest between cycles (tune this)
 BIG_CORES  = "/sys/class/thermal/thermal_zone9/temp"
 
 SYSTEM = """You are a robot. Reply with ONE word: FORWARD, LEFT, RIGHT, or BACK.
