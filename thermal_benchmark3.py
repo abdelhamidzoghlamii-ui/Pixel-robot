@@ -169,11 +169,8 @@ warmup()
 
 # Fine-grained tests between 1.0 and 2.0
 configs = [
-    (1.0, 25, '1.0s rest'),
-    (1.3, 25, '1.3s rest'),
-    (1.5, 25, '1.5s rest'),
-    (1.7, 25, '1.7s rest'),
-    (2.0, 25, '2.0s rest'),
+    (1.3, 25, '1.3s rest - Q4_K_M'),
+    (1.5, 25, '1.5s rest - Q4_K_M'),
 ]
 
 results = []

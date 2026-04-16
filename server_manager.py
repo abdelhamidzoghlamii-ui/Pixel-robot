@@ -52,6 +52,12 @@ def start_setup(setup_name):
             HOME + "/models/gemma-4-e4b-it-q4_k_m.gguf",
             port=8080, ctx=2048
         )
+    elif setup_name == "setup_q4":
+        start_server(
+            HOME + "/models/gemma-4-e2b-it-q4_k_m.gguf",
+            port=8080, ctx=2048,
+            extra_args="--mmproj " + HOME + "/models/mmproj-gemma4-e2b.gguf"
+        )
     elif setup_name == "setup_c":
         return start_server(
             HOME + "/models/gemma-4-e2b-it-q8_0.gguf",
