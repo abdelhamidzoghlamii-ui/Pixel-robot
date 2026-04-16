@@ -61,7 +61,8 @@ def start_setup(setup_name):
     elif setup_name == "setup_c":
         return start_server(
             HOME + "/models/gemma-4-e2b-it-q8_0.gguf",
-            port=8080, ctx=2048
+            port=8080, ctx=2048,
+            extra_args="--mmproj " + HOME + "/models/mmproj-gemma4-e2b.gguf"
         )
     elif setup_name == "setup_d_old":
         # Qwen on 8080 for LLM, E2B on 8081 for vision
