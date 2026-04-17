@@ -120,32 +120,89 @@ def listen():
 
 # ── Command parser (Gemma E2B on port 8080) ──────────
 # Gemma handles everything — no separate Qwen needed
-PARSE_SYS = (
-    'You are a robot controller. Output ONLY a JSON array of actions. '
-    'Use exactly these formats: '
-    '{"type":"navigate_to","room":"<room>"} or '
-    '{"type":"find_person","name":"<name>"} or '
-    '{"type":"say","message":"<text>"}. '
-    'Use minimum actions needed. Output JSON only, no explanation.'
-)
+PARSE_SYS = """You are a home robot command parser.
+Parse voice commands into a JSON array of actions.
+Output ONLY valid JSON array, no explanation, no markdown.
+
+AVAILABLE ACTIONS:
+{"type":"find_person","name":"NAME","message":"MSG or empty"}
+  → Find a person and optionally deliver a message
+  → Examples: find Chiara, find Abdel, find someone
+
+{"type":"navigate_to","room":"ROOM"}
+  → Go to a room: hallway, kitchen, living_room, bedroom, bathroom
+  → Examples: go to kitchen, go to bedroom
+
+{"type":"say","message":"TEXT"}
+  → Speak a message out loud where robot currently is
+
+{"type":"patrol","rooms":["room1","room2"]}
+  → Visit a list of rooms, or all rooms if empty list
+
+{"type":"find_object","object":"OBJECT","room":"ROOM or empty"}
+  → Look for an object, optionally in a specific room
+
+{"type":"come_back"}
+  → Return to starting position or last known person location
+
+RULES:
+- Chain actions when needed: find person + say message = one find_person with message
+- "Tell X that Y" = find_person X with message Y
+- "Go to kitchen and say hello" = navigate_to + say
+- "Find my keys in bedroom" = find_object keys in bedroom
+- Always use the minimum number of actions
+- Names: capitalize first letter (Chiara, Abdel)
+- Rooms: use underscore format (living_room, not living room)
+- Output [] if command is unclear
+
+EXAMPLES:
+"Find Chiara and tell her dinner is ready"
+→ [{"type":"find_person","name":"Chiara","message":"dinner is ready"}]
+
+"Go to the kitchen"
+→ [{"type":"navigate_to","room":"kitchen"}]
+
+"Tell Abdel his coffee is cold"
+→ [{"type":"find_person","name":"Abdel","message":"your coffee is getting cold"}]
+
+"Patrol the apartment"
+→ [{"type":"patrol","rooms":[]}]
+
+"Find my keys in the bedroom"
+→ [{"type":"find_object","object":"keys","room":"bedroom"}]
+
+"Go to the living room and say good morning"
+→ [{"type":"navigate_to","room":"living_room"},{"type":"say","message":"good morning"}]
+
+"Come back"
+→ [{"type":"come_back"}]
+"""
 
 def parse_command(text):
     prompt = (
         '<start_of_turn>user\n' + PARSE_SYS +
-        '\nCommand: ' + text +
-        '<end_of_turn>\n<start_of_turn>model\n'
+        '\nCommand: "' + text + '"'
+        '<end_of_turn>\n<start_of_turn>model\n[' 
     )
     try:
         resp = requests.post(GEMMA_URL, json={
-            'prompt': prompt, 'n_predict': 200,
-            'temperature': 0.1, 'stop': ['<end_of_turn>']
-        }, timeout=15)
+            'prompt': prompt, 'n_predict': 300,
+            'temperature': 0.05, 'stop': ['<end_of_turn>', '\n\n']
+        }, timeout=20)
         raw = resp.json()['content']
+        # Model starts after [ which we injected
+        raw = '[' + raw
         s = raw.find('['); e = raw.rfind(']') + 1
         if s >= 0 and e > 0:
-            return json.loads(raw[s:e])
-    except:
-        pass
+            actions = json.loads(raw[s:e])
+            # Validate each action has required fields
+            valid = []
+            for a in actions:
+                if isinstance(a, dict) and 'type' in a:
+                    valid.append(a)
+            return valid
+    except Exception as ex:
+        print(f'[PARSE] Error: {ex}')
     return []
 
 # ── TTS ───────────────────────────────────────────────

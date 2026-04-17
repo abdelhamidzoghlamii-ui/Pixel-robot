@@ -143,36 +143,45 @@ JSON_SYS = (
 )
 
 JSON_TESTS = [
-    {
-        'cmd': 'Find Chiara and tell her dinner is ready',
-        'action': 'find_person', 'target': 'chiara',
-        'has_message': True
-    },
-    {
-        'cmd': 'Go to the kitchen',
-        'action': 'go_to_room', 'target': 'kitchen',
-        'has_message': False
-    },
-    {
-        'cmd': 'Tell Abdel his coffee is getting cold',
-        'action': 'find_person', 'target': 'abdel',
-        'has_message': True
-    },
-    {
-        'cmd': 'Patrol the apartment and come back',
-        'action': 'patrol',
-        'has_message': False
-    },
-    {
-        'cmd': 'Say good morning to everyone',
-        'action': 'say',
-        'has_message': True
-    },
-    {
-        'cmd': 'Go find my keys in the bedroom',
-        'action': 'go_to_room', 'target': 'bedroom',
-        'has_message': False
-    },
+    # find_person with message
+    {'cmd': 'Find Chiara and tell her dinner is ready',
+     'action': 'find_person', 'target': 'chiara', 'has_message': True},
+
+    # navigate_to room
+    {'cmd': 'Go to the kitchen',
+     'action': 'navigate_to', 'target': 'kitchen', 'has_message': False},
+
+    # find_person different phrasing
+    {'cmd': 'Tell Abdel his coffee is getting cold',
+     'action': 'find_person', 'target': 'abdel', 'has_message': True},
+
+    # patrol
+    {'cmd': 'Patrol the apartment',
+     'action': 'patrol', 'has_message': False},
+
+    # say
+    {'cmd': 'Say good morning to everyone',
+     'action': 'say', 'has_message': True},
+
+    # find_object
+    {'cmd': 'Find my keys in the bedroom',
+     'action': 'find_object', 'target': 'keys', 'has_message': False},
+
+    # come_back
+    {'cmd': 'Come back',
+     'action': 'come_back', 'has_message': False},
+
+    # chain navigate + say
+    {'cmd': 'Go to the living room and say hello',
+     'action': 'navigate_to', 'target': 'living_room', 'has_message': False},
+
+    # find person no message
+    {'cmd': 'Where is Chiara?',
+     'action': 'find_person', 'target': 'chiara', 'has_message': False},
+
+    # navigate bedroom
+    {'cmd': 'Go to the bedroom',
+     'action': 'navigate_to', 'target': 'bedroom', 'has_message': False},
 ]
 
 json_pass = 0
@@ -182,18 +191,23 @@ for i, test in enumerate(JSON_TESTS, 1):
     ok = False
     parsed = None
     try:
-        s = reply.find('{')
-        e = reply.rfind('}') + 1
+        s = reply.find('[')
+        e = reply.rfind(']') + 1
         if s >= 0:
-            parsed = json.loads(reply[s:e])
-            action_ok = parsed.get('action','').lower() == test['action']
-            target_ok = True
-            if 'target' in test:
-                target_ok = test['target'] in parsed.get('target','').lower()
-            msg_ok = True
-            if test['has_message']:
-                msg_ok = len(parsed.get('message','')) > 0
-            ok = action_ok and target_ok and msg_ok
+            actions = json.loads(reply[s:e])
+            if actions:
+                parsed = actions[0]
+                # Check action type
+                action_ok = parsed.get('action','').lower() == test['action']
+                # Check target if expected
+                target_ok = True
+                if 'target' in test:
+                    target_ok = test['target'] in parsed.get('target','').lower()
+                # Check message if expected
+                msg_ok = True
+                if test.get('has_message'):
+                    msg_ok = len(parsed.get('message','')) > 0
+                ok = action_ok and target_ok and msg_ok
     except:
         pass
     if ok:
