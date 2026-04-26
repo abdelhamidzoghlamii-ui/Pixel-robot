@@ -17,6 +17,9 @@ def start_server(model_path, port=8080, ctx=2048, extra_args=""):
         " -m " + model_path +
         " --port " + str(port) +
         " --ctx-size " + str(ctx) +
+        " --threads 4 --threads-batch 4" +
+        " --parallel 1" +
+        " --cache-ram 0" +
         " --host 127.0.0.1 " +
         extra_args +
         " 2>/dev/null &"
@@ -61,6 +64,18 @@ def start_setup(setup_name):
         start_server(
             HOME + "/models/gemma-4-e2b-it-q4_k_m.gguf",
             port=8080, ctx=2048
+        )
+    elif setup_name == "setup_voice_lora":
+        start_server(
+            HOME + "/models/gemma-4-e2b-it-q4_k_m.gguf",
+            port=8080, ctx=2048,
+            extra_args="--lora " + HOME + "/models/gemma4-voice-lora.gguf"
+        )
+    elif setup_name == "setup_nav_lora":
+        start_server(
+            HOME + "/models/gemma-4-e2b-it-q4_k_m.gguf",
+            port=8080, ctx=2048,
+            extra_args="--lora " + HOME + "/models/gemma4-nav-lora.gguf"
         )
     elif setup_name == "setup_c":
         return start_server(
