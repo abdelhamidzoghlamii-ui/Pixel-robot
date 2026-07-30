@@ -41,7 +41,7 @@ def start_server(model_path, port=8080, ctx=2048, extra_args=""):
         " --threads " + THREADS +
         " --threads-batch " + BATCH_THREADS +
         " --parallel 1" +
-        " --cache-ram 0" +
+        " --swa-full" +
         " --host 127.0.0.1 " +
         extra_args +
         " 2>/dev/null &"
