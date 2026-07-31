@@ -1,175 +1,108 @@
-import os, time, requests, sys
-sys.path.insert(0, '/data/data/com.termux/files/home/robot')
+import requests, time, subprocess, json
 
-def get_temp(zone=9):
+URL = 'http://127.0.0.1:8080/completion'
+
+# Battery temp thresholds (proxy for SoC — battery runs ~15-20°C cooler than CPU)
+# Battery 40°C ≈ SoC ~60°C | Battery 45°C ≈ SoC ~70°C | Battery 48°C ≈ SoC ~78°C
+SAFE_BATTERY = 43      # keep below this
+WARN_BATTERY = 46      # throttle warning
+CRITICAL     = 48      # stop
+
+SYS = "You are a robot navigation AI. Reply ONE word: FORWARD, LEFT, RIGHT, BACK, STOP. Then one short reason."
+SCENE = "Mission: find person. I see: hallway ahead. Distance: 200cm. What do you do?"
+
+def get_battery_temp():
     try:
-        return int(os.popen(f'su -c "cat /sys/class/thermal/thermal_zone{zone}/temp"').read().strip()) // 1000
+        out = subprocess.check_output(['termux-battery-status'], timeout=5)
+        return json.loads(out)['temperature']
     except:
-        return 0
+        return 0.0
 
-def get_all_temps():
-    zones = {'BIG':9, 'MID':10, 'LITTLE':11, 'GPU':12, 'BATTERY':25}
-    return {name: get_temp(zone) for name, zone in zones.items()}
-
-def llm_call():
+def infer():
+    prompt = f"<start_of_turn>user\n{SYS}\n\n{SCENE}<end_of_turn>\n<start_of_turn>model\n"
     t0 = time.time()
     try:
-        resp = requests.post('http://127.0.0.1:8080/completion', json={
-            'prompt': '<start_of_turn>user\nHallway ahead clear. Person center. Mission find Chiara. Last: FWD,FWD.<end_of_turn>\n<start_of_turn>model\n',
-            'n_predict': 20,
-            'temperature': 0.1,
-            'stop': ['<end_of_turn>']
+        r = requests.post(URL, json={
+            'prompt': prompt, 'n_predict': 30, 'temperature': 0.1,
+            'cache_prompt': True, 'stop': ['<end_of_turn>']
         }, timeout=30)
-        tok_s = resp.json()['timings']['predicted_per_second']
-        return round(time.time()-t0, 2), round(tok_s, 1)
+        d = r.json()
+        return d['timings']['predicted_per_second'], time.time()-t0
     except:
         return 0, 0
 
-def simulate_yolo():
-    """Simulate YOLO inference heat without actual model."""
-    time.sleep(0.7)  # realistic YOLO time
-
-def cool_down(seconds):
-    """Wait for cooling."""
-    time.sleep(seconds)
-
-def run_benchmark(cycle_rest, duration=120, label=""):
-    """
-    Run cycles for duration seconds with cycle_rest between each.
-    Returns performance and thermal stats.
-    """
-    print(f'\n{"="*55}')
-    print(f'  TEST: {label}')
-    print(f'  Cycle rest: {cycle_rest}s | Duration: {duration}s')
-    print(f'{"="*55}')
-
-    # Wait for stable start temp
-    print('  Waiting for stable temperature...')
-    while get_temp() > 45:
-        time.sleep(5)
-        print(f'  Cooling... {get_temp()}°C')
-
-    start_temp = get_temp()
-    print(f'  Start temp: {start_temp}°C')
-
-    start_time = time.time()
-    cycle = 0
+def test_rest(rest_time, cycles=15):
+    """Run N cycles with given rest time, track temp trajectory."""
+    print(f'\n  Testing REST={rest_time}s ({cycles} cycles)...')
     temps = []
-    tok_speeds = []
-    throttle_events = 0
-    max_temp = 0
+    speeds = []
+    start_temp = get_battery_temp()
 
-    while time.time() - start_time < duration:
-        cycle += 1
-        elapsed = round(time.time() - start_time, 1)
-
-        # Simulate YOLO
-        simulate_yolo()
-
-        # LLM call
-        llm_time, tok_s = llm_call()
-        if tok_s == 0:
-            print(f'  [{cycle:3d}] {elapsed}s — LLM failed')
-            continue
-
-        # Check temp
-        temp = get_temp()
+    for i in range(cycles):
+        tok_s, elapsed = infer()
+        temp = get_battery_temp()
         temps.append(temp)
-        tok_speeds.append(tok_s)
-        max_temp = max(max_temp, temp)
-
-        # Detect throttling (tok/s drops significantly)
-        if len(tok_speeds) > 3 and tok_s < (sum(tok_speeds[:3])/3 * 0.7):
-            throttle_events += 1
-
-        status = '🔴' if temp > 80 else '🟡' if temp > 65 else '🟢'
-        print(f'  [{cycle:3d}] {elapsed}s {status}{temp}°C | {tok_s}tok/s | {llm_time}s')
-
-        # Emergency stop
-        if temp > 88:
-            print(f'  🔴 EMERGENCY STOP: {temp}°C')
+        speeds.append(tok_s)
+        flag = ''
+        if temp >= CRITICAL: flag = ' 🔴 CRITICAL'
+        elif temp >= WARN_BATTERY: flag = ' 🟠 WARN'
+        elif temp >= SAFE_BATTERY: flag = ' 🟡'
+        print(f'    Cycle {i+1:2d}: {temp:.1f}°C | {tok_s:.1f} tok/s{flag}')
+        if temp >= CRITICAL:
+            print(f'    ⛔ Hit critical temp — stopping this test')
             break
+        time.sleep(rest_time)
 
-        # Cooling window
-        cool_down(cycle_rest)
-
-    duration_actual = round(time.time() - start_time, 1)
-    avg_temp = round(sum(temps)/len(temps)) if temps else 0
-    avg_tok  = round(sum(tok_speeds)/len(tok_speeds), 1) if tok_speeds else 0
-
-    result = {
-        'label':      label,
-        'rest':       cycle_rest,
-        'cycles':     cycle,
-        'duration':   duration_actual,
-        'avg_temp':   avg_temp,
-        'max_temp':   max_temp,
-        'avg_tok_s':  avg_tok,
-        'throttles':  throttle_events,
-        'cycles_min': round(cycle / (duration_actual/60), 1)
+    end_temp = get_battery_temp()
+    rise = end_temp - start_temp
+    return {
+        'rest': rest_time,
+        'start': start_temp,
+        'end': end_temp,
+        'max': max(temps),
+        'rise': rise,
+        'avg_speed': sum(speeds)/len(speeds),
+        'stable': max(temps) < WARN_BATTERY
     }
 
-    print(f'\n  RESULT:')
-    print(f'  Cycles: {cycle} ({result["cycles_min"]}/min)')
-    print(f'  Avg temp: {avg_temp}°C | Max: {max_temp}°C')
-    print(f'  Avg speed: {avg_tok} tok/s')
-    print(f'  Throttle events: {throttle_events}')
+print('='*58)
+print('  THERMAL BENCHMARK — Finding safe sustainable cycle time')
+print(f'  Safe<{SAFE_BATTERY}°C | Warn<{WARN_BATTERY}°C | Critical<{CRITICAL}°C (battery)')
+print('='*58)
 
-    return result
-
-# ── Main ──────────────────────────────────────────────
-print('='*55)
-print('  THERMAL SWEET SPOT BENCHMARK')
-print('  Finding optimal cycle rest time')
-print('  Each test runs 2 minutes')
-print('='*55)
-print('\nMake sure llama-server is running first!')
-print('Run: python3 server_manager.py setup_c')
-input('\nPress ENTER when server is ready...')
+start = get_battery_temp()
+print(f'\n  Starting battery temp: {start}°C')
+if start > 42:
+    print('  ⚠️  Phone already warm — let it cool a few min for accurate results')
 
 results = []
+# Test from fast (no rest) to slow (more rest between inferences)
+for rest in [0, 1, 2, 3]:
+    r = test_rest(rest, cycles=15)
+    results.append(r)
+    # Cool down between tests
+    print(f'    → max {r["max"]:.1f}°C, rise +{r["rise"]:.1f}°C, {r["avg_speed"]:.1f} tok/s')
+    print(f'    Cooling 30s before next test...')
+    time.sleep(30)
 
-# Test different rest times
-test_configs = [
-    (0.5,  '0.5s rest — aggressive'),
-    (1.0,  '1.0s rest — fast'),
-    (1.5,  '1.5s rest — balanced'),
-    (2.5,  '2.5s rest — motor simulation'),
-    (4.0,  '4.0s rest — conservative'),
-]
-
-for rest, label in test_configs:
-    result = run_benchmark(rest, duration=120, label=label)
-    results.append(result)
-    print(f'\n  Cooling 60s before next test...')
-    time.sleep(60)
-
-# Final comparison
-print(f'\n{"="*65}')
-print(f'  SWEET SPOT ANALYSIS')
-print(f'{"="*65}')
-print(f'  {"Rest":>6} {"Cycles/min":>11} {"Avg°C":>7} {"Max°C":>7} {"tok/s":>7} {"Throttles":>10}')
-print(f'  {"-"*63}')
-
-best_score = 0
-best_config = None
-
+print('\n' + '='*58)
+print('  SUMMARY — cycle rest time vs thermal')
+print('='*58)
+print(f'  {"Rest":>5} | {"Max°C":>6} | {"Rise":>6} | {"Speed":>6} | Verdict')
+print(f'  {"-"*5} | {"-"*6} | {"-"*6} | {"-"*6} | -------')
+best = None
 for r in results:
-    # Score = cycles per minute × speed / temperature penalty
-    temp_penalty = max(1, (r['avg_temp'] - 50) / 10)
-    score = (r['cycles_min'] * r['avg_tok_s']) / temp_penalty
-    
-    marker = ''
-    if score > best_score:
-        best_score = score
-        best_config = r
-        marker = ' ← SWEET SPOT'
-    
-    print(f'  {r["rest"]:>5}s {r["cycles_min"]:>10}/min {r["avg_temp"]:>6}°C {r["max_temp"]:>6}°C {r["avg_tok_s"]:>6} {r["throttles"]:>9}{marker}')
+    verdict = '✅ safe' if r['stable'] else '🔴 hot'
+    print(f'  {r["rest"]:>4}s | {r["max"]:>5.1f} | +{r["rise"]:>4.1f} | {r["avg_speed"]:>4.1f}t | {verdict}')
+    if r['stable'] and best is None:
+        best = r
 
-if best_config:
-    print(f'\n  RECOMMENDATION:')
-    print(f'  Cycle rest: {best_config["rest"]}s')
-    print(f'  Expected: {best_config["cycles_min"]} cycles/min')
-    print(f'  Sustained temp: {best_config["avg_temp"]}°C')
-    print(f'  Update CYCLE_MOVE_TIME = {best_config["rest"]} in main.py')
+print('='*58)
+if best:
+    print(f'  ✅ RECOMMENDED: {best["rest"]}s rest between Gemma calls')
+    print(f'     Keeps battery under {WARN_BATTERY}°C, {best["avg_speed"]:.1f} tok/s sustained')
+    cycle_total = 30/best['avg_speed'] + best['rest']
+    print(f'     Full nav cycle: ~{cycle_total:.1f}s ({60/cycle_total:.1f} cycles/min)')
+else:
+    print(f'  ⚠️  All tests ran hot — need more aggressive rest or cooling')
+print('='*58)
