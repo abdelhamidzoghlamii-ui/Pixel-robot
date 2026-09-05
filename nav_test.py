@@ -1,42 +1,35 @@
-import requests, time
+"""Exercises navigate_rules' safety branches directly. No motors, no server."""
+import sys
+sys.path.insert(0, "/data/data/com.termux/files/home/robot")
+import main as R
 
-SYSTEM = "You are a robot navigation controller. Always reply with exactly one word (FORWARD, LEFT, RIGHT, BACK, or LOOK) followed by one short reason. Never repeat instructions."
+def fresh():
+    r = R.Robot()          # no motors
+    r.last_moves = []
+    return r
 
-def test(label, situation):
-    prompt = (
-        "<|im_start|>system\n" + SYSTEM + "<|im_end|>\n"
-        "<|im_start|>user\n" + situation + "<|im_end|>\n"
-        "<|im_start|>assistant\n"
-    )
-    t0 = time.time()
-    resp = requests.post("http://127.0.0.1:8080/completion", json={
-        "prompt": prompt,
-        "n_predict": 40,
-        "temperature": 0.1,
-        "stop": ["<|im_end|>", "\n\n"]
-    }, timeout=60)
-    t = round(time.time() - t0, 2)
-    content = resp.json()["content"].strip()
-    print(f"\n[{label}] {t}s")
-    print(f"  Response: {repr(content[:100])}")
-    return t
+print(f"OBSTACLE_DIST = {R.OBSTACLE_DIST}\n")
 
-t1 = test("CLEAR PATH",
-    "Dist:45cm clear. Sees:hallway door-left. Mission:find kitchen. Last:FWD FWD.")
+print("=== single-shot: distance -> move (no history) ===")
+for d in (5, 14, 15, 20, 24, 25, 26, 100, 400, 999):
+    r = fresh()
+    m = r.navigate_rules([], d)
+    print(f"  dist {d:4}  ->  {m:<13} stuck={getattr(r,'nav_stuck',False)}")
 
-t2 = test("OBSTACLE",
-    "Dist:18cm blocked. Sees:chair ahead space-right. Mission:find Abdel. Last:FWD FWD FWD.")
+print("\n=== persistent blockage: 16 cycles at 20cm ===")
+print("   (feeding each returned move back into last_moves, as move() does)")
+r = fresh()
+for i in range(1, 17):
+    m = r.navigate_rules([], 20)
+    r.last_moves.append(m)
+    if len(r.last_moves) > 10:
+        r.last_moves.pop(0)
+    print(f"  cycle {i:2}  ->  {m:<13} side={r.avoid_side:<5} stuck={r.nav_stuck}")
 
-t3 = test("PERSON DETECTED",
-    "Dist:35cm clear. Sees:person on left. Mission:find Chiara. Last:FWD LOOK.")
-
-t4 = test("AFTER LOOK",
-    "Dist:35cm clear. LOOK result:woman dark hair on left. Mission:find Chiara. Last:FWD LOOK.")
-
-t5 = test("UNKNOWN ROOM",
-    "Dist:90cm clear. Sees:sofa TV open-room. Mission:find kitchen. Known:bedroom=right. Last:FWD RIGHT FWD.")
-
-print(f"\n=== TIMING SUMMARY ===")
-for label, t in [("Clear path",t1),("Obstacle",t2),("Person",t3),("After LOOK",t4),("Unknown room",t5)]:
-    print(f"  {label}: {t}s")
-print(f"  Average: {round((t1+t2+t3+t4+t5)/5,2)}s")
+print("\n=== blocked then cleared ===")
+r = fresh()
+seq = [20, 20, 20, 20, 20, 300, 300]
+for i, d in enumerate(seq, 1):
+    m = r.navigate_rules([], d)
+    r.last_moves.append(m)
+    print(f"  cycle {i}  dist {d:3}  ->  {m:<13} stuck={r.nav_stuck}")

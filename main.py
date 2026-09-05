@@ -21,7 +21,9 @@ CYCLE_MOVE_TIME  = 1.5   # seconds per move
 def get_temp():
     try:
         return int(os.popen('su -c "cat /sys/class/thermal/thermal_zone9/temp"').read().strip()) // 1000
-    except:
+    except KeyboardInterrupt:
+        raise
+    except Exception:
         return 0
 
 # ── Camera ────────────────────────────────────────────
@@ -83,13 +85,17 @@ def gemma_decide(context, image_path=None):
                 '<start_of_turn>user\n',
                 '<start_of_turn>user\n[img-1]\n'
             )
-        except:
+        except KeyboardInterrupt:
+            raise
+        except Exception:
             pass  # fall back to text only if image fails
 
     try:
         resp = requests.post(GEMMA_URL, json=payload, timeout=45)
         return resp.json()['content'].strip()
-    except:
+    except KeyboardInterrupt:
+        raise
+    except Exception:
         return 'FORWARD default'
 
 def gemma_identify(scene_desc, mission):
@@ -106,7 +112,9 @@ def gemma_identify(scene_desc, mission):
             'temperature': 0.1, 'stop': ['<end_of_turn>']
         }, timeout=30)
         return resp.json()['content'].strip()
-    except:
+    except KeyboardInterrupt:
+        raise
+    except Exception:
         return 'NO cannot connect'
 
 # ── Voice (Whisper) ───────────────────────────────────
@@ -255,32 +263,92 @@ class Robot:
             self.last_moves.pop(0)
 
     def get_distance(self):
-        if self.motors:
-            return self.motors.get_distance()
-        return 999
+        """cm ahead. 999 = no usable reading (treated as clear).
+        Firmware sends -1 for no echo, i.e. nothing within ~4m."""
+        if not self.motors:
+            return 999
+        d = self.motors.get_distance()
+        if time.time() - self.motors.state.get("dist_at", 0) > 1.0:
+            return 999          # stale or never received
+        if d < 0:
+            return 400          # no echo = clear to sensor max range
+        return d
 
     def navigate_rules(self, results, distance):
-        """Fast Python navigation — no LLM."""
-        # Safety first
-        if distance < 15:
-            return 'BACK'
-        if distance < OBSTACLE_DIST:
-            return 'LEFT'
+        """Fast Python navigation — no LLM. Owns safety; Gemma never overrides.
 
-        # Person found — move toward them
+        Blocked path: strafe first (mecanum holds heading, so YOLO keeps the
+        same view), rotate on axis if strafing isn't clearing it, and set
+        nav_stuck so run_cycle hands the strategy call to Gemma.
+        """
+        self.nav_stuck = False
+        if not hasattr(self, 'avoid_side'):
+            self.avoid_side = 'LEFT'
+        if not hasattr(self, 'blocked_n'):
+            self.blocked_n = 0
+        if not hasattr(self, 'asked_gemma'):
+            self.asked_gemma = False
+        if not hasattr(self, 'blocked_since'):
+            self.blocked_since = None
+
+        ESCAPE_TIMEOUT = 60.0   # s of continuous blockage before giving up
+
+        if distance < OBSTACLE_DIST and self.blocked_since is None:
+            self.blocked_since = time.time()
+
+        # Very close: rotate to sweep the sensor, but give up on the same
+        # timeout as the main ladder rather than turning forever.
+        if distance < 15:
+            self.blocked_n += 1
+            if time.time() - self.blocked_since >= ESCAPE_TIMEOUT:
+                print(f'  [NAV] cornered for {ESCAPE_TIMEOUT:.0f}s — giving up')
+                return 'STOP'
+            return self.avoid_side
+
+        # ── Safety ──────────────────────────────────────────
+        if distance < OBSTACLE_DIST:
+            self.blocked_n += 1
+            n = self.blocked_n
+
+            if n <= 2:                      # strafe — holds heading for YOLO
+                return 'STRAFE_' + self.avoid_side
+            if n <= 6:                      # sweep this side, sensor leads
+                return self.avoid_side
+            if n == 7:                      # committed flip, ask Gemma once
+                self.avoid_side = 'RIGHT' if self.avoid_side == 'LEFT' else 'LEFT'
+                if not self.asked_gemma:
+                    self.nav_stuck = True
+                    self.asked_gemma = True
+                return self.avoid_side
+            if n <= 13:                     # sweep back through and past centre
+                return self.avoid_side
+
+            # A full sweep found nothing. Keep trying until the timeout, then
+            # declare defeat rather than spinning indefinitely.
+            if time.time() - self.blocked_since < ESCAPE_TIMEOUT:
+                self.blocked_n = 0          # restart the ladder
+                return 'STRAFE_' + self.avoid_side
+            print(f'  [NAV] boxed in for {ESCAPE_TIMEOUT:.0f}s — giving up')
+            return 'STOP'
+
+        # path is clear — reset the avoidance state machine
+        self.blocked_n = 0
+        self.asked_gemma = False
+        self.blocked_since = None
+
+        # ── Person ──────────────────────────────────────────
         labels = [r[0] for r in results]
         if 'person' in labels:
+            for r in results:
+                if r[0] == 'person':
+                    dist_est = estimate_distance_single('person', r[7])
+                    if dist_est and dist_est < PERSON_STOP_DIST:
+                        return 'STOP'
             direction = person_direction(results)
             if direction:
-                # Check if close enough
-                for r in results:
-                    if r[0] == 'person':
-                        dist_est = estimate_distance_single('person', r[7])
-                        if dist_est and dist_est < PERSON_STOP_DIST:
-                            return 'STOP'
                 return direction
 
-        # Room detection
+        # ── Room signature ──────────────────────────────────
         if 'refrigerator' in labels:
             room = 'kitchen'
         elif 'couch' in labels or 'tv' in labels:
@@ -297,7 +365,6 @@ class Robot:
             print(f'  [MAP] Found: {room}')
 
         return 'FORWARD'
-
     def gemma_context(self, scene):
         last5 = self.scene_log[-5:] if self.scene_log else ['none']
         return (
@@ -345,7 +412,14 @@ class Robot:
         new_room      = len(self.known_rooms) > getattr(self, '_prev_rooms', 0)
         self._prev_rooms = len(self.known_rooms)
 
-        use_gemma  = every_3 or every_5 or person_found or goal_reached or new_room
+        # DECISIONS #19: Python owns safety. A safety move is never handed to
+        # Gemma, so the model cannot override an obstacle stop.
+        safety_move = move in ('BACK', 'LEFT', 'RIGHT',
+                               'STRAFE_LEFT', 'STRAFE_RIGHT')
+        stuck       = getattr(self, 'nav_stuck', False)
+
+        use_gemma  = (every_3 or every_5 or person_found or goal_reached
+                      or new_room or stuck) and not (safety_move and not stuck)
         use_vision = every_5 or person_found or goal_reached or new_room
 
         if use_gemma and self.mission:
@@ -355,13 +429,15 @@ class Robot:
             if person_found: trigger.append('person')
             if goal_reached: trigger.append('goal')
             if new_room:     trigger.append('new_room')
+            if stuck:        trigger.append('stuck')
             print(f'  [GEMMA] Consulting ({"+".join(trigger)})...')
             context = self.gemma_context(scene)
             response = gemma_decide(context, image_path=path if use_vision else None)
             print(f'  [GEMMA] {response}')
             words = response.upper().split()
             for w in words:
-                if w in ['FORWARD','LEFT','RIGHT','BACK','STOP','SPEAK']:
+                if w in ['FORWARD','LEFT','RIGHT','BACK','STOP','SPEAK',
+                         'STRAFE_LEFT','STRAFE_RIGHT']:
                     move = w
                     break
             if move == 'SPEAK':
