@@ -1,0 +1,47 @@
+{
+  "setup": "setup_d",
+  "timestamp": "2026-04-09 01:14",
+  "tests": [
+    {
+      "label": "easy",
+      "command": "Go to the kitchen and tell Chiara dinner is ready",
+      "actions": [
+        {
+          "type": "navigate_to",
+          "field": "kitchen"
+        },
+        {
+          "type": "say",
+          "field": "Chiara dinner is ready"
+        }
+      ],
+      "json_raw": "[\n  {\"type\": \"navigate_to\", \"field\": \"kitchen\"},\n  {\"type\": \"say\", \"field\": \"Chiara dinner is ready\"}\n]",
+      "json_ok": true,
+      "t_llm": 9.84,
+      "t_vision": 0,
+      "t_total": 9.84,
+      "vision_result": "n/a"
+    },
+    {
+      "label": "hard",
+      "command": "Find Abdel and tell him that Chiara needs help in the kitchen as soon as possible",
+      "actions": [
+        {
+          "type": "find_person",
+          "field": "Abdel"
+        },
+        {
+          "type": "say",
+          "field": "Chiara needs help in the kitchen as soon as possible"
+        }
+      ],
+      "json_raw": "[\n  {\"type\": \"find_person\", \"field\": \"Abdel\"},\n  {\"type\": \"say\", \"field\": \"Chiara needs help in the kitchen as soon as possible\"}\n]",
+      "json_ok": true,
+      "t_llm": 9.03,
+      "t_vision": 9.28,
+      "t_total": 18.31,
+      "vision_result": "detected=True pos=left | The person is positioned on the left side of the frame and appears to be a woman"
+    }
+  ],
+  "false_positive": "detected=False conf=0.0"
+}

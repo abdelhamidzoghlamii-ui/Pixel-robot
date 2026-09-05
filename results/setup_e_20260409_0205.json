@@ -1,0 +1,51 @@
+{
+  "setup": "setup_e",
+  "timestamp": "2026-04-09 02:05",
+  "tests": [
+    {
+      "label": "easy",
+      "command": "Go to the kitchen and tell Chiara dinner is ready",
+      "actions": [
+        {
+          "type": "find_person",
+          "name": "Chiara"
+        },
+        {
+          "type": "say",
+          "message": "Dinner is ready, Chiara!"
+        },
+        {
+          "type": "navigate_to",
+          "room": "kitchen"
+        }
+      ],
+      "json_raw": "[{ \"type\": \"find_person\", \"name\": \"Chiara\" }, { \"type\": \"say\", \"message\": \"Dinner is ready, Chiara!\" }, { \"type\": \"navigate_to\", \"room\": \"kitchen\" }]",
+      "json_ok": true,
+      "t_llm": 4.52,
+      "t_vision": 1.3,
+      "t_total": 5.82,
+      "vision_result": "detected=True conf=0.93 pos=left"
+    },
+    {
+      "label": "hard",
+      "command": "Find Abdel and tell him that Chiara needs help in the kitchen as soon as possible",
+      "actions": [
+        {
+          "type": "find_person",
+          "name": "Abdel"
+        },
+        {
+          "type": "say",
+          "message": "Chiara needs help in the kitchen. Please go there as soon as possible."
+        }
+      ],
+      "json_raw": "[{ \"type\": \"find_person\", \"name\": \"Abdel\" }, { \"type\": \"say\", \"message\": \"Chiara needs help in the kitchen. Please go there as soon as possible.\" }]",
+      "json_ok": true,
+      "t_llm": 2.94,
+      "t_vision": 0.89,
+      "t_total": 3.84,
+      "vision_result": "detected=True conf=0.93 pos=left"
+    }
+  ],
+  "false_positive": "detected=False conf=0.0 pos=unknown"
+}

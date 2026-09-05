@@ -1,0 +1,63 @@
+{
+  "setup": "setup_f",
+  "timestamp": "2026-04-09 01:25",
+  "tests": [
+    {
+      "label": "easy",
+      "command": "Go to the kitchen and tell Chiara dinner is ready",
+      "actions": [
+        {
+          "type": "navigate_to",
+          "room": "kitchen"
+        },
+        {
+          "type": "find_person",
+          "name": "Chiara"
+        },
+        {
+          "type": "say",
+          "message": "Dinner is ready."
+        }
+      ],
+      "json_raw": "[\n  {\n    \"type\": \"navigate_to\",\n    \"room\": \"kitchen\"\n  },\n  {\n    \"type\": \"find_person\",\n    \"name\": \"Chiara\"\n  },\n  {\n    \"type\": \"say\",\n    \"message\": \"Dinner is ready.\"\n  }\n]",
+      "json_ok": true,
+      "t_llm": 37.0,
+      "t_vision": 1.44,
+      "t_total": 38.44,
+      "vision_result": "detected=True conf=0.93 pos=left"
+    },
+    {
+      "label": "hard",
+      "command": "Find Abdel and tell him that Chiara needs help in the kitchen as soon as possible",
+      "actions": [
+        {
+          "type": "find_person",
+          "field": "name",
+          "value": "Abdel"
+        },
+        {
+          "type": "say",
+          "field": "message",
+          "value": "Chiara needs help in the kitchen as soon as possible."
+        },
+        {
+          "type": "find_person",
+          "field": "name",
+          "value": "Abdel"
+        },
+        {
+          "type": "navigate_to",
+          "field": "room",
+          "value": "kitchen"
+        }
+      ],
+      "json_raw": "[\n  {\"type\": \"find_person\", \"field\": \"name\", \"value\": \"Abdel\"},\n  {\"type\": \"say\", \"field\": \"message\", \"value\": \"Chiara needs help in the kitchen as soon as possible.\"},\n  {\"type\": \"find_person\", \"fiel",
+      "json_ok": true,
+      "t_llm": 32.97,
+      "t_vision": 1.34,
+      "t_total": 34.31,
+      "vision_result": "detected=True conf=0.93 pos=left"
+    }
+  ],
+  "false_positive": "detected=False conf=0.0 pos=unknown"
+}
