@@ -13,3 +13,10 @@ incomplete review honestly. Wait for the human's explicit commit decision after
 Local AI discussion. Reviewer approval is never commit authority. New candidate
 changes require new review. Commit only approved files; push needs separate
 authorization. Send evidence-backed DOC DIFFs to Doc Keeper.
+
+The same Debian account has verified GitHub authentication and push access; see
+`WORKFLOW.md` under "GitHub access verified". After the required review and human
+commit decision, you can perform the approved local commit yourself. With separate
+push authorization, publish it to GitHub and return the commit hash, push result,
+and final Git status. Do not ask the human to run Git solely because you assume
+phone agents lack GitHub access.

@@ -118,3 +118,22 @@ exact frozen candidate to protect the live worktree. Isolation is not an enforce
 read-only sandbox. Authentication, quota, model, or permission failures mean
 incomplete review, never a pass. Sources: [permissions](https://antigravity.google/docs/cli/permissions/)
 and [sandbox](https://antigravity.google/docs/cli/sandbox/).
+
+## GitHub access verified
+
+GitHub CLI authentication in Debian completed as `abdelhamidzoghlamii-ui`.
+The phone executor successfully pushed commit `053d5a5` to `origin/main` at
+`https://github.com/abdelhamidzoghlamii-ui/Pixel-robot.git`.
+
+Coder and Doc Keeper sessions using this same Debian account can make local Git
+commits and push authorized commits to GitHub, subject to their tool permissions
+and valid credentials. Other accounts or environments do not inherit this access
+automatically. A Git commit is local; a push publishes it to GitHub.
+
+Local AI should ask the phone executor to perform authorized Git operations and
+return the commit hash, push output, and final Git status. The online planning
+thread does not gain phone access or visibility into unpushed work from this login.
+Authentication establishes capability, not blanket authorization: Coder still
+needs independent review and the human's commit decision; Doc Keeper commits
+approved documentation; pushes require separate human authorization. Reviewer
+remains read-only. If credentials fail, report the failure without exposing tokens.

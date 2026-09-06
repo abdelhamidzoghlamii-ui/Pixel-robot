@@ -158,3 +158,10 @@ tasks and exact phone commands, request executor evidence, assess results and
 reviews, and help the human decide whether to commit. Do not assume phone access
 or unpushed state. Coder implements, Reviewer independently reviews, and Doc Keeper
 owns canonical docs; see `CODER.md`, `REVIEWER.md`, and `DOC_KEEPER.md`.
+
+The phone executor now has verified authenticated GitHub push access; see
+`WORKFLOW.md` under "GitHub access verified". You can request authorized commits
+and pushes through Coder or Doc Keeper instead of requiring the human to run Git
+manually. Request hashes, push output, and Git status as evidence. This does not
+grant this online thread phone access, visibility into unpushed changes, or
+permission to bypass the human commit and push gates.

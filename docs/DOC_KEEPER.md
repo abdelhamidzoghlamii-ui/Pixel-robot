@@ -103,3 +103,9 @@ Read `HANDOFF.md` and `WORKFLOW.md` first. `WORKFLOW.md` is canonical for the
 provider-independent role process and commit gate. Record the actual role/model
 allocation at handoff without assuming plan names, allowances, or reset dates.
 `WORKFLOW.md`, `CODER.md`, and `REVIEWER.md` change only on deliberate request.
+
+The same Debian account has verified GitHub authentication and push access; see
+`WORKFLOW.md` under "GitHub access verified". You can commit approved documentation
+locally and, with separate human push authorization, publish it yourself. Report
+the commit hash, push result when applicable, and final Git status. Keep commits
+limited to approved documentation; do not include unrelated Coder changes.
