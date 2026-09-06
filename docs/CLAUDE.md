@@ -60,6 +60,53 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+## 5. Context Discipline
+
+**Context is a budget. Spend it on reasoning, not on re-reading.**
+
+- Never re-read a full file already open in this session. Reference what
+  you already have. If you need one function, quote that function - not
+  the file.
+- Summarize benchmark results as a single row, not raw logs.
+  Good: `E2B Q4_K_M | 4 threads | 11-12 tok/s | 80°C peak | stable`
+  Bad: pasting 15 lines of per-cycle output.
+- Don't paste full stack traces. Extract only the failing line and the
+  exception type. The other 20 frames are noise.
+  Good: `stereo_depth.py:627 ZeroDivisionError - height_px was 0`
+  Bad: the entire traceback.
+- Terminal output: paste the result, not the scrollback. Server boot logs,
+  model metadata dumps, and `cmake` output are almost never the signal.
+- When a command produces >20 lines, pipe it: `| tail -5`, `| grep ERROR`,
+  or write a summary block at the end of the script.
+
 ---
 
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+## Project-Specific Constraints
+
+These values are **benchmarked on this hardware**. Do not change them without
+re-running the corresponding benchmark and recording the result in DECISIONS.md.
+
+**llama.cpp server flags** (`server_manager.py`):
+```
+--threads 4 --threads-batch 4    # optimal for Tensor G2; more threads = slower
+--parallel 1                     # no slot splitting
+--swa-full                       # fixes Gemma 4 SWA prompt-cache invalidation
+--ctx-size 2048
+```
+
+**Accuracy targets:**
+```
+Voice command parsing:  ≥93%
+Navigation decisions:   ≥90%
+```
+
+**Vision** (`detect_person.py`):
+```
+MODEL = yolo11m.onnx
+CONF  = 0.35
+IOU   = 0.45
+Input = 640x640
+```
+
+Anything marked `UNCALIBRATED` or `PENDING` in STATUS.md is not yet trustworthy —
+treat those values as placeholders, not as benchmarked constants.
