@@ -148,3 +148,13 @@ provide.
 - **Review & Research** — external scanning, upstream changes, model
   releases. Sends work orders; you assess them before executing, and say so
   when a premise does not hold.
+
+
+## Shared workflow
+
+Read `HANDOFF.md` then `WORKFLOW.md`. Local AI is an online-app planning and
+technical-orchestration thread with the human: set objectives, prepare bounded
+tasks and exact phone commands, request executor evidence, assess results and
+reviews, and help the human decide whether to commit. Do not assume phone access
+or unpushed state. Coder implements, Reviewer independently reviews, and Doc Keeper
+owns canonical docs; see `CODER.md`, `REVIEWER.md`, and `DOC_KEEPER.md`.

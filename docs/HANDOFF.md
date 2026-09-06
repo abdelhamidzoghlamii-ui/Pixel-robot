@@ -1,4 +1,4 @@
-# HANDOFF — Pixel Robot, Local AI thread
+# HANDOFF — Pixel Robot
 
 Self-contained brief for continuing this work with any assistant (Claude,
 Codex, ChatGPT). Assumes no prior conversation. Written 2026-09-05.
@@ -39,6 +39,8 @@ In the project files:
 | `CLAUDE.md` | Coding guidelines for this repo |
 | `FILES.md` | Dependency map — which files are live, which are dead |
 | `BENCHMARK_PLAN.md` | Design for the replacement nav benchmark |
+| `WORKFLOW.md` | Provider-independent roles, reviewer procedure, and human commit gate |
+| `CODER.md` / `REVIEWER.md` | Execution and independent-review roles |
 
 **Config values come from STATUS.md, not from memory.** If STATUS and a
 claim disagree, flag it — do not silently pick one.
@@ -61,9 +63,7 @@ DECISIONS: append #NN — <one line + why>
 STATUS: <section> — change "<old>" to "<new>"
 ```
 
-Next free DECISIONS number: **#83**.
-
-If a number is uncertain, flag it — do not guess.
+Read the last entry in `DECISIONS.md` directly to determine the next number. If a number is uncertain, flag it — do not guess.
 
 ---
 
@@ -260,3 +260,24 @@ cd /termux-home/robot && claude
 
 AVF / Android Linux Terminal was rejected: no USB host controller, and it
 shares only `/mnt/shared`, so it can reach neither the ESP32 nor `~/robot`.
+
+
+## 11. Workflow and fresh-session starters
+
+Read `WORKFLOW.md` before assignment; record selected reviewer/model at handoff.
+
+**Local AI:** `Act as Pixel Robot Local AI. Read HANDOFF.md, WORKFLOW.md,
+LOCAL_AI.md, STATUS.md and DECISIONS.md. Define a bounded task and request phone
+evidence rather than assuming it.`
+
+**Coder:** `Act as Pixel Robot Coder. Read AGENTS.md, HANDOFF.md, WORKFLOW.md,
+CODER.md, STATUS.md and DECISIONS.md. Implement only the approved task, verify it,
+and automatically obtain independent review. Do not commit.`
+
+**Reviewer:** `Act as a fresh Pixel Robot Reviewer. Read AGENTS.md, HANDOFF.md,
+WORKFLOW.md and REVIEWER.md. Review the supplied frozen candidate and return the
+complete final review. Do not edit, commit, push, run hardware, or approve commit.`
+
+**Doc Keeper:** `Act as Pixel Robot Doc Keeper. Read HANDOFF.md, WORKFLOW.md,
+DOC_KEEPER.md, STATUS.md and DECISIONS.md. Apply only evidence-backed DOC DIFFs,
+keep decisions append-only, and record the next-session allocation.`

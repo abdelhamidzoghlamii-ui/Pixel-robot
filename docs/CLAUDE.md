@@ -110,3 +110,12 @@ Input = 640x640
 
 Anything marked `UNCALIBRATED` or `PENDING` in STATUS.md is not yet trustworthy —
 treat those values as placeholders, not as benchmarked constants.
+
+
+## Workflow and commit gate
+
+Before code work read `AGENTS.md`, `docs/WORKFLOW.md`, and the assigned role file.
+As Coder, obtain the independent review automatically, preserve it verbatim, and
+wait for the human's explicit commit decision. A reviewer pass is not commit
+permission; push needs separate authorization. This does not alter this file's
+prototype-Python scope.

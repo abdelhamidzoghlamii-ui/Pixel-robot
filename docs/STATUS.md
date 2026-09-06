@@ -182,12 +182,13 @@ shape — 109 tokens on the first call, 18-22 thereafter.
   `get_temp.py`, `thermal_guard.py`, `server_manager.py` (nothing starts the
   server programmatically). `mission_test.py` predates the current `Robot` API
   and is probably broken.
-- **Orphaned files resolved (DECISIONS #84).** Removed: `detect_scene.py`,
+- **Orphaned-file deletion deferred (DECISIONS #85).** `detect_scene.py`,
   `llm.py`, `voice.py`, `ch340_test.py`, `thermal_benchmark.py`,
-  `thermal_benchmark2.py`, `quality_benchmark.py`. Kept deliberately: `nav_sim.py`
-  (#23), `get_temp.py`/`thermal_guard.py` (#75), `mission_test.py` (only
-  `SimulatedMotors`-stub harness, #81 needs this shape). `git rm` only — history
-  not rewritten. 420 MB of unused ONNX models untouched, staying.
+  `thermal_benchmark2.py`, and `quality_benchmark.py` remain tracked and present.
+  DECISIONS #84's stated `git rm` did not occur in the checked repository; retain
+  all seven until an explicit future removal task. `nav_sim.py` (#23),
+  `get_temp.py`/`thermal_guard.py` (#75), and `mission_test.py` remain deliberately
+  kept. 420 MB of unused ONNX models remains untouched.
 - **`get_temp()` pause threshold >80 °C is far below the operating band.**
   Measured 97-101 °C sustained under inference, 31-38 °C idle; the kernel's own
   passive trip for zone9 is 100 °C, so the chip runs in equilibrium at its designed

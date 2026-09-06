@@ -95,3 +95,11 @@ steps that succeeded.
 
 Each role that has its own `/docs/<ROLE>.md` file defines its scope in more
 depth than the one-line summaries above.
+
+
+## Shared workflow
+
+Read `HANDOFF.md` and `WORKFLOW.md` first. `WORKFLOW.md` is canonical for the
+provider-independent role process and commit gate. Record the actual role/model
+allocation at handoff without assuming plan names, allowances, or reset dates.
+`WORKFLOW.md`, `CODER.md`, and `REVIEWER.md` change only on deliberate request.

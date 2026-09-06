@@ -231,3 +231,12 @@ DOC DIFF format:
 DECISIONS: append #NN — <one line + why>
 APP_STATUS: <section> — change "<old>" to "<new>"
 ```
+
+
+## 11. Workflow and commit gate
+
+Read `AGENTS.md`, `docs/WORKFLOW.md`, and the assigned role file before work. The
+Coder obtains a fresh independent review and waits for the human's explicit commit
+decision after Local AI discussion. A pass is not commit permission; push needs
+separate authorization. This supplements, and does not weaken, §0.4's wheel-motion
+review requirement.

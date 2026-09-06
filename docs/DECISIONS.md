@@ -561,3 +561,19 @@ Format: `NN. [area] decision — why`
     `mission_test.py` is kept because it is the only harness driving `Robot` via a
     `SimulatedMotors` stub — the shape #81's outstanding `run_cycle`-level test
     needs. `git rm` only; history is not rewritten, so removal is reversible.
+
+
+## Workflow
+
+85. **Defer the #84 orphan-file deletion — the seven named files remain tracked and
+    present** — a direct Git audit found `detect_scene.py`, `llm.py`, `voice.py`,
+    `ch340_test.py`, `thermal_benchmark.py`, `thermal_benchmark2.py`, and
+    `quality_benchmark.py` physically present and tracked, with no staged or
+    unstaged deletion and no reachable deletion commit. Supersedes only #84's
+    removal claim: retain all seven until a separate explicit removal task is
+    approved. The files remain superseded/orphaned as documented in `FILES.md`.
+86. **Use a provider-independent Coder → independent Reviewer → human commit gate
+    for code changes** — Local AI and the human define the task; the Coder verifies
+    and automatically obtains a fresh Reviewer response; the human decides whether
+    to commit after Local AI discussion. A reviewer pass is not commit authority;
+    changed candidates require a new review and push always needs separate approval.

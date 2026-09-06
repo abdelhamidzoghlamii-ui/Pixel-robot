@@ -528,3 +528,17 @@ su -c "LD_LIBRARY_PATH=/data/data/com.termux/files/usr/lib \
 python3 identify_it1.py run130.csv 130
 # sanity-check: if K says 40 cm/s, a 2s run should have covered ~80cm
 ```
+
+
+## 11. Agent role sessions
+
+Read `AGENTS.md`, `WORKFLOW.md`, and the role document first. From native Termux:
+```bash
+proot-distro login debian --bind /data/data/com.termux/files/home:/termux-home
+```
+Inside Debian, choose one session: `cd /termux-home/robot && codex`,
+`cd /termux-home/robot && /root/.local/bin/agy`, or
+`cd /termux-home/robot && claude`. They are alternatives: use another terminal or
+exit the current agent first. The two repository paths are the same bind-mounted
+files. AGY 1.1.27 and `gemini-3.1-pro-high` started here; see `WORKFLOW.md` for
+headless review and its current read-only limitation.
