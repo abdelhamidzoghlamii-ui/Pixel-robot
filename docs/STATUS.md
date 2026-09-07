@@ -10,8 +10,9 @@ driving 4 mecanum motors. Phone ↔ ESP32 over USB serial.
 
 **Currently flashed:** `mode2_auto.ino`, the corrected build (DECISIONS #43 corner
 map, `HAS_ULTRASONIC 1`, diagonals, 115200, `WATCHDOG_MS` 1000). `mode1_simple.ino`
-is the standalone softAP teleop sketch and is not on the board — the two firmwares
-are mutually exclusive on one ESP32.
+is the standalone softAP teleop sketch and is not on the board. (Note: zero `.ino` files
+are tracked in this repository. The corrected flashed `mode2_auto.ino` reportedly exists
+only on the laptop and must not be reconstructed or reflashed from documentation).
 
 **Entry point:** `run_mission.py` runs autonomous. `main.py.__main__` only runs a
 single test cycle against a photo with no motors attached; it does not run missions.
@@ -66,7 +67,7 @@ camera photo → YOLO detect_scene → navigate_rules (pure Python, instant)
 
 **Gemma trigger conditions** (`run_cycle`, any one fires a call):
 `cycle % GEMMA_INTERVAL(10) == 0` · `cycle % 5 == 0` · person detected ·
-move == STOP · a new room was just mapped. Vision (image attached) is sent only on
+move == STOP · a new room was just mapped · `nav_stuck` is set (Open defect: when stuck is true, Gemma can currently override a safety move). Vision (image attached) is sent only on
 the `every_5` / person / goal / new_room subset.
 
 ## Known-good config (as coded)
@@ -128,7 +129,7 @@ shape — 109 tokens on the first call, 18-22 thereafter.
 - Voice pipeline end to end: record → Whisper → Gemma JSON parse → TTS.
 - Root restored on Android 17; real SoC temps readable (zone9 BIG / 10 MID /
   11 LITTLE / 12 GPU / 14 TPU / 22 battery).
-- **Mode 1 teleop — ESP32 standalone** (`mode1_simple.ino`, project files): softAP "MecanumBot"
+- **Mode 1 teleop — ESP32 standalone** (`mode1_simple.ino`, not tracked in this repository): softAP "MecanumBot"
   → web UI at http://192.168.4.1. Mecanum mixing, live HC-SR04 readout, forward
   blocked under 25cm, 600ms no-command stop failsafe. Phone and AI not required —
   ESP32 standalone.
@@ -166,12 +167,9 @@ shape — 109 tokens on the first call, 18-22 thereafter.
   (`log_run.py`, `identify_it1.py`) and validated on synthetic data, but no run
   against a wall has been taken. K_I will also drift as the pack sags from 8.2V
   toward cutoff — unmeasured.
-- **The `mode2_auto.ino` copy in project files is the pre-correction build** —
-  `BAUD` 9600, `INVERT` all false, `FL`/`RL` on the superseded #40 mapping,
-  `WATCHDOG_MS` 5000, `HAS_ULTRASONIC` 0, no diagonals. It is NOT what is flashed;
-  at 9600 the 115200 link would not round-trip and `DIST:` would not flow. Do not
-  reflash from it — the corrected build lives on the laptop and has not been
-  uploaded.
+- **The `.ino` files are not available in GitHub.** The tracked repository contains zero `.ino` files.
+  The corrected flashed `mode2_auto.ino` reportedly exists only on the laptop and must not
+  be reconstructed or reflashed from documentation. DO NOT FLASH any recovered versions of these files.
 - **`BACK_R` diagonal drove one wheel instead of two.** Observed before the
   corner-map correction (#49); not re-tested since.
 - **Mecanum vx-sign flip unverified under current wiring.** Last confirmed live

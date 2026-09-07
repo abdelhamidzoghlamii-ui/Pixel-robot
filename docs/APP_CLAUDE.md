@@ -127,7 +127,7 @@ needs hardware, stop and hand off. Never simulate it and report success.
 ## 5. Context discipline
 
 - Do not re-read a file already open in this session.
-- Benchmarks as one row: `E2B Q4_K_M | 4 threads | 11-12 tok/s | 80C peak | stable`
+- Benchmarks as one row: `E2B Q4_K_M | 4 threads | 11-12 tok/s | thermal=PENDING`
 - Stack traces as the failing line and exception type only.
 - Terminal output: the result, not the scrollback. Gradle sync logs are noise.
 - Any command producing more than 20 lines gets piped: `| tail -5`, `| grep -i error`.

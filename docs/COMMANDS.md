@@ -198,7 +198,7 @@ self-clear; if it doesn't, unplug and replug the ESP32.
 
 **`NoBackendError`** = not running under root, or `LD_LIBRARY_PATH` unset. See §0.
 
-### Serial protocol (firmware `mode2_auto.ino`)
+### Serial protocol (firmware `mode2_auto.ino`, not tracked in this repository)
 
 ```
 in :  FORWARD:<spd>  BACK:<spd>  LEFT:<spd>  RIGHT:<spd>      (LEFT/RIGHT = strafe)
@@ -504,7 +504,7 @@ ROM bootloader banner then `READY`; send `PING` with line ending set to Newline,
 expect `ALIVE`. If the banner appears but `READY` does not, the sketch is not the
 one you think you flashed.
 
-**Current firmware constants** (`mode2_auto.ino`):
+**Current firmware constants** (`mode2_auto.ino`, not tracked in this repository):
 ```
 BAUD            115200
 WATCHDOG_MS     1000        paired with motors.py's 200ms keepalive

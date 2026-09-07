@@ -68,7 +68,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   you already have. If you need one function, quote that function - not
   the file.
 - Summarize benchmark results as a single row, not raw logs.
-  Good: `E2B Q4_K_M | 4 threads | 11-12 tok/s | 80°C peak | stable`
+  Good: `E2B Q4_K_M | 4 threads | 11-12 tok/s | thermal=PENDING`
   Bad: pasting 15 lines of per-cycle output.
 - Don't paste full stack traces. Extract only the failing line and the
   exception type. The other 20 frames are noise.
