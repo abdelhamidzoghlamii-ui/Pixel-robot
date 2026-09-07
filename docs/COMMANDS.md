@@ -430,21 +430,56 @@ Then confirm with the port check in §0 — do not trust the kill itself.
 
 ---
 
-## 9. Housekeeping
+## 9. Housekeeping and recovery
 
 ```bash
 ls -lh ~/models/*.gguf | awk '{print $5, $9}'
 ls ~/robot/*.py | xargs -n1 basename
 df -h /data | tail -1
 git -C ~/llama.cpp rev-parse --short HEAD
-cd ~/robot && git add -A && git commit -m "msg" && git push
+git -C ~/robot rev-parse HEAD
+git -C ~/robot status --short --branch
 ```
 
-**Binary rollback** (if a llama.cpp rebuild goes wrong):
+Git commit and push operations follow [WORKFLOW.md](WORKFLOW.md): stage only the
+approved files, obtain the required independent review and human commit decision
+for code, and request separate push authorization. Remote-tracking refs are local
+records, not proof that the remote has not changed.
+
+### Historical recovery provenance
+
+These notes preserve the 2026-09-05 HANDOFF and DECISIONS #73 evidence. The phone
+archives have not been freshly inspected or verified in this documentation cleanup.
+
+| Recovery item | Historical provenance and limitation |
+|---|---|
+| `~/build-b1609.tar.gz` | DECISIONS #73 records a 49 MB archive of llama.cpp commit `e1a1abb7`, version 1609, with all four critical files present and gzip integrity checked at that time. Restore the whole build tree; present archive integrity is unverified here. |
+| `~/robot-preclaudecode.tar.gz` | The old handoff describes this as `~/robot` before any agent touched it. Exact contents, corresponding commit, and present integrity are UNKNOWN; no new verification is claimed. |
+| Git commit `fe14be2` | Historical CP2102/nav/calibration snapshot, not the current working state and not an asserted identity for either archive. Read `git rev-parse HEAD` for the current checkout. |
+
+DECISIONS #73 supersedes the old single-launcher rollback instructions:
+`llama-server.swafix` was a 5.9 KB fragment that depended on shared libraries.
+`llama-server.working` was a genuine earlier 12 MB static fallback, but predates
+the SWA fix (#6); using it loses that fix. Another documented recovery route is
+rebuilding llama.cpp from commit `e1a1abb7`.
+
+Historical whole-tree restoration command from #73, for native Termux only after
+verifying the archive and obtaining human authorization for replacing the build:
+
 ```bash
-cp ~/llama-server.working ~/llama.cpp/build/bin/llama-server   # pre-swa build
-cp ~/llama-server.swafix  ~/llama.cpp/build/bin/llama-server   # current good build
+cd ~/llama.cpp && rm -rf build && tar xzf ~/build-b1609.tar.gz
 ```
+
+The old handoff's `git checkout -- .` discarded unstaged tracked-file edits; it
+did not restore the historical snapshot or recover ignored models. It is not a
+routine recovery step. Identify and preserve current work and agree exact recovery
+targets before any destructive Git operation.
+
+The earlier handoff recorded about 420 MB of unused ONNX files, including
+`yolo11x.onnx` (218 MB) and `yolov8m.onnx` (100 MB). Those are historical size
+observations, not a fresh inventory. See [STATUS.md](STATUS.md) and `.gitignore`
+for model/capture exclusions; adding ignore rules does not remove files already
+in Git history.
 
 ---
 
@@ -485,6 +520,10 @@ fault.
 ---
 
 ## Typical session — autonomous
+
+The live step below is gated on the safety fix and verification in
+[STATUS.md](STATUS.md#work-priorities). It requires human control and wheels on a
+stand for the first attempt; this example is not authorization to run motors.
 
 ```bash
 cd ~/robot
@@ -542,3 +581,25 @@ Inside Debian, choose one session: `cd /termux-home/robot && codex`,
 exit the current agent first. The two repository paths are the same bind-mounted
 files. AGY 1.1.27 and `gemini-3.1-pro-high` started here; see `WORKFLOW.md` for
 headless review and its current read-only limitation.
+
+The prior Claude Code 2.1.261 Debian session could read/edit files and run non-root
+Python, but could not use `su` or `/dev/bus/usb` (DECISIONS #82). The
+`motors.py`, `teleop.py`, `run_mission.py`, `log_run.py`, `dist_raw.py`, and
+`cp2102_test.py` hardware operations remain human-controlled in native Termux.
+That session incorrectly called `Robot.run_mission()` dead after reading only
+`main.py`; `run_mission.py` calls it. Scope cross-file investigations explicitly.
+#82 also records why AVF was rejected: no USB host controller and only
+`/mnt/shared` shared, rather than access to the robot checkout.
+
+### Terminal evidence and editing practice
+
+Preserved from the old handoff: when the human executes phone commands, send one
+instruction at a time and wait for its output. Return exact requested terminal
+evidence, not a paraphrase. Display rendering can join lines; a syntax check may
+distinguish a display problem from a real syntax error, but does not prove runtime
+correctness. Do not paste raw Python into a shell. Use the agent's supported patch
+tool for edits; for manual multiline shell input, a correctly quoted heredoc keeps
+content from being interpreted as commands. No editor choice grants write authority.
+
+Verify before trusting a backup. Mark unsupported facts UNKNOWN. In particular,
+the invalid 93% navigation result tested an interface that did not exist.

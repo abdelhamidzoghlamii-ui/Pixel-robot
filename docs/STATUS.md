@@ -26,18 +26,28 @@ blocked), `FILES.md` (dependency map), `BENCHMARK_PLAN.md` (replacement-benchmar
 design, not implemented).
 
 `~/llama.cpp-upstream` is a disposable work area holding build 2233 (commit
-4d917609), built and SWA-verified this session but NOT deployed. `~/llama.cpp`
+4d917609), built and SWA-verified in the session recorded by DECISIONS #77,
+but NOT deployed. `~/llama.cpp`
 (b1609) remains the running server. Safe to delete `~/llama.cpp-upstream` and
-`~/upstream-server.log` at any time. `~/robot` is a git repo; working state
-committed as fe14be2.
+`~/upstream-server.log` at any time. `~/robot` is a Git repository. The earlier
+`fe14be2` snapshot is historical; it does not identify the current checkout.
 
-**Public repo:** github.com/abdelhamidzoghlamii-ui/Pixel-robot — synced at
-af66fab (2026-09-05), carries the live code. `.gitignore` excludes model
-weights (`.onnx`/`.gguf`/`.bin`), `bench_photos/`, and run artifacts; those
-stay on the phone only. `test_photos/` remains tracked from earlier commits.
-STATUS.md is still canonical for config values. `RECOVERY.md` and the repo's
-`CLAUDE.md` are unchanged since the April session and remain stale — the code
-sync did not touch them.
+**Public repo:** github.com/abdelhamidzoghlamii-ui/Pixel-robot.
+Canonical documentation and role instructions are in `/docs` relative to the
+repository root. Root `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` are session
+discovery pointers. `STATUS.md` remains canonical for prototype config values.
+`RECOVERY.md` was removed; [HANDOFF.md](HANDOFF.md) is the entry point to recovery
+information, with commands and historical provenance in
+[COMMANDS.md](COMMANDS.md#9-housekeeping-and-recovery).
+
+Read `git rev-parse HEAD` and `git status --short --branch` from the repository
+to determine the current revision and local state; do not maintain a "current
+commit" literal here. The `af66fab` sync was historical (2026-09-05).
+Remote-tracking refs reflect the last locally known remote state.
+
+`.gitignore` excludes model weights (`.onnx`/`.gguf`/`.bin`), `bench_photos/`,
+and run artifacts; those stay on the phone only. `test_photos/` remains tracked
+from earlier commits.
 
 **Per-cycle flow** (`main.py: Robot.run_cycle`):
 ```
@@ -219,6 +229,34 @@ shape — 109 tokens on the first call, 18-22 thereafter.
 - Not yet built/wired: Piper TTS, Whisper VAD, room classifier, memory system,
   face recognition.
 
+## Work priorities
+
+Preserved from the 2026-09-05 handoff; these are pending tasks, not new test results
+or permission to execute hardware work.
+
+1. Fix the open Gemma-override defect (DECISIONS #81). Re-check the move after the
+   Gemma block, and verify both `nav_test.py` and a `run_cycle`-level test;
+   the isolated rule harness cannot reach the override. Do not run motors-live
+   autonomous until this is fixed.
+2. Implement the person-stop area-bucket decision (#79). Choose 'very close' versus
+   'close' against `bench_photos/`; the choice remains pending.
+3. Build the replacement navigation benchmark described in
+   [BENCHMARK_PLAN.md](BENCHMARK_PLAN.md): real photos → real `detect_scene()` →
+   real `navigate_rules()`, with distance injected. The proposed scores are token
+   validity and sub-25 cm forward violations; they do not establish navigation
+   accuracy or cover the `run_cycle` override. The model-swap accuracy gate remains
+   undefined; see the QAT/MTP pending item above.
+4. Take forward-motion calibration with the robot; use
+   [COMMANDS.md §6](COMMANDS.md#6-nav-rules--calibration).
+5. Take rotation calibration with the robot; method remains pending, as recorded
+   above and in COMMANDS.md §6.
+6. After the safety fix, perform the first motors-live autonomous run under human
+   control, with wheels on a stand. Capture the mission thermal trace needed to
+   determine the pause threshold (#75).
+
+Mode 2 video/audio teleop remains parked indefinitely for thermal cost (#58).
+This does not park the serial-command firmware named `mode2_auto.ino`.
+
 ## Last hardware test
 
 **Power-up bring-up (bench, not yet driving).**
@@ -240,10 +278,6 @@ fitted, and PWM rail collapse brownout-resets a buck-powered ESP32 (DECISIONS #3
 Remaining: fit caps, re-verify on buck power, then confirm direction sense per corner.
 
 HC-SR04 verified on P27/P26 with 1kΩ/2kΩ divider on ECHO (DECISIONS #42).
-
-Buck #2 (3.3 V sensor rail) remains unwired, per the hardware thread's as-built
-diagram. Nothing currently depends on it — HC-SR04 draws from the ESP32 5V pin
-(DECISIONS #42), not buck #2.
 
 Buck #2 (3.3 V sensor rail) remains unwired, per the hardware thread's as-built
 diagram. Nothing currently depends on it — HC-SR04 draws from the ESP32 5V pin
