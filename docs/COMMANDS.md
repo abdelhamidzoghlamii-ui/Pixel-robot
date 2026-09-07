@@ -386,7 +386,7 @@ measured it. The coverage claim is a guess until this is done.
 | Command | What it does |
 |---|---|
 | `python3 get_temp.py` | BIG / MID / LITTLE / GPU / TPU / battery temps + CPU hotspot. Needs root. |
-| `python3 thermal_guard.py` | Thermal safety module. `check_and_wait()` pauses before inference (warn 82 °C, critical 86 °C). |
+| `python3 thermal_guard.py` | Orphaned module; its warn 82 °C / critical 86 °C values are not live runtime thresholds (Decision #75). |
 | `su -c "cat /sys/class/thermal/thermal_zone9/temp"` | Raw BIG-core temp, millidegrees. zone9 = BIG, 10 = MID, 11 = LITTLE, 12 = GPU, 14 = TPU, 22 = battery. |
 | `free -h \| grep -E "Mem\|Swap"` | RAM and swap. Models are large and swap kills speed. |
 | `termux-battery-status` | Battery temp/level (no root needed). |
@@ -398,19 +398,22 @@ su -c 'i=0; while [ $i -lt 12 ]; do cat /sys/class/thermal/thermal_zone9/temp; s
 > Use the `while` form. `su -c "for i in $(seq 1 12); ..."` fails — the outer
 > shell expands `$(seq)` before `su` sees it and Android's `sh` rejects it.
 >
-> **The numbers mean nothing unless inference is actually running.** Measured
-> idle is 52–67 °C, which tells you nothing about the ceiling.
+> Historical idle readings of 52–67 °C do not establish the loaded ceiling.
 
-> ⚠️ **Two thermal thresholds are in circulation and the lower one wins by
-> accident.** `main.py: run_mission` pauses above **80 °C**; `thermal_guard.py`
-> uses warn **82** / critical **86**. STATUS records 79–82 °C under sustained
-> inference (source unrecorded), so 80 would pause near-constantly.
-> **A loaded measurement is still outstanding.** Take it from `run_cycle`'s own
-> per-cycle temperature print during a long autonomous run, not a synthetic
-> sweep. Do not change the constant until that data exists.
+> ⚠️ **Thermal configuration remains unresolved.** Only `main.py`'s
+> `run_mission` pause above **80 °C** is currently live. `thermal_guard.py` is
+> orphaned; its **82/86 °C** values are not competing live thresholds (#75).
 >
-> For reference, the 24-cycle dry run peaked at 67 °C — but that is YOLO plus
-> occasional Gemma calls, not sustained inference.
+> Existing measurements are historical observations from different workloads:
+> the 24-cycle dry run peaked at 67 °C with YOLO and occasional Gemma calls;
+> #74 records 97–101 °C under sustained llama.cpp inference and 31–38 °C idle,
+> superseding the older unsourced 79–82 °C sustained-inference claim.
+> These observations do not establish the correct runtime threshold.
+>
+> **Do not select or change a thermal threshold until the planned definitive
+> benchmark exercising the real `run_cycle` has been completed and reviewed.**
+> Use its per-cycle temperature evidence; retain the existing hardware
+> restrictions and human approval gates.
 
 ---
 

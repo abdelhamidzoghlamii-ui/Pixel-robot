@@ -165,3 +165,8 @@ and pushes through Coder or Doc Keeper instead of requiring the human to run Git
 manually. Request hashes, push output, and Git status as evidence. This does not
 grant this online thread phone access, visibility into unpushed changes, or
 permission to bypass the human commit and push gates.
+
+Thermal configuration remains unresolved; read [COMMANDS.md §7](COMMANDS.md)
+for the live pause and historical measurements. Do not select or change a
+thermal threshold until the planned definitive real `run_cycle` benchmark is
+completed and reviewed.
