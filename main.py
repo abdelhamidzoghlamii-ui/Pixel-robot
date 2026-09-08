@@ -402,6 +402,7 @@ class Robot:
 
         # Fast navigation rules
         move = self.navigate_rules(results, distance)
+        rule_move = move
         print(f'  [NAV] {move}')
 
         # Gemma check — every N cycles or triggered
@@ -412,8 +413,8 @@ class Robot:
         new_room      = len(self.known_rooms) > getattr(self, '_prev_rooms', 0)
         self._prev_rooms = len(self.known_rooms)
 
-        # DECISIONS #19: Python owns safety. A safety move is never handed to
-        # Gemma, so the model cannot override an obstacle stop.
+        # DECISIONS #19: Python owns safety. Gemma may advise when stuck,
+        # but cannot replace the rule-selected safety move.
         safety_move = move in ('BACK', 'LEFT', 'RIGHT',
                                'STRAFE_LEFT', 'STRAFE_RIGHT')
         stuck       = getattr(self, 'nav_stuck', False)
@@ -446,6 +447,9 @@ class Robot:
                 if len(msg_parts) > 1:
                     speak(msg_parts[1])
                 move = 'STOP'
+
+        if safety_move:
+            move = rule_move
 
         # Execute move (motors cool during movement)
         if move != 'STOP':
