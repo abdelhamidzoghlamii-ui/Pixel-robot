@@ -19,7 +19,7 @@ work in the same conversation.
 | Local AI: online-app planning and technical orchestration with the human | Local AI app thread | Fresh online thread |
 | Coder/data retriever: actual phone repo, exact evidence, approved changes and checks | Claude Code | Codex |
 | Reviewer: fresh independent candidate review | Codex | Gemini 3.1 Pro High through AGY |
-| Doc Keeper: canonical status and append-only decisions | Gemini / AGY | Gemini / AGY after this handoff |
+| Doc Keeper: canonical status and append-only decisions | Online project thread | Online Doc Keeper / Transition thread; AGY is the on-phone documentation executor |
 
 Claude Code is temporarily parked because the human reported a weekly limit; this
 is availability, not a permanent technical restriction. The human reports paid
@@ -33,6 +33,70 @@ Coder/data retriever implements and verifies in the actual repository. Reviewer
 examines actual candidate changes and surrounding code, not merely the coder's
 summary. Doc Keeper owns `STATUS.md`/`APP_STATUS.md` and `DECISIONS.md`; all other
 roles send targeted evidence-backed DOC DIFFs.
+
+## Execution profile
+
+Before Local AI asks the human to open or invoke any phone agent, it must display
+the complete profile below and include it in the exact agent prompt and transition
+evidence, not only in conversational commentary:
+
+```text
+EXECUTION PROFILE
+ROLE:
+PLATFORM:
+MODEL:
+EFFORT:
+PONYTAIL:
+WHY:
+FALLBACK:
+```
+
+`ROLE` names the exact assignment: Coder, Reviewer, Doc Keeper / documentation
+executor, data retriever, or another exact role. `PLATFORM` names the exact surface,
+such as Codex CLI, Claude Code CLI, or AGY/Antigravity CLI. `MODEL` gives the exact
+selectable identifier or label, never only "best model". `EFFORT` gives the exact
+separately selected reasoning effort when the platform exposes one; otherwise use
+`N/A` or `platform-controlled`. A word such as `High` inside an AGY model identifier
+or label is part of that model name unless AGY separately exposes an effort control.
+`PONYTAIL` is exactly `lite`, `full`, `ultra`, or `off`.
+
+If actual models or controls are unknown, Local AI obtains current model-list
+evidence before assigning the task. `WHY` is one short line. `FALLBACK` states the
+exact replacement platform, model, separately exposed effort, and Ponytail mode.
+Platform, model, effort, and Ponytail selection never change the role, its
+permissions, or the project authorization gates.
+
+### Ponytail
+
+Verified phone-tool evidence: Ponytail 4.9.0 is installed for Codex CLI, Claude
+Code CLI, and AGY/Antigravity CLI; the shared configuration currently specifies
+`defaultMode: lite`; and Claude's Ponytail plugin is enabled. Codex Ponytail hook
+trust has not been evidenced as completed and must not be described as trusted.
+AGY imported Ponytail's six skills and six commands but no lifecycle hooks, so AGY
+must not be assumed to activate it automatically; prompts state the intended mode
+explicitly whenever Ponytail is required. Installation did not modify this
+repository.
+
+- `lite` — ordinary bounded implementation, especially existing or safety-relevant
+  Pixel Robot code.
+- `full` — deliberate simplification, dependency selection, refactoring, or removal
+  of unnecessary abstractions.
+- `ultra` — only for explicitly human-approved work that is either a disposable
+  experiment or aggressive cleanup. Never use it for safety logic, hardware
+  control, authentication, destructive operations, data migration, canonical
+  documentation, or independent review.
+- `off` — independent correctness/safety review, Doc Keeper work, non-coding
+  planning/research, and hardware execution/calibration.
+
+If Codex or Claude automatically starts Ponytail in a Reviewer session, the Reviewer
+profile and prompt explicitly switch it `off` before review. An optional Ponytail
+over-engineering review may follow the mandatory independent correctness review but
+cannot replace it. Ponytail must never simplify away validation, error handling,
+security, hardware calibration, required tests or checks, or anything explicitly
+required by the task.
+
+`AGENTS.md`, project safety rules, verification requirements, the mandatory
+independent review, and the human commit and push gates always override Ponytail.
 
 ## Code-change and commit gate
 

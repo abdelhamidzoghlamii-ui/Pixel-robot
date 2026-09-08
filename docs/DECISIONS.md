@@ -577,3 +577,11 @@ Format: `NN. [area] decision — why`
     and automatically obtains a fresh Reviewer response; the human decides whether
     to commit after Local AI discussion. A reviewer pass is not commit authority;
     changed candidates require a new review and push always needs separate approval.
+87. **Use explicit per-task execution profiles and role-scoped Ponytail modes** —
+    Before phone-agent work, Local AI identifies the exact role, platform, model,
+    separately exposed reasoning effort, Ponytail mode, reason, and fallback.
+    Ponytail defaults to `lite` for ordinary coding, `full` for intentional
+    simplification/refactoring, `ultra` only for explicitly human-approved
+    disposable work, and `off` for independent review, Doc Keeper work, non-coding
+    work, and hardware execution. Ponytail never overrides project safety,
+    verification, independent-review, human commit, or push gates.

@@ -38,6 +38,28 @@ each change with a clear message, and don't push unless told to. If you're in
 a chat-only interface with no repo access: produce full files or precise diffs
 for the human to apply manually.
 
+## Documentation-executor profile
+
+Before giving the human an AGY or other documentation-executor prompt, display the
+complete execution profile from `WORKFLOW.md` and include it in the exact prompt and
+transition evidence. The ordinary documentation profile is:
+
+```text
+EXECUTION PROFILE
+ROLE: Doc Keeper / documentation executor
+PLATFORM: AGY/Antigravity CLI
+MODEL: gemini-3.1-pro-high, only while that exact model remains installed and selected
+EFFORT: N/A unless AGY exposes a separate effort control
+PONYTAIL: off
+WHY: Canonical documentation requires evidence preservation, not code-minimization pressure.
+FALLBACK: State the exact replacement platform, model, effort and Ponytail mode before switching.
+```
+
+Ponytail remains `off` for canonical documentation. AGY's installed Ponytail skills
+and commands do not imply automatic activation because no Ponytail lifecycle hooks
+were imported. Never silently change model or provider because of quota. Any
+provider change requires a newly stated execution profile and a fresh role session.
+
 ## How updates arrive
 
 Other roles (Hardware, Local AI, APP, or the human directly) send you updates

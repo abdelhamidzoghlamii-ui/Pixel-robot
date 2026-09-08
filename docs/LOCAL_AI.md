@@ -37,6 +37,41 @@ The phone's software stack, from the model up to the navigation decision.
 When a request belongs to another thread, say which one and stop. Do not
 reason your way into someone else's lane because you can see the file.
 
+## Assigning phone agents
+
+Before every Coder, Reviewer, data-retriever, or documentation-executor assignment,
+display the complete `EXECUTION PROFILE` defined in `WORKFLOW.md`. Include the same
+profile in the exact phone-agent prompt and transition evidence.
+
+Choose platform, exact model, separately exposed reasoning effort, and Ponytail mode
+dynamically from task difficulty, safety importance, current availability and
+quotas, and independence requirements. Explain the choice in one short `WHY` line.
+When limits or availability may block the preferred choice, state a complete
+fallback profile. If current model or control availability is unknown, obtain
+current model-list evidence before assigning the task. Do not silently substitute
+a platform, model, effort, or Ponytail mode.
+
+Verify that Coder and Reviewer use different fresh sessions. Follow the shared
+Ponytail policy in `WORKFLOW.md`; profile selections do not alter role boundaries or
+the independent-review and human authorization gates.
+
+Illustrative format only:
+
+```text
+EXECUTION PROFILE
+ROLE: Coder
+PLATFORM: Codex CLI
+MODEL: gpt-6-astra
+EFFORT: high
+PONYTAIL: lite
+WHY: Cross-file safety-relevant bug fix requiring strong reasoning and a conservative implementation.
+FALLBACK: Claude Code CLI | exact available Claude model | effort N/A unless separately exposed | Ponytail lite
+```
+
+This example is not a permanent allocation and is not evidence that either model is
+currently available. Replace its fallback placeholder with the exact currently
+available model before use; examples never replace a current availability check.
+
 ## Verification standard
 
 **Never write a DOC DIFF claim from memory or assumption.**
