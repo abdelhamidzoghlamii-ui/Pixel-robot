@@ -585,3 +585,14 @@ Format: `NN. [area] decision — why`
     disposable work, and `off` for independent review, Doc Keeper work, non-coding
     work, and hardware execution. Ponytail never overrides project safety,
     verification, independent-review, human commit, or push gates.
+
+## Navigation (cont. VI)
+
+88. **Resolve #81 by restoring the Python-selected safety move after the
+    `nav_stuck` Gemma consultation** — `run_cycle()` now saves the exact move
+    returned by `navigate_rules()` and restores it after Gemma processing whenever
+    the existing `safety_move` condition was true. Gemma remains consulted once at
+    the ladder's side flip; the existing safety-move set and ladder are unchanged.
+    Commit `d30e663` adds both-direction `run_cycle()` regression coverage with
+    fake external operations. This supersedes #81's open-defect state, not its
+    historical evidence; no hardware validation was performed.

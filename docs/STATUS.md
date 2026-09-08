@@ -67,8 +67,10 @@ camera photo → YOLO detect_scene → navigate_rules (pure Python, instant)
 
 **Gemma trigger conditions** (`run_cycle`, any one fires a call):
 `cycle % GEMMA_INTERVAL(10) == 0` · `cycle % 5 == 0` · person detected ·
-move == STOP · a new room was just mapped · `nav_stuck` is set (Open defect: when stuck is true, Gemma can currently override a safety move). Vision (image attached) is sent only on
-the `every_5` / person / goal / new_room subset.
+move == STOP · a new room was just mapped · `nav_stuck` is set. At `nav_stuck`,
+Gemma is consulted once, but `run_cycle()` restores the exact Python-selected
+safety move after processing (DECISIONS #88). Vision (image attached) is sent
+only on the `every_5` / person / goal / new_room subset.
 
 ## Known-good config (as coded)
 
@@ -149,16 +151,17 @@ shape — 109 tokens on the first call, 18-22 thereafter.
 
 ## Pending / untested
 
-- **Dual-rate nav merged as a rewrite. Safety branches bench-tested, everything
-  else untested.** `navigate_rules` escalation ladder verified against synthetic
+- **Dual-rate nav merged as a rewrite. Rule-level safety branches and the #81
+  `run_cycle()` path are regression-tested; everything else is untested.**
+  `navigate_rules` escalation ladder verified against synthetic
   distances via `nav_test.py`: thresholds exact at the `<15` / `<25` / `>=25`
   boundaries, no oscillation, `nav_stuck` fires on exactly one cycle per episode,
   60s timeout reached. NOT tested: the person branches
   (`estimate_distance_single`), and the whole loop with motors live —
   `run_mission.py` has only ever been run with `--dry`. The 93% figure still does
-  not transfer (#55). An open safety defect exists in the untested path — see the
-  Gemma-override bullet below (DECISIONS #81) — and should be resolved before the
-  motors-live run.
+  not transfer (#55). The #81 Gemma-override defect is fixed in code and covered
+  by `run_cycle_safety_test.py` in both avoidance directions with fake external
+  operations; no hardware validation was performed (DECISIONS #88).
 - **Rotation is uncalibrated.** Nobody knows how many degrees one `LEFT`/`RIGHT` at
   speed 120 for `CYCLE_MOVE_TIME` produces, so the ladder's "4 steps one way, then
   sweep past centre" is a guess about coverage, not a measured 90°/180°. The
@@ -180,10 +183,14 @@ shape — 109 tokens on the first call, 18-22 thereafter.
   physical wiring, "strafe" could produce rotation or drift instead of lateral
   movement. Re-verify forward/strafe/rotate/diagonals under the corrected map
   before trusting the ladder on hardware.
-- **OPEN SAFETY DEFECT: Gemma can override a safety move when `nav_stuck` is
-  set.** At ladder step n==7 the `run_cycle` guard admits the Gemma call and the
-  result overwrites the safety move with no re-check — including FORWARD while
-  blocked under 25 cm. Not fixed. See DECISIONS #81.
+- **Gemma cannot replace a Python safety move during `nav_stuck`.** `run_cycle()`
+  saves the exact result from `navigate_rules()` and restores it after Gemma
+  processing whenever the existing `safety_move` condition was true. Gemma still
+  receives the one `nav_stuck` consultation. `run_cycle_safety_test.py` covers
+  both avoidance directions and verifies that `FORWARD` is rejected, the original
+  turn executes, and the following blocked cycle does not consult Gemma again.
+  This is regression coverage with fake external operations, not hardware
+  validation. See DECISIONS #81 and #88.
 - **Dead and orphaned code mapped** (`FILES.md`). Superseded: `detect_scene.py`,
   `llm.py`, `voice.py`, `ch340_test.py`, `nav_sim.py`, `thermal_benchmark.py`,
   `thermal_benchmark2.py`, `quality_benchmark.py`. Orphans never wired in:
@@ -232,10 +239,9 @@ shape — 109 tokens on the first call, 18-22 thereafter.
 Preserved from the 2026-09-05 handoff; these are pending tasks, not new test results
 or permission to execute hardware work.
 
-1. Fix the open Gemma-override defect (DECISIONS #81). Re-check the move after the
-   Gemma block, and verify both `nav_test.py` and a `run_cycle`-level test;
-   the isolated rule harness cannot reach the override. Do not run motors-live
-   autonomous until this is fixed.
+1. Keep `nav_test.py` and the #81 `run_cycle()` regression passing before the
+   first motors-live autonomous run. The code defect is fixed, but no hardware
+   validation has been performed (DECISIONS #88).
 2. Implement the person-stop area-bucket decision (#79). Choose 'very close' versus
    'close' against `bench_photos/`; the choice remains pending.
 3. Build the replacement navigation benchmark described in
