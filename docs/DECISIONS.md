@@ -596,3 +596,14 @@ Format: `NN. [area] decision — why`
     Commit `d30e663` adds both-direction `run_cycle()` regression coverage with
     fake external operations. This supersedes #81's open-defect state, not its
     historical evidence; no hardware validation was performed.
+
+## Firmware (cont.)
+
+89. **A corrected `mode2_auto.ino` is committed at
+    `firmware/mode2_auto/mode2_auto.ino`, commit `9a90d7e`** — BAUD 115200,
+    `INVERT` indices 2/3, `WATCHDOG_MS` 1000, `HAS_ULTRASONIC 1`, and the #43
+    corner map were verified by direct field read against the commit, not relayed
+    or reconstructed. This resolves which of three candidate states
+    (pre-correction, HAS_ULTRASONIC-only-partial, fully-corrected) was real: this
+    one. Still unconfirmed: whether this file is what's actually flashed on the
+    ESP32 — a separate, open question.

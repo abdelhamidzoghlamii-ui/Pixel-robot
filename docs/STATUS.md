@@ -8,11 +8,12 @@ today — not from benchmark recommendations. Pending deltas are listed explicit
 **Brain:** Pixel 7 (rooted, Termux, Android 17). **Body:** ESP32 NodeMCU + 2× MX1508
 driving 4 mecanum motors. Phone ↔ ESP32 over USB serial.
 
-**Currently flashed:** `mode2_auto.ino`, the corrected build (DECISIONS #43 corner
-map, `HAS_ULTRASONIC 1`, diagonals, 115200, `WATCHDOG_MS` 1000). `mode1_simple.ino`
-is the standalone softAP teleop sketch and is not on the board. (Note: zero `.ino` files
-are tracked in this repository. The corrected flashed `mode2_auto.ino` reportedly exists
-only on the laptop and must not be reconstructed or reflashed from documentation).
+**Currently flashed:** UNCONFIRMED on hardware. A `mode2_auto.ino` matching
+the corrected spec (DECISIONS #89 — BAUD 115200, INVERT indices 2,3,
+WATCHDOG_MS 1000, HAS_ULTRASONIC 1) is committed at
+firmware/mode2_auto/mode2_auto.ino (commit 9a90d7e), verified field-by-field
+against the file itself. Whether this exact file is what's running on the
+board is not yet confirmed.
 
 **Entry point:** `run_mission.py` runs autonomous. `main.py.__main__` only runs a
 single test cycle against a photo with no motors attached; it does not run missions.
@@ -170,9 +171,10 @@ shape — 109 tokens on the first call, 18-22 thereafter.
   (`log_run.py`, `identify_it1.py`) and validated on synthetic data, but no run
   against a wall has been taken. K_I will also drift as the pack sags from 8.2V
   toward cutoff — unmeasured.
-- **The `.ino` files are not available in GitHub.** The tracked repository contains zero `.ino` files.
-  The corrected flashed `mode2_auto.ino` reportedly exists only on the laptop and must not
-  be reconstructed or reflashed from documentation. DO NOT FLASH any recovered versions of these files.
+- **Corrected `mode2_auto.ino` now exists and is version-controlled** —
+  firmware/mode2_auto/mode2_auto.ino, commit 9a90d7e, matches #42/#43/#45/#47
+  exactly (verified). Not yet confirmed against the physical board — that
+  requires a direct hardware check, not a file read.
 - **`BACK_R` diagonal drove one wheel instead of two.** Observed before the
   corner-map correction (#49); not re-tested since.
 - **Mecanum vx-sign flip unverified under current wiring.** Last confirmed live
