@@ -198,7 +198,7 @@ self-clear; if it doesn't, unplug and replug the ESP32.
 
 **`NoBackendError`** = not running under root, or `LD_LIBRARY_PATH` unset. See §0.
 
-### Serial protocol (firmware `mode2_auto.ino`, not tracked in this repository)
+### Serial protocol (firmware `mode2_auto.ino`, tracked and retained; commit 9a90d7e)
 
 ```
 in :  FORWARD:<spd>  BACK:<spd>  LEFT:<spd>  RIGHT:<spd>      (LEFT/RIGHT = strafe)
@@ -431,6 +431,17 @@ su -c "kill <PID>"
 ```
 Then confirm with the port check in §0 — do not trust the kill itself.
 
+### Host tooling (Termux aliases, not in repo)
+
+  ~/kill.py    — `kill` alias. SIGKILL llama-server via `pgrep -x` (exact name).
+                 MUST use -x, not -f: `pgrep -f llama-server` self-matches our
+                 own monitoring shells and reports phantom servers.
+  ~/prep.py    — `prep` alias. Frees RAM by killing a hardcoded list of nine
+                 user-facing apps. No discovery, no system services.
+  ~/ramfree.py — off/on. Currently restored to "on" (nothing disabled/
+                 restricted). Do not use "off" — see DECISIONS #94: discovery-
+                 based process management on this device has rebooted the phone.
+
 ---
 
 ## 9. Housekeeping and recovery
@@ -504,7 +515,7 @@ ROM bootloader banner then `READY`; send `PING` with line ending set to Newline,
 expect `ALIVE`. If the banner appears but `READY` does not, the sketch is not the
 one you think you flashed.
 
-**Current firmware constants** (`mode2_auto.ino`, not tracked in this repository):
+**Current firmware constants** (`mode2_auto.ino`, tracked and retained; commit 9a90d7e):
 ```
 BAUD            115200
 WATCHDOG_MS     1000        paired with motors.py's 200ms keepalive

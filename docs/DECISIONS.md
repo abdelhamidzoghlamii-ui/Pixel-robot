@@ -607,3 +607,107 @@ Format: `NN. [area] decision — why`
     (pre-correction, HAS_ULTRASONIC-only-partial, fully-corrected) was real: this
     one. Still unconfirmed: whether this file is what's actually flashed on the
     ESP32 — a separate, open question.
+
+## Thermal (cont. II)
+
+90. **Skin, not die, is the governing thermal signal — HAL severity layer, not
+    the kernel trip layer.** Device HAL config assigns BIG no severity at any
+    level; VIRTUAL-SKIN-CPU-GPU (trip 37.0 °C) drives the cpufreq PID. This does
+    not disturb #74: #74's measurement (97-101 °C sustained, at zone9's kernel
+    PASSIVE trip of 100 °C) stands unchanged and is not in dispute. What #90
+    supersedes is the governance interpretation only — that a high zone9 reading
+    indicates a throttling condition requiring intervention. At the HAL layer,
+    BIG carries no severity at any level on this device. All future thermal work
+    measures computed VIRTUAL-SKIN plus direct throttle detection.
+    NOTE: this does not select a threshold. main.py's >80 °C pause is unchanged
+    and remains gated behind a completed, independently reviewed run_cycle
+    benchmark.
+
+91. **VIRTUAL-SKIN may be computed locally instead of via dumpsys — as reported
+    this session, evidence pending.** Computed-vs-HAL delta and an exact-match
+    spot check were reported over 36 samples (3 min); raw per-sample output not
+    yet attached. Five sysfs reads per cycle would replace a dumpsys call in the
+    inference hot path if confirmed.
+    Caveat: dumpsys prints a CACHED block and a LIVE block. Parse the LAST
+    `mName=VIRTUAL-SKIN,` line (trailing comma excludes -CHARGE and -CPU-GPU).
+
+92. **All benchmark runs are taken on BATTERY, in a 50-80% SoC band.**
+    VIRTUAL-SKIN-CHARGE has a tighter ladder (35/41/45/47/51/55), its own PID,
+    and a chg_mdis cooling device — a different governor from the one the robot
+    operates under. Runs are never compared across power states. Low SoC
+    excluded because BCL voltage-droop trips (vdroop1, batoilo) can cap cluster 2
+    and masquerade as thermal throttling. This constrains future runs; it does
+    not resolve #76's unexplained effect size — three candidate causes remain
+    open there.
+
+93. **Short runs can miss throttling entirely.** VIRTUAL-SKIN PollingDelay is
+    300 s when idle, PassiveDelay 7 s once mitigating. A short burst can
+    complete before the HAL has re-evaluated. Any run claiming "sustained" must
+    exceed this window. Probable contributor to historical disagreement between
+    short benchmarks.
+
+## Platform (cont. II)
+
+94. **Android app/process management is unavailable on this device. Do not
+    attempt.** Reported this session, three methods:
+    - `am force-stop`, `cmd appops`, `pm` via `su -c` → binder Failed transaction
+      (2147483646). Blocked. Fails safely — no effect.
+    - `cmd appops` / `am set-standby-bucket` restriction of gms, as, vending,
+      googlequicksearchbox → applied but services respawned; caused widget
+      failure and a UI-unresponsive state requiring a hardware reboot.
+    - `kill` by dynamically discovered PID → rebooted the phone.
+    Only permitted form: SIGKILL by PID against an explicit hardcoded allowlist
+    of user-facing apps. Never discovery-based, never a system service.
+    Reported net gain from safe cleanup: ~+0.3 GB MemAvailable (1580 MB of RSS
+    released, but mostly shared zygote pages — RSS sums are not reclaimable
+    memory).
+
+## Model & inference (cont. II)
+
+95. **Neither build supports Qwen3.5-VL. The Qwen path needs a third build.**
+    `strings` on both llama-server binaries returns no qwen3vl/qwen3.5
+    architecture string. b1609 = e1a1abb7; b2233 = 0.4.0-dev commit 4d917609,
+    confirmed present at `~/llama.cpp-upstream`. Qwen3.5 released ~Aug 2026,
+    after 4d917609. Qwen3.5-VL also requires a separate mmproj. Reported RAM
+    feasibility: a 2B-VL would need ~3-4 GB peak with vision working memory,
+    against ~0.5 GB headroom. Verdict: Qwen-VL is a stretch goal requiring a new
+    build and aggressive memory measures, not near-term. 4B-VL is out.
+
+96. **Deployed vision is non-functional — confirmed by a live /completion
+    call, not inferred.** A request built exactly as gemma_decide() builds it
+    (image_data array, [img-1] marker) returned HTTP 200; stderr shows no
+    vision/mmproj activity; tokens_evaluated (310) and tokens_cached (337)
+    match text-only tokenization of the literal "[img-1]" string — the server
+    accepts and silently drops the unsupported field rather than erroring.
+    Human decision this session: fix vision before benchmarking. The
+    build-1609-vs-2233 benchmark stays blocked pending loop redesign.
+
+## Vision (cont. II)
+
+97. **Deployed yolo11m.onnx is fine-tuned on the owner's own photos, not the
+    stock checkpoint** — human-stated, not verified against the training set
+    (photos held on the owner's laptop, outside this repository and this
+    session's access).
+
+## Model & inference (cont. III)
+
+98. **A LoRA fine-tuning attempt (voice/nav) did not improve JSON-format
+    compliance** — human-stated: attempted, failed, cause given as poor
+    training examples, no further detail supplied. Human-stated, not verified
+    against the training data (LoRA weights and training set held on the
+    owner's laptop, outside this repository and this session's access).
+    Whether this is the same attempt #9 evaluated is not established from this
+    statement alone.
+
+## Workflow (cont.)
+
+99. **Loop redesign opened; benchmark deferred behind it.** Human intent
+    recorded: YOLO→text every cycle (already implemented and correct); Gemma
+    consulted only on triggers (already implemented); Gemma should emit JSON
+    for the ESP32 (NOT implemented — main.py:438-442 greps the first action
+    keyword from free text). Agreed order of work: (1) scout build/model
+    feasibility [done, #95]; (2) settle JSON mechanism; (3) then fix vision
+    [defect confirmed, #96 — fix itself not yet done]; (4) then benchmark.
+    Grammar-constrained output (GBNF / JSON schema on /completion) is the next
+    mechanism proposed for the JSON-output problem; LoRA retraining is not
+    planned (#98).
