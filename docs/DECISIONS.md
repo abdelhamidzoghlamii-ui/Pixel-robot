@@ -711,3 +711,60 @@ Format: `NN. [area] decision — why`
     Grammar-constrained output (GBNF / JSON schema on /completion) is the next
     mechanism proposed for the JSON-output problem; LoRA retraining is not
     planned (#98).
+
+## Model & inference (cont. IV)
+
+100. **Grammar-constrained output costs no decision accuracy; prompt wording
+     does.** Settles step (2) of #99. MEASURED, three clean runs on-device
+     (2026-09-13), deployed Gemma-4 E2B q4_k_m via /completion, 13 synthetic
+     text-only scenes, temp 0.1, no camera, no motors. Five methods:
+     - baseline (free text + first-keyword match, as main.py:438-442 does
+       today): 100% valid, 46.2% correct
+     - B, json_schema constraint, JSON-specific wording: 100% valid, 38.5%
+     - A, GBNF pipe grammar (ACTION|reason|speak), format-specific wording:
+       100% valid, 38.5%
+     - C, lazy grammar w/ DECISION: trigger: 92-100% valid, 38.5%
+     - D, same GBNF grammar as A but baseline's UNCHANGED wording plus one
+       appended format line: 100% valid, 46.2%
+     D matched baseline exactly, same scenes, two independent runs. The 38.5%
+     in A/B/C is caused by the rewritten instructions, not by the constraint.
+     Grammar-constrained output with original wording preserved is
+     accuracy-neutral.
+     Consequence: schema-correct output on every call is achievable with NO
+     LoRA and no model change — consistent with #99's "LoRA retraining is not
+     planned" and independent of the unresolved #9/#98 question. Method D is
+     the recommended shape if structured output is adopted.
+
+101. **Output format was never the blocker; parse reliability was already
+     100%.** MEASURED, same runs. Free-text baseline produced a parseable
+     action on 13/13 scenes in every clean run. The premise that free text was
+     too unreliable for the ESP32 is not supported by measurement. The limiting
+     factor is decision accuracy (best observed 46.2%), which no output
+     mechanism changed. This reframes #99 step (2): it is now settled, but it
+     was not the load-bearing problem.
+
+102. **Three GEMMA_SYS rule defects cap accuracy independently of model or
+     output mechanism.** All five methods failed the same scenes identically
+     in every run.
+     a) "Obstacle" is never defined — no mapping from detected COCO classes
+        (chair, couch, bench) to the abstract rule category, so every obstacle
+        rule is unreachable for real detector output. 3/13 scenes.
+        VERIFIED against GEMMA_SYS source.
+     b) Rule conflict with no stated precedence: "Refrigerator/sink visible +
+        mission kitchen -> FORWARD" has no distance qualifier; "Room signature
+        visible + distance < 100cm -> STOP (arrived)" does. At 60cm both fire.
+        Model picks FORWARD, defensible from the text. 1/13 scenes. VERIFIED
+        against source; model reasoning text for this scene not yet pulled.
+     c) The repeat-counting rule ("Same direction 4+ times + empty scene ->
+        turn") is not applied; all methods continue FORWARD. 1/13 scenes.
+        INFERRED to be a small-model capability limit rather than an authoring
+        defect — not yet distinguished by evidence.
+
+103. **server_manager.py's kill_servers() uses pkill -f llama-server — a
+     known, accepted risk, not an oversight.** This is the same -f
+     pattern-matching hazard COMMANDS.md §8 already warns about (self-matching
+     the invoking shell) and the reason ~/kill.py uses -x instead.
+     Human-stated: used knowingly, and has worked in practice without the
+     self-match failure seen elsewhere. Not changed pending further evidence.
+     This does not retract the general -f warning — it applies to this one
+     specific, narrower call, not as a blanket exception.

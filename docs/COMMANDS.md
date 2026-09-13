@@ -77,6 +77,8 @@ consults Gemma on triggers; without the server those calls fail.
 | `python3 server_manager.py setup_qwen1b` ⚠️ | Qwen 2.5 1.5B — fastest, lowest quality. |
 | `python3 server_manager.py stop` ✅ | Kills all llama-server processes. |
 
+> Note: `kill` is not a valid subcommand — prints "Unknown setup". Use `stop`.
+
 All setups launch with the benchmarked flags:
 `--threads 4 --threads-batch 4 --parallel 1 --swa-full --ctx-size 2048`
 
@@ -442,6 +444,11 @@ Then confirm with the port check in §0 — do not trust the kill itself.
                  restricted). Do not use "off" — see DECISIONS #94: discovery-
                  based process management on this device has rebooted the phone.
 
+> Note: server_manager.py's internal kill_servers() calls pkill -f
+> llama-server — the same -f risk warned about above. Known, accepted
+> exception: used knowingly and has worked in practice (DECISIONS #103). Does
+> not override the warning for other -f uses.
+
 ---
 
 ## 9. Housekeeping and recovery
@@ -617,3 +624,22 @@ content from being interpreted as commands. No editor choice grants write author
 
 Verify before trusting a backup. Mark unsupported facts UNKNOWN. In particular,
 the invalid 93% navigation result tested an interface that did not exist.
+
+## 12. llama.cpp server API & multi-model notes (2026-09-13)
+
+**grammar_triggers request format** — this build's /completion takes an
+integer type (TOKEN=0, WORD=1, PATTERN=2, PATTERN_FULL=3) plus value; token
+is required only when type=TOKEN. Older published examples using
+{"word": ..., "at_start": ...} are rejected here with "key 'type' not
+found". VERIFIED against this device's tools/server/server-common.h.
+
+**Qwen3.5 uses ChatML**, not Gemma's <start_of_turn>/<end_of_turn>:
+<|im_start|>role\ncontent<|im_end|>. A harness passing Gemma's stop token
+to a Qwen server will never stop early and will run every call to
+n_predict.
+
+**Thinking-mode note** — Qwen3.5 small variants produced a long "Thinking
+Process:" block under llama-cli but not via /completion on the same
+model/build. main.py uses /completion, so this appears not to affect
+the robot path. INFERRED (llama-cli chat-template handling), not isolated
+— flagged so a future session doesn't re-derive it.

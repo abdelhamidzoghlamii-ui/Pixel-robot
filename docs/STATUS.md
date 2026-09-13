@@ -25,7 +25,11 @@ no hardware), `log_run.py` (ultrasonic motion logger, needs root), `identify_it1
 path `main.py` uses), `focal_calibrate.py` (FOCAL_PX derivation), `bench_photos/` +
 `labels.csv` (38 labelled captures: 15 room-signature, 14 person, 5 empty, 4
 blocked), `FILES.md` (dependency map), `BENCHMARK_PLAN.md` (replacement-benchmark
-design, not implemented).
+design, not implemented), ~/json_mechanism_test.py (bounded read-only diagnostic,
+13 synthetic text-only scenes, five output mechanisms, per-model profile — gemma
+port 8080 / qwen port 8081, correct chat wrapper and stop tokens per family;
+writes ~/json_mechanism_results_<model>.json; no camera, no motors, no repo
+writes).
 
 `~/llama.cpp-upstream` is a disposable work area holding build 2233 (commit
 4d917609), built and SWA-verified in the session recorded by DECISIONS #77,
@@ -124,6 +128,14 @@ Current llama.cpp build: commit e1a1abb7, version 1609 (Clang 21.1.8, Android
 aarch64). Shared-library build — `bin/llama-server` is a ~5.9 KB launcher, real
 code in the `.so` files. Rollback is the whole `build/` tree (`build-b1609.tar.gz`,
 verified) or a rebuild of commit e1a1abb7, NOT a single-binary copy (DECISIONS #73).
+
+A third build, ~/llama.cpp-upstream rebuilt 2026-09-13 to b2351-790cf51a,
+loads Qwen3.5-0.8B-Q4_K_M with architecture accepted and "modalities: text"
+— MEASURED. This narrows #95 to the builds and VL path it named, not the
+Qwen path generally: no mmproj was downloaded or passed, so the VL question
+is untouched. Note: strings on the rebuilt binary returns no qwen35 match
+despite the successful load — the strings check used in #95 is not a
+reliable negative; an actual load attempt is ground truth.
 
 Benchmarked on build 1609, 15 cycles, realistic robot prompt shape (fixed system
 prefix + varying scene): 11.5 tok/s median (11.1-11.9), prompt eval 1091 ms median,
