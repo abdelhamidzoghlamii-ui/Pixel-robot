@@ -75,8 +75,10 @@ def gemma_decide(context, image_path=None):
         'stop': ['<end_of_turn>']
     }
 
-    # Add image if provided and file exists
-    if image_path and os.path.exists(image_path):
+    # An explicitly requested image must load successfully.
+    if image_path:
+        if not os.path.exists(image_path):
+            return 'STOP'
         try:
             with open(image_path, 'rb') as f:
                 img_b64 = base64.b64encode(f.read()).decode()
@@ -88,15 +90,16 @@ def gemma_decide(context, image_path=None):
         except KeyboardInterrupt:
             raise
         except Exception:
-            pass  # fall back to text only if image fails
+            return 'STOP'
 
     try:
         resp = requests.post(GEMMA_URL, json=payload, timeout=45)
-        return resp.json()['content'].strip()
+        resp.raise_for_status()
+        return resp.json()['content'].strip() or 'STOP'
     except KeyboardInterrupt:
         raise
     except Exception:
-        return 'FORWARD default'
+        return 'STOP'
 
 def gemma_identify(scene_desc, mission):
     prompt = (
@@ -441,6 +444,8 @@ class Robot:
                          'STRAFE_LEFT','STRAFE_RIGHT']:
                     move = w
                     break
+            else:
+                move = 'STOP'
             if move == 'SPEAK':
                 # Extract message after first word
                 msg_parts = response.split(' ', 1)
