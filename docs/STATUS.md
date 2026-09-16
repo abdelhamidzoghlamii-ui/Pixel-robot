@@ -34,9 +34,10 @@ writes).
 `~/llama.cpp-upstream` is a disposable work area holding build 2233 (commit
 4d917609), built and SWA-verified in the session recorded by DECISIONS #77,
 but NOT deployed. `~/llama.cpp`
-(b1609) remains the running server. `~/llama.cpp-upstream` holds the only copy
-of build 2233 and must be retained until the 1609-vs-2233 comparison is
-completed or formally cancelled (see DECISIONS #77, #95, #96). `~/robot` is a Git repository. The earlier
+(b1609) remains the running server. `~/llama.cpp-upstream` was rebuilt in place to b2351-790cf51a; the build 2233
+binary no longer exists there, but source commit 4d917609 remains reachable in
+git history (reconstructible via checkout + rebuild). The 1609-vs-2233
+comparison remains open, not cancelled (see DECISIONS #77, #95, #96, #107). `~/robot` is a Git repository. The earlier
 `fe14be2` snapshot is historical; it does not identify the current checkout.
 
 **Public repo:** github.com/abdelhamidzoghlamii-ui/Pixel-robot.
@@ -77,6 +78,11 @@ move == STOP · a new room was just mapped · `nav_stuck` is set. At `nav_stuck`
 Gemma is consulted once, but `run_cycle()` restores the exact Python-selected
 safety move after processing (DECISIONS #88). Vision (image attached) is sent
 only on the `every_5` / person / goal / new_room subset.
+
+Gemma is no longer consulted for navigation decisions (DECISIONS #104); the
+LLM's role is human interaction / goal-setting / voice→intent, off the
+per-cycle path. The trigger conditions below describe the prior model-in-loop
+design and are pending rework.
 
 ## Known-good config (as coded)
 
@@ -122,6 +128,8 @@ REAL_HEIGHTS: person 170, refrigerator 180, chair 90, couch 85, dining table 75,
 setup_q4     Gemma 4 E2B Q4_K_M  3.3GB  11-12 tok/s   ← robot default
 setup_e4b    Gemma 4 E4B Q4_K_M  5.0GB  7.2 tok/s     ← quality/chat mode
 setup_qwen3b / setup_qwen1b                            ← fallbacks
+(Qwen3.5 0.8/2/4B GGUFs at ~/models/qwen35/ are eval-only, not wired into
+server_manager; see DECISIONS #106. LLM is NOT in the nav loop — DECISIONS #104.)
 ```
 
 Current llama.cpp build: commit e1a1abb7, version 1609 (Clang 21.1.8, Android
@@ -222,6 +230,12 @@ text-only call. The vision-triggered subset of consultations (every_5 /
 person / goal / new_room, per the per-cycle flow above) carries no visual
 information; those cycles run identically to text-only ones. See DECISIONS
 #96.
+
+Update (DECISIONS #105): projectors were sourced and vision tested live on
+b2351. Not a fix — Gemma segfaults during image decode at usable budgets;
+Qwen3.5-2B needs >=1024 image tokens to ground and takes ~125s/image with
+hallucinated output. On-device LLM vision is a documented dead-end on this
+hardware. Perception stays with YOLO.
 
 ## Working now
 

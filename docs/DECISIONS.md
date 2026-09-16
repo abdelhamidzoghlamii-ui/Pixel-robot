@@ -768,3 +768,67 @@ Format: `NN. [area] decision — why`
      self-match failure seen elsewhere. Not changed pending further evidence.
      This does not retract the general -f warning — it applies to this one
      specific, narrower call, not as a blanket exception.
+
+104. **Local AI removed from the navigation decision loop; retained for human
+     interaction, goal-setting, and voice→intent.** DECIDED (human, this session).
+     Navigation is YOLO-on-phone + Python rules + sensors (+ 2D lidar when
+     integrated). Rationale, MEASURED this session: on 13 synthetic text-only
+     scenes nav-decision accuracy capped at 46.2% (Gemma-4-E2B, Qwen3.5-2B) and
+     69.2% (Qwen3.5-4B) — wrong on the safety scenes (chair<80cm, person
+     stop-distance) in every config; per-call latency 8-125s. The LLM is accurate
+     at structured voice→intent (grammar-constrained), which runs off the hot
+     path. Supersedes the model-in-loop framing of #99; #88's "Python owns safety"
+     now describes the whole nav path, not an override boundary.
+
+105. **On-device LLM vision is not viable on this Pixel — dead-end across two
+     model families, two failure modes.** MEASURED, this session, b2351.
+     a) Gemma-4-E2B: mmproj sourced and wired; SIGSEGV during image-embedding
+        DECODE at usable budgets (16 img-tokens crashes; 24 survives but returns
+        NONE — blind). Wiring verified correct (projector loads, tokens_evaluated
+        rises) — not a wiring bug.
+     b) Qwen3.5-2B: VL projector sourced; server requires >=1024 image tokens for
+        grounding; at 1024 one image takes ~125s and returns hallucinated bounding
+        boxes for classes not present. Below 1024 it does not ground.
+     Latency wall is compute-bound (SoC decoding image tokens), not fixable by
+     freeing RAM. Larger Qwen VL (4B Q4/Q5/Q6) not benchmarked to completion — a
+     fresh-server-per-image harness was built and its health-timeout bug fixed,
+     but the sweep was stopped after the 2B proof cell established the wall (human
+     decision). VL projectors sourced + sha256-verified this session, retained at
+     ~/models/qwen35/ and ~/models/ (hashes in qwen_vision_bench_report.md,
+     untracked). Perception stays with YOLO. Consistent with #96.
+
+106. **Qwen3.5 vs Gemma nav-decision accuracy; capacity moves the ceiling, not
+     the floor.** MEASURED, single run each, 13 synthetic scenes, b2351, temp 0.1,
+     grammar methods. Best-method correct%: Gemma-4-E2B 46.2%, Qwen3.5-2B 46.2%,
+     Qwen3.5-4B-Q4 69.2% (method D, GBNF + original wording). Corrects an inference
+     made earlier this session that model size could not move the cap — 4B moved
+     it. Residual failures on all three are the obstacle/stop-distance scenes
+     traced to #102's ruleset defects: capacity raises the ceiling, the ruleset
+     holds the floor. Free-text+first-keyword parse scored 0% on Qwen
+     (valid=False every scene) — the #101 "free text already 100% parseable"
+     finding is Gemma-specific, not model-portable. Qwen-4B load: ~1.82 GB
+     MemAvailable free (text-only). Latency medians ~9s (2B), ~23s (4B). Describes
+     the text path + current GEMMA_SYS on b2351.
+
+107. **~/llama.cpp-upstream was rebuilt in place to b2351-790cf51a (git pull +
+     cmake); build 2233 binary is gone, its source commit is recoverable.**
+     VERIFIED on-device this session: git HEAD = 790cf51a; both build/bin/llama-cli
+     and llama-server report build 2351 / 790cf51a. The pre-rebuild retention
+     backup (cp ...llama-server-b2233-backup) never ran — file absent. Source
+     commit 4d917609 is still a reachable commit object (git cat-file -t = commit),
+     so build 2233 is reconstructible via checkout + rebuild, not lost. Supersedes
+     the STATUS claim that upstream "holds the only copy of build 2233 and must be
+     retained." The 1609-vs-2233 comparison (#77/#95/#96) is neither done nor
+     cancelled — OPEN for the human.
+
+108. **Nav LLM-failure path now fails closed to STOP.** COMMITTED 888562e and
+     PUSHED to origin/main this session (f0f9cde..888562e). In main.py,
+     gemma_decide() exception/timeout/HTTP-error/blank/missing-image paths return
+     'STOP' (was 'FORWARD default'); run_cycle forces STOP when the response parses
+     to no recognized action (previously retained the rule value, commonly
+     FORWARD). Safety-move restoration can only restore BACK/LEFT/RIGHT/strafe,
+     never FORWARD. KeyboardInterrupt still propagates. Independent review PASS
+     (Codex gpt-5.6-sol); exception/actionless/KeyboardInterrupt confirmed from
+     live output, timeout/HTTP/blank/missing-image by static inspection. Session
+     review setup: Codex terra/astra coded; Codex-sol, AGY/Gemini-3.1-Pro, and
+     AGY/Claude-Opus-4.6 reviewed — model-diverse.
