@@ -847,3 +847,97 @@ Format: `NN. [area] decision — why`
      script interruption, simultaneous model operation and motor integration
      are unverified. An approximately 20-second script interval is only a
      hypothesis. This decision authorizes no motors-live work.
+
+## Objective-setting LLM benchmark
+
+110. **On-device LLM objective-setting benchmark: E4B's extra capacity buys
+     nothing, Qwen3.5 thinking mode is unusable, and the grading rubric has two
+     measured defects.** MEASURED on a rooted Pixel 7, Termux, llama-server build
+     1609 (e1a1abb7), ctx 4096, n_predict 512, temps 0.1 (conversation/Q&A) and
+     0.05 (objective-setting), 3 runs per config unless noted.
+
+     Scope: this tests the LLM in the role it retains under #109 — conversation
+     and objective-setting — not navigation. It scores a PROPOSED dynamic-map
+     prompt (PARSE_SYS-D) against a PoC map (kitchen, living_room, schlafzimmer,
+     bureau, bathroom, balkon), NOT the deployed hardcoded 5-room enum, so it does
+     not describe as-coded behaviour. It predates the revised robot cycle; its
+     value is as a baseline and as rubric experience for the next benchmark.
+
+     Bucket C (13 objective-setting prompts, auto-graded), run-1 headline:
+     Gemma-4-E2B and Gemma-4-E4B are IDENTICAL at 84.6% exact, 83.3%
+     cross-lingual, 0 critical failures, 1 reject-violation each. E4B runs at
+     roughly half the decode speed (4.48 vs 8.34 tok/s weighted) with a 30.6 s
+     median time-to-first-token vs 13.4 s. Speed figures are thermally
+     contaminated (back-to-back runs on a hot phone): treat the gap as real and
+     the absolute seconds as worst-case.
+
+     Across all three runs, with the find_person rubric defect corrected (below),
+     E2B is 32/39 (82.1%) with 3 reject-violations and E4B is 30/39 (76.9%) with
+     3 — so the two are NOT identical beyond run 1, and E2B is slightly ahead.
+     E4B's extra capacity buys nothing on objective-setting at twice the cost.
+
+     Shared Gemma failure modes: "Go to Chiara's room" (C7) resolves to a map room
+     instead of refusing (E2B 3/3 navigate_to schlafzimmer; E4B 2/3, plus one
+     find_person); "Sag Chiara, dass das Essen fertig ist" (C13) emits only `say`,
+     never find_person. These are distinct operational failures and should not be
+     hidden by one aggregate percentage.
+
+     Qwen3.5-2B with thinking ON is UNUSABLE and its quality numbers are INVALID:
+     42% of turns (34/81) hit the token cap (stop_type=limit), latency reached
+     204 s, one turn timed out. Qwen3.5-4B-think-on was NOT run; it is inferred
+     worse because 4B is strictly slower — inference, not measurement.
+
+     Qwen3.5-2B-think-off (SINGLE smoke run, 13 turns) scores differently under
+     three parse regimes, because it emits a bare JSON object rather than an
+     array: stored harness 4/13 parseable (the extractor also accepts arrays
+     nested inside a bare object), strict top-level-array regrade 2/13, lenient
+     bare-object regrade 13/13. Under the corrected lenient regrade it reaches
+     8/13 (61.5%) exact with 2 reject-violations. Parseability is not competence:
+     2 of 13 replies used a non-map room value — C1 emitted the English "bedroom"
+     instead of "schlafzimmer", and C8 emitted " balkon" with a leading space.
+     Deployed main.py primes a leading "[" which would rescue the bare-object
+     shape; the bench deliberately does not.
+
+     qwen2.5-3b was DROPPED (crashed mid-run; had answered "bedroom" instead of
+     the map label). Buckets A (conversation) and B (Q&A) were run but NEVER
+     GRADED.
+
+     Two MEASURED rubric defects, both found in post-hoc review and both to be
+     fixed before the next benchmark: (a) the reject_violation rule checks only
+     navigate_to and find_object, missing find_person — this is what let E4B's C7
+     run 2 pass, and correcting it produces the all-run figures above; (b) the C8
+     refusal check credited a patrol action as exact for Qwen. C8 is not a
+     structural problem for either Gemma (E4B returned [] in all three runs, E2B a
+     single `say`). A third question is left OPEN by human decision: E2B's C8
+     run-1 reply echoed the command back ("Don't go to the kitchen") rather than
+     clearly refusing. Under the structural single-`say` rule E2B stands at 84.6%
+     run 1 / 82.1% all-run; under a semantic rule requiring explicit refusal it
+     falls to 76.9% run 1 / 79.5% all-run, and whether the echo also counts as a
+     reject-violation is undefined. One ambiguous utterance out of 39 does not
+     justify fixing the definition retroactively; the next benchmark must define
+     "refusal" before running.
+
+     Also broken: the `think_chars` metric is meaningless for Qwen3.5 (~19 chars
+     reported on 512-token, 204 s turns); latency and truncation measure think
+     cost instead. Run files carry no `source_sha256`, so which grader bytes
+     produced a given run is inferred from file mtime, not recorded — the next
+     harness should record it. Reported TTFT is the server's `prompt_ms` proxy,
+     not a streamed first-token timestamp.
+
+     Artifacts archived at `benchmark/llm_objective_setting/` (README.md,
+     RUN_INDEX.md, ARTIFACTS.md, aggregate.py) with the run artifacts themselves
+     at `benchmark/llm_objective_setting/runs/` — bench.py (post-patch, sha256
+     1e1b506c…4c06080) and four bench_results_*.json. COMMITTED and PUSHED to
+     origin/main as 703064937e6a243dc2801ffe9662bda86424f09c, verified against a
+     fresh remote query. This departs from strategic_selector's hashes-only
+     precedent so that #110 is independently verifiable. Relates to #104, #106,
+     #108, #109.
+
+     Provenance: harness built across multiple coder/reviewer rounds (Gemini 3.1
+     Pro, Codex terra/astra/sol, Claude Opus 4.6). The final crash-guard patch to
+     parse_and_grade_c was coded by Claude Opus 4.6; independent review was WAIVED
+     by human decision and replaced by a runtime smoke test, which passed
+     (pre-patch sha256 dc53c4d1…5996f442, post-patch 1e1b506c…4c06080). The
+     archive was created by Codex gpt-5.6-sol, the post-hoc regrades by Codex
+     GPT-6, and the docs/WORKFLOW.md independent review of the archive was also
+     WAIVED by human decision; the waiver is recorded in the archive README.

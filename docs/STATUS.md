@@ -215,6 +215,14 @@ observations and follow-up are retained in
   accuracy results. Raw original-run JSON, stdout, manifests, the executed v2
   source, v1 history and explicit evidence gaps are archived under
   `benchmark/strategic_selector/`.
+  A separate offline objective-setting benchmark of on-device GGUF models
+  (Gemma-4-E2B/E4B, Qwen3.5-2B) ran on build 1609; results, caveats and
+  incomplete portions are archived with their run artifacts at
+  `benchmark/llm_objective_setting/` (see DECISIONS #110). It scores a proposed
+  dynamic-map prompt, not the deployed enum, its conversation/Q&A buckets are
+  ungraded, and two rubric defects were found after the fact. It is a baseline
+  for the LLM's retained conversation/objective-setting role under #109, not
+  evidence about navigation.
 - Strategic-selector evidence: a 2026-09-23 phone audit confirmed four archived
   runs and benchmark sources published on origin/main; publication does not
   establish model accuracy or robot hardware validity (see
@@ -319,6 +327,18 @@ observations and follow-up are retained in
   additional car-mounted accelerometer helps remain undetermined. The
   current ultrasonic sensor and phone sensors have not been integrated
   into this proposed selector.
+- Objective-setting benchmark is INCOMPLETE: buckets A (conversation) and B
+  (Q&A) were run but never graded; Qwen3.5-4B (think-on and think-off) was
+  never run; Qwen3.5-2B-think-off has only a single smoke run. Qwen3.5
+  think-on results are invalid (42% truncated) and must not be quoted.
+  Rubric fixes required before the next benchmark: reject_violation must cover
+  find_person and any other action type, not a hardcoded subset; 'refusal' must
+  be defined explicitly before running; runs must record the grader's
+  source_sha256. The `think_chars` metric is broken for Qwen3.5 and should be
+  retired.
+- benchmark/llm_objective_setting/ was published with the docs/WORKFLOW.md
+  independent review WAIVED by human decision; the waiver is recorded in its
+  README.
 
 ## Work priorities
 
