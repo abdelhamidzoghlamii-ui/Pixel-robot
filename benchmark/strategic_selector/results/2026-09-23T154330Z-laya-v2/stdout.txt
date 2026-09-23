@@ -1,0 +1,139 @@
+BENCHMARK_VERSION=2 MODEL=laya
+CASE_COUNTS 22 11 DISJOINT_MODEL_FIXTURES=true
+NO_MOTOR_OR_NETWORK_IO=true
+AFFINITY=[4, 5, 6, 7]
+TORCH=2.14.0+cpu THREADS=4 
+IMPORT_AND_LOAD_MS=50985.3
+WARMUP_1_MS=2336.2
+WARMUP_2_MS=2369.3
+DEV wide_text laya_new_room_0 expected=search_here chosen=search_here acceptable=True ms=2565
+DEV filtered_text laya_new_room_0 expected=search_here chosen=search_here acceptable=True ms=2437
+DEV filtered_json laya_new_room_0 expected=search_here chosen=search_here acceptable=True ms=3026
+DEV two_stage_text laya_new_room_0 expected=search_here chosen=search_here acceptable=True ms=2096
+DEV two_stage_json laya_new_room_0 expected=search_here chosen=search_here acceptable=True ms=2695
+DEV filtered_text laya_new_room_1 expected=search_here chosen=search_here acceptable=True ms=2443
+DEV filtered_json laya_new_room_1 expected=search_here chosen=search_here acceptable=True ms=3089
+DEV two_stage_text laya_new_room_1 expected=search_here chosen=search_here acceptable=True ms=2154
+DEV two_stage_json laya_new_room_1 expected=search_here chosen=search_here acceptable=True ms=2747
+DEV wide_text laya_new_room_1 expected=search_here chosen=search_here acceptable=True ms=2642
+DEV filtered_json laya_room_finished_0 expected=travel:kitchen chosen=travel:living_room acceptable=True ms=3035
+DEV two_stage_text laya_room_finished_0 expected=travel:kitchen chosen=travel:toilet acceptable=True ms=4096
+DEV two_stage_json laya_room_finished_0 expected=travel:kitchen chosen=travel:living_room acceptable=True ms=5369
+DEV wide_text laya_room_finished_0 expected=travel:kitchen chosen=search_here acceptable=False ms=2721
+DEV filtered_text laya_room_finished_0 expected=travel:kitchen chosen=travel:living_room acceptable=True ms=2431
+DEV two_stage_text laya_room_finished_1 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=4138
+DEV two_stage_json laya_room_finished_1 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=5300
+DEV wide_text laya_room_finished_1 expected=travel:toilet chosen=search_here acceptable=False ms=2720
+DEV filtered_text laya_room_finished_1 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=2398
+DEV filtered_json laya_room_finished_1 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=3081
+DEV two_stage_json laya_hall_hint_0 expected=travel:living_room chosen=call_chiara acceptable=False ms=2751
+DEV wide_text laya_hall_hint_0 expected=travel:living_room chosen=search_here acceptable=False ms=2811
+DEV filtered_text laya_hall_hint_0 expected=travel:living_room chosen=travel:living_room acceptable=True ms=2488
+DEV filtered_json laya_hall_hint_0 expected=travel:living_room chosen=call_chiara acceptable=False ms=3279
+DEV two_stage_text laya_hall_hint_0 expected=travel:living_room chosen=travel:toilet acceptable=True ms=4316
+DEV wide_text laya_hall_hint_1 expected=travel:kitchen chosen=search_here acceptable=False ms=2788
+DEV filtered_text laya_hall_hint_1 expected=travel:kitchen chosen=travel:bedroom acceptable=True ms=2519
+DEV filtered_json laya_hall_hint_1 expected=travel:kitchen chosen=travel:bedroom acceptable=True ms=3225
+DEV two_stage_text laya_hall_hint_1 expected=travel:kitchen chosen=travel:bedroom acceptable=True ms=4296
+DEV two_stage_json laya_hall_hint_1 expected=travel:kitchen chosen=travel:bedroom acceptable=True ms=5629
+DEV filtered_text laya_target_confirmed_0 expected=finish chosen=finish acceptable=True ms=1961
+DEV filtered_json laya_target_confirmed_0 expected=finish chosen=finish acceptable=True ms=2587
+DEV two_stage_text laya_target_confirmed_0 expected=finish chosen=finish acceptable=True ms=1954
+DEV two_stage_json laya_target_confirmed_0 expected=finish chosen=finish acceptable=True ms=2569
+DEV wide_text laya_target_confirmed_0 expected=finish chosen=travel:bedroom acceptable=False ms=2764
+DEV filtered_json laya_target_confirmed_1 expected=finish chosen=finish acceptable=True ms=2573
+DEV two_stage_text laya_target_confirmed_1 expected=finish chosen=finish acceptable=True ms=1977
+DEV two_stage_json laya_target_confirmed_1 expected=finish chosen=finish acceptable=True ms=2604
+DEV wide_text laya_target_confirmed_1 expected=finish chosen=search_here acceptable=False ms=2778
+DEV filtered_text laya_target_confirmed_1 expected=finish chosen=finish acceptable=True ms=1941
+DEV two_stage_text laya_possible_person_0 expected=call_chiara chosen=search_here acceptable=True ms=2688
+DEV two_stage_json laya_possible_person_0 expected=call_chiara chosen=search_here acceptable=True ms=3983
+DEV wide_text laya_possible_person_0 expected=call_chiara chosen=search_here acceptable=True ms=3460
+DEV filtered_text laya_possible_person_0 expected=call_chiara chosen=search_here acceptable=True ms=3104
+DEV filtered_json laya_possible_person_0 expected=call_chiara chosen=search_here acceptable=True ms=3922
+DEV two_stage_json laya_possible_person_1 expected=call_chiara chosen=search_here acceptable=True ms=3371
+DEV wide_text laya_possible_person_1 expected=call_chiara chosen=search_here acceptable=True ms=3241
+DEV filtered_text laya_possible_person_1 expected=call_chiara chosen=search_here acceptable=True ms=2957
+DEV filtered_json laya_possible_person_1 expected=call_chiara chosen=search_here acceptable=True ms=3746
+DEV two_stage_text laya_possible_person_1 expected=call_chiara chosen=search_here acceptable=True ms=2503
+DEV wide_text laya_all_rooms_first_0 expected=call_chiara chosen=travel:bedroom acceptable=False ms=3229
+DEV filtered_text laya_all_rooms_first_0 expected=call_chiara chosen=call_chiara acceptable=True ms=2265
+DEV filtered_json laya_all_rooms_first_0 expected=call_chiara chosen=call_chiara acceptable=True ms=3058
+DEV two_stage_text laya_all_rooms_first_0 expected=call_chiara chosen=call_chiara acceptable=True ms=2253
+DEV two_stage_json laya_all_rooms_first_0 expected=call_chiara chosen=call_chiara acceptable=True ms=3043
+DEV filtered_text laya_all_rooms_first_1 expected=call_chiara chosen=call_chiara acceptable=True ms=2258
+DEV filtered_json laya_all_rooms_first_1 expected=call_chiara chosen=call_chiara acceptable=True ms=3079
+DEV two_stage_text laya_all_rooms_first_1 expected=call_chiara chosen=call_chiara acceptable=True ms=2283
+DEV two_stage_json laya_all_rooms_first_1 expected=call_chiara chosen=call_chiara acceptable=True ms=3052
+DEV wide_text laya_all_rooms_first_1 expected=call_chiara chosen=search_here acceptable=False ms=3243
+DEV filtered_json laya_all_rooms_called_0 expected=ask_gemma chosen=call_chiara acceptable=False ms=3075
+DEV two_stage_text laya_all_rooms_called_0 expected=ask_gemma chosen=call_chiara acceptable=False ms=2247
+DEV two_stage_json laya_all_rooms_called_0 expected=ask_gemma chosen=call_chiara acceptable=False ms=3063
+DEV wide_text laya_all_rooms_called_0 expected=ask_gemma chosen=search_here acceptable=False ms=3219
+DEV filtered_text laya_all_rooms_called_0 expected=ask_gemma chosen=call_chiara acceptable=False ms=2291
+DEV two_stage_text laya_all_rooms_called_1 expected=ask_gemma chosen=call_chiara acceptable=False ms=2314
+DEV two_stage_json laya_all_rooms_called_1 expected=ask_gemma chosen=call_chiara acceptable=False ms=3046
+DEV wide_text laya_all_rooms_called_1 expected=ask_gemma chosen=search_here acceptable=False ms=3351
+DEV filtered_text laya_all_rooms_called_1 expected=ask_gemma chosen=call_chiara acceptable=False ms=2399
+DEV filtered_json laya_all_rooms_called_1 expected=ask_gemma chosen=call_chiara acceptable=False ms=3306
+DEV two_stage_json laya_localization_lost_0 expected=relocalize chosen=call_chiara acceptable=False ms=3426
+DEV wide_text laya_localization_lost_0 expected=relocalize chosen=travel:bedroom acceptable=False ms=3575
+DEV filtered_text laya_localization_lost_0 expected=relocalize chosen=call_chiara acceptable=False ms=2781
+DEV filtered_json laya_localization_lost_0 expected=relocalize chosen=call_chiara acceptable=False ms=3504
+DEV two_stage_text laya_localization_lost_0 expected=relocalize chosen=call_chiara acceptable=False ms=2630
+DEV wide_text laya_localization_lost_1 expected=relocalize chosen=search_here acceptable=False ms=3433
+DEV filtered_text laya_localization_lost_1 expected=relocalize chosen=call_chiara acceptable=False ms=2792
+DEV filtered_json laya_localization_lost_1 expected=relocalize chosen=call_chiara acceptable=False ms=3454
+DEV two_stage_text laya_localization_lost_1 expected=relocalize chosen=call_chiara acceptable=False ms=2630
+DEV two_stage_json laya_localization_lost_1 expected=relocalize chosen=call_chiara acceptable=False ms=3399
+DEV filtered_text laya_route_blocked_0 expected=relocalize chosen=relocalize acceptable=True ms=2853
+DEV filtered_json laya_route_blocked_0 expected=relocalize chosen=call_chiara acceptable=False ms=3568
+DEV two_stage_text laya_route_blocked_0 expected=relocalize chosen=relocalize acceptable=True ms=2699
+DEV two_stage_json laya_route_blocked_0 expected=relocalize chosen=call_chiara acceptable=False ms=3482
+DEV wide_text laya_route_blocked_0 expected=relocalize chosen=travel:bedroom acceptable=False ms=3492
+DEV filtered_json laya_route_blocked_1 expected=relocalize chosen=call_chiara acceptable=False ms=3666
+DEV two_stage_text laya_route_blocked_1 expected=relocalize chosen=relocalize acceptable=True ms=2919
+DEV two_stage_json laya_route_blocked_1 expected=relocalize chosen=call_chiara acceptable=False ms=3496
+DEV wide_text laya_route_blocked_1 expected=relocalize chosen=search_here acceptable=False ms=3537
+DEV filtered_text laya_route_blocked_1 expected=relocalize chosen=relocalize acceptable=True ms=2912
+DEV two_stage_text laya_repeat_search_0 expected=travel:kitchen chosen=travel:living_room acceptable=True ms=5346
+DEV two_stage_json laya_repeat_search_0 expected=travel:kitchen chosen=travel:living_room acceptable=True ms=6751
+DEV wide_text laya_repeat_search_0 expected=travel:kitchen chosen=travel:bedroom acceptable=False ms=3380
+DEV filtered_text laya_repeat_search_0 expected=travel:kitchen chosen=travel:living_room acceptable=True ms=3064
+DEV filtered_json laya_repeat_search_0 expected=travel:kitchen chosen=travel:living_room acceptable=True ms=3922
+DEV two_stage_json laya_repeat_search_1 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=6901
+DEV wide_text laya_repeat_search_1 expected=travel:toilet chosen=search_here acceptable=False ms=3486
+DEV filtered_text laya_repeat_search_1 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=3044
+DEV filtered_json laya_repeat_search_1 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=3983
+DEV two_stage_text laya_repeat_search_1 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=5535
+DEV wide_text laya_heard_from_room_0 expected=travel:kitchen chosen=travel:bedroom acceptable=False ms=3488
+DEV filtered_text laya_heard_from_room_0 expected=travel:kitchen chosen=travel:living_room acceptable=True ms=3139
+DEV filtered_json laya_heard_from_room_0 expected=travel:kitchen chosen=call_chiara acceptable=False ms=3868
+DEV two_stage_text laya_heard_from_room_0 expected=travel:kitchen chosen=call_chiara acceptable=False ms=2516
+DEV two_stage_json laya_heard_from_room_0 expected=travel:kitchen chosen=call_chiara acceptable=False ms=3512
+DEV filtered_text laya_heard_from_room_1 expected=travel:toilet chosen=travel:toilet acceptable=True ms=3249
+DEV filtered_json laya_heard_from_room_1 expected=travel:toilet chosen=call_chiara acceptable=False ms=3900
+DEV two_stage_text laya_heard_from_room_1 expected=travel:toilet chosen=call_chiara acceptable=False ms=2530
+DEV two_stage_json laya_heard_from_room_1 expected=travel:toilet chosen=call_chiara acceptable=False ms=3436
+DEV wide_text laya_heard_from_room_1 expected=travel:toilet chosen=search_here acceptable=False ms=3530
+DEV_SUMMARY wide_text {"n": 22, "preferred": 2, "acceptable": 4, "invalid_or_ineligible": 18, "inference_calls": 22, "p50_ms": 3242.3, "p95_ms": 3536.9}
+DEV_SUMMARY filtered_text {"n": 22, "preferred": 10, "acceptable": 18, "invalid_or_ineligible": 0, "inference_calls": 22, "p50_ms": 2503.2, "p95_ms": 3137.3}
+DEV_SUMMARY filtered_json {"n": 22, "preferred": 6, "acceptable": 13, "invalid_or_ineligible": 0, "inference_calls": 22, "p50_ms": 3292.3, "p95_ms": 3922.3}
+DEV_SUMMARY two_stage_text {"n": 22, "preferred": 8, "acceptable": 16, "invalid_or_ineligible": 0, "inference_calls": 28, "p50_ms": 2579.8, "p95_ms": 5294.6}
+DEV_SUMMARY two_stage_json {"n": 22, "preferred": 6, "acceptable": 13, "invalid_or_ineligible": 0, "inference_calls": 27, "p50_ms": 3412.5, "p95_ms": 6695.3}
+SELECTED_ON_DEVELOPMENT=filtered_text
+HELDOUT laya_new_room_2 expected=search_here chosen=search_here acceptable=True ms=3317
+HELDOUT laya_room_finished_2 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=3252
+HELDOUT laya_hall_hint_2 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=3197
+HELDOUT laya_target_confirmed_2 expected=finish chosen=finish acceptable=True ms=2343
+HELDOUT laya_possible_person_2 expected=call_chiara chosen=search_here acceptable=True ms=3190
+HELDOUT laya_all_rooms_first_2 expected=call_chiara chosen=call_chiara acceptable=True ms=2655
+HELDOUT laya_all_rooms_called_2 expected=ask_gemma chosen=call_chiara acceptable=False ms=2527
+HELDOUT laya_localization_lost_2 expected=relocalize chosen=call_chiara acceptable=False ms=2846
+HELDOUT laya_route_blocked_2 expected=relocalize chosen=relocalize acceptable=True ms=2855
+HELDOUT laya_repeat_search_2 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=3029
+HELDOUT laya_heard_from_room_2 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=3193
+FINAL_HELDOUT {"n": 11, "preferred": 7, "acceptable": 9, "invalid_or_ineligible": 0, "inference_calls": 11, "p50_ms": 3028.8, "p95_ms": 3284.3}
+ORDER_REVERSAL_FLIPS=4/11
+INFERENCE_CALLS=145 MAX_RSS_MIB=2848.3
+RESULT_FILE=/data/data/com.termux/files/home/laya-test/robot-selector-laya-v2-results.json

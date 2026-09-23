@@ -1,0 +1,27 @@
+TORCH=2.14.0+cpu THREADS=4 
+Loading weights:   0%|          | 0/170 [00:00<?, ?it/s]Loading weights:   5%|▍         | 8/170 [00:00<00:02, 76.96it/s]Loading weights:   9%|▉         | 16/170 [00:00<00:02, 73.67it/s]Loading weights:  14%|█▍        | 24/170 [00:00<00:02, 53.26it/s]Loading weights:  19%|█▉        | 33/170 [00:00<00:02, 60.07it/s]Loading weights:  24%|██▎       | 40/170 [00:00<00:02, 59.56it/s]Loading weights:  28%|██▊       | 47/170 [00:00<00:02, 55.25it/s]Loading weights:  31%|███       | 53/170 [00:00<00:02, 45.70it/s]Loading weights:  34%|███▍      | 58/170 [00:01<00:02, 44.51it/s]Loading weights:  37%|███▋      | 63/170 [00:01<00:02, 40.65it/s]Loading weights:  42%|████▏     | 71/170 [00:01<00:02, 48.87it/s]Loading weights:  45%|████▌     | 77/170 [00:01<00:02, 42.25it/s]Loading weights:  48%|████▊     | 82/170 [00:01<00:02, 43.03it/s]Loading weights:  51%|█████     | 87/170 [00:01<00:02, 40.68it/s]Loading weights: 100%|██████████| 170/170 [00:01<00:00, 89.00it/s]
+[transformers] [1mModernBertModel LOAD REPORT[0m from: wfzyx/von
+Key               | Status     |  | 
+------------------+------------+--+-
+classifier.weight | UNEXPECTED |  | 
+head.norm.weight  | UNEXPECTED |  | 
+head.dense.weight | UNEXPECTED |  | 
+classifier.bias   | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+[von] Loaded von-1.1.0 weights from Hugging Face Hub 'wfzyx/von:option_marker.pt' (/termux-home/von-test/hf-cache/hub/models--wfzyx--von/snapshots/d8bb5e0745d8ee1fb65d536d6d4892d54d5a93fd/option_marker.pt) (input-conditioned calibration map active)
+CASE=von_new_room_2 EXPECTED=search_here NORMAL=travel:living_room REVERSED=search_here ACCEPTABLE=False MS=8179
+CASE=von_room_finished_2 EXPECTED=travel:kitchen NORMAL=travel:living_room REVERSED=travel:toilet ACCEPTABLE=True MS=2054
+CASE=von_hall_hint_2 EXPECTED=travel:kitchen NORMAL=travel:living_room REVERSED=travel:toilet ACCEPTABLE=True MS=2079
+CASE=von_target_confirmed_2 EXPECTED=finish NORMAL=finish REVERSED=ask_gemma ACCEPTABLE=True MS=1684
+CASE=von_possible_person_2 EXPECTED=call_chiara NORMAL=travel:living_room REVERSED=travel:toilet ACCEPTABLE=False MS=2118
+CASE=von_all_rooms_first_2 EXPECTED=call_chiara NORMAL=ask_gemma REVERSED=call_chiara ACCEPTABLE=False MS=1751
+CASE=von_all_rooms_called_2 EXPECTED=ask_gemma NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=True MS=1760
+CASE=von_localization_lost_2 EXPECTED=relocalize NORMAL=relocalize REVERSED=relocalize ACCEPTABLE=True MS=1861
+CASE=von_route_blocked_2 EXPECTED=relocalize NORMAL=relocalize REVERSED=call_chiara ACCEPTABLE=True MS=2446
+CASE=von_repeat_search_2 EXPECTED=travel:kitchen NORMAL=travel:living_room REVERSED=travel:toilet ACCEPTABLE=True MS=2028
+CASE=von_heard_from_room_2 EXPECTED=travel:kitchen NORMAL=travel:living_room REVERSED=travel:kitchen ACCEPTABLE=True MS=2071
+NORMAL_SUMMARY: {"n": 11, "preferred": 4, "acceptable": 8, "invalid_or_ineligible": 0, "inference_calls": 11, "p50_ms": 2053.8, "p95_ms": 5312.7}
+REVERSED_SUMMARY: {"n": 11, "preferred": 5, "acceptable": 8, "invalid_or_ineligible": 0, "inference_calls": 11, "p50_ms": 1950.1, "p95_ms": 2090.7}
+ORDER_REVERSAL_FLIPS: 9 / 11

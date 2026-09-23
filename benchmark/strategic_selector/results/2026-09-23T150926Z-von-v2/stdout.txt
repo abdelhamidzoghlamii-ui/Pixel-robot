@@ -1,0 +1,151 @@
+BENCHMARK_VERSION=2 MODEL=von
+CASE_COUNTS 22 11 DISJOINT_MODEL_FIXTURES=true
+NO_MOTOR_OR_NETWORK_IO=true
+AFFINITY=[4, 5, 6, 7]
+TORCH=2.14.0+cpu THREADS=4 
+IMPORT_AND_LOAD_MS=11927.6
+Loading weights:   0%|          | 0/170 [00:00<?, ?it/s]Loading weights:   4%|▎         | 6/170 [00:00<00:03, 49.67it/s]Loading weights:   7%|▋         | 12/170 [00:00<00:03, 47.13it/s]Loading weights:  10%|█         | 17/170 [00:00<00:03, 40.06it/s]Loading weights:  14%|█▍        | 24/170 [00:00<00:03, 42.76it/s]Loading weights:  18%|█▊        | 30/170 [00:00<00:03, 42.27it/s]Loading weights:  24%|██▎       | 40/170 [00:00<00:02, 56.47it/s]Loading weights:  28%|██▊       | 47/170 [00:00<00:02, 59.03it/s]Loading weights:  32%|███▏      | 54/170 [00:01<00:02, 55.02it/s]Loading weights:  35%|███▌      | 60/170 [00:01<00:02, 53.80it/s]Loading weights:  39%|███▉      | 67/170 [00:01<00:02, 50.86it/s]Loading weights:  44%|████▎     | 74/170 [00:01<00:01, 55.49it/s]Loading weights:  47%|████▋     | 80/170 [00:01<00:01, 54.27it/s]Loading weights:  51%|█████     | 87/170 [00:01<00:01, 56.53it/s]Loading weights: 100%|██████████| 170/170 [00:01<00:00, 98.43it/s]
+[transformers] [1mModernBertModel LOAD REPORT[0m from: wfzyx/von
+Key               | Status     |  | 
+------------------+------------+--+-
+classifier.bias   | UNEXPECTED |  | 
+head.dense.weight | UNEXPECTED |  | 
+head.norm.weight  | UNEXPECTED |  | 
+classifier.weight | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+[von] Loaded von-1.1.0 weights from Hugging Face Hub 'wfzyx/von:option_marker.pt' (/termux-home/von-test/hf-cache/hub/models--wfzyx--von/snapshots/d8bb5e0745d8ee1fb65d536d6d4892d54d5a93fd/option_marker.pt) (input-conditioned calibration map active)
+WARMUP_1_MS=8582.2
+WARMUP_2_MS=1938.5
+DEV wide_text von_new_room_0 expected=search_here chosen=search_here acceptable=True ms=2553
+DEV filtered_text von_new_room_0 expected=search_here chosen=travel:bedroom acceptable=False ms=2071
+DEV filtered_json von_new_room_0 expected=search_here chosen=travel:bedroom acceptable=False ms=2510
+DEV two_stage_text von_new_room_0 expected=search_here chosen=search_here acceptable=True ms=1818
+DEV two_stage_json von_new_room_0 expected=search_here chosen=travel:bedroom acceptable=False ms=4365
+DEV filtered_text von_new_room_1 expected=search_here chosen=travel:bedroom acceptable=False ms=2100
+DEV filtered_json von_new_room_1 expected=search_here chosen=travel:bedroom acceptable=False ms=2514
+DEV two_stage_text von_new_room_1 expected=search_here chosen=travel:bedroom acceptable=False ms=4777
+DEV two_stage_json von_new_room_1 expected=search_here chosen=travel:bedroom acceptable=False ms=5445
+DEV wide_text von_new_room_1 expected=search_here chosen=search_here acceptable=True ms=2865
+DEV filtered_json von_room_finished_0 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=2899
+DEV two_stage_text von_room_finished_0 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=4124
+DEV two_stage_json von_room_finished_0 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=5184
+DEV wide_text von_room_finished_0 expected=travel:toilet chosen=travel:living_room acceptable=False ms=2884
+DEV filtered_text von_room_finished_0 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=2329
+DEV two_stage_text von_room_finished_1 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=4139
+DEV two_stage_json von_room_finished_1 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=5120
+DEV wide_text von_room_finished_1 expected=travel:bedroom chosen=travel:living_room acceptable=True ms=2896
+DEV filtered_text von_room_finished_1 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=2344
+DEV filtered_json von_room_finished_1 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=2883
+DEV two_stage_json von_hall_hint_0 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=5338
+DEV wide_text von_hall_hint_0 expected=travel:bedroom chosen=travel:living_room acceptable=False ms=2950
+DEV filtered_text von_hall_hint_0 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=2417
+DEV filtered_json von_hall_hint_0 expected=travel:bedroom chosen=travel:kitchen acceptable=True ms=3015
+DEV two_stage_text von_hall_hint_0 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=4389
+DEV wide_text von_hall_hint_1 expected=travel:living_room chosen=travel:living_room acceptable=True ms=3129
+DEV filtered_text von_hall_hint_1 expected=travel:living_room chosen=travel:bedroom acceptable=True ms=2575
+DEV filtered_json von_hall_hint_1 expected=travel:living_room chosen=travel:bedroom acceptable=True ms=3340
+DEV two_stage_text von_hall_hint_1 expected=travel:living_room chosen=travel:bedroom acceptable=True ms=4727
+DEV two_stage_json von_hall_hint_1 expected=travel:living_room chosen=travel:bedroom acceptable=True ms=6192
+DEV filtered_text von_target_confirmed_0 expected=finish chosen=finish acceptable=True ms=2467
+DEV filtered_json von_target_confirmed_0 expected=finish chosen=finish acceptable=True ms=3042
+DEV two_stage_text von_target_confirmed_0 expected=finish chosen=finish acceptable=True ms=2421
+DEV two_stage_json von_target_confirmed_0 expected=finish chosen=finish acceptable=True ms=2815
+DEV wide_text von_target_confirmed_0 expected=finish chosen=travel:living_room acceptable=False ms=3402
+DEV filtered_json von_target_confirmed_1 expected=finish chosen=finish acceptable=True ms=3091
+DEV two_stage_text von_target_confirmed_1 expected=finish chosen=finish acceptable=True ms=2522
+DEV two_stage_json von_target_confirmed_1 expected=finish chosen=finish acceptable=True ms=2916
+DEV wide_text von_target_confirmed_1 expected=finish chosen=travel:living_room acceptable=False ms=3303
+DEV filtered_text von_target_confirmed_1 expected=finish chosen=finish acceptable=True ms=2417
+DEV two_stage_text von_possible_person_0 expected=call_chiara chosen=travel:bedroom acceptable=False ms=5026
+DEV two_stage_json von_possible_person_0 expected=call_chiara chosen=travel:bedroom acceptable=False ms=6163
+DEV wide_text von_possible_person_0 expected=call_chiara chosen=travel:living_room acceptable=False ms=3292
+DEV filtered_text von_possible_person_0 expected=call_chiara chosen=travel:bedroom acceptable=False ms=2854
+DEV filtered_json von_possible_person_0 expected=call_chiara chosen=travel:bedroom acceptable=False ms=3439
+DEV two_stage_json von_possible_person_1 expected=call_chiara chosen=travel:bedroom acceptable=False ms=6232
+DEV wide_text von_possible_person_1 expected=call_chiara chosen=travel:kitchen acceptable=False ms=3220
+DEV filtered_text von_possible_person_1 expected=call_chiara chosen=travel:bedroom acceptable=False ms=2793
+DEV filtered_json von_possible_person_1 expected=call_chiara chosen=travel:bedroom acceptable=False ms=3463
+DEV two_stage_text von_possible_person_1 expected=call_chiara chosen=travel:bedroom acceptable=False ms=5099
+DEV wide_text von_all_rooms_first_0 expected=call_chiara chosen=travel:living_room acceptable=False ms=3550
+DEV filtered_text von_all_rooms_first_0 expected=call_chiara chosen=call_chiara acceptable=True ms=2356
+DEV filtered_json von_all_rooms_first_0 expected=call_chiara chosen=ask_gemma acceptable=False ms=2925
+DEV two_stage_text von_all_rooms_first_0 expected=call_chiara chosen=call_chiara acceptable=True ms=2369
+DEV two_stage_json von_all_rooms_first_0 expected=call_chiara chosen=ask_gemma acceptable=False ms=2839
+DEV filtered_text von_all_rooms_first_1 expected=call_chiara chosen=ask_gemma acceptable=False ms=2377
+DEV filtered_json von_all_rooms_first_1 expected=call_chiara chosen=ask_gemma acceptable=False ms=3035
+DEV two_stage_text von_all_rooms_first_1 expected=call_chiara chosen=ask_gemma acceptable=False ms=2403
+DEV two_stage_json von_all_rooms_first_1 expected=call_chiara chosen=ask_gemma acceptable=False ms=2978
+DEV wide_text von_all_rooms_first_1 expected=call_chiara chosen=travel:living_room acceptable=False ms=3530
+DEV filtered_json von_all_rooms_called_0 expected=ask_gemma chosen=call_chiara acceptable=False ms=2883
+DEV two_stage_text von_all_rooms_called_0 expected=ask_gemma chosen=ask_gemma acceptable=True ms=2291
+DEV two_stage_json von_all_rooms_called_0 expected=ask_gemma chosen=call_chiara acceptable=False ms=2946
+DEV wide_text von_all_rooms_called_0 expected=ask_gemma chosen=travel:living_room acceptable=False ms=3598
+DEV filtered_text von_all_rooms_called_0 expected=ask_gemma chosen=ask_gemma acceptable=True ms=2387
+DEV two_stage_text von_all_rooms_called_1 expected=ask_gemma chosen=ask_gemma acceptable=True ms=2384
+DEV two_stage_json von_all_rooms_called_1 expected=ask_gemma chosen=ask_gemma acceptable=True ms=2974
+DEV wide_text von_all_rooms_called_1 expected=ask_gemma chosen=travel:living_room acceptable=False ms=3477
+DEV filtered_text von_all_rooms_called_1 expected=ask_gemma chosen=ask_gemma acceptable=True ms=2356
+DEV filtered_json von_all_rooms_called_1 expected=ask_gemma chosen=ask_gemma acceptable=True ms=2948
+DEV two_stage_json von_localization_lost_0 expected=relocalize chosen=relocalize acceptable=True ms=3044
+DEV wide_text von_localization_lost_0 expected=relocalize chosen=travel:living_room acceptable=False ms=3316
+DEV filtered_text von_localization_lost_0 expected=relocalize chosen=relocalize acceptable=True ms=2491
+DEV filtered_json von_localization_lost_0 expected=relocalize chosen=relocalize acceptable=True ms=3056
+DEV two_stage_text von_localization_lost_0 expected=relocalize chosen=relocalize acceptable=True ms=2577
+DEV wide_text von_localization_lost_1 expected=relocalize chosen=travel:living_room acceptable=False ms=3357
+DEV filtered_text von_localization_lost_1 expected=relocalize chosen=relocalize acceptable=True ms=2497
+DEV filtered_json von_localization_lost_1 expected=relocalize chosen=relocalize acceptable=True ms=3142
+DEV two_stage_text von_localization_lost_1 expected=relocalize chosen=relocalize acceptable=True ms=2477
+DEV two_stage_json von_localization_lost_1 expected=relocalize chosen=relocalize acceptable=True ms=3158
+DEV filtered_text von_route_blocked_0 expected=relocalize chosen=relocalize acceptable=True ms=2552
+DEV filtered_json von_route_blocked_0 expected=relocalize chosen=call_chiara acceptable=False ms=3131
+DEV two_stage_text von_route_blocked_0 expected=relocalize chosen=relocalize acceptable=True ms=2514
+DEV two_stage_json von_route_blocked_0 expected=relocalize chosen=call_chiara acceptable=False ms=3113
+DEV wide_text von_route_blocked_0 expected=relocalize chosen=travel:living_room acceptable=False ms=3433
+DEV filtered_json von_route_blocked_1 expected=relocalize chosen=relocalize acceptable=True ms=3168
+DEV two_stage_text von_route_blocked_1 expected=relocalize chosen=relocalize acceptable=True ms=2643
+DEV two_stage_json von_route_blocked_1 expected=relocalize chosen=relocalize acceptable=True ms=3087
+DEV wide_text von_route_blocked_1 expected=relocalize chosen=travel:living_room acceptable=False ms=3397
+DEV filtered_text von_route_blocked_1 expected=relocalize chosen=relocalize acceptable=True ms=2495
+DEV two_stage_text von_repeat_search_0 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=4951
+DEV two_stage_json von_repeat_search_0 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=5813
+DEV wide_text von_repeat_search_0 expected=travel:toilet chosen=travel:living_room acceptable=False ms=3295
+DEV filtered_text von_repeat_search_0 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=2705
+DEV filtered_json von_repeat_search_0 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=3532
+DEV two_stage_json von_repeat_search_1 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=6149
+DEV wide_text von_repeat_search_1 expected=travel:bedroom chosen=travel:living_room acceptable=True ms=3373
+DEV filtered_text von_repeat_search_1 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=2827
+DEV filtered_json von_repeat_search_1 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=3534
+DEV two_stage_text von_repeat_search_1 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=4945
+DEV wide_text von_heard_from_room_0 expected=travel:toilet chosen=travel:living_room acceptable=False ms=3408
+DEV filtered_text von_heard_from_room_0 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=2938
+DEV filtered_json von_heard_from_room_0 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=3515
+DEV two_stage_text von_heard_from_room_0 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=4980
+DEV two_stage_json von_heard_from_room_0 expected=travel:toilet chosen=travel:bedroom acceptable=True ms=6147
+DEV filtered_text von_heard_from_room_1 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=2873
+DEV filtered_json von_heard_from_room_1 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=3549
+DEV two_stage_text von_heard_from_room_1 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=5009
+DEV two_stage_json von_heard_from_room_1 expected=travel:bedroom chosen=travel:bedroom acceptable=True ms=5891
+DEV wide_text von_heard_from_room_1 expected=travel:bedroom chosen=travel:living_room acceptable=True ms=3391
+DEV_SUMMARY wide_text {"n": 22, "preferred": 3, "acceptable": 6, "invalid_or_ineligible": 16, "inference_calls": 22, "p50_ms": 3336.4, "p95_ms": 3548.9}
+DEV_SUMMARY filtered_text {"n": 22, "preferred": 13, "acceptable": 17, "invalid_or_ineligible": 0, "inference_calls": 22, "p50_ms": 2478.8, "p95_ms": 2871.8}
+DEV_SUMMARY filtered_json {"n": 22, "preferred": 9, "acceptable": 14, "invalid_or_ineligible": 0, "inference_calls": 22, "p50_ms": 3073.3, "p95_ms": 3534.1}
+DEV_SUMMARY two_stage_text {"n": 22, "preferred": 14, "acceptable": 18, "invalid_or_ineligible": 0, "inference_calls": 33, "p50_ms": 3383.5, "p95_ms": 5025.4}
+DEV_SUMMARY two_stage_json {"n": 22, "preferred": 10, "acceptable": 14, "invalid_or_ineligible": 0, "inference_calls": 34, "p50_ms": 4742.5, "p95_ms": 6191.0}
+SELECTED_ON_DEVELOPMENT=two_stage_text
+HELDOUT von_new_room_2 expected=search_here chosen=travel:living_room acceptable=False ms=5130
+HELDOUT von_room_finished_2 expected=travel:kitchen chosen=travel:living_room acceptable=True ms=4833
+HELDOUT von_hall_hint_2 expected=travel:kitchen chosen=travel:living_room acceptable=True ms=5113
+HELDOUT von_target_confirmed_2 expected=finish chosen=finish acceptable=True ms=2420
+HELDOUT von_possible_person_2 expected=call_chiara chosen=travel:living_room acceptable=False ms=5179
+HELDOUT von_all_rooms_first_2 expected=call_chiara chosen=ask_gemma acceptable=False ms=2450
+HELDOUT von_all_rooms_called_2 expected=ask_gemma chosen=ask_gemma acceptable=True ms=2428
+HELDOUT von_localization_lost_2 expected=relocalize chosen=relocalize acceptable=True ms=2543
+HELDOUT von_route_blocked_2 expected=relocalize chosen=relocalize acceptable=True ms=2518
+HELDOUT von_repeat_search_2 expected=travel:kitchen chosen=travel:living_room acceptable=True ms=4844
+HELDOUT von_heard_from_room_2 expected=travel:kitchen chosen=travel:living_room acceptable=True ms=4798
+FINAL_HELDOUT {"n": 11, "preferred": 4, "acceptable": 8, "invalid_or_ineligible": 0, "inference_calls": 17, "p50_ms": 4797.9, "p95_ms": 5154.9}
+ORDER_REVERSAL_FLIPS=9/11
+INFERENCE_CALLS=166 MAX_RSS_MIB=3062.3
+RESULT_FILE=/data/data/com.termux/files/home/laya-test/robot-selector-von-v2-results.json
