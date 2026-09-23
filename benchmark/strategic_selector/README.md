@@ -47,8 +47,26 @@ Laya import/load was about 51 s. Von import/load reported about 12 s, but its fi
 
 ## Locate evidence and add a future run
 
-[RUN_INDEX.md](RUN_INDEX.md) lists every archived run, gaps and earlier phone experiments. Each run directory has the original raw `results.json` when available, raw `stdout.txt`, and `manifest.json` with original phone path/hash, archived hash, original modification time, runtime, framing, split and follow-up status. [PHONE_HISTORY.tsv](PHONE_HISTORY.tsv) hashes the earlier phone-only speed-test files without copying a separate browser repository or model files. `python archive_run.py verify` checks archived hashes.
+[RUN_INDEX.md](RUN_INDEX.md) lists historical runs and gaps. The historical manifests remain untouched: they do **not** establish a checkpoint revision or phone conditions that were never recorded. [PHONE_HISTORY.tsv](PHONE_HISTORY.tsv) indexes earlier phone-only speed tests without copying weights or the browser repository.
 
-For a **new** run on the phone, activate the existing `/termux-home/laya-test/venv`, set `HF_HOME` to the relevant existing offline cache (`/termux-home/laya-test/hf-cache` for Laya or `/termux-home/von-test/hf-cache` for Von), then from this directory run `python archive_run.py run --model laya` or `--model von`. The helper enforces offline flags, uses `taskset -c 4-7`, assigns a UTC time plus random run ID, creates the run directory exclusively, keeps raw stdout and stderr plus JSON, writes SHA-256 hashes, verifies the archive and prints `git check-ignore` and `git status`. It never replaces an existing run. Run one model at a time. A future run should keep its exact package, model, environment and device metadata with the manifest; the helper records command, Python, cache choice through the required environment, source hash and output hashes, while any changed package/model versions must be noted by the operator.
+For a **new** phone run, activate the existing `/termux-home/laya-test/venv`, set `HF_HOME` to the existing offline cache (`/termux-home/laya-test/hf-cache` for Laya or `/termux-home/von-test/hf-cache` for Von), and run one model at a time from this directory:
+
+```bash
+python archive_run.py run --model laya
+python archive_run.py run --model von
+```
+
+The helper uses the archived v2 source, forces offline Hugging Face settings, pins cores 4–7 for real models, and runs from a new exclusive UTC/UUID directory. It retains JSON when produced, raw stdout and stderr, file hashes, command, Python/platform and installed package versions. It samples `/sys` thermal zones, cooling devices, CPU frequency policies and power-supply state plus `/proc/meminfo` **before and after** the model process, outside timed inference. Each reading has a source path and UTC measurement time; absent/unreadable readings have null values and an explicit reason. Values are raw device readings, not inferred thermal status. In particular, VIRTUAL-SKIN is marked unavailable rather than guessed. Mock tests use a fake filesystem root and do not access phone sensors.
+
+The requested Laya model ID is recorded, but the unmodified v2 loader does not expose its resolved snapshot/weight path: its checkpoint revision and loaded weight identity remain **unverified**. For Von, the installed loader prints its selected `option_marker.pt` path after loading. When that runtime-reported path is a valid offline-cache snapshot file, the helper records its 40-character snapshot revision, path, byte count and post-run SHA-256. That is partial evidence; Von's base encoder and calibration file paths are not independently observed. A cache reference or model ID alone never becomes a claim about loaded bytes. No model weights are added to Git.
+
+## Verify and publish a run
+
+```bash
+python archive_run.py audit                 # local integrity and Git state; remote = unknown
+python archive_run.py audit --remote        # fresh origin/main query and tree comparison
+```
+
+`verify` remains an alias for the local audit. Each run reports corrupt/missing files, untracked files, uncommitted changes, remote status and a next step. The audit exits nonzero for any corrupt or uncommitted run, and `--remote` exits nonzero unless every run is confirmed. `--remote` calls `git ls-remote origin refs/heads/main` on **this invocation** and compares the run's files and benchmark source with that commit's tree. It never trusts a cached `origin/main` tracking ref. If the remote cannot be queried, or its commit object is unavailable locally, status is **unknown**, never “pushed”; fetch `origin main` and rerun the audit if needed. A locally valid run is only a local copy. The helper does not stage, commit or push future results. Review each new run and get its own commit/push authorization before publication, then rerun `audit --remote` to confirm the published bytes.
 
 Future evaluation should use genuinely new untouched scenarios, independently score **action type** and **room destination**, permute option order and room names, report ineligible choices, and record per-call plus full-decision latency and whether a second decision was needed. A cross-model accuracy claim requires the same cases and rubric. No model inference was rerun to create this archive.
