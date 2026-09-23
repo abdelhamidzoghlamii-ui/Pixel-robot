@@ -263,6 +263,10 @@ hardware. Perception stays with YOLO.
   are now live.
 - Benchmarks: voice parsing 93% (schema caveat below). Nav logic unbenchmarked —
   see Pending.
+- Strategic-selector evidence: a 2026-09-23 phone audit confirmed four archived
+  runs and benchmark sources published on origin/main; publication does not
+  establish model accuracy or robot hardware validity (see
+  [RUN_INDEX.md](../benchmark/strategic_selector/RUN_INDEX.md)).
 
 ## Pending / untested
 

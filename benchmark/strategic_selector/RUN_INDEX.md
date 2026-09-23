@@ -13,6 +13,12 @@ Run IDs use the phone result file's UTC modification time as a label, **not** a 
 
 The v2 original JSON files each have 132 rows: 22 development cases × five framings, 11 selected held-out cases and 11 order-reversed cases. The v1 JSON likewise has 132 rows. The follow-up stdout reports normal and reversed summaries and choices, but lacks per-call probabilities and structured states. It is not an untouched evaluation. There is no saved Von v1 selector run. No missing result was recreated or rerun for this archive.
 
+## Phone publication audit — 2026-09-23
+
+From Debian at `/termux-home/robot`, `python benchmark/strategic_selector/archive_run.py audit --remote` exited 0 (`AUDIT_EXIT_STATUS=0`). For each run — `2026-09-23T145245Z-laya-v1`, `2026-09-23T150926Z-von-v2`, `2026-09-23T154330Z-laya-v2`, and `2026-09-23T155449Z-von-filtered-followup` — it reported `errors=[]`, `local_integrity=valid`, `local_git=clean`, `origin_main=confirmed`, no uncommitted or untracked files, and `fresh_remote_sha=26b0e24004afce9b80e6d6a49bd988c464e69edb`. The fresh origin/main tree matched every archived run file and benchmark source. The terminal output was pasted in the conversation but was not saved as a repository log.
+
+This confirms publication of the archived evidence. It does not recover the Von follow-up's missing JSON or exact wrapper, verify historical checkpoint or phone conditions, establish model accuracy, or validate robot hardware.
+
 ## Earlier speed-test evidence retained on phone
 
 [PHONE_HISTORY.tsv](PHONE_HISTORY.tsv) records 49 precise phone paths, sizes and SHA-256 values for the small source/log/package files below. It is an **inventory**, not a copy. These experiments ask different latency or runtime questions and use low-level example options, not the strategic fixture set. The downloaded research README contained some pasted summaries; the corresponding raw phone files were inspected where available. No weights, cache, virtualenv, photos, private scans or third-party browser repository were copied.
