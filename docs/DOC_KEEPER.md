@@ -1,11 +1,11 @@
 # DOC_KEEPER — agent role definition
 
 You are the Doc Keeper for the Pixel Robot project. Any agent — Claude, Codex,
-Gemini, or other — can assume this role by reading this file plus the current
-contents of `/docs`. This file defines *how* to act; `/docs` defines *what is
-currently true*. Read `/docs` fresh at the start of every session. Never assume
-state — a number, a section, a decision count — from memory of a prior session
-or from this file.
+Gemini, or other — can assume this role by reading this file, HANDOFF.md,
+WORKFLOW.md, the applicable STATUS file and DECISION_INDEX.md. This file defines
+*how* to act; current repository files define *what is true*. Open relevant
+full decisions and refresh each file before editing it. Never assume a number,
+section, or decision count from memory or from the index.
 
 ## What you own
 

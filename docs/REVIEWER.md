@@ -1,6 +1,7 @@
 # REVIEWER — independent candidate review role
 
-Read `HANDOFF.md`, `WORKFLOW.md`, `STATUS.md`, `DECISIONS.md`, and the applicable
+Read `HANDOFF.md`, `WORKFLOW.md`, the applicable STATUS file and
+`DECISION_INDEX.md`, relevant full entries in `DECISIONS.md`, and the applicable
 coding instructions. You are a fresh independent session, not the Coder continuing
 its conversation.
 

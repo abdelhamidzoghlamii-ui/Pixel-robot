@@ -81,20 +81,11 @@ diagnostic) that nothing else in the directory imports. "Imported/called by" bel
 | `voice.py` | Standalone `listen(duration)`: mic → ffmpeg → whisper-cli transcription. | nobody — **superseded**: `main.listen()` is a copy with the same paths |
 | `detect_scene.py` | Earlier YOLO module: `detect()→(results, elapsed)`, 4-tuple detections, no session cache. | nobody — **superseded** by `detect_person.py` (only the *symbol* `detect_scene`, defined in `detect_person.py`, is used) |
 
-## Dead / superseded — flagged
+## Retention and overlap
 
-**Clearly obsolete (safe-to-delete candidates):**
-- `detect_scene.py` — replaced by `detect_person.py`
-- `llm.py` — replaced by `main.parse_command`
-- `voice.py` — replaced by `main.listen`
-- `ch340_test.py` — old CH340 hardware; adapter is now CP2102 (see `motors.py`)
-- `nav_sim.py` — Qwen-era nav sim, pre-Gemma
-- `thermal_benchmark.py`, `thermal_benchmark2.py` — replaced by `thermal_benchmark3.py` / `thermal_real.py`
-- `quality_benchmark.py` — replaced by `quality_benchmark2.py`
-
-**Written but never wired in (orphans — decide keep-as-tool or drop):**
-- `get_temp.py`, `thermal_guard.py` — recent, but `main.py` still does temperature inline and imports neither
-- `server_manager.py` — nothing starts the LLM server programmatically
+The table above identifies superseded and orphaned scripts; it is not deletion
+authority. DECISIONS #85 retains seven previously proposed removals, and #23
+retains `nav_sim.py`. Check the current import graph before removing anything.
 
 **Weaker overlap (one of each pair is redundant):**
 - `test_suite.py` vs `test_suite_m.py`

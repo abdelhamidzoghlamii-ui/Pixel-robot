@@ -94,11 +94,15 @@ re-running the corresponding benchmark and recording the result in DECISIONS.md.
 --ctx-size 2048
 ```
 
-**Accuracy targets:**
+**Accuracy target and historical context:**
 ```
 Voice command parsing:  ≥93%
-Navigation decisions:   ≥90%
 ```
+
+The earlier ≥90% LLM-navigation target described the model-in-loop design.
+DECISIONS #104 decided to remove the LLM from the low-level navigation loop;
+the code rework is still pending (STATUS Architecture). Do not treat that
+historical target as a current model-selection gate.
 
 **Vision** (`detect_person.py`):
 ```

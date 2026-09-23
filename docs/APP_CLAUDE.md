@@ -220,9 +220,9 @@ Do not start from an empty project.
 - `APP_STATUS.md` has exactly one writer and it is not you. Propose changes as a
   DOC DIFF block and hand it off.
 - `LICENSES.md` is updated **before** a dependency is added.
-- Decisions belong in the wider project's single append-only `DECISIONS.md`, which
-  lives outside this repo. Hand the numbered entry to the human. Do not start a
-  second decision log here.
+- Decisions belong in this project's single append-only `docs/DECISIONS.md`,
+  shared by prototype and app. Hand a proposed numbered entry to Doc Keeper;
+  do not start a second decision log.
 - If a claim and a doc disagree, flag it. Never silently pick one.
 
 DOC DIFF format:

@@ -3,7 +3,9 @@
 This is the canonical collaboration workflow. It is procedural, not a Git hook or
 an enforced sandbox unless a later decision says a specific mechanism was actually
 implemented and tested. Start with `HANDOFF.md`, then this file, then the role file;
-read `STATUS.md` and `DECISIONS.md` directly for current facts and numbering.
+read the applicable STATUS file for current facts and `DECISION_INDEX.md` to find
+relevant history. Read the full entries in `DECISIONS.md` before relying on them,
+and read its last entry directly before numbering a new one.
 `AGENTS.md` is the common Codex/Claude/AGY entry point; `CLAUDE.md` and `GEMINI.md`
 are minimal pointers. Prototype and app instructions remain separate.
 

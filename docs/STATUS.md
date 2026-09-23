@@ -31,22 +31,21 @@ port 8080 / qwen port 8081, correct chat wrapper and stop tokens per family;
 writes ~/json_mechanism_results_<model>.json; no camera, no motors, no repo
 writes).
 
-`~/llama.cpp-upstream` is a disposable work area holding build 2233 (commit
-4d917609), built and SWA-verified in the session recorded by DECISIONS #77,
-but NOT deployed. `~/llama.cpp`
-(b1609) remains the running server. `~/llama.cpp-upstream` was rebuilt in place to b2351-790cf51a; the build 2233
-binary no longer exists there, but source commit 4d917609 remains reachable in
-git history (reconstructible via checkout + rebuild). The 1609-vs-2233
-comparison remains open, not cancelled (see DECISIONS #77, #95, #96, #107). `~/robot` is a Git repository. The earlier
-`fe14be2` snapshot is historical; it does not identify the current checkout.
+`~/llama.cpp-upstream` built and SWA-verified b2233 (commit 4d917609) in
+DECISIONS #77, then was rebuilt in place to b2351-790cf51a. The b2233 binary
+is gone, but source commit 4d917609 remains reachable for a rebuild
+(DECISIONS #107). `~/llama.cpp` (b1609) is the documented deployed server.
+The 1609-vs-2233 comparison remains open, not cancelled (DECISIONS #77, #107).
+`~/robot` is a Git repository. The earlier `fe14be2` snapshot is historical;
+it does not identify the current checkout.
 
 **Public repo:** github.com/abdelhamidzoghlamii-ui/Pixel-robot.
 Canonical documentation and role instructions are in `/docs` relative to the
 repository root. Root `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` are session
 discovery pointers. `STATUS.md` remains canonical for prototype config values.
 `RECOVERY.md` was removed; [HANDOFF.md](HANDOFF.md) is the entry point to recovery
-information, with commands and historical provenance in
-[COMMANDS.md](COMMANDS.md#9-housekeeping-and-recovery).
+information, with procedures in [COMMANDS.md](COMMANDS.md#9-housekeeping-and-recovery)
+and historical provenance in [OPERATIONS_HISTORY.md](OPERATIONS_HISTORY.md).
 
 Read `git rev-parse HEAD` and `git status --short --branch` from the repository
 to determine the current revision and local state; do not maintain a "current
@@ -76,13 +75,17 @@ camera photo → YOLO detect_scene → navigate_rules (pure Python, instant)
 `cycle % GEMMA_INTERVAL(10) == 0` · `cycle % 5 == 0` · person detected ·
 move == STOP · a new room was just mapped · `nav_stuck` is set. At `nav_stuck`,
 Gemma is consulted once, but `run_cycle()` restores the exact Python-selected
-safety move after processing (DECISIONS #88). Vision (image attached) is sent
-only on the `every_5` / person / goal / new_room subset.
+safety move after processing (DECISIONS #88). An image payload is sent only on
+the `every_5` / person / goal / new_room subset; the deployed server was
+observed to ignore it (DECISIONS #96).
 
-Gemma is no longer consulted for navigation decisions (DECISIONS #104); the
-LLM's role is human interaction / goal-setting / voice→intent, off the
-per-cycle path. The trigger conditions below describe the prior model-in-loop
-design and are pending rework.
+As coded, `main.py:Robot.run_cycle()` still consults Gemma on its existing
+triggers after YOLO and `navigate_rules()`; Python-selected safety moves are
+restored. DECISIONS #104 records the intended removal of the conversational
+LLM from low-level navigation decisions, and that code rework remains pending.
+DECISIONS #109 opens a separate, unimplemented high-level mission-script
+selector using Laya or Von. The current repo describes a mecanum prototype;
+the phone-mounted RC car with 2D LiDAR is a proposed redesign.
 
 ## Known-good config (as coded)
 
@@ -129,7 +132,8 @@ setup_q4     Gemma 4 E2B Q4_K_M  3.3GB  11-12 tok/s   ← robot default
 setup_e4b    Gemma 4 E4B Q4_K_M  5.0GB  7.2 tok/s     ← quality/chat mode
 setup_qwen3b / setup_qwen1b                            ← fallbacks
 (Qwen3.5 0.8/2/4B GGUFs at ~/models/qwen35/ are eval-only, not wired into
-server_manager; see DECISIONS #106. LLM is NOT in the nav loop — DECISIONS #104.)
+server_manager; see DECISIONS #106. Removing the LLM from navigation is
+decided in #104 but not implemented.)
 ```
 
 Current llama.cpp build: commit e1a1abb7, version 1609 (Clang 21.1.8, Android
@@ -139,103 +143,41 @@ verified) or a rebuild of commit e1a1abb7, NOT a single-binary copy (DECISIONS #
 
 A third build, ~/llama.cpp-upstream rebuilt 2026-09-13 to b2351-790cf51a,
 loads Qwen3.5-0.8B-Q4_K_M with architecture accepted and "modalities: text"
-— MEASURED. This narrows #95 to the builds and VL path it named, not the
-Qwen path generally: no mmproj was downloaded or passed, so the VL question
-is untouched. Note: strings on the rebuilt binary returns no qwen35 match
-despite the successful load — the strings check used in #95 is not a
-reliable negative; an actual load attempt is ground truth.
+— MEASURED. At that text-load test, no mmproj was downloaded or passed;
+later vision tests in #105 found no usable on-device LLM vision. Note: `strings`
+on the rebuilt binary returns no qwen35 match despite the successful load —
+the `strings` check used in #95 is not a reliable negative; an actual load
+attempt is ground truth.
 
 Benchmarked on build 1609, 15 cycles, realistic robot prompt shape (fixed system
 prefix + varying scene): 11.5 tok/s median (11.1-11.9), prompt eval 1091 ms median,
 free RAM ~3.1 GB, zone9 97-101 °C. Prefix cache reuse confirmed on the live prompt
 shape — 109 tokens on the first call, 18-22 thereafter.
 
-## Thermal governance (reported 2026-09-11, battery power, Pixel 7 "panther", MP1.0, Android 17) — see DECISIONS #90-93
+## Thermal governance
 
-Device thermal governance was read from /vendor/etc/thermal_info_config.json
-(three files present: base, _charge, _proto) and cross-checked against
-`dumpsys thermalservice`, as reported this session — raw dump not yet attached.
-AOSP panther source differs from this device; the device file takes precedence
-pending independent spot-check.
+VIRTUAL-SKIN-CPU-GPU is the reported HAL CPU-throttling signal (first trip
+37.0 °C); BIG/zone9 is not its HAL governor (DECISIONS #90). The live
+`main.py` pause still reads BIG above 80 °C; a correct sensor and threshold
+have not been selected or verified in a real mission. The dated device
+thresholds, formula, zone map, throttle checks, and evidence limitations are
+preserved in [PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
 
-Sensor thresholds as reported [LIGHT/MODERATE/SEVERE/CRITICAL/EMERGENCY/SHUTDOWN]:
-  VIRTUAL-SKIN          [NAN, 39.0, 43.0, 45.0, 46.5, 52.0, 55.0]  Poll=300000 Passive=7000
-  VIRTUAL-SKIN-CPU-GPU  [NAN, 37.0, 43.0, 45.0, 46.5, 52.0, 55.0]  Poll=300000 Passive=7000
-  VIRTUAL-SKIN-CHARGE   [NAN, 35.0, 41.0, 45.0, 47.0, 51.0, 55.0]  Poll=300000 Passive=7000
-  BIG                   [NAN x 7]  — no severity at any level on this device
-  battery               [NAN x6, 60.0]
+## Memory
 
-Key consequences (DECISIONS #90):
-- BIG (thermal_zone9) has no HAL throttling severity on this device. Its only
-  limits are kernel trips: active 20/55/80, PASSIVE 100, active 104/106/110,
-  hot 120 °C (DECISIONS #74).
-- VIRTUAL-SKIN-CPU-GPU (first trip 37.0 °C) is the sensor bound to the cpufreq
-  PID. It is Type=UNKNOWN, so it does not appear in `Thermal Status:` — the
-  phone can be actively throttling while dumpsys reports status 0.
-- VIRTUAL-SKIN is not a kernel thermal zone; it is HAL-computed.
+Reported 2026-09-11: Gemma-4-E2B Q4_K_M left approximately 0.5 GB practical
+headroom after loading, without simultaneous full perception or dialogue.
+This is a dated measurement, not a current co-residency test; see
+[PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md) and
+DECISIONS #94.
 
-VIRTUAL-SKIN formula, device coefficients as reported this session (DECISIONS #91):
-  a = 0.7*quiet_therm   + 0.3*qi_therm    - 500
-  b = 0.58*usb_pwr_therm+ 0.42*quiet_therm- 500
-  c = 1.1*quiet_therm   - 0.1*disp_therm  - 1500
-  d = 0.3*neutral_therm + 0.7*quiet_therm - 500
-  VIRTUAL-SKIN = max(a,b,c,d) / 1000   (inputs in millidegrees)
+## Model vision
 
-Thermal zone map, as reported this session — battery zone number unconfirmed,
-pending direct read (see Pending):
-  BIG=9  MID=10  LITTLE=11  G3D=12  TPU=14  neutral_therm=16  quiet_therm=17
-  qi_therm=18  usb_pwr_therm=19  usb_pwr_therm2=20  disp_therm=21
-
-Throttle detection (ground truth, sysfs — HAL cooling-device dump is empty):
-  cooling devices: gxp-cooling, thermal-cpufreq-0/1/2, thermal-gpufreq-0, tpu_cooling
-  cpufreq hw max:  policy0=1803000  policy4=2348000  policy6=2850000
-  Throttling = any cur_state > 0, or scaling_max_freq < cpuinfo_max_freq.
-
-Reported idle baseline (servers stopped, battery, 36 samples over 3 min):
-  skin 26.73-27.94 °C (stable);  BIG 31.0-40.0 °C (swings ~9 °C, meaningless)
-  cooling devices 0/36;  cpufreq capped 0/36
-  Headroom to first throttle (37.0) approx 9-10 °C from cold idle.
-
-`main.py: get_temp()` field-checked: one live call returned 41000 -> 41 °C. The
-silent-zero branch (`except: return 0`, lines 26-27) remains in the code and was
-not exercised by this check. The code path is directionally trustworthy; the
-SENSOR CHOICE is wrong (reads BIG, not skin) per DECISIONS #90.
-
-## Memory (reported 2026-09-11)
-
-  MemTotal 7.29 GiB. Gemma-4-E2B q4_k_m resident: RSS 3.14-3.21 GB, PSS approx
-  RSS (little sharing — an honest cost, not an mmap illusion).
-  MemAvailable: approx 3.4 GB typical idle; approx 3.72 GB after app cleanup;
-  approx 2.9-3.0 GB with Gemma loaded. Practical headroom with model loaded
-  approx 0.5 GB. See DECISIONS #94 for the process-management ceiling on
-  freeing more.
-
-## Known defect: vision path is non-functional — confirmed by live call, 2026-09-11
-
-No mmproj / multimodal projector file exists anywhere on device.
-server_manager.py start_server() passes: -m --port --ctx-size --threads
---threads-batch --parallel 1 --swa-full --host. It does not pass --mmproj.
-
-Confirmed live: a /completion request built exactly as gemma_decide() builds
-it — image_data array plus an [img-1] prompt marker — returned HTTP 200 with
-no error. stderr contains no mention of image_data, a vision/mmproj encoder,
-or any image-related processing. prompt_n / tokens_evaluated = 310,
-tokens_cached = 337 — consistent with the text prompt alone; the literal
-string "[img-1]" was tokenized as ordinary text, not replaced by image
-embeddings. The unsupported image_data field is silently dropped, not
-rejected, and no error surfaces to the caller.
-
-Consequence: every gemma_decide() call made with an image today is a
-text-only call. The vision-triggered subset of consultations (every_5 /
-person / goal / new_room, per the per-cycle flow above) carries no visual
-information; those cycles run identically to text-only ones. See DECISIONS
-#96.
-
-Update (DECISIONS #105): projectors were sourced and vision tested live on
-b2351. Not a fix — Gemma segfaults during image decode at usable budgets;
-Qwen3.5-2B needs >=1024 image tokens to ground and takes ~125s/image with
-hallucinated output. On-device LLM vision is a documented dead-end on this
-hardware. Perception stays with YOLO.
+The as-coded image request was confirmed to run as text only (DECISIONS #96).
+Later b2351 projector tests did not produce usable on-device LLM vision
+(DECISIONS #105). YOLO remains the perception path. The original live-call
+observations and follow-up are retained in
+[PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
 
 ## Working now
 
@@ -244,7 +186,7 @@ hardware. Perception stays with YOLO.
 - YOLO scene detection, position + coarse distance.
 - Voice pipeline end to end: record → Whisper → Gemma JSON parse → TTS.
 - Root restored on Android 17; real SoC temps readable (zone9 BIG / 10 MID /
-  11 LITTLE / 12 GPU / 14 TPU / 22 battery).
+  11 LITTLE / 12 GPU / 14 TPU). The battery zone number is unconfirmed.
 - **Mode 1 teleop — ESP32 standalone** (`mode1_simple.ino`, tracked and retained; commit 9a90d7e, DECISIONS #89 —
   no removal planned): softAP "MecanumBot"
   → web UI at http://192.168.4.1. Mecanum mixing, live HC-SR04 readout, forward
@@ -261,8 +203,18 @@ hardware. Perception stays with YOLO.
   GND instead of the ESP32 5V pin — the trigger pulse was coupling through an
   unpowered sensor. Both obstacle branches (`main.py` `<15` and `<OBSTACLE_DIST`)
   are now live.
-- Benchmarks: voice parsing 93% (schema caveat below). Nav logic unbenchmarked —
-  see Pending.
+- Benchmarks: voice parsing 93% (schema caveat below). The current integrated
+  `main.py` navigation path remains unbenchmarked; see Pending and
+  `BENCHMARK_PLAN.md`. Separately, the offline synthetic strategic-selector v2
+  archive records Laya's development-selected `filtered_text` at 9/11
+  acceptable held-out cases, median 3028.8 ms and 4/11 option-order flips.
+  Von's development-selected `two_stage_text` scored 8/11, median 4797.9 ms
+  and 9/11 flips. A post hoc Von `filtered_text` follow-up also scored 8/11,
+  median 2053.8 ms and 9/11 flips; only its stdout was saved. The models saw
+  disjoint generated variants, so these are not controlled head-to-head
+  accuracy results. Raw original-run JSON, stdout, manifests, the executed v2
+  source, v1 history and explicit evidence gaps are archived under
+  `benchmark/strategic_selector/`.
 - Strategic-selector evidence: a 2026-09-23 phone audit confirmed four archived
   runs and benchmark sources published on origin/main; publication does not
   establish model accuracy or robot hardware validity (see
@@ -329,8 +281,9 @@ hardware. Perception stays with YOLO.
   passive trip for zone9 is 100 °C, so the chip runs in equilibrium at its designed
   throttle point. The >80 °C pause would fire on nearly every check.
   `thermal_guard.py`'s 82/86 are dead code — nothing imports it and `main.py` uses
-  an inline `get_temp`. Correct value still undetermined; take it from a real
-  mission run. See DECISIONS #74, #75.
+  an inline `get_temp`. A replacement needs the correct thermal signal and a
+  threshold validated against a real mission trace; neither is selected.
+  See DECISIONS #74, #75, #90.
 - **Battery thermal zone number unconfirmed.** STATUS previously implied zone
   22; a later enumeration reported zone 25. Neither is canonical until a
   direct thermal_zoneN/type read confirms it.
@@ -344,10 +297,11 @@ hardware. Perception stays with YOLO.
   80 cm threshold, so the person-stop branch never fires. People are handled by
   the 25 cm ultrasonic branch as generic obstacles. Person-stop is to move to the
   area bucket (#79) — decided, not implemented. See DECISIONS #78, #79, #80.
-- **QAT/MTP evaluation gated, not started.** QAT Q4_0 E2B benchmark
-  (footprint/speed/thermal, plus accuracy) requires a valid nav benchmark first —
-  the 93% figure does not describe live code (#55), so the accuracy gate is
-  currently undefined. wNa8o8 mobile format (the only path to the ~1 GB claim)
+- **QAT/MTP evaluation gated, not started.** The earlier QAT Q4_0 E2B proposal
+  required a valid nav benchmark for an LLM model swap. After #104, that is a
+  historical model-in-loop gate, not a gate for the intended Python navigation
+  path. Any future voice or selector model swap needs its own evaluation criteria.
+  wNa8o8 mobile format (the only path to the ~1 GB claim)
   needs llama.cpp load-support confirmed before download. MTP needs a full QAT
   chain incl. a matching QAT drafter. See DECISIONS #71, #72.
 - **`nav_sim.py` is a standalone older simulation** (Qwen 2.5 3B, own thermal
@@ -356,6 +310,15 @@ hardware. Perception stays with YOLO.
   SWA cache; the code actually uses `--swa-full`.
 - Not yet built/wired: Piper TTS, Whisper VAD, room classifier, memory system,
   face recognition.
+- The proposed strategic selector is not wired to the robot. Apartment
+  localization from 2D LiDAR, semantic room map, camera–LiDAR object/range
+  association, named-person verification, eligible-script gates, safe
+  interruption, and model/sensor co-residency need separate validation.
+  YOLO `person` detection does not establish Chiara's identity; Laya/Von
+  confidence is not a braking guarantee. Script duration and whether an
+  additional car-mounted accelerometer helps remain undetermined. The
+  current ultrasonic sensor and phone sensors have not been integrated
+  into this proposed selector.
 
 ## Work priorities
 
@@ -371,41 +334,23 @@ or permission to execute hardware work.
    [BENCHMARK_PLAN.md](BENCHMARK_PLAN.md): real photos → real `detect_scene()` →
    real `navigate_rules()`, with distance injected. The proposed scores are token
    validity and sub-25 cm forward violations; they do not establish navigation
-   accuracy or cover the `run_cycle` override. The model-swap accuracy gate remains
-   undefined; see the QAT/MTP pending item above.
+   accuracy or cover the `run_cycle` override. See #104 and the historical
+   QAT/MTP model-swap gate above.
 4. Take forward-motion calibration with the robot; use
    [COMMANDS.md §6](COMMANDS.md#6-nav-rules--calibration).
 5. Take rotation calibration with the robot; method remains pending, as recorded
    above and in COMMANDS.md §6.
 6. After the safety fix, perform the first motors-live autonomous run under human
-   control, with wheels on a stand. Capture the mission thermal trace needed to
-   determine the pause threshold (#75).
+   control, with wheels on a stand. Capture the mission thermal trace to validate
+   the sensor and a proposed pause threshold (#75, #90).
 
 Mode 2 video/audio teleop remains parked indefinitely for thermal cost (#58).
 This does not park the serial-command firmware named `mode2_auto.ino`.
 
 ## Last hardware test
 
-**Power-up bring-up (bench, not yet driving).**
-Battery pack 2× 18650 in series, cells balanced at 4.1 V / 4.1 V, pack 8.2 V.
-BMS (HW-391 2S 20A) output steady 8.2 V. Buck converter set to 5.03 V no-load,
-holding 5 V under ESP32 load. ESP32 powers up, 3V3 rail reads exactly 3.3 V on USB.
-On buck power the 3V3 pin misreads ~3.76 V and the GPIO2 blue LED lights — both
-traced to a marginal ground return on the buck path; fix is a solid star ground at
-final assembly.
-
-BMS output leg confirmed — P+/P− reads stable 8.17 V (⊕ = P+). Rail-to-star short
-check clean (~1.35 kΩ, caps charging). Power distribution verified end to end.
-
-**First motor spin achieved.** All four motors run continuously under PWM (1kHz,
-8-bit, speed 130) with the ESP32 on USB/phone power and motors on the battery rail.
-Pin map confirmed working (P16/17/18/19 → MX1508 #1 right side, P21/22/23/25 → MX1508 #2
-left side — see DECISIONS #43 for corner mapping). Motors NOT yet verified with the ESP32 on buck power — no decoupling caps
-fitted, and PWM rail collapse brownout-resets a buck-powered ESP32 (DECISIONS #38).
-Remaining: fit caps, re-verify on buck power, then confirm direction sense per corner.
-
-HC-SR04 verified on P27/P26 with 1kΩ/2kΩ divider on ECHO (DECISIONS #42).
-
-Buck #2 (3.3 V sensor rail) remains unwired, per the hardware thread's as-built
-diagram. Nothing currently depends on it — HC-SR04 draws from the ESP32 5V pin
-(DECISIONS #42), not buck #2.
+Bench power-up, first four-motor PWM spin, and HC-SR04 readings were reported.
+The ESP32 driving motors from buck power remains unverified after an earlier
+brownout; capacitors, solid ground return, and current-wiring direction tests
+remain pending. Full measured values and as-built limitations are preserved in
+[PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).

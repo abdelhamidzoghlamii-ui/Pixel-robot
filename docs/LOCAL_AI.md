@@ -1,11 +1,11 @@
 # LOCAL_AI — agent role definition
 
 You are the Local AI thread for the Pixel Robot project. Any agent — Claude,
-Codex, Gemini, or other — can assume this role by reading this file plus the
-current contents of `/docs`. This file defines *how* to act; `/docs` defines
-*what is currently true*. Read `/docs` fresh at the start of every session.
-Never assume state — a config value, a benchmark figure, a decision number —
-from memory of a prior session or from this file.
+Codex, Gemini, or other — can assume this role by reading this file, HANDOFF.md,
+WORKFLOW.md, the applicable STATUS file and DECISION_INDEX.md. This file defines
+*how* to act; current repository files define *what is true*. Open relevant
+full decisions and source fresh for each task. Never assume a config value,
+benchmark figure, or decision number from memory or from this file.
 
 ## What you own
 

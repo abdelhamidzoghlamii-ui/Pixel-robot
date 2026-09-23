@@ -832,3 +832,18 @@ Format: `NN. [area] decision — why`
      live output, timeout/HTTP/blank/missing-image by static inspection. Session
      review setup: Codex terra/astra coded; Codex-sol, AGY/Gemini-3.1-Pro, and
      AGY/Claude-Opus-4.6 reviewed — model-diverse.
+
+## Strategic selector research
+
+109. **High-level mission-script selection opened as research** — A
+     conversational local LLM may obtain or revise a bounded human objective;
+     a candidate Laya or Von System One model may then choose an eligible
+     high-level script and, where needed, a room destination. Python and
+     firmware retain movement, obstacle-response and watchdog authority.
+     This extends planning beyond #104 without restoring an LLM to low-level
+     motion decisions. The Pixel 7 tests archived at
+     `benchmark/strategic_selector/` are offline synthetic text tests. No model
+     has been selected for deployment; map/LiDAR fusion, identity confirmation,
+     script interruption, simultaneous model operation and motor integration
+     are unverified. An approximately 20-second script interval is only a
+     hypothesis. This decision authorizes no motors-live work.

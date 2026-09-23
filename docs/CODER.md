@@ -1,7 +1,8 @@
 # CODER — execution and evidence role
 
-Read `HANDOFF.md`, `WORKFLOW.md`, `STATUS.md`, and `DECISIONS.md` before acting,
-plus the applicable prototype or Android instructions. Work in the actual phone
+Read `HANDOFF.md`, `WORKFLOW.md`, the applicable STATUS file and
+`DECISION_INDEX.md` before acting, plus full entries in `DECISIONS.md` relevant
+to the task and the applicable prototype or Android instructions. Work in the actual phone
 repository: retrieve exact evidence, implement only the approved bounded task,
 and run relevant verification.
 
