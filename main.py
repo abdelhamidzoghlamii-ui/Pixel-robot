@@ -12,7 +12,6 @@ PHOTO_B = HOME + '/robot_photo_b.jpg'
 # ── Config ────────────────────────────────────────────
 OBSTACLE_DIST    = 25    # cm — stop if closer
 PERSON_STOP_DIST = 80    # cm — stop when person this close
-GEMMA_INTERVAL   = 10    # cycles between Gemma checks
 STEREO_BASELINE  = 5.0   # cm — strafe for depth
 MOTOR_SPEED      = 130   # default motor speed
 CYCLE_MOVE_TIME  = 1.5   # seconds per move
@@ -34,91 +33,6 @@ def take_photo(path):
 
 # ── LLM (Gemma E2B) ───────────────────────────────────
 GEMMA_URL = 'http://127.0.0.1:8080/completion'
-GEMMA_SYS = """You are a robot navigation AI controlling a 4WD mecanum wheel robot.
-Reply with ONE word: FORWARD, LEFT, RIGHT, BACK, or STOP.
-Then one sentence explanation.
-
-STRICT RULES — follow exactly:
-- Person center + distance < 100cm → STOP (reached person)
-- Person center + distance > 100cm → FORWARD (approach)
-- Person visible LEFT → LEFT (turn toward them)
-- Person visible RIGHT → RIGHT (turn toward them)
-- Obstacle center + distance < 80cm → BACK (reverse away)
-- Obstacle LEFT → RIGHT (avoid by going right)
-- Obstacle RIGHT → LEFT (avoid by going left)
-- Refrigerator/sink visible + mission kitchen → FORWARD
-- Bed/wardrobe visible + mission bedroom → FORWARD
-- Toilet visible + mission bathroom → FORWARD
-- Couch/tv visible + mission living_room → FORWARD
-- Room signature visible + distance < 100cm → STOP (arrived)
-- Same direction 4+ times + empty scene → turn LEFT or RIGHT
-- All 5 rooms visited + person not found → STOP (give up)
-- Patrol + all 5 rooms visited → STOP (complete)"""
-
-def gemma_decide(context, image_path=None):
-    """
-    Call Gemma with text context and optional image.
-    image_path: if provided Gemma sees the actual photo
-    """
-    import base64
-
-    # Build text prompt
-    prompt = (
-        '<start_of_turn>user\n' + GEMMA_SYS + '\n\n' + context +
-        '<end_of_turn>\n<start_of_turn>model\n'
-    )
-
-    payload = {
-        'prompt': prompt,
-        'n_predict': 40,
-        'temperature': 0.1,
-        'stop': ['<end_of_turn>']
-    }
-
-    # An explicitly requested image must load successfully.
-    if image_path:
-        if not os.path.exists(image_path):
-            return 'STOP'
-        try:
-            with open(image_path, 'rb') as f:
-                img_b64 = base64.b64encode(f.read()).decode()
-            payload['image_data'] = [{'data': img_b64, 'id': 1}]
-            payload['prompt'] = payload['prompt'].replace(
-                '<start_of_turn>user\n',
-                '<start_of_turn>user\n[img-1]\n'
-            )
-        except KeyboardInterrupt:
-            raise
-        except Exception:
-            return 'STOP'
-
-    try:
-        resp = requests.post(GEMMA_URL, json=payload, timeout=45)
-        resp.raise_for_status()
-        return resp.json()['content'].strip() or 'STOP'
-    except KeyboardInterrupt:
-        raise
-    except Exception:
-        return 'STOP'
-
-def gemma_identify(scene_desc, mission):
-    prompt = (
-        '<start_of_turn>user\n'
-        f'Mission: {mission}\n'
-        f'I see: {scene_desc}\n'
-        'Is the mission complete? Reply YES or NO and why.'
-        '<end_of_turn>\n<start_of_turn>model\n'
-    )
-    try:
-        resp = requests.post(GEMMA_URL, json={
-            'prompt': prompt, 'n_predict': 60,
-            'temperature': 0.1, 'stop': ['<end_of_turn>']
-        }, timeout=30)
-        return resp.json()['content'].strip()
-    except KeyboardInterrupt:
-        raise
-    except Exception:
-        return 'NO cannot connect'
 
 # ── Voice (Whisper) ───────────────────────────────────
 WHISPER_BIN   = HOME + '/whisper.cpp/build/bin/whisper-cli'
@@ -368,18 +282,6 @@ class Robot:
             print(f'  [MAP] Found: {room}')
 
         return 'FORWARD'
-    def gemma_context(self, scene):
-        last5 = self.scene_log[-5:] if self.scene_log else ['none']
-        return (
-            f"Mission: {self.mission}\n"
-            f"Target: {self.target}\n"
-            f"Current scene: {scene}\n"
-            f"Last 5 scenes:\n" +
-            '\n'.join([f'  - {s}' for s in last5]) +
-            f"\nLast moves: {', '.join(self.last_moves[-5:])}\n"
-            f"Known rooms: {self.known_rooms}\n"
-            f"Distance ahead: {self.get_distance()}cm"
-        )
 
     def run_cycle(self, photo_path=None):
         self.cycle += 1
@@ -393,7 +295,7 @@ class Robot:
         else:
             if not take_photo(PHOTO_A):
                 print('  [CAM] Photo failed')
-                return 'FORWARD'
+                return 'STOP'
             path = PHOTO_A
 
         results = detect_scene(path)
@@ -405,56 +307,7 @@ class Robot:
 
         # Fast navigation rules
         move = self.navigate_rules(results, distance)
-        rule_move = move
         print(f'  [NAV] {move}')
-
-        # Gemma check — every N cycles or triggered
-        person_found  = any(r[0] == 'person' for r in results)
-        every_5       = (self.cycle % 5 == 0)
-        every_3       = (self.cycle % GEMMA_INTERVAL == 0)
-        goal_reached  = (move == 'STOP')
-        new_room      = len(self.known_rooms) > getattr(self, '_prev_rooms', 0)
-        self._prev_rooms = len(self.known_rooms)
-
-        # DECISIONS #19: Python owns safety. Gemma may advise when stuck,
-        # but cannot replace the rule-selected safety move.
-        safety_move = move in ('BACK', 'LEFT', 'RIGHT',
-                               'STRAFE_LEFT', 'STRAFE_RIGHT')
-        stuck       = getattr(self, 'nav_stuck', False)
-
-        use_gemma  = (every_3 or every_5 or person_found or goal_reached
-                      or new_room or stuck) and not (safety_move and not stuck)
-        use_vision = every_5 or person_found or goal_reached or new_room
-
-        if use_gemma and self.mission:
-            trigger = []
-            if every_3:      trigger.append('interval')
-            if every_5:      trigger.append('vision')
-            if person_found: trigger.append('person')
-            if goal_reached: trigger.append('goal')
-            if new_room:     trigger.append('new_room')
-            if stuck:        trigger.append('stuck')
-            print(f'  [GEMMA] Consulting ({"+".join(trigger)})...')
-            context = self.gemma_context(scene)
-            response = gemma_decide(context, image_path=path if use_vision else None)
-            print(f'  [GEMMA] {response}')
-            words = response.upper().split()
-            for w in words:
-                if w in ['FORWARD','LEFT','RIGHT','BACK','STOP','SPEAK',
-                         'STRAFE_LEFT','STRAFE_RIGHT']:
-                    move = w
-                    break
-            else:
-                move = 'STOP'
-            if move == 'SPEAK':
-                # Extract message after first word
-                msg_parts = response.split(' ', 1)
-                if len(msg_parts) > 1:
-                    speak(msg_parts[1])
-                move = 'STOP'
-
-        if safety_move:
-            move = rule_move
 
         # Execute move (motors cool during movement)
         if move != 'STOP':
