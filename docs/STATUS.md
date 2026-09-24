@@ -58,31 +58,18 @@ from earlier commits.
 
 **Per-cycle flow** (`main.py: Robot.run_cycle`):
 ```
-camera photo → YOLO detect_scene → navigate_rules (pure Python, instant)
-             → Gemma consulted only when a trigger fires → execute move
+camera photo → YOLO detect_scene → navigate_rules (pure Python, instant) → execute move
 ```
 
 | Layer | Handles | Cost |
 |---|---|---|
 | YOLO (yolo11m.onnx) | object/person detection, position, coarse distance | every cycle |
 | Python `navigate_rules` | obstacle stop, person approach, room signature logging | every cycle, 0ms |
-| Gemma 4 E2B | strategy when triggered (see triggers below) | ~5s warm |
+| Gemma 4 E2B | voice→intent only, outside navigation | on demand |
 | Whisper.cpp (base) | 5s voice capture → text | on demand |
 | Gemma `PARSE_SYS` | voice text → JSON action array | on demand |
 | `termux-tts-speak` | speech output | on demand |
 
-**Gemma trigger conditions** (`run_cycle`, any one fires a call):
-`cycle % GEMMA_INTERVAL(10) == 0` · `cycle % 5 == 0` · person detected ·
-move == STOP · a new room was just mapped · `nav_stuck` is set. At `nav_stuck`,
-Gemma is consulted once, but `run_cycle()` restores the exact Python-selected
-safety move after processing (DECISIONS #88). An image payload is sent only on
-the `every_5` / person / goal / new_room subset; the deployed server was
-observed to ignore it (DECISIONS #96).
-
-As coded, `main.py:Robot.run_cycle()` still consults Gemma on its existing
-triggers after YOLO and `navigate_rules()`; Python-selected safety moves are
-restored. DECISIONS #104 records the intended removal of the conversational
-LLM from low-level navigation decisions, and that code rework remains pending.
 DECISIONS #109 opens a separate, unimplemented high-level mission-script
 selector using Laya or Von. The current repo describes a mecanum prototype;
 the phone-mounted RC car with 2D LiDAR is a proposed redesign.
@@ -93,7 +80,6 @@ the phone-mounted RC car with 2D LiDAR is a proposed redesign.
 ```
 OBSTACLE_DIST     25 cm     hard stop threshold
 PERSON_STOP_DIST  80 cm     stop when person this close
-GEMMA_INTERVAL    10        cycles between forced Gemma checks
 STEREO_BASELINE   5.0 cm    strafe distance for depth   (UNVERIFIED)
 MOTOR_SPEED       130       FORWARD/BACK
 rotation speed    120       hardcoded literal in Robot.move(), not a constant
@@ -132,8 +118,8 @@ setup_q4     Gemma 4 E2B Q4_K_M  3.3GB  11-12 tok/s   ← robot default
 setup_e4b    Gemma 4 E4B Q4_K_M  5.0GB  7.2 tok/s     ← quality/chat mode
 setup_qwen3b / setup_qwen1b                            ← fallbacks
 (Qwen3.5 0.8/2/4B GGUFs at ~/models/qwen35/ are eval-only, not wired into
-server_manager; see DECISIONS #106. Removing the LLM from navigation is
-decided in #104 but not implemented.)
+server_manager; see DECISIONS #106. #104's navigation removal was implemented
+in #111.)
 ```
 
 Current llama.cpp build: commit e1a1abb7, version 1609 (Clang 21.1.8, Android
@@ -230,7 +216,7 @@ observations and follow-up are retained in
 
 ## Pending / untested
 
-- **Dual-rate nav merged as a rewrite. Rule-level safety branches and the #81
+- **Dual-rate nav merged as a rewrite. Rule-level safety branches and the current
   `run_cycle()` path are regression-tested; everything else is untested.**
   `navigate_rules` escalation ladder verified against synthetic
   distances via `nav_test.py`: thresholds exact at the `<15` / `<25` / `>=25`
@@ -238,9 +224,9 @@ observations and follow-up are retained in
   60s timeout reached. NOT tested: the person branches
   (`estimate_distance_single`), and the whole loop with motors live —
   `run_mission.py` has only ever been run with `--dry`. The 93% figure still does
-  not transfer (#55). The #81 Gemma-override defect is fixed in code and covered
-  by `run_cycle_safety_test.py` in both avoidance directions with fake external
-  operations; no hardware validation was performed (DECISIONS #88).
+  not transfer (#55). The #104 removal is covered by `run_cycle_safety_test.py`
+  in both avoidance directions with fake external operations; no hardware
+  validation was performed (DECISIONS #111).
 - **Rotation is uncalibrated.** Nobody knows how many degrees one `LEFT`/`RIGHT` at
   speed 120 for `CYCLE_MOVE_TIME` produces, so the ladder's "4 steps one way, then
   sweep past centre" is a guess about coverage, not a measured 90°/180°. The
@@ -263,14 +249,12 @@ observations and follow-up are retained in
   physical wiring, "strafe" could produce rotation or drift instead of lateral
   movement. Re-verify forward/strafe/rotate/diagonals under the corrected map
   before trusting the ladder on hardware.
-- **Gemma cannot replace a Python safety move during `nav_stuck`.** `run_cycle()`
-  saves the exact result from `navigate_rules()` and restores it after Gemma
-  processing whenever the existing `safety_move` condition was true. Gemma still
-  receives the one `nav_stuck` consultation. `run_cycle_safety_test.py` covers
-  both avoidance directions and verifies that `FORWARD` is rejected, the original
-  turn executes, and the following blocked cycle does not consult Gemma again.
-  This is regression coverage with fake external operations, not hardware
-  validation. See DECISIONS #81 and #88.
+- **Gemma is no longer consulted during `nav_stuck`.** `run_cycle()` executes
+  the move from `navigate_rules()` directly; `nav_stuck` and `asked_gemma` are
+  still set by the unchanged rules but have no consultation consumer.
+  `run_cycle_safety_test.py` checks both avoidance directions and no outbound
+  LLM request with fake external operations. This is regression coverage, not
+  hardware validation. See DECISIONS #81, #88, and #111.
 - **Dead and orphaned code mapped** (`FILES.md`). Superseded: `detect_scene.py`,
   `llm.py`, `voice.py`, `ch340_test.py`, `nav_sim.py`, `thermal_benchmark.py`,
   `thermal_benchmark2.py`, `quality_benchmark.py`. Orphans never wired in:
@@ -298,8 +282,6 @@ observations and follow-up are retained in
 - **Two JSON schemas in circulation.** `main.py: PARSE_SYS` emits
   `{"type": ..., "name": ..., "room": ...}`; the benchmark scripts used
   `{"action": ..., "target": ...}`. Not reconciled.
-- **Prompt vs code disagree on person distance.** `GEMMA_SYS` says stop under
-  100cm; `PERSON_STOP_DIST` is 80cm.
 - **FOCAL_PX uncalibrated; PERSON_STOP_DIST unreachable as coded.** Overshoot
   +55% to +1000% across 12 measured photos, minimum estimate 164 cm against an
   80 cm threshold, so the person-stop branch never fires. People are handled by

@@ -941,3 +941,40 @@ Format: `NN. [area] decision — why`
      archive was created by Codex gpt-5.6-sol, the post-hoc regrades by Codex
      GPT-6, and the docs/WORKFLOW.md independent review of the archive was also
      WAIVED by human decision; the waiver is recorded in the archive README.
+
+## Navigation (cont. VII)
+
+111. **#104 implemented: Gemma removed from the low-level navigation path.**
+     COMMITTED as 071df48ffac8dfd3ebd8b8bf9c75576411aba15e on origin/main,
+     based on 575dac2e54c7b3f7df4dedfb634360284e4c3e75. `Robot.run_cycle()`
+     no longer computes Gemma triggers or calls the model; the move returned by
+     `navigate_rules()` goes straight to execution. `navigate_rules()` itself is
+     unchanged, including the now-unused `nav_stuck` and `asked_gemma` handoff
+     flags. `gemma_decide()`, `gemma_context()`, `gemma_identify()` (which had zero
+     call sites), `GEMMA_SYS`, and `GEMMA_INTERVAL` were deleted. The camera-failure
+     path now returns `STOP` rather than `FORWARD`. `PARSE_SYS`, `parse_command()`,
+     and `GEMMA_URL` remain for voice→intent.
+
+     `run_cycle_safety_test.py` was rewritten for the new invariants: no outbound
+     LLM request, execution of the exact rule-selected move in both avoidance
+     directions, and `STOP` on failed capture. Its two tests passed with fake
+     external operations; the three-mutation non-vacuity check is reported by the
+     human, with no mutation record in this checkout. The independent AGY
+     gemini-3.1-pro-high review is reported as PASS-WITH-FINDINGS: round 1 was
+     incomplete after a permission denial, and the round-2 High finding was
+     withdrawn in round 3 after the reviewer received full source. The complete
+     reviewer transcript is not in this checkout.
+
+     The cycle no longer selects movements based on a mission target; it still
+     applies unconditional person/room rules. Mission-specific seeking needs the
+     separate #109 layer, which remains unimplemented. #108's fail-closed LLM
+     handling is superseded for the deleted navigation consultation only; retain
+     #108 as the historical decision. Behaviour changes on non-safety cycles are
+     unmeasured, and the replacement navigation benchmark does not exist.
+
+     Open reviewer findings: (2) the test's `strftime` mock; (3) escape-timeout
+     `STOP` sets `state='found'` and prints "Mission complete or waiting" although
+     the robot gave up. A camera-failure `STOP` instead returns early, without
+     setting `found` or printing that line, but also ends `run_mission()` through
+     its `STOP` break; (4) the duplicate `stereo_depth` import. No motors-live
+     validation is established by this change.
