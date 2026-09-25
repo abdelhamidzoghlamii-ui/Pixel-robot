@@ -23,6 +23,7 @@ Root [AGENTS.md](../AGENTS.md), [CLAUDE.md](../CLAUDE.md), and
    | Coder / data retriever — phone execution and evidence | [CODER.md](CODER.md) |
    | Reviewer — fresh independent candidate review | [REVIEWER.md](REVIEWER.md) |
    | Doc Keeper — canonical status and append-only decisions | [DOC_KEEPER.md](DOC_KEEPER.md) |
+   | Data Engineer — training datasets via pull requests | [DATA_ENGINEER.md](DATA_ENGINEER.md) |
 
 3. Read [STATUS.md](STATUS.md) for prototype state and pending work, or
    [APP_STATUS.md](APP_STATUS.md) for app state and pending work. Use the short

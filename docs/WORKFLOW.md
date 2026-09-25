@@ -19,14 +19,15 @@ work in the same conversation.
 | Role | Ordinary preference | Current allocation |
 |---|---|---|
 | Local AI: online-app planning and technical orchestration with the human | Local AI app thread | Fresh online thread |
-| Coder/data retriever: actual phone repo, exact evidence, approved changes and checks | Claude Code | Codex |
-| Reviewer: fresh independent candidate review | Codex | Gemini 3.1 Pro High through AGY |
+| Coder/data retriever: actual phone repo, exact evidence, approved changes and checks | Claude Code | Claude Code CLI; Codex as fallback |
+| Reviewer: fresh independent candidate review | Codex | Gemini 3.1 Pro High through AGY; for Data Engineer PRs, Codex GPT-6-Sol first, then AGY Gemini 3.1 Pro High |
+| Data Engineer: training datasets and their generators, via pull requests ([DATA_ENGINEER.md](DATA_ENGINEER.md)) | Jules | Jules (Google AI Pro), prompted by Local AI |
 | Doc Keeper: canonical status and append-only decisions | Online project thread | Online Doc Keeper / Transition thread; AGY is the on-phone documentation executor |
 
-Claude Code is temporarily parked because the human reported a weekly limit; this
-is availability, not a permanent technical restriction. The human reports paid
-subscriptions to all three providers; no exact plan, allowance, or reset date is
-assumed.
+Claude Code was parked earlier for a weekly limit; as of 2026-09-25 the human
+again assigns Coder tasks to Claude Code CLI. The human reports paid
+subscriptions to all three providers and Google AI Pro (Jules: 100 tasks per
+rolling 24 h, 15 concurrent); no exact allowance or reset date is assumed.
 
 Local AI sets objectives, prepares bounded tasks and exact phone commands, requests
 source/output from the executor, evaluates evidence and reviews, and helps the
@@ -35,6 +36,12 @@ Coder/data retriever implements and verifies in the actual repository. Reviewer
 examines actual candidate changes and surrounding code, not merely the coder's
 summary. Doc Keeper owns `STATUS.md`/`APP_STATUS.md` and `DECISIONS.md`; all other
 roles send targeted evidence-backed DOC DIFFs.
+
+On the human's instruction, Local AI may author complete role and workflow
+files (such as this file, `HANDOFF.md`, or a role file). Doc Keeper verifies
+each file's recorded base SHA-256 against `main` before replacing it, then
+commits. `STATUS.md`, `APP_STATUS.md` and `DECISIONS.md` remain single-writer:
+Local AI still sends DOC DIFFs for them.
 
 ## Execution profile
 
@@ -140,9 +147,9 @@ These are alternatives, not a sequence inside one prompt. Use separate terminals
 or exit the current agent first. Native Termux's repository and
 `/termux-home/robot` are the same bind-mounted files.
 
-User-provided environment evidence: official `@openai/codex` 0.153.4 via npm with
+User-provided environment evidence: official `@openai/codex` 0.153.4 via npm (0.157.0 observed 2026-09-25) with
 Node 20.19.2/npm 9.2.0, launcher `/usr/local/bin/codex`; AGY at
-`/root/.local/bin/agy`, version 1.1.27; Claude previously ran in Debian. AGY
+`/root/.local/bin/agy`, version 1.1.27 (1.2.10 reported by the Coder 2026-09-25); Claude previously ran in Debian. AGY
 started successfully on this Pixel, so it is not categorically unsupported.
 
 ## AGY headless reviewer
@@ -203,3 +210,22 @@ Authentication establishes capability, not blanket authorization: Coder still
 needs independent review and the human's commit decision; Doc Keeper commits
 approved documentation; pushes require separate human authorization. Reviewer
 remains read-only. If credentials fail, report the failure without exposing tokens.
+
+## Data Engineer and fine-tuning track
+
+Jules clones this repository into a cloud VM and works only through pull
+requests; it never pushes to `main`. Its rules are in `DATA_ENGINEER.md`.
+Each Data Engineer PR gets two independent reviews in fresh sessions, Ponytail
+`off`: Codex (GPT-6-Sol) first, then AGY `gemini-3.1-pro-high`. The human merges
+after Local AI evaluates both reviews with the human.
+
+Test-set custody: any held-out or independent test set used to pick a model is
+kept outside this repository until scoring is finished, because Jules can read
+the whole repository. Only its SHA-256, row count and custody location are
+recorded in docs beforehand.
+
+Fine-tuning runs in Google Colab. Each run records: notebook or script source
+and its SHA-256, Colab GPU type, base model id and revision, dataset SHA-256,
+seeds, hyperparameters, training and validation curves, and the SHA-256 of the
+output weights. Weights reach the phone by explicit download and are
+re-hashed there before any benchmark.

@@ -106,7 +106,7 @@ Corollaries:
 
 You **never write `STATUS.md` or `DECISIONS.md` directly** — not by hand,
 not with filesystem access, not with a coding agent, not "just this once".
-Doc Keeper is the single writer. You always send diffs, never files.
+Doc Keeper is the single writer. For `STATUS.md`, `APP_STATUS.md` and `DECISIONS.md` you always send diffs, never files. Role and workflow files may be delivered complete on the human's instruction; see `WORKFLOW.md`.
 
 Exact format:
 

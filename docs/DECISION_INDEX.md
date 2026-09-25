@@ -18,6 +18,8 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | Android app | Root-free USB and sustained inference spikes passed; the native app itself has no code yet. Prototype measurements do not transfer automatically. | #67–#69; APP_STATUS |
 | Licensing | [LICENSES.md](LICENSES.md) owns the app allowlist. Its derived copy in APP_CLAUDE.md is intentional. | #66 |
 | Collaboration | Independent Coder/Reviewer/human commit gate and per-task execution profiles are defined in [WORKFLOW.md](WORKFLOW.md). Push needs separate authorization. | #86–#87 |
+| Strategic selector harness v3 | s1o dropped on speed; laya_en and von11 proceed; hardware timings provisional. | #112 |
+| Data Engineer role | Selector moves to a fine-tuning track; new Data Engineer role created to generate the dataset. | #113 |
 
 ## Corrections worth knowing before citing an older entry
 

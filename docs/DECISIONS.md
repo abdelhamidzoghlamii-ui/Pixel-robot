@@ -978,3 +978,39 @@ Format: `NN. [area] decision — why`
      setting `found` or printing that line, but also ends `run_mission()` through
      its `STOP` break; (4) the duplicate `stereo_depth` import. No motors-live
      validation is established by this change.
+
+112. **Strategic-selector harness v3: zero-shot results and measurement findings.** On
+     harness v3 (66 dev cases, shared byte-identical cases for all candidates, held-out
+     66 cases sealed procedurally, SHA-256 `96d41308…2601`), judged on the four
+     judgment families (room_finished, hall_hint, repeat_search, heard_from_room;
+     24 dev cases): s1o (zero-shot Gemma 4 E2B letter scoring) was 24/24 acceptable,
+     12 preferred, but its best warm median was ~24.9 s, so it is out on speed.
+     laya_en ONNX fp32 (parity 48/48 vs torch) was 24/24 acceptable canonical but
+     7/24 reversed, ~2.1 s. von11 was 24/24 acceptable in both orders, 8 preferred,
+     ~2.75 s. Von 1.2.0's pointwise scoring removed order flips but collapsed held-out
+     accuracy; Von's NLI head was order-invariant but ~8.8 s. laya_multi and
+     laya_micro dropped (laya_micro's pruned tokenizer diverged from stock on our
+     text). Decision 1.0 has no CPU path. Findings affecting all measurement: Android
+     can move Termux from the full cpuset (0–7) to `/foreground` (0–5), silently
+     truncating `taskset` pins; `measure.py` now records allowed CPUs and refuses
+     truncated pins, and earlier pinned timings (including past YOLO and thermal
+     timings) are of uncertain core allocation. llama.cpp build 1609's prompt cache
+     changed returned probabilities by up to 0.18 depending on server history, so
+     cached llama.cpp scoring is not reproducible. All timings provisional (agent
+     resident). Harness untracked on the phone, not committed. Relates to #109.
+
+113. **Selector moves to a fine-tuning track; Data Engineer role created.** Zero-shot
+     rankings are not taken as predictive after fine-tuning, so laya_en and von11 both
+     proceed to fine-tuning on the same data and budget. Rule families (new_room,
+     target_confirmed, possible_person, all_rooms_first, all_rooms_called,
+     localization_lost, route_blocked) move to Python; the selector is judged on the
+     judgment families. The winner is decided on an independent test set written by
+     Local AI and checked by the human, kept outside the repository until scoring;
+     generator-derived data does not decide it. New role Data Engineer (Jules, Google
+     AI Pro), prompted by Local AI, pull requests only; reviewed by Codex GPT-6-Sol,
+     then AGY Gemini 3.1 Pro High. Fine-tuning runs in Google Colab with the
+     provenance listed in WORKFLOW. Laya has upstream fine-tuning tooling; Von has
+     none public, so its training loop is project-written — a known asymmetry.
+     Local AI may author complete role/workflow files on the human's instruction;
+     STATUS and DECISIONS stay single-writer. Human decision, 2026-09-25.
+     Relates to #109 and the harness v3 entry above.
