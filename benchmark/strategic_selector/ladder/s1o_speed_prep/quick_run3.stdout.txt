@@ -1,0 +1,56 @@
+thermal idle reading (gate z9 +-2 degC): z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:15:14Z
+[s1o_b2351_q40] main block: cold load, 5 cases x 2 orders at 4 threads
+  [s1o_b2351_q40 main] thermal start: z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:15:14Z (waited 0 s)
+  [s1o_b2351_q40 main] thermal end:   z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:15:44Z
+[s1o_b2351_q40] t3: cached load, 5 cases written order
+  [s1o_b2351_q40 t3] thermal start: z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:15:44Z (waited 0 s)
+  [s1o_b2351_q40 t3] thermal end:   z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:16:04Z
+[s1o_b2351_q40] t4: cached load, 5 cases written order
+  [s1o_b2351_q40 t4] thermal start: z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:16:04Z (waited 0 s)
+  [s1o_b2351_q40 t4] thermal end:   z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:16:24Z
+LADDER REPORT  2026-09-26T03:15:14+00:00
+cases /tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/quick5.jsonl sha256 0ea78770cfb86dc2  n=5  levels [1, 2, 3, 4, 5]
+models s1o_b2351_q40  threads [3, 4]  cores 4-7  device RAM 7468 MiB
+timing: perf_counter in the worker; decision = wall time of adapter.decide; post = total - tokenise - forward
+
+== s1o_b2351_q40 [OUT (speed)] ==
+accuracy        correct 8/10 (80%)  acceptable 8/10 (80%)  (both orders)
+  by level      L1 2/2 (100%)  L2 2/2 (100%)  L3 0/2 (0%)  L4 2/2 (100%)  L5 2/2 (100%)
+  by phrasing   direct 8/10 (80%)
+order flips     1/5  ['L3_01']
+decision ms     median 1859  P95 3091  (main block, 4 threads, n=10)
+  split median  tokenise 15.4  forward 1845.0  post 0.1   [tokenise=/tokenize HTTP calls, forward=/completion HTTP call (server prompt eval inside)]
+tokens/s        50   tokens by level L1 63  L2 77  L3 98  L4 88  L5 158   limit 2048, hit 0x
+token count     prompt token ids sent to llama-server (Gemma tokenizer, with BOS); the server evaluates them, then 1 token
+latency fit     ms = 126.7 + 19.035 x tokens   R2 0.96  (n=10, tokens 63-158)
+threads         3: 2211 ms  4: 2118 ms  (written order, fresh cached worker, n=5 each)   torch threads seen {'main': None, 't3': None, 't4': None}
+                repeat check: worst L2_01 1463 ms (main) vs 1935 ms (t4) = 1.32x  DISTURBED (>1.3x)
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/5, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/5, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     2.04    1.63
+                import        0.00    0.00
+                init          5.78    6.47
+                warmup        0.93    1.12
+                total         8.76    9.22
+                spawn_to_ready    9.01    9.52
+                weight files 2710 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: no terminal to prompt on
+RAM             peak 4292 MiB (VmHWM, worker)   largest single process 4266.9 MiB (wait4)
+HINTS
+  - per-token cost is 96% of predicted latency at level 5 (fit 127 ms + 19.03 ms/token x 158 tokens at level 5, R2 0.96) -> shorter input will help
+  - model forward is 99% of decision time (median tokenise 15.4 / forward 1845.0 / post 0.1 ms; shares 1%/99%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - no thread-count hint: the same 4-thread decision took 1463 ms in the main block and 1935 ms in the t4 block (L2_01, 1.3x; limit 1.3x) -> timings were disturbed (thermal or scheduler); rerun the scaling blocks
+  - init is 70% of cached load (6.5 of 9.2 s) -> a faster-loading format or a resident worker will help
+  - order flips 1/5 cases: too few to judge (need >= 10 cases)
+  - level: L1 2 decisions, L2 2 decisions, L3 2 decisions, L4 2 decisions, L5 2 decisions -> too few to judge (need >= 10 decisions at the lowest and highest level)
+  - peak RAM 4292 MiB is 57% of device RAM (7468 MiB) -> only one such model can stay resident
+
+== CATEGORY WINNERS ==
+accuracy         s1o_b2351_q40 s1o_b2351_q40 80%/80%acc
+order stability  s1o_b2351_q40 s1o_b2351_q40 20% flips
+decision speed   s1o_b2351_q40 s1o_b2351_q40 1859 ms
+cached load      s1o_b2351_q40 s1o_b2351_q40 9.2 s
+cold load        s1o_b2351_q40 s1o_b2351_q40 8.8 s
+RAM              s1o_b2351_q40 s1o_b2351_q40 4292 MiB
+(ties keep the listed model order; accuracy ties break on acceptable)

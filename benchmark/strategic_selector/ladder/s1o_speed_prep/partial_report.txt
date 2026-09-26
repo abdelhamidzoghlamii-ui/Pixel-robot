@@ -1,0 +1,70 @@
+completed valid blocks: s1o_b1609 main, s1o_b1609 t3, s1o_b1609 t4, s1o_b2351 main
+LADDER REPORT  partial report of s1o_speed_20260926T045648Z
+cases cases/ladder_cases_v1.jsonl sha256 41eeafd28e2ce499  n=60  levels [1, 2, 3, 4, 5]
+models s1o_b1609, s1o_b2351  threads [3, 4]  cores 4-7  device RAM 7468 MiB
+timing: perf_counter in the worker; decision = wall time of adapter.decide; post = total - tokenise - forward
+
+== s1o_b1609 [OUT (speed)] ==
+accuracy        correct 92/120 (77%)  acceptable 97/120 (81%)  (both orders)
+  by level      L1 23/24 (96%)  L2 16/24 (67%)  L3 15/24 (62%)  L4 18/24 (75%)  L5 20/24 (83%)
+  by phrasing   direct 31/40 (78%)  indirect 30/40 (75%)  narrative 31/40 (78%)
+order flips     6/60  ['L1_08', 'L2_11', 'L3_04', 'L4_06', 'L5_07', 'L5_09']
+decision ms     median 6650  P95 13665  (main block, 4 threads, n=120)
+  split median  tokenise 10.3  forward 6639.3  post 0.1   [not recorded]
+tokens/s        13   tokens by level L1 70  L2 87  L3 96  L4 88  L5 160   limit 2048, hit 0x
+token count     not recorded
+latency fit     ms = -2443.6 + 98.044 x tokens   R2 0.98  (n=120, tokens 62-173)
+threads         3: 7939 ms  4: 6645 ms  (written order, fresh cached worker, n=60 each)   torch threads seen {'main': None, 't3': None, 't4': None}
+                repeat check: worst L2_02 5151 ms (main) vs 6680 ms (t4) = 1.30x
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/60, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/60, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read      n/a     n/a
+                import         n/a     n/a
+                init           n/a     n/a
+                warmup         n/a     n/a
+                total          n/a     n/a
+                spawn_to_ready     n/a     n/a
+                cold load not recorded: not recorded (block from a run before the runner saved block metadata)
+RAM             peak None MiB (VmHWM, worker + llama-server)   largest single process None MiB (wait4)
+HINTS
+  - per-token cost is 100% of predicted latency at level 5 (fit -2444 ms + 98.04 ms/token x 160 tokens at level 5, R2 0.98) -> shorter input will help
+  - model forward is 100% of decision time (median tokenise 10.3 / forward 6639.3 / post 0.1 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - fastest (4 threads) is only 16% faster than 3, within the 30% noise floor (ranked 4 thr 6645 ms < 3 thr 7939 ms (median of 60 each)) -> 3 threads frees cores at no measurable cost
+  - choice changed under reversed order in 6/60 cases (10%) -> order bias; average over orders or fix the order
+
+== s1o_b2351 [OUT (speed)] ==
+accuracy        correct 93/120 (78%)  acceptable 98/120 (82%)  (both orders)
+  by level      L1 23/24 (96%)  L2 16/24 (67%)  L3 16/24 (67%)  L4 17/24 (71%)  L5 21/24 (88%)
+  by phrasing   direct 31/40 (78%)  indirect 30/40 (75%)  narrative 32/40 (80%)
+order flips     6/60  ['L1_08', 'L3_02', 'L3_04', 'L4_02', 'L4_06', 'L5_07']
+decision ms     median 2052  P95 4036  (main block, 4 threads, n=120)
+  split median  tokenise 9.3  forward 2041.7  post 0.1   [not recorded]
+tokens/s        45   tokens by level L1 70  L2 87  L3 96  L4 88  L5 160   limit 2048, hit 0x
+token count     not recorded
+latency fit     ms = -680.5 + 29.361 x tokens   R2 0.96  (n=120, tokens 62-173)
+threads         main block only (no thread blocks)
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/0, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/0, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read      n/a     n/a
+                import         n/a     n/a
+                init           n/a     n/a
+                warmup         n/a     n/a
+                total          n/a     n/a
+                spawn_to_ready     n/a     n/a
+                cold load not recorded: not recorded (block from a run before the runner saved block metadata)
+RAM             peak None MiB (VmHWM, worker + llama-server)   largest single process None MiB (wait4)
+HINTS
+  - per-token cost is 100% of predicted latency at level 5 (fit -680 ms + 29.36 ms/token x 160 tokens at level 5, R2 0.96) -> shorter input will help
+  - model forward is 99% of decision time (median tokenise 9.3 / forward 2041.7 / post 0.1 ms; shares 1%/99%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - choice changed under reversed order in 6/60 cases (10%) -> order bias; average over orders or fix the order
+
+== CATEGORY WINNERS ==
+accuracy         s1o_b2351    s1o_b2351 78%/82%acc  s1o_b1609 77%/81%acc
+order stability  s1o_b1609    s1o_b1609 10% flips  s1o_b2351 10% flips
+decision speed   s1o_b2351    s1o_b2351 2052 ms  s1o_b1609 6650 ms
+cached load      n/a
+cold load        n/a
+RAM              n/a
+(ties keep the listed model order; accuracy ties break on acceptable)

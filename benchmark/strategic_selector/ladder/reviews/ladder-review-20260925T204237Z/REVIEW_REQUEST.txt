@@ -1,0 +1,859 @@
+ROLE: Reviewer (independent, fresh session). PONYTAIL: off. This is an independent correctness review.
+RULES: Do not edit, create, delete, stage, commit or push any file. Do not run the benchmark, any model, any
+worker or any command that changes state. Do not launch another reviewer. You may read files in this
+workspace (an isolated copy of the frozen candidate). Return one complete final review as your answer.
+A pass is a review finding only, never permission to commit.
+
+TASK (frozen, from the human, verbatim):
+---
+Build a ladder benchmark runner in /termux-home/ladder/ (outside the repo), reusing the v3 adapters and the
+jevlike worker model. All seven models: laya_en ONNX, von11, s1o, laya_multi, laya_micro, von12, von10 NLI.
+1. Cases: read a JSONL file where each case has level (1-5), phrasing style, situation text, options, one
+   correct answer, and optionally a set of acceptable answers. Run every case in written order and reversed.
+2. Per decision, log: model, case id, order, full distribution, choice, correct/acceptable, input tokens,
+   and time split into tokenisation, model forward, and post-processing.
+3. Diagnostics per model: a. Latency vs input tokens: fit ms = fixed + per_token * tokens; report both
+   terms and R2. b. Thread scaling at 2, 3, 4 threads on cores 4-7, with the measure.py cpuset guard.
+   c. Load breakdown: file read, weight parsing/init, first-call warm-up. Report a cold load (drop page
+   cache first via root; if that is not possible, say so) and a cached load. d. Peak RSS per model.
+4. Report: a. Per model: accuracy by level, by phrasing, flips, median and P95 decision ms, tokens/s,
+   cold and cached load, RAM. b. Category winners: accuracy, order stability, decision speed, load time,
+   RAM. c. A HINTS section per model, generated from the measurements only. Each hint names the evidence
+   behind it. No hint without a number behind it.
+5. Add --models, --levels and --threads filters for quick reruns.
+Test on 3 toy cases across two models. Do not run the real ladder yet. Research only: no motors, no
+main.py, no docs/, no commit, no push.
+---
+REVIEW EMPHASIS: (1) timing correctness: is each measured interval what its label claims (decision total,
+tokenise, forward, post; load phases file_read/import/init/warmup; cold vs cached; thread scaling; peak
+RSS)? Look for double counting, missed work, work timed in the wrong phase, instrumentation that could
+silently miss the real call path, and statistics errors (fit, R2, median, P95, tok/s). (2) For every HINT
+rule in ladder.py hints() and every hint in the toy report: does the advice follow from the stated
+evidence, are thresholds sensible, can a hint fire on insufficient or noisy data?
+
+BASE: none. New files outside the git repo (/termux-home/ladder/); no diff base. Complete candidate files
+are inline below and also in candidate/. SHA-256 of the frozen files are in FROZEN.sha256.
+
+CODER DISCLOSURES (design decisions and deviations, for you to verify, not to accept):
+- No real root on this phone (proot fake root; SELinux untrusted_app): drop_caches fails. Cold load instead
+  evicts only the model's weight files with posix_fadvise(DONTNEED), labelled "weights-cold"; libraries
+  stay cached. The report prints the drop_caches error.
+- file_read phase pre-reads the weight files, so init then parses from page cache.
+- Von11 adapter defers weight loading to its first decide; the worker calls backend._get_model() inside the
+  init phase so init includes it.
+- laya_micro: decide is swapped to LayaEnOnnx.decide (same runtime.py call) to exclude the v3 adapter's
+  per-call tokenizer-parity diagnostic from timing.
+- post = total - tokenise - forward (a remainder, includes tensor packing/softmax/glue).
+- Thread-scaling blocks run written order only, each on a fresh cached worker; the main block (cold load,
+  both orders, highest thread count) supplies accuracy/flips/fit/split.
+- Two earlier toy runs (not the one below) showed disturbed timings: in one, the same 4-thread decision
+  took 554 ms in the main block and 1952 ms in the t4 block. Two gates were then added: the thread hint is
+  withheld if a repeated decision differs >1.3x, and thread differences below max(15%, repeat noise) are
+  reported as no measurable difference.
+- Only laya_en and von11 were exercised end to end; s1o, laya_multi, laya_micro, von12 and von10 NLI
+  instrumentation paths were not run by the ladder.
+
+CONTEXT FILES in this workspace (reused, unmodified): context/adapters.py and context/measure.py (v3
+harness), context/jevlike_worker.py (the jevlike worker: encoded(), mem_mib(), send(), stdout guard),
+context/jevlike.py (MODELS table), context/laya_micro_runtime.py (LayaRuntime used by laya_en/laya_micro).
+Toy run artefacts: toy_run/decisions.jsonl, toy_run/results.json, toy_run/toy_run.stdout.txt,
+toy_run/toy_run.stderr.txt (empty).
+
+CHECKS RUN:
+- python3 test_ladder.py -> ok
+- toy run: python3 ladder.py toy_cases.jsonl --out toy_run --models laya_en,von11 --threads 2,3,4 ->
+  exit 0, stderr empty; afterwards pgrep -fa "ladder_worker|llama-server" found no processes.
+
+OUTPUT FORMAT: findings ordered by severity (blocker / major / minor / nit), each with file:line, what is
+wrong, a concrete failure scenario, and a suggested fix; then a per-hint verdict table (hint rule ->
+follows from evidence yes/no/partly, why); then an overall verdict.
+
+
+===== FILE candidate/ladder.py =====
+     1	#!/usr/bin/env python3
+     2	"""Ladder benchmark runner. Research only: offline, no motors, no main.py.
+     3	
+     4	Usage: ladder.py CASES.jsonl --out DIR [--models a,b] [--levels 1,2] [--threads 2,3,4]
+     5	
+     6	CASES.jsonl, one case per line:
+     7	  {"id": str, "level": 1-5, "phrasing": str, "situation": str, "options": [str, ...] or {key: desc},
+     8	   "answer": str, "acceptable": [str, ...] (optional), "instruction": str (optional)}
+     9	
+    10	Per model (models run one after another, one worker at a time, pinned to cores 4-7):
+    11	  block "main":  cold load (page cache dropped via root if possible, else the model's weight files
+    12	                 evicted with posix_fadvise), then every case in written order and reversed, at the
+    13	                 highest --threads value. Accuracy, flips, latency fit and time split come from here.
+    14	  block "t<N>":  cached load at N threads, then every case in written order once. Thread scaling
+    15	                 compares these blocks only (same work, same load state); t<max> is the cached load.
+    16	Writes DIR/decisions.jsonl (every decision), DIR/results.json, DIR/report.txt; prints the report.
+    17	"""
+    18	import argparse
+    19	import hashlib
+    20	import json
+    21	import os
+    22	import signal
+    23	import statistics
+    24	import subprocess
+    25	import sys
+    26	import time
+    27	from datetime import datetime, timezone
+    28	from pathlib import Path
+    29	
+    30	HERE = Path(__file__).resolve().parent
+    31	JEVLIKE = Path("/termux-home/robot/benchmark/strategic_selector/manual/jevlike")
+    32	sys.path.insert(0, str(JEVLIKE))
+    33	from jevlike import LABEL, MODELS, allowed_cpus  # noqa: E402  (menu name -> adapter, python, HF_HOME, status)
+    34	
+    35	CORES = "4-7"
+    36	DEFAULT_INSTRUCTION = "Choose the single best next action for the robot."
+    37	SEL = Path("/termux-home/sel-candidates")
+    38	LAYA_SNAP = "hub/models--convaiinnovations--laya/snapshots/55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851"
+    39	VON11_SNAP = Path("/termux-home/von-test/hf-cache/hub/models--wfzyx--von/snapshots/d8bb5e0745d8ee1fb65d536d6d4892d54d5a93fd")
+    40	VON12_SNAP = Path("/termux-home/von12-test/hf-cache/hub/models--wfzyx--von/snapshots/5df8185a4f2327ad0a7cd117cc4f701ac557b9ae")
+    41	# Weight/tokenizer files each model loads (read in the file_read phase, evicted for the cold load).
+    42	WEIGHTS = {
+    43	    "laya_en": [SEL / "laya_en_onnx/laya_en.onnx", SEL / "laya_en_onnx/laya_en.onnx.data", SEL / "laya_en_onnx/ckpt"],
+    44	    "von11": [VON11_SNAP],  # option_marker.pt on top of the base model.safetensors: both are loaded
+    45	    "s1o": [Path("/termux-home/models/gemma-4-e2b-it-q4_k_m.gguf")],
+    46	    "laya_multi": [SEL / "laya-micro/hf-cache" / LAYA_SNAP / "multilingual"],
+    47	    "laya_micro": [SEL / "laya-micro/laya-micro-8192.int8.onnx", SEL / "laya-micro/laya-micro-8192.int8.onnx.data",
+    48	                   SEL / "laya-micro/laya-multilingual-en-8192"],
+    49	    "von12": [VON12_SNAP],
+    50	    "von10_nli": [VON11_SNAP / f for f in ("model.safetensors", "config.json", "tokenizer.json", "tokenizer_config.json")],
+    51	}
+    52	
+    53	
+    54	def files_of(paths):
+    55	    out = []
+    56	    for p in paths:
+    57	        if p.is_dir():
+    58	            out += sorted(q for q in p.rglob("*") if q.is_file())
+    59	        elif p.exists():
+    60	            out.append(p)
+    61	    return sorted({str(q.resolve()) for q in out})  # snapshots are symlinks into blobs/
+    62	
+    63	
+    64	# ---------------------------------------------------------------- cases
+    65	
+    66	def load_cases(path, levels):
+    67	    cases, seen = [], set()
+    68	    for n, line in enumerate(Path(path).read_text().splitlines(), 1):
+    69	        if not line.strip():
+    70	            continue
+    71	        c = json.loads(line)
+    72	        where = f"{path}:{n}"
+    73	        for key in ("id", "level", "phrasing", "situation", "options", "answer"):
+    74	            if key not in c:
+    75	                raise SystemExit(f"{where}: missing {key!r}")
+    76	        opts = c["options"] if isinstance(c["options"], dict) else {o: "" for o in c["options"]}
+    77	        if len(opts) < 2 or c["level"] not in range(1, 6) or c["id"] in seen:
+    78	            raise SystemExit(f"{where}: need >=2 options, level 1-5 and a unique id")
+    79	        acceptable = set(c.get("acceptable", [])) | {c["answer"]}
+    80	        if not acceptable <= set(opts):
+    81	            raise SystemExit(f"{where}: answer/acceptable not among options: {sorted(acceptable - set(opts))}")
+    82	        seen.add(c["id"])
+    83	        cases.append({"id": c["id"], "level": c["level"], "phrasing": c["phrasing"], "situation": c["situation"],
+    84	                      "options": opts, "answer": c["answer"], "acceptable": sorted(acceptable),
+    85	                      "instruction": c.get("instruction", DEFAULT_INSTRUCTION)})
+    86	    return [c for c in cases if levels is None or c["level"] in levels]
+    87	
+    88	
+    89	# ---------------------------------------------------------------- workers
+    90	
+    91	def check_cores(when):
+    92	    if not set(range(4, 8)) <= allowed_cpus():
+    93	        raise SystemExit(f"cores {CORES} not all allowed {when} (allowed {sorted(allowed_cpus())}); "
+    94	                         "bring Termux to the foreground (top-app cpuset) and retry")
+    95	
+    96	
+    97	def make_cold(files):
+    98	    """Drop the page cache via root; if that is not possible, evict this model's weight files."""
+    99	    r = subprocess.run(["su", "-c", "sync; echo 3 > /proc/sys/vm/drop_caches"], capture_output=True, text=True)
+   100	    if r.returncode == 0:
+   101	        return {"mode": "full-cold (drop_caches)"}
+   102	    for f in files:
+   103	        fd = os.open(f, os.O_RDONLY)
+   104	        try:
+   105	            os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)  # read-only files: every page is clean
+   106	        finally:
+   107	            os.close(fd)
+   108	    reason = (r.stderr or r.stdout).strip().splitlines()[-1:] or [f"exit {r.returncode}"]
+   109	    return {"mode": "weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)",
+   110	            "drop_caches_error": reason[0]}
+   111	
+   112	
+   113	class Worker:
+   114	    def __init__(self, name, threads, files, logdir, tag):
+   115	        adapter, python, hf, _ = MODELS[name]
+   116	        env = dict(os.environ, HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", TOKENIZERS_PARALLELISM="false",
+   117	                   USE_TF="0", OMP_NUM_THREADS=str(threads), V3_THREADS=str(threads),
+   118	                   LADDER_FILES=json.dumps(files), S1O_SERVER_LOG=str(logdir / f"{name}.{tag}.server.log"))
+   119	        if hf:
+   120	            env.update(HF_HOME=hf, HF_HUB_CACHE=f"{hf}/hub")
+   121	        (logdir / f"{name}.{tag}.server.log").unlink(missing_ok=True)  # s1o opens it exclusive-create
+   122	        began = time.perf_counter()
+   123	        self.proc = subprocess.Popen(["taskset", "-c", CORES, python, str(HERE / "ladder_worker.py"), adapter],
+   124	                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, env=env,
+   125	                                     stderr=open(logdir / f"{name}.{tag}.stderr.txt", "w"), start_new_session=True)
+   126	        try:
+   127	            self.ready = self.ask(None)
+   128	        except BaseException:
+   129	            self.close()
+   130	            raise
+   131	        self.spawn_to_ready_ms = (time.perf_counter() - began) * 1000
+   132	
+   133	    def ask(self, req):
+   134	        if req is not None:
+   135	            self.proc.stdin.write(json.dumps(req) + "\n")
+   136	            self.proc.stdin.flush()
+   137	        line = self.proc.stdout.readline()
+   138	        if not line:
+   139	            raise RuntimeError("worker exited; see its stderr log")
+   140	        out = json.loads(line)
+   141	        if "error" in out:
+   142	            raise RuntimeError(out["error"])
+   143	        return out
+   144	
+   145	    def close(self):
+   146	        """EOF -> adapter.close(); returns ru_maxrss (MiB) of the largest process in the worker's tree."""
+   147	        maxrss = None
+   148	        try:
+   149	            self.proc.stdin.close()
+   150	            _, _, usage = os.wait4(self.proc.pid, 0)
+   151	            maxrss = round(usage.ru_maxrss / 1024, 1)
+   152	            self.proc.returncode = 0
+   153	        finally:
+   154	            try:
+   155	                os.killpg(self.proc.pid, signal.SIGKILL)  # backstop: llama-server or anything left
+   156	            except ProcessLookupError:
+   157	                pass
+   158	        return maxrss
+   159	
+   160	
+   161	def run_block(name, block, threads, cases, orders, files, out, log, cold):
+   162	    check_cores("before " + block)
+   163	    load_state = make_cold(files) if cold else {"mode": "cached"}
+   164	    w = Worker(name, threads, files, out / "logs", block)
+   165	    rows = []
+   166	    try:
+   167	        for case in cases:
+   168	            for order in orders:
+   169	                keys = list(case["options"]) if order == "written" else list(case["options"])[::-1]
+   170	                r = w.ask({"state": case["situation"], "instruction": case["instruction"],
+   171	                           "options": {k: case["options"][k] for k in keys}})
+   172	                top = max(r["dist"].values())
+   173	                choice = next(k for k in keys if r["dist"][k] == top)  # ties: first offered, as in v3 run.py
+   174	                row = {"model": name, "case_id": case["id"], "level": case["level"], "phrasing": case["phrasing"],
+   175	                       "order": order, "block": block, "threads": threads, "options": keys,
+   176	                       "choice": choice, "tie": list(r["dist"].values()).count(top) > 1,
+   177	                       "correct": choice == case["answer"], "acceptable": choice in case["acceptable"],
+   178	                       "distribution": r.pop("dist"), **r}
+   179	                log.write(json.dumps(row) + "\n")
+   180	                rows.append(row)
+   181	        mem = w.ask({"cmd": "mem"})
+   182	    finally:
+   183	        maxrss = w.close()
+   184	    check_cores("after " + block)
+   185	    return {"block": block, "threads": threads, "load_state": load_state, "phases": w.ready["phases"],
+   186	            "file_bytes": w.ready["file_bytes"], "spawn_to_ready_ms": w.spawn_to_ready_ms,
+   187	            "timing_note": w.ready["timing_note"], "torch_threads": w.ready["torch_threads"],
+   188	            "rss_mib": mem["rss_mib"], "peak_mib": mem["peak_mib"], "wait4_maxrss_mib": maxrss, "rows": rows}
+   189	
+   190	
+   191	# ---------------------------------------------------------------- statistics
+   192	
+   193	def median(xs):
+   194	    return statistics.median(xs) if xs else None
+   195	
+   196	
+   197	def p95(xs):
+   198	    return statistics.quantiles(xs, n=100, method="inclusive")[94] if len(xs) >= 2 else (xs[0] if xs else None)
+   199	
+   200	
+   201	def fit(xs, ys):
+   202	    """Least squares ms = fixed + per_token * tokens. None when the tokens have no spread."""
+   203	    if len(set(xs)) < 2:
+   204	        return None
+   205	    slope, intercept = statistics.linear_regression(xs, ys)
+   206	    r2 = statistics.correlation(xs, ys) ** 2 if len(set(ys)) > 1 else 0.0
+   207	    return {"fixed_ms": intercept, "per_token_ms": slope, "r2": r2, "n": len(xs), "tokens_min": min(xs),
+   208	            "tokens_max": max(xs)}
+   209	
+   210	
+   211	def rate(rows, key):
+   212	    return (sum(r[key] for r in rows), len(rows))
+   213	
+   214	
+   215	def analyse(name, blocks, cases):
+   216	    main = next(b for b in blocks if b["block"] == "main")
+   217	    rows = main["rows"]
+   218	    by = lambda field: {v: {"correct": rate([r for r in rows if r[field] == v], "correct"),
+   219	                            "acceptable": rate([r for r in rows if r[field] == v], "acceptable")}
+   220	                        for v in sorted({r[field] for r in rows})}
+   221	    written = {r["case_id"]: r["choice"] for r in rows if r["order"] == "written"}
+   222	    reverse = {r["case_id"]: r["choice"] for r in rows if r["order"] == "reversed"}
+   223	    ms = [r["total_ms"] for r in rows]
+   224	    levels = sorted({r["level"] for r in rows})
+   225	    scaling = {b["threads"]: {"median_ms": median([r["total_ms"] for r in b["rows"]]), "n": len(b["rows"])}
+   226	               for b in blocks if b["block"] != "main"}
+   227	    main_written = {r["case_id"]: r for r in rows if r["order"] == "written"}
+   228	    thread_choice_diffs = sum(r["choice"] != main_written[r["case_id"]]["choice"]
+   229	                              for b in blocks if b["block"] != "main" for r in b["rows"])
+   230	    thread_prob_diff = max([abs(r["distribution"][k] - main_written[r["case_id"]]["distribution"][k])
+   231	                            for b in blocks if b["block"] != "main" for r in b["rows"] for k in r["distribution"]] or [0])
+   232	    cached = next((b for b in blocks if b["block"] == f"t{main['threads']}"), None)
+   233	    # Same decision, same thread count, two blocks: their ratio shows how disturbed the timings were.
+   234	    repeat = [(r["case_id"], main_written[r["case_id"]]["total_ms"], r["total_ms"]) for r in (cached or {"rows": []})["rows"]]
+   235	    worst = max(repeat, key=lambda x: max(x[1], x[2]) / min(x[1], x[2]), default=None)
+   236	    load = lambda b: None if b is None else {**b["phases"], "total": sum(b["phases"].values()),
+   237	                                              "spawn_to_ready": b["spawn_to_ready_ms"], "file_bytes": b["file_bytes"],
+   238	                                              "state": b["load_state"]}
+   239	    return {
+   240	        "model": name, "threads_main": main["threads"], "cases": len(written),
+   241	        "correct": rate(rows, "correct"), "acceptable": rate(rows, "acceptable"),
+   242	        "by_level": by("level"), "by_phrasing": by("phrasing"),
+   243	        "flips": sum(written[c] != reverse[c] for c in written), "flip_cases": [c for c in written if written[c] != reverse[c]],
+   244	        "median_ms": median(ms), "p95_ms": p95(ms),
+   245	        "tok_per_s": median([r["tokens"] / (r["total_ms"] / 1000) for r in rows]),
+   246	        "split_ms": {k: median([r[k] for r in rows]) for k in ("tokenise_ms", "forward_ms", "post_ms")},
+   247	        "split_share": {k: sum(r[k] for r in rows) / sum(ms) for k in ("tokenise_ms", "forward_ms", "post_ms")},
+   248	        "fit": fit([r["tokens"] for r in rows], ms),
+   249	        "tokens_by_level": {L: median([r["tokens"] for r in rows if r["level"] == L]) for L in levels},
+   250	        "truncated": sum(r["longest"] >= r["limit"] for r in rows), "limit": rows[0]["limit"],
+   251	        "scaling": scaling, "repeat_worst": worst and {"case_id": worst[0], "main_ms": worst[1], "repeat_ms": worst[2],
+   252	                                                        "ratio": max(worst[1], worst[2]) / min(worst[1], worst[2])},
+   253	        "thread_choice_diffs": thread_choice_diffs, "thread_max_prob_diff": thread_prob_diff,
+   254	        "cold": load(main), "cached": load(cached),
+   255	        "peak_mib": max(b["peak_mib"] for b in blocks), "wait4_maxrss_mib": max(b["wait4_maxrss_mib"] or 0 for b in blocks),
+   256	        "timing_note": main["timing_note"], "torch_threads": {b["block"]: b["torch_threads"] for b in blocks},
+   257	    }
+   258	
+   259	
+   260	# ---------------------------------------------------------------- hints (every hint carries its numbers)
+   261	
+   262	def hints(m, mem_total_mib):
+   263	    out = []
+   264	    pct = lambda x: f"{x * 100:.0f}%"
+   265	    f = m["fit"]
+   266	    if f is None:
+   267	        out.append(f"no latency-vs-length hint: all decisions had the same token count "
+   268	                   f"({sorted(set(m['tokens_by_level'].values()))}), nothing to fit")
+   269	    elif f["r2"] < 0.5:
+   270	        out.append(f"latency is poorly explained by input length (R2 {f['r2']:.2f}, n {f['n']}, tokens "
+   271	                   f"{f['tokens_min']}-{f['tokens_max']}) -> shorter input is not a reliable speed-up")
+   272	    elif f["per_token_ms"] <= 0:
+   273	        out.append(f"no measurable per-token cost (slope {f['per_token_ms']:.3f} ms/token, R2 {f['r2']:.2f}) "
+   274	                   "-> shorter input will not help")
+   275	    else:
+   276	        top = max(m["tokens_by_level"])
+   277	        t = m["tokens_by_level"][top]
+   278	        share = f["per_token_ms"] * t / (f["fixed_ms"] + f["per_token_ms"] * t)
+   279	        ev = (f"fit {f['fixed_ms']:.0f} ms + {f['per_token_ms']:.2f} ms/token x {t:.0f} tokens at level {top}, "
+   280	              f"R2 {f['r2']:.2f}")
+   281	        if share >= 0.5:
+   282	            out.append(f"per-token cost is {pct(share)} of predicted latency at level {top} ({ev}) -> shorter input will help")
+   283	        else:
+   284	            out.append(f"fixed cost is {pct(1 - share)} of predicted latency at level {top} ({ev}) -> shortening input "
+   285	                       "saves little; fewer model calls will help more")
+   286	    s, ms = m["split_share"], m["split_ms"]
+   287	    split_ev = (f"median tokenise {ms['tokenise_ms']:.1f} / forward {ms['forward_ms']:.1f} / post {ms['post_ms']:.1f} ms; "
+   288	                f"shares {pct(s['tokenise_ms'])}/{pct(s['forward_ms'])}/{pct(s['post_ms'])}")
+   289	    if s["tokenise_ms"] >= 0.2:
+   290	        out.append(f"tokenisation is {pct(s['tokenise_ms'])} of decision time ({split_ev}) -> pre-tokenise constant "
+   291	                   "parts or use a faster tokenizer")
+   292	    if s["post_ms"] >= 0.2:
+   293	        out.append(f"post-processing is {pct(s['post_ms'])} of decision time ({split_ev}) -> the glue code around the "
+   294	                   "model is worth optimising")
+   295	    if s["forward_ms"] >= 0.8:
+   296	        out.append(f"model forward is {pct(s['forward_ms'])} of decision time ({split_ev}) -> only fewer tokens or a "
+   297	                   "faster model will help; glue code is not the bottleneck")
+   298	    sc = {t: v["median_ms"] for t, v in m["scaling"].items() if v["median_ms"] is not None}
+   299	    rw = m["repeat_worst"]
+   300	    if len(sc) >= 2 and rw and rw["ratio"] > 1.3:
+   301	        out.append(f"no thread-count hint: the same {m['threads_main']}-thread decision took {rw['main_ms']:.0f} ms in the "
+   302	                   f"main block and {rw['repeat_ms']:.0f} ms in the t{m['threads_main']} block ({rw['case_id']}, "
+   303	                   f"{rw['ratio']:.1f}x; limit 1.3x) -> timings were disturbed (thermal or scheduler); rerun the scaling blocks")
+   304	    elif len(sc) >= 2:
+   305	        lo, hi = min(sc), max(sc)
+   306	        ev = ", ".join(f"{t} thr {v:.0f} ms" for t, v in sorted(sc.items())) + f" (median of {m['scaling'][hi]['n']} each)"
+   307	        noise = max(0.15, rw["ratio"] - 1 if rw else 0)  # a gap below the repeat noise is not a finding
+   308	        gain = (sc[lo] - sc[hi]) / sc[lo]
+   309	        if abs(gain) <= noise:
+   310	            out.append(f"{lo} vs {hi} threads differ by {pct(abs(gain))}, within the {pct(noise)} noise floor ({ev}) "
+   311	                       f"-> {lo} threads frees cores at no measurable cost")
+   312	        elif gain > 0:
+   313	            out.append(f"{hi} threads is {pct(gain)} faster than {lo}, above the {pct(noise)} noise floor ({ev}) -> keep {hi} threads")
+   314	        else:
+   315	            out.append(f"{lo} threads is {pct((sc[hi] - sc[lo]) / sc[hi])} faster than {hi}, above the {pct(noise)} noise floor "
+   316	                       f"({ev}) -> run at {lo} threads")
+   317	    if m["thread_choice_diffs"]:
+   318	        out.append(f"choice changed with thread count in {m['thread_choice_diffs']} decisions (max probability "
+   319	                   f"difference {m['thread_max_prob_diff']:.4f}) -> results depend on thread count; fix it")
+   320	    cold, cached = m["cold"], m["cached"]
+   321	    if cold and cached:
+   322	        d = cold["total"] - cached["total"]
+   323	        if d >= 1000 and d >= 0.25 * cached["total"]:
+   324	            out.append(f"{cold['state']['mode'].split(' ')[0]} load is {d / 1000:.1f} s slower than cached "
+   325	                       f"({cold['total'] / 1000:.1f} vs {cached['total'] / 1000:.1f} s; file read "
+   326	                       f"{cold['file_read'] / 1000:.1f} vs {cached['file_read'] / 1000:.1f} s) -> keep the worker resident "
+   327	                       "or the weights in page cache")
+   328	        for phase, advice in (("init", "a faster-loading format or a resident worker will help"),
+   329	                              ("import", "library import dominates; a resident worker avoids it")):
+   330	            share = cached[phase] / cached["total"]
+   331	            if share >= 0.5:
+   332	                out.append(f"{phase} is {pct(share)} of cached load ({cached[phase] / 1000:.1f} of "
+   333	                           f"{cached['total'] / 1000:.1f} s) -> {advice}")
+   334	        if m["median_ms"] and cached["warmup"] >= 2 * m["median_ms"] and cached["warmup"] - m["median_ms"] >= 200:
+   335	            out.append(f"first call takes {cached['warmup']:.0f} ms vs median {m['median_ms']:.0f} ms, although the warm-up "
+   336	                       "input is a short 2-option decision -> make a warm-up call at startup")
+   337	    n = m["cases"]
+   338	    if m["flips"] / n >= 0.1:
+   339	        out.append(f"choice changed under reversed order in {m['flips']}/{n} cases ({pct(m['flips'] / n)}) -> order bias; "
+   340	                   "average over orders or fix the order")
+   341	    lv = {L: v["correct"] for L, v in m["by_level"].items()}
+   342	    if len(lv) >= 2:
+   343	        a, b = min(lv), max(lv)
+   344	        ra, rb = lv[a][0] / lv[a][1], lv[b][0] / lv[b][1]
+   345	        if ra - rb >= 0.3:
+   346	            out.append(f"accuracy falls from {pct(ra)} at level {a} ({lv[a][0]}/{lv[a][1]}) to {pct(rb)} at level {b} "
+   347	                       f"({lv[b][0]}/{lv[b][1]}) -> the model breaks down at the harder levels")
+   348	    ph = {p: v["correct"] for p, v in m["by_phrasing"].items() if v["correct"][1] >= 2}
+   349	    if len(ph) >= 2:
+   350	        best, worst = max(ph, key=lambda p: ph[p][0] / ph[p][1]), min(ph, key=lambda p: ph[p][0] / ph[p][1])
+   351	        gap = ph[best][0] / ph[best][1] - ph[worst][0] / ph[worst][1]
+   352	        if gap >= 0.25:
+   353	            out.append(f"sensitive to phrasing: '{best}' {ph[best][0]}/{ph[best][1]} vs '{worst}' {ph[worst][0]}/"
+   354	                       f"{ph[worst][1]} correct ({pct(gap)} gap) -> normalise phrasing before the model")
+   355	    if m["truncated"]:
+   356	        out.append(f"{m['truncated']} decisions hit the {m['limit']}-token limit -> input was cut; shorten it")
+   357	    if m["peak_mib"] >= 0.4 * mem_total_mib:
+   358	        out.append(f"peak RAM {m['peak_mib']} MiB is {pct(m['peak_mib'] / mem_total_mib)} of device RAM "
+   359	                   f"({mem_total_mib} MiB) -> only one such model can stay resident")
+   360	    return out
+   361	
+   362	
+   363	# ---------------------------------------------------------------- report
+   364	
+   365	def frac(t):
+   366	    return f"{t[0]}/{t[1]} ({t[0] / t[1] * 100:.0f}%)" if t[1] else "-"
+   367	
+   368	
+   369	def report(res):
+   370	    L = []
+   371	    p = L.append
+   372	    p(f"LADDER REPORT  {res['started']}")
+   373	    p(f"cases {res['cases_file']} sha256 {res['cases_sha256'][:16]}  n={res['n_cases']}  levels {res['levels']}")
+   374	    p(f"models {', '.join(res['models'])}  threads {res['threads']}  cores {CORES}  device RAM {res['mem_total_mib']} MiB")
+   375	    p("timing: perf_counter in the worker; decision = wall time of adapter.decide; post = total - tokenise - forward")
+   376	    for m in res["per_model"]:
+   377	        p("")
+   378	        p(f"== {LABEL.get(m['model'], m['model'])} [{MODELS[m['model']][3]}] ==")
+   379	        p(f"accuracy        correct {frac(m['correct'])}  acceptable {frac(m['acceptable'])}  (both orders)")
+   380	        p("  by level      " + "  ".join(f"L{k} {frac(v['correct'])}" for k, v in m["by_level"].items()))
+   381	        p("  by phrasing   " + "  ".join(f"{k} {frac(v['correct'])}" for k, v in m["by_phrasing"].items()))
+   382	        p(f"order flips     {m['flips']}/{m['cases']}" + (f"  {m['flip_cases']}" if m["flips"] else ""))
+   383	        p(f"decision ms     median {m['median_ms']:.0f}  P95 {m['p95_ms']:.0f}  (main block, {m['threads_main']} threads, "
+   384	          f"n={m['correct'][1]})")
+   385	        sm = m["split_ms"]
+   386	        p(f"  split median  tokenise {sm['tokenise_ms']:.1f}  forward {sm['forward_ms']:.1f}  post {sm['post_ms']:.1f}   "
+   387	          f"[{m['timing_note']}]")
+   388	        p(f"tokens/s        {m['tok_per_s']:.0f}   tokens by level " +
+   389	          "  ".join(f"L{k} {v:.0f}" for k, v in m["tokens_by_level"].items()) +
+   390	          f"   limit {m['limit']}, hit {m['truncated']}x")
+   391	        f = m["fit"]
+   392	        p("latency fit     " + (f"ms = {f['fixed_ms']:.1f} + {f['per_token_ms']:.3f} x tokens   R2 {f['r2']:.2f}  "
+   393	                                f"(n={f['n']}, tokens {f['tokens_min']}-{f['tokens_max']})" if f else "not possible (no token spread)"))
+   394	        p("threads         " + "  ".join(f"{t}: {v['median_ms']:.0f} ms" for t, v in sorted(m["scaling"].items())) +
+   395	          f"  (written order, fresh cached worker, n={next(iter(m['scaling'].values()))['n']} each)"
+   396	          f"   torch threads seen {m['torch_threads']}")
+   397	        rw = m["repeat_worst"]
+   398	        if rw:
+   399	            p(f"                repeat check: worst {rw['case_id']} {rw['main_ms']:.0f} ms (main) vs {rw['repeat_ms']:.0f} ms "
+   400	              f"(t{m['threads_main']}) = {rw['ratio']:.2f}x" + ("  DISTURBED (>1.3x)" if rw["ratio"] > 1.3 else ""))
+   401	        if m["thread_choice_diffs"] or m["scaling"]:
+   402	            p(f"                choice differs from main block in {m['thread_choice_diffs']} decisions, "
+   403	              f"max prob diff {m['thread_max_prob_diff']:.4f}")
+   404	        p(f"load (s)        {'phase':<10}{'cold':>8}{'cached':>8}")
+   405	        for ph in ("file_read", "import", "init", "warmup", "total", "spawn_to_ready"):
+   406	            c, w = m["cold"], m["cached"]
+   407	            p(f"                {ph:<10}{c[ph] / 1000:>8.2f}{(w[ph] / 1000 if w else float('nan')):>8.2f}")
+   408	        p(f"                weight files {m['cold']['file_bytes'] / 2**20:.0f} MiB; cold = {m['cold']['state']['mode']}")
+   409	        if "drop_caches_error" in m["cold"]["state"]:
+   410	            p(f"                drop_caches not possible: {m['cold']['state']['drop_caches_error']}")
+   411	        p(f"RAM             peak {m['peak_mib']} MiB (VmHWM, worker{' + llama-server' if m['model'] == 's1o' else ''})   "
+   412	          f"largest single process {m['wait4_maxrss_mib']} MiB (wait4)")
+   413	        p("HINTS")
+   414	        for h in m["hints"]:
+   415	            p(f"  - {h}")
+   416	    p("")
+   417	    p("== CATEGORY WINNERS ==")
+   418	    ms = res["per_model"]
+   419	    def rank(label, key, fmt, reverse=False):
+   420	        vals = [(key(m), m["model"]) for m in ms if key(m) is not None]
+   421	        vals.sort(key=lambda v: v[0], reverse=reverse)
+   422	        p(f"{label:<17}{vals[0][1]:<12} " + "  ".join(f"{n} {fmt(v)}" for v, n in vals))
+   423	    rank("accuracy", lambda m: (m["correct"][0] / m["correct"][1], m["acceptable"][0] / m["acceptable"][1]),
+   424	         lambda v: f"{v[0] * 100:.0f}%/{v[1] * 100:.0f}%acc", reverse=True)
+   425	    rank("order stability", lambda m: m["flips"] / m["cases"], lambda v: f"{v * 100:.0f}% flips")
+   426	    rank("decision speed", lambda m: m["median_ms"], lambda v: f"{v:.0f} ms")
+   427	    rank("cached load", lambda m: m["cached"]["total"] if m["cached"] else None, lambda v: f"{v / 1000:.1f} s")
+   428	    rank("cold load", lambda m: m["cold"]["total"], lambda v: f"{v / 1000:.1f} s")
+   429	    rank("RAM", lambda m: m["peak_mib"], lambda v: f"{v} MiB")
+   430	    p("(ties keep the listed model order; accuracy ties break on acceptable)")
+   431	    return "\n".join(L)
+   432	
+   433	
+   434	# ---------------------------------------------------------------- main
+   435	
+   436	def main():
+   437	    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+   438	    ap.add_argument("cases")
+   439	    ap.add_argument("--out", type=Path, required=True)
+   440	    ap.add_argument("--models", default="all", help="comma list of " + ",".join(MODELS))
+   441	    ap.add_argument("--levels", default=None, help="comma list, e.g. 1,2")
+   442	    ap.add_argument("--threads", default="2,3,4", help="comma list; the highest also runs the main block")
+   443	    a = ap.parse_args()
+   444	    models = list(MODELS) if a.models == "all" else a.models.split(",")
+   445	    if set(models) - set(MODELS):
+   446	        raise SystemExit(f"unknown models {sorted(set(models) - set(MODELS))}")
+   447	    threads = sorted({int(t) for t in a.threads.split(",")})
+   448	    levels = {int(x) for x in a.levels.split(",")} if a.levels else None
+   449	    cases = load_cases(a.cases, levels)
+   450	    if not cases:
+   451	        raise SystemExit("no cases left after --levels")
+   452	    a.out.mkdir(parents=True, exist_ok=False)
+   453	    (a.out / "logs").mkdir()
+   454	    check_cores("at start")
+   455	    mem_total = next(int(l.split()[1]) // 1024 for l in open("/proc/meminfo") if l.startswith("MemTotal"))
+   456	    res = {"started": datetime.now(timezone.utc).isoformat(timespec="seconds"), "cases_file": str(Path(a.cases).resolve()),
+   457	           "cases_sha256": hashlib.sha256(Path(a.cases).read_bytes()).hexdigest(), "n_cases": len(cases),
+   458	           "levels": sorted({c["level"] for c in cases}), "models": models, "threads": threads,
+   459	           "mem_total_mib": mem_total, "per_model": []}
+   460	    with open(a.out / "decisions.jsonl", "x") as log:
+   461	        for name in models:
+   462	            files = files_of(WEIGHTS[name])
+   463	            print(f"[{name}] main block: cold load, {len(cases)} cases x 2 orders at {threads[-1]} threads", flush=True)
+   464	            blocks = [run_block(name, "main", threads[-1], cases, ("written", "reversed"), files, a.out, log, cold=True)]
+   465	            for t in threads:
+   466	                print(f"[{name}] t{t}: cached load, {len(cases)} cases written order", flush=True)
+   467	                blocks.append(run_block(name, f"t{t}", t, cases, ("written",), files, a.out, log, cold=False))
+   468	            m = analyse(name, blocks, cases)
+   469	            m["hints"] = hints(m, mem_total)
+   470	            m["blocks"] = [{k: v for k, v in b.items() if k != "rows"} for b in blocks]
+   471	            res["per_model"].append(m)
+   472	    order = {"CANDIDATE": 0, "OUT (speed)": 1, "DROPPED": 2}
+   473	    res["per_model"].sort(key=lambda m: order[MODELS[m["model"]][3]])
+   474	    (a.out / "results.json").write_text(json.dumps(res, indent=1, default=str) + "\n")
+   475	    text = report(res)
+   476	    (a.out / "report.txt").write_text(text + "\n")
+   477	    print(text)
+   478	
+   479	
+   480	if __name__ == "__main__":
+   481	    main()
+
+===== FILE candidate/ladder_worker.py =====
+     1	#!/usr/bin/env python3
+     2	"""Ladder worker: one model per process, JSON lines on stdin/stdout (the jevlike worker model).
+     3	
+     4	Usage (inside the model's venv): ladder_worker.py ADAPTER
+     5	Env: LADDER_FILES = JSON list of the model's weight files; V3_THREADS/OMP_NUM_THREADS set by ladder.py.
+     6	
+     7	Startup phases, reported in the ready line (ms, time.perf_counter):
+     8	  file_read  read every weight file once, so it sits in the page cache (a cold read if
+     9	             ladder.py evicted it); init then parses from cache
+    10	  import     the heavy libraries the adapter needs (torch / onnxruntime ...)
+    11	  init       the v3 adapter constructor, plus von's lazy weight load (_get_model), which the
+    12	             Von11 adapter otherwise defers to the first decide
+    13	  warmup     the first decide call
+    14	Per decision (ms): total = wall time around adapter.decide; tokenise = time inside the model's
+    15	tokenizer calls; forward = time inside the model forward (onnxruntime run / torch module forward /
+    16	s1o's /completion HTTP call); post = total - tokenise - forward (tensor packing, softmax, glue).
+    17	"""
+    18	import importlib
+    19	import json
+    20	import os
+    21	import sys
+    22	import time
+    23	import types
+    24	from pathlib import Path
+    25	
+    26	JEVLIKE = Path("/termux-home/robot/benchmark/strategic_selector/manual/jevlike")
+    27	sys.path.insert(0, str(JEVLIKE))
+    28	import worker as jw  # noqa: E402  importing it moves library prints off the protocol stdout
+    29	
+    30	IMPORTS = {"laya_en_onnx": ["onnxruntime", "tokenizers"], "laya_micro": ["onnxruntime", "tokenizers"],
+    31	           "laya_multi": ["torch", "laya"], "von11": ["torch", "von"], "von10_nli": ["torch", "von", "transformers"],
+    32	           "s1o": []}
+    33	TOKENIZER_METHODS = {"__call__", "encode", "encode_plus", "batch_encode_plus", "encode_batch", "tokenize"}
+    34	WARMUP = ("The robot is idle in the hallway.", {"wait": "", "explore": ""}, "Pick one.")
+    35	
+    36	
+    37	class Clock:
+    38	    def __init__(self):
+    39	        self.tok = self.fwd = 0.0
+    40	        self._fwd_start = None
+    41	
+    42	    def timed(self, fn, field):
+    43	        def run(*a, **k):
+    44	            began = time.perf_counter()
+    45	            try:
+    46	                return fn(*a, **k)
+    47	            finally:
+    48	                setattr(self, field, getattr(self, field) + time.perf_counter() - began)
+    49	        return run
+    50	
+    51	    def hook(self, module):
+    52	        """Torch forward hooks on the top module only, so nested modules are not double counted."""
+    53	        def pre(*_):
+    54	            self._fwd_start = time.perf_counter()
+    55	        def post(*_):
+    56	            self.fwd += time.perf_counter() - self._fwd_start
+    57	        module.register_forward_pre_hook(pre)
+    58	        module.register_forward_hook(post)
+    59	
+    60	
+    61	class Timed:
+    62	    """Stands in for a tokenizer or ONNX session: times the named methods, delegates the rest."""
+    63	    def __init__(self, obj, clock, field, methods):
+    64	        self._obj, self._clock, self._field, self._methods = obj, clock, field, methods
+    65	
+    66	    def __getattr__(self, name):
+    67	        attr = getattr(self._obj, name)
+    68	        return self._clock.timed(attr, self._field) if name in self._methods else attr
+    69	
+    70	    def __call__(self, *a, **k):
+    71	        return self._clock.timed(self._obj, self._field)(*a, **k)
+    72	
+    73	
+    74	def instrument(ad, clock):
+    75	    """Returns a note describing what was timed; also triggers von's deferred weight load."""
+    76	    kind = type(ad).__name__
+    77	    if kind in ("LayaEnOnnx", "LayaMicro"):
+    78	        ad.rt.build_sequence = clock.timed(ad.rt.build_sequence, "tok")
+    79	        ad.rt.sess = Timed(ad.rt.sess, clock, "fwd", {"run"})
+    80	        if kind == "LayaMicro":  # same runtime.py call, minus the adapter's per-call tokenizer-parity check
+    81	            from adapters import LayaEnOnnx
+    82	            ad.decide = types.MethodType(LayaEnOnnx.decide, ad)
+    83	        return "tokenise=runtime.build_sequence, forward=onnxruntime run"
+    84	    if kind in ("LayaEn", "LayaMulti"):
+    85	        ad.agent.tok = Timed(ad.agent.tok, clock, "tok", TOKENIZER_METHODS)
+    86	        clock.hook(ad.agent.model)
+    87	        return "tokenise=agent tokenizer calls, forward=agent.model forward hooks"
+    88	    if kind == "Von11":
+    89	        from von.engine import VonEngine
+    90	        model = VonEngine.get_instance().backend._get_model()
+    91	        model.tokenizer = Timed(model.tokenizer, clock, "tok", TOKENIZER_METHODS)
+    92	        clock.hook(model)
+    93	        return "tokenise=OptionMarkerModel.tokenizer calls, forward=OptionMarkerModel forward hooks"
+    94	    if kind == "Von10Nli":
+    95	        ad.backend._tokenizer = Timed(ad.backend._tokenizer, clock, "tok", TOKENIZER_METHODS)
+    96	        clock.hook(ad.backend._model)
+    97	        return "tokenise=NLI tokenizer calls, forward=NLI model forward hooks"
+    98	    if kind == "S1O":
+    99	        ad.encode = clock.timed(ad.encode, "tok")  # schema.build tokenizes through adapter.encode (/tokenize)
+   100	        ad.completion_probs = clock.timed(ad.completion_probs, "fwd")
+   101	        post = ad._post
+   102	        def logged(path, body):
+   103	            res = post(path, body)
+   104	            if path == "/completion":
+   105	                ad.server_timings = res.get("timings", {})
+   106	            return res
+   107	        ad._post = logged
+   108	        return "tokenise=/tokenize HTTP calls, forward=/completion HTTP call (server prompt eval inside)"
+   109	    raise ValueError(kind)
+   110	
+   111	
+   112	def read_files(paths):
+   113	    total = 0
+   114	    for p in paths:
+   115	        with open(p, "rb", buffering=0) as f:
+   116	            while (chunk := f.read(8 << 20)):
+   117	                total += len(chunk)
+   118	    return total
+   119	
+   120	
+   121	def main():
+   122	    name = sys.argv[1]
+   123	    phases, clock, ad = {}, Clock(), None
+   124	    ms = lambda t: (time.perf_counter() - t) * 1000
+   125	    try:
+   126	        try:
+   127	            t = time.perf_counter()
+   128	            file_bytes = read_files(json.loads(os.environ.get("LADDER_FILES", "[]")))
+   129	            phases["file_read"] = ms(t)
+   130	            t = time.perf_counter()
+   131	            for mod in IMPORTS[name]:
+   132	                importlib.import_module(mod)
+   133	            phases["import"] = ms(t)
+   134	            sys.path.insert(0, jw.V3)
+   135	            from adapters import CANDIDATES
+   136	            t = time.perf_counter()
+   137	            ad = CANDIDATES[name]()
+   138	            note = instrument(ad, clock)
+   139	            phases["init"] = ms(t)
+   140	            t = time.perf_counter()
+   141	            ad.decide(*WARMUP)
+   142	            phases["warmup"] = ms(t)
+   143	            if clock.tok == 0 or clock.fwd == 0:
+   144	                raise RuntimeError(f"instrumentation missed a phase: tokenise={clock.tok} forward={clock.fwd}")
+   145	            torch = sys.modules.get("torch")
+   146	            jw.send({"ready": True, "phases": phases, "file_bytes": file_bytes, "timing_note": note,
+   147	                     "threads_env": os.environ.get("V3_THREADS"),
+   148	                     "torch_threads": torch.get_num_threads() if torch else None})
+   149	        except Exception as e:
+   150	            jw.send({"error": f"{type(e).__name__}: {e}"})
+   151	            return
+   152	        for line in sys.stdin:
+   153	            req = json.loads(line)
+   154	            try:
+   155	                if req.get("cmd") == "mem":
+   156	                    cur, peak = jw.mem_mib(ad)
+   157	                    jw.send({"rss_mib": cur, "peak_mib": peak})
+   158	                    continue
+   159	                clock.tok = clock.fwd = 0.0
+   160	                began = time.perf_counter()
+   161	                dist = ad.decide(req["state"], req["options"], req["instruction"])
+   162	                total = ms(began)
+   163	                tok, fwd = clock.tok * 1000, clock.fwd * 1000
+   164	                seqs, _, limit = jw.encoded(ad, req["state"], req["options"], req["instruction"])  # untimed
+   165	                out = {"dist": {k: float(dist[k]) for k in req["options"]}, "total_ms": total,
+   166	                       "tokenise_ms": tok, "forward_ms": fwd, "post_ms": total - tok - fwd,
+   167	                       "tokens": sum(map(len, seqs)), "longest": max(map(len, seqs)), "limit": limit}
+   168	                if hasattr(ad, "server_timings"):
+   169	                    out["server_timings"] = ad.server_timings
+   170	                jw.send(out)
+   171	            except Exception as e:
+   172	                jw.send({"error": f"{type(e).__name__}: {e}"})
+   173	    finally:
+   174	        if ad is not None and hasattr(ad, "close"):
+   175	            ad.close()
+   176	
+   177	
+   178	if __name__ == "__main__":
+   179	    main()
+
+===== FILE candidate/test_ladder.py =====
+     1	"""Checks for the runner's non-trivial logic: python3 test_ladder.py"""
+     2	import json
+     3	import tempfile
+     4	from ladder import fit, hints, load_cases, p95
+     5	
+     6	f = fit([10, 20, 30, 40], [15, 25, 35, 45])
+     7	assert abs(f["fixed_ms"] - 5) < 1e-9 and abs(f["per_token_ms"] - 1) < 1e-9 and abs(f["r2"] - 1) < 1e-9
+     8	assert fit([10, 10], [1, 2]) is None
+     9	assert p95([1.0, 2.0]) == 1.95 and p95([7.0]) == 7.0
+    10	
+    11	with tempfile.NamedTemporaryFile("w", suffix=".jsonl", delete=False) as t:
+    12	    t.write(json.dumps({"id": "a", "level": 2, "phrasing": "p", "situation": "s", "options": ["x", "y"], "answer": "z"}))
+    13	try:
+    14	    load_cases(t.name, None)
+    15	    raise AssertionError("answer outside options accepted")
+    16	except SystemExit as e:
+    17	    assert "not among options" in str(e)
+    18	assert len(load_cases("toy_cases.jsonl", {1, 5})) == 2
+    19	
+    20	base = {"fit": {"fixed_ms": 100, "per_token_ms": 2, "r2": 0.9, "n": 6, "tokens_min": 20, "tokens_max": 200},
+    21	        "tokens_by_level": {1: 20, 5: 200}, "split_share": {"tokenise_ms": 0.05, "forward_ms": 0.9, "post_ms": 0.05},
+    22	        "split_ms": {"tokenise_ms": 1, "forward_ms": 18, "post_ms": 1}, "scaling": {2: {"median_ms": 300, "n": 3},
+    23	        4: {"median_ms": 290, "n": 3}}, "thread_choice_diffs": 0, "thread_max_prob_diff": 0, "cold": None,
+    24	        "cached": None, "median_ms": 20, "threads_main": 4,
+    25	        "repeat_worst": {"case_id": "c", "main_ms": 100, "repeat_ms": 110, "ratio": 1.1}, "cases": 10, "flips": 3, "by_level": {1: {"correct": (5, 5)},
+    26	        5: {"correct": (1, 5)}}, "by_phrasing": {}, "truncated": 0, "limit": 512, "peak_mib": 100}
+    27	h = "\n".join(hints(base, 8000))
+    28	assert "per-token cost is 80% of predicted latency at level 5" in h          # 2*200 / (100 + 400)
+    29	assert "differ by 3%, within the 15% noise floor" in h and "3/10 cases (30%)" in h and "from 100% at level 1" in h
+    30	assert "model forward is 90%" in h
+    31	assert "per-token" not in "\n".join(hints({**base, "fit": {**base["fit"], "r2": 0.2}}, 8000))
+    32	noisy = "\n".join(hints({**base, "repeat_worst": {"case_id": "c", "main_ms": 100, "repeat_ms": 350, "ratio": 3.5}}, 8000))
+    33	assert "no thread-count hint" in noisy and "faster than" not in noisy
+    34	fast4 = "\n".join(hints({**base, "scaling": {2: {"median_ms": 300, "n": 3}, 4: {"median_ms": 200, "n": 3}}}, 8000))
+    35	assert "4 threads is 33% faster than 2" in fast4
+    36	slow4 = "\n".join(hints({**base, "scaling": {2: {"median_ms": 200, "n": 3}, 4: {"median_ms": 300, "n": 3}}}, 8000))
+    37	assert "2 threads is 33% faster than 4" in slow4
+    38	print("ok")
+
+===== FILE candidate/toy_cases.jsonl =====
+     1	{"id": "toy_1", "level": 1, "phrasing": "direct", "situation": "The robot's battery is at 5 percent. The charger is in the next room.", "options": ["go to the charger", "start mopping", "sing a song"], "answer": "go to the charger"}
+     2	{"id": "toy_2", "level": 3, "phrasing": "indirect", "situation": "Someone in the kitchen mentions that the milk carton on the counter has been sitting out since breakfast and it is now late afternoon. The fridge door is closed and the robot is standing next to the counter with a free gripper.", "options": ["put the milk in the fridge", "pour the milk into a glass", "leave the kitchen", "open the oven"], "answer": "put the milk in the fridge", "acceptable": ["put the milk in the fridge", "leave the kitchen"]}
+     3	{"id": "toy_3", "level": 5, "phrasing": "narrative", "situation": "Earlier today the robot was asked to find the house keys before the owner leaves for the airport at six. It has already searched the living room sofa, the coat rack in the hallway and the kitchen drawers without success. While passing the bedroom it noticed a jacket hanging on the chair that the owner wore yesterday evening, and the owner once said they often forget keys in jacket pockets. It is now twenty to six, the taxi has been booked, and the robot is standing in the hallway between the bedroom and the bathroom, whose door is closed. The owner is upstairs packing and cannot be disturbed.", "options": ["check the jacket pockets in the bedroom", "search the bathroom", "search the living room sofa again", "go upstairs and ask the owner", "wait by the front door"], "answer": "check the jacket pockets in the bedroom", "acceptable": ["check the jacket pockets in the bedroom", "go upstairs and ask the owner"]}
+
+===== FILE toy_run/report.txt =====
+     1	LADDER REPORT  2026-09-25T20:39:59+00:00
+     2	cases /data/data/com.termux/files/home/ladder/toy_cases.jsonl sha256 2ebe1f9fd4eac5d9  n=3  levels [1, 3, 5]
+     3	models laya_en, von11  threads [2, 3, 4]  cores 4-7  device RAM 7468 MiB
+     4	timing: perf_counter in the worker; decision = wall time of adapter.decide; post = total - tokenise - forward
+     5	
+     6	== laya_en (ONNX) [CANDIDATE] ==
+     7	accuracy        correct 4/6 (67%)  acceptable 4/6 (67%)  (both orders)
+     8	  by level      L1 2/2 (100%)  L3 2/2 (100%)  L5 0/2 (0%)
+     9	  by phrasing   direct 2/2 (100%)  indirect 2/2 (100%)  narrative 0/2 (0%)
+    10	order flips     1/3  ['toy_3']
+    11	decision ms     median 546  P95 1044  (main block, 4 threads, n=6)
+    12	  split median  tokenise 0.3  forward 545.3  post 0.3   [tokenise=runtime.build_sequence, forward=onnxruntime run]
+    13	tokens/s        156   tokens by level L1 49  L3 85  L5 168   limit 512, hit 0x
+    14	latency fit     ms = 32.4 + 6.011 x tokens   R2 1.00  (n=6, tokens 49-168)
+    15	threads         2: 585 ms  3: 713 ms  4: 554 ms  (written order, fresh cached worker, n=3 each)   torch threads seen {'main': None, 't2': None, 't3': None, 't4': None}
+    16	                repeat check: worst toy_1 325 ms (main) vs 343 ms (t4) = 1.06x
+    17	                choice differs from main block in 0 decisions, max prob diff 0.0000
+    18	load (s)        phase         cold  cached
+    19	                file_read     1.27    0.39
+    20	                import        0.45    0.27
+    21	                init          2.26    2.19
+    22	                warmup        0.23    0.21
+    23	                total         4.21    3.06
+    24	                spawn_to_ready    4.54    3.39
+    25	                weight files 1610 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+    26	                drop_caches not possible: bash: line 1: /proc/sys/vm/drop_caches: Permission denied
+    27	RAM             peak 1538 MiB (VmHWM, worker)   largest single process 1539.0 MiB (wait4)
+    28	HINTS
+    29	  - per-token cost is 97% of predicted latency at level 5 (fit 32 ms + 6.01 ms/token x 168 tokens at level 5, R2 1.00) -> shorter input will help
+    30	  - model forward is 100% of decision time (median tokenise 0.3 / forward 545.3 / post 0.3 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+    31	  - 2 vs 4 threads differ by 5%, within the 15% noise floor (2 thr 585 ms, 3 thr 713 ms, 4 thr 554 ms (median of 3 each)) -> 2 threads frees cores at no measurable cost
+    32	  - weights-cold load is 1.2 s slower than cached (4.2 vs 3.1 s; file read 1.3 vs 0.4 s) -> keep the worker resident or the weights in page cache
+    33	  - init is 71% of cached load (2.2 of 3.1 s) -> a faster-loading format or a resident worker will help
+    34	  - choice changed under reversed order in 1/3 cases (33%) -> order bias; average over orders or fix the order
+    35	  - accuracy falls from 100% at level 1 (2/2) to 0% at level 5 (0/2) -> the model breaks down at the harder levels
+    36	  - sensitive to phrasing: 'direct' 2/2 vs 'narrative' 0/2 correct (100% gap) -> normalise phrasing before the model
+    37	
+    38	== von11 [CANDIDATE] ==
+    39	accuracy        correct 4/6 (67%)  acceptable 5/6 (83%)  (both orders)
+    40	  by level      L1 2/2 (100%)  L3 1/2 (50%)  L5 1/2 (50%)
+    41	  by phrasing   direct 2/2 (100%)  indirect 1/2 (50%)  narrative 1/2 (50%)
+    42	order flips     2/3  ['toy_2', 'toy_3']
+    43	decision ms     median 804  P95 1329  (main block, 4 threads, n=6)
+    44	  split median  tokenise 2.0  forward 802.3  post 0.6   [tokenise=OptionMarkerModel.tokenizer calls, forward=OptionMarkerModel forward hooks]
+    45	tokens/s        102   tokens by level L1 46  L3 82  L5 165   limit 8192, hit 0x
+    46	latency fit     ms = 338.4 + 5.814 x tokens   R2 0.98  (n=6, tokens 46-165)
+    47	threads         2: 979 ms  3: 938 ms  4: 851 ms  (written order, fresh cached worker, n=3 each)   torch threads seen {'main': 4, 't2': 2, 't3': 3, 't4': 4}
+    48	                repeat check: worst toy_3 1244 ms (main) vs 1348 ms (t4) = 1.08x
+    49	                choice differs from main block in 0 decisions, max prob diff 0.0000
+    50	load (s)        phase         cold  cached
+    51	                file_read     2.49    1.86
+    52	                import       19.51   15.83
+    53	                init          4.79    2.83
+    54	                warmup        0.68    0.49
+    55	                total        27.47   21.01
+    56	                spawn_to_ready   27.73   21.23
+    57	                weight files 3021 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+    58	                drop_caches not possible: bash: line 1: /proc/sys/vm/drop_caches: Permission denied
+    59	RAM             peak 3441 MiB (VmHWM, worker)   largest single process 3441.7 MiB (wait4)
+    60	HINTS
+    61	  - per-token cost is 74% of predicted latency at level 5 (fit 338 ms + 5.81 ms/token x 165 tokens at level 5, R2 0.98) -> shorter input will help
+    62	  - model forward is 100% of decision time (median tokenise 2.0 / forward 802.3 / post 0.6 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+    63	  - 2 vs 4 threads differ by 13%, within the 15% noise floor (2 thr 979 ms, 3 thr 938 ms, 4 thr 851 ms (median of 3 each)) -> 2 threads frees cores at no measurable cost
+    64	  - weights-cold load is 6.5 s slower than cached (27.5 vs 21.0 s; file read 2.5 vs 1.9 s) -> keep the worker resident or the weights in page cache
+    65	  - import is 75% of cached load (15.8 of 21.0 s) -> library import dominates; a resident worker avoids it
+    66	  - choice changed under reversed order in 2/3 cases (67%) -> order bias; average over orders or fix the order
+    67	  - accuracy falls from 100% at level 1 (2/2) to 50% at level 5 (1/2) -> the model breaks down at the harder levels
+    68	  - sensitive to phrasing: 'direct' 2/2 vs 'indirect' 1/2 correct (50% gap) -> normalise phrasing before the model
+    69	  - peak RAM 3441 MiB is 46% of device RAM (7468 MiB) -> only one such model can stay resident
+    70	
+    71	== CATEGORY WINNERS ==
+    72	accuracy         von11        von11 67%/83%acc  laya_en 67%/67%acc
+    73	order stability  laya_en      laya_en 33% flips  von11 67% flips
+    74	decision speed   laya_en      laya_en 546 ms  von11 804 ms
+    75	cached load      laya_en      laya_en 3.1 s  von11 21.0 s
+    76	cold load        laya_en      laya_en 4.2 s  von11 27.5 s
+    77	RAM              laya_en      laya_en 1538 MiB  von11 3441 MiB
+    78	(ties keep the listed model order; accuracy ties break on acceptable)

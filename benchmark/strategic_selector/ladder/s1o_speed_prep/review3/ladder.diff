@@ -1,0 +1,94 @@
+--- base2/ladder.py	2026-09-26 03:35:34.664317723 +0000
++++ /termux-home/ladder/ladder.py	2026-09-26 03:35:56.260317733 +0000
+@@ -179,24 +179,35 @@
+             raise RuntimeError(out["error"])
+         return out
+ 
+-    def close(self):
+-        """EOF -> adapter.close(); returns ru_maxrss (MiB) of the largest process in the worker's tree."""
++    def close(self, timeout=30):
++        """EOF -> adapter.close(); returns ru_maxrss (MiB) of the largest process in the worker's tree, or None
++        if the worker did not exit within timeout seconds (then its whole process group is killed)."""
+         maxrss = None
+         try:
+             self.proc.stdin.close()
+-            _, _, usage = os.wait4(self.proc.pid, 0)
+-            maxrss = round(usage.ru_maxrss / 1024, 1)
+-            self.proc.returncode = 0
++            deadline = time.monotonic() + timeout
++            while time.monotonic() < deadline:
++                pid, _, usage = os.wait4(self.proc.pid, os.WNOHANG)
++                if pid:
++                    maxrss = round(usage.ru_maxrss / 1024, 1)
++                    self.proc.returncode = 0
++                    break
++                time.sleep(0.2)
++            else:
++                print(f"worker {self.proc.pid} still running {timeout} s after EOF; killing its process group",
++                      file=sys.stderr, flush=True)
+         finally:
+             try:
+                 os.killpg(self.proc.pid, signal.SIGKILL)  # backstop: llama-server or anything left
+             except ProcessLookupError:
+                 pass
++            if self.proc.returncode is None:
++                self.proc.wait()  # reap the killed worker
+         return maxrss
+ 
+ 
+ THERMAL_MAX_AGE_S = 30  # the root logger writes every ~5 s; an older last line means it stopped
+-GATE_MC = 2000         # a block starts only when z9 is within 2 degC of the idle reading
++GATE_MC = 2000         # a block starts only when z9 <= idle reading + 2 degC
+ 
+ 
+ def read_thermal(path):
+@@ -211,11 +222,11 @@
+ 
+ 
+ def thermal_gate(path, idle, label):
+-    """Waits until z9 is within GATE_MC of the idle reading; returns the reading the block starts at."""
++    """Waits until z9 <= idle + GATE_MC (cooler than idle is fine); returns the reading the block starts at."""
+     began = time.monotonic()
+-    while abs((t := read_thermal(path))["z9"] - idle["z9"]) > GATE_MC:
+-        print(f"  [{label}] waiting: z9 {t['z9'] / 1000:.1f} degC, idle {idle['z9'] / 1000:.1f} "
+-              f"(+-{GATE_MC / 1000:.0f}), {time.monotonic() - began:.0f} s", flush=True)
++    while (t := read_thermal(path))["z9"] > idle["z9"] + GATE_MC:
++        print(f"  [{label}] waiting: z9 {t['z9'] / 1000:.1f} degC, need <= {(idle['z9'] + GATE_MC) / 1000:.1f} "
++              f"(idle {idle['z9'] / 1000:.1f} + {GATE_MC / 1000:.0f}), {time.monotonic() - began:.0f} s", flush=True)
+         time.sleep(10)
+     t["waited_s"] = round(time.monotonic() - began)
+     return t
+@@ -227,13 +238,13 @@
+ 
+ def run_block(name, block, threads, cases, orders, files, out, log, cold, thermal=None):
+     check_cores("before " + block)
+-    load_state = make_cold(name, files) if cold else {"mode": "cached"}
+     therm = None
+-    if thermal:
++    if thermal:  # gate before the cache drop, so the block starts right after the drop
+         path, idle = thermal
+         therm = {"start": thermal_gate(path, idle, f"{name} {block}")}
+         print(f"  [{name} {block}] thermal start: {fmt_thermal(therm['start'])} (waited {therm['start']['waited_s']} s)",
+               flush=True)
++    load_state = make_cold(name, files) if cold else {"mode": "cached"}
+     w = Worker(name, threads, files, out / "logs", block)
+     rows = []
+     try:
+@@ -552,7 +563,7 @@
+     ap.add_argument("--levels", default=None, help="comma list, e.g. 1,2")
+     ap.add_argument("--threads", default="2,3,4", help="comma list; the highest also runs the main block")
+     ap.add_argument("--thermal-log", default=None, help="root thermal log (z9/z10/z11 millidegrees); gates every block "
+-                    "on z9 within 2 degC of the reading at run start and prints start/end readings")
++                    "on z9 <= (reading at run start) + 2 degC and prints start/end readings")
+     a = ap.parse_args()
+     models = list(MODELS) if a.models == "all" else a.models.split(",")
+     if set(models) - set(MODELS):
+@@ -568,7 +579,7 @@
+     thermal = None
+     if a.thermal_log:
+         idle = read_thermal(a.thermal_log)
+-        print(f"thermal idle reading (gate z9 +-{GATE_MC / 1000:.0f} degC): {fmt_thermal(idle)}", flush=True)
++        print(f"thermal idle reading (gate z9 <= idle + {GATE_MC / 1000:.0f} degC): {fmt_thermal(idle)}", flush=True)
+         thermal = (a.thermal_log, idle)
+     mem_total = next(int(l.split()[1]) // 1024 for l in open("/proc/meminfo") if l.startswith("MemTotal"))
+     res = {"started": datetime.now(timezone.utc).isoformat(timespec="seconds"), "cases_file": str(Path(a.cases).resolve()),

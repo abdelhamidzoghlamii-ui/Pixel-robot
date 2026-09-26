@@ -1,0 +1,55 @@
+thermal idle reading (gate z9 <= idle + 2 degC): z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:36:05Z
+[s1o_b2351_qwen08b] main block: cold load, 5 cases x 2 orders at 4 threads
+  [s1o_b2351_qwen08b main] thermal start: z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:36:05Z (waited 0 s)
+  [s1o_b2351_qwen08b main] thermal end:   z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:36:15Z
+[s1o_b2351_qwen08b] t3: cached load, 5 cases written order
+  [s1o_b2351_qwen08b t3] thermal start: z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:36:15Z (waited 0 s)
+  [s1o_b2351_qwen08b t3] thermal end:   z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:36:25Z
+[s1o_b2351_qwen08b] t4: cached load, 5 cases written order
+  [s1o_b2351_qwen08b t4] thermal start: z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:36:25Z (waited 0 s)
+  [s1o_b2351_qwen08b t4] thermal end:   z9 30.0 z10 31.0 z11 32.0 degC at 2026-09-26T03:36:30Z
+LADDER REPORT  2026-09-26T03:36:06+00:00
+cases /tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/quick5.jsonl sha256 0ea78770cfb86dc2  n=5  levels [1, 2, 3, 4, 5]
+models s1o_b2351_qwen08b  threads [3, 4]  cores 4-7  device RAM 7468 MiB
+timing: perf_counter in the worker; decision = wall time of adapter.decide; post = total - tokenise - forward
+
+== s1o_b2351_qwen08b [OUT (speed)] ==
+accuracy        correct 6/10 (60%)  acceptable 6/10 (60%)  (both orders)
+  by level      L1 1/2 (50%)  L2 1/2 (50%)  L3 0/2 (0%)  L4 2/2 (100%)  L5 2/2 (100%)
+  by phrasing   direct 6/10 (60%)
+order flips     3/5  ['L1_01', 'L2_01', 'L3_01']
+decision ms     median 605  P95 1092  (main block, 4 threads, n=10)
+  split median  tokenise 9.3  forward 592.5  post 0.1   [tokenise=/tokenize HTTP calls, forward=/completion HTTP call (server prompt eval inside)]
+tokens/s        135   tokens by level L1 60  L2 73  L3 94  L4 82  L5 149   limit 2048, hit 0x
+token count     prompt token ids sent to llama-server (Gemma tokenizer, with BOS); the server evaluates them, then 1 token
+latency fit     ms = 13.8 + 7.240 x tokens   R2 1.00  (n=10, tokens 60-149)
+threads         3: 808 ms  4: 691 ms  (written order, fresh cached worker, n=5 each)   torch threads seen {'main': None, 't3': None, 't4': None}
+                repeat check: worst L4_01 618 ms (main) vs 691 ms (t4) = 1.12x
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/5, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/5, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     0.46    0.15
+                import        0.00    0.00
+                init          2.87    3.08
+                warmup        0.32    0.35
+                total         3.65    3.57
+                spawn_to_ready    3.93    3.83
+                weight files 508 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: no terminal to prompt on
+RAM             peak 1198 MiB (VmHWM, worker)   largest single process 1173.8 MiB (wait4)
+HINTS
+  - per-token cost is 99% of predicted latency at level 5 (fit 14 ms + 7.24 ms/token x 149 tokens at level 5, R2 1.00) -> shorter input will help
+  - model forward is 98% of decision time (median tokenise 9.3 / forward 592.5 / post 0.1 ms; shares 1%/98%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - fastest (4 threads) is only 14% faster than 3, within the 15% noise floor (ranked 4 thr 691 ms < 3 thr 808 ms (median of 5 each)) -> 3 threads frees cores at no measurable cost
+  - init is 86% of cached load (3.1 of 3.6 s) -> a faster-loading format or a resident worker will help
+  - order flips 3/5 cases: too few to judge (need >= 10 cases)
+  - level: L1 2 decisions, L2 2 decisions, L3 2 decisions, L4 2 decisions, L5 2 decisions -> too few to judge (need >= 10 decisions at the lowest and highest level)
+
+== CATEGORY WINNERS ==
+accuracy         s1o_b2351_qwen08b s1o_b2351_qwen08b 60%/60%acc
+order stability  s1o_b2351_qwen08b s1o_b2351_qwen08b 60% flips
+decision speed   s1o_b2351_qwen08b s1o_b2351_qwen08b 605 ms
+cached load      s1o_b2351_qwen08b s1o_b2351_qwen08b 3.6 s
+cold load        s1o_b2351_qwen08b s1o_b2351_qwen08b 3.7 s
+RAM              s1o_b2351_qwen08b s1o_b2351_qwen08b 1198 MiB
+(ties keep the listed model order; accuracy ties break on acceptable)

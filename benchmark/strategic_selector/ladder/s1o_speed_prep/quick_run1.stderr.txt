@@ -1,0 +1,15 @@
+Traceback (most recent call last):
+  File "/tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/quick.py", line 7, in <module>
+    ladder.main()
+    ~~~~~~~~~~~^^
+  File "/termux-home/ladder/ladder.py", line 581, in main
+    blocks = [run_block(name, "main", threads[-1], cases, ("written", "reversed"), files, a.out, log, cold=True,
+              ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        thermal=thermal)]
+                        ^^^^^^^^^^^^^^^^
+  File "/termux-home/ladder/ladder.py", line 242, in run_block
+    r = w.ask({"state": case["situation"], "instruction": case["instruction"],
+               "options": {k: case["options"][k] for k in keys}})
+  File "/termux-home/ladder/ladder.py", line 178, in ask
+    raise RuntimeError(out["error"])
+RuntimeError: RemoteDisconnected: Remote end closed connection without response

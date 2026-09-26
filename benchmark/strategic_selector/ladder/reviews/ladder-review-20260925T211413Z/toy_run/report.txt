@@ -1,0 +1,81 @@
+LADDER REPORT  2026-09-25T21:09:29+00:00
+cases /data/data/com.termux/files/home/ladder/toy_cases.jsonl sha256 2ebe1f9fd4eac5d9  n=3  levels [1, 3, 5]
+models laya_en, von11  threads [2, 3, 4]  cores 4-7  device RAM 7468 MiB
+timing: perf_counter in the worker; decision = wall time of adapter.decide; post = total - tokenise - forward
+
+== laya_en (ONNX) [CANDIDATE] ==
+accuracy        correct 4/6 (67%)  acceptable 4/6 (67%)  (both orders)
+  by level      L1 2/2 (100%)  L3 2/2 (100%)  L5 0/2 (0%)
+  by phrasing   direct 2/2 (100%)  indirect 2/2 (100%)  narrative 0/2 (0%)
+order flips     1/3  ['toy_3']
+decision ms     median 562  P95 1050  (main block, 4 threads, n=6)
+  split median  tokenise 0.4  forward 561.7  post 0.3   [tokenise=runtime.build_sequence, forward=onnxruntime run]
+tokens/s        151   tokens by level L1 49  L3 85  L5 168   limit 512, hit 0x
+token count     one packed sequence [CLS] instruction [SEP] options [SEP] situation [SEP], model tokenizer, after truncation
+latency fit     ms = 59.1 + 5.886 x tokens   R2 1.00  (n=6, tokens 49-168)
+threads         2: 570 ms  3: 724 ms  4: 546 ms  (written order, fresh cached worker, n=3 each)   torch threads seen {'main': None, 't2': None, 't3': None, 't4': None}
+                repeat check: worst toy_1 354 ms (main) vs 415 ms (t4) = 1.17x
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/3, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/6, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     1.25    0.42
+                import        0.47    0.28
+                init          4.20    2.20
+                warmup        0.28    0.24
+                total         6.20    3.14
+                spawn_to_ready    6.43    3.35
+                weight files 1610 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: Enter pressed but page cache did not drop (3281 -> 3281 MiB)
+RAM             peak 1538 MiB (VmHWM, worker)   largest single process 1539.3 MiB (wait4)
+HINTS
+  - per-token cost is 94% of predicted latency at level 5 (fit 59 ms + 5.89 ms/token x 168 tokens at level 5, R2 1.00) -> shorter input will help
+  - model forward is 100% of decision time (median tokenise 0.4 / forward 561.7 / post 0.3 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - fastest (4 threads) is only 4% faster than 2, within the 17% noise floor (ranked 4 thr 546 ms < 2 thr 570 ms < 3 thr 724 ms (median of 3 each)) -> 2 threads frees cores at no measurable cost
+  - weights-cold load is 3.1 s slower than cached (6.2 vs 3.1 s; file read 1.3 vs 0.4 s) -> keep the worker resident or the weights in page cache
+  - init is 70% of cached load (2.2 of 3.1 s) -> a faster-loading format or a resident worker will help
+  - order flips 1/3 cases: too few to judge (need >= 10 cases)
+  - level: L1 2 decisions, L3 2 decisions, L5 2 decisions -> too few to judge (need >= 10 decisions at the lowest and highest level)
+  - phrasing: direct 2 decisions, indirect 2 decisions, narrative 2 decisions -> too few to judge (need >= 10 decisions in at least two phrasings)
+
+== von11 [CANDIDATE] ==
+accuracy        correct 4/6 (67%)  acceptable 5/6 (83%)  (both orders)
+  by level      L1 2/2 (100%)  L3 1/2 (50%)  L5 1/2 (50%)
+  by phrasing   direct 2/2 (100%)  indirect 1/2 (50%)  narrative 1/2 (50%)
+order flips     2/3  ['toy_2', 'toy_3']
+decision ms     median 810  P95 1392  (main block, 4 threads, n=6)
+  split median  tokenise 1.9  forward 807.4  post 0.6   [tokenise=OptionMarkerModel.tokenizer calls, forward=OptionMarkerModel forward hooks]
+tokens/s        101   tokens by level L1 46  L3 82  L5 165   limit 8192, hit 0x
+token count     one packed sequence: instruction + situation [SEP] [MASK] option ..., with special tokens
+latency fit     ms = 310.0 + 6.218 x tokens   R2 0.96  (n=6, tokens 46-165)
+threads         2: 857 ms  3: 914 ms  4: 798 ms  (written order, fresh cached worker, n=3 each)   torch threads seen {'main': 4, 't2': 2, 't3': 3, 't4': 4}
+                repeat check: worst toy_2 835 ms (main) vs 798 ms (t4) = 1.05x
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/3, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/6, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     2.45    1.78
+                import       16.01   17.96
+                init          4.66    2.82
+                warmup        0.68    0.58
+                total        23.80   23.14
+                spawn_to_ready   23.96   23.39
+                weight files 3021 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: Enter pressed but page cache did not drop (2925 -> 2931 MiB)
+RAM             peak 3425 MiB (VmHWM, worker)   largest single process 3425.2 MiB (wait4)
+HINTS
+  - per-token cost is 77% of predicted latency at level 5 (fit 310 ms + 6.22 ms/token x 165 tokens at level 5, R2 0.96) -> shorter input will help
+  - model forward is 100% of decision time (median tokenise 1.9 / forward 807.4 / post 0.6 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - fastest (4 threads) is only 7% faster than 2, within the 15% noise floor (ranked 4 thr 798 ms < 2 thr 857 ms < 3 thr 914 ms (median of 3 each)) -> 2 threads frees cores at no measurable cost
+  - import is 78% of cached load (18.0 of 23.1 s) -> library import dominates; a resident worker avoids it
+  - order flips 2/3 cases: too few to judge (need >= 10 cases)
+  - level: L1 2 decisions, L3 2 decisions, L5 2 decisions -> too few to judge (need >= 10 decisions at the lowest and highest level)
+  - phrasing: direct 2 decisions, indirect 2 decisions, narrative 2 decisions -> too few to judge (need >= 10 decisions in at least two phrasings)
+  - peak RAM 3425 MiB is 46% of device RAM (7468 MiB) -> only one such model can stay resident
+
+== CATEGORY WINNERS ==
+accuracy         von11        von11 67%/83%acc  laya_en 67%/67%acc
+order stability  laya_en      laya_en 33% flips  von11 67% flips
+decision speed   laya_en      laya_en 562 ms  von11 810 ms
+cached load      laya_en      laya_en 3.1 s  von11 23.1 s
+cold load        laya_en      laya_en 6.2 s  von11 23.8 s
+RAM              laya_en      laya_en 1538 MiB  von11 3425 MiB
+(ties keep the listed model order; accuracy ties break on acceptable)

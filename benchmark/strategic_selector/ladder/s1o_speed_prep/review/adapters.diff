@@ -1,0 +1,14 @@
+--- orig/adapters.py	2026-09-26 02:48:52.692886915 +0000
++++ /termux-home/robot/benchmark/strategic_selector/v3/adapters.py	2026-09-26 02:48:59.444886918 +0000
+@@ -132,8 +132,9 @@
+     engine.slot_logits' masked softmax at temperature 1.0.
+     """
+     name = "s1o"
+-    LLAMA = Path("/termux-home/llama.cpp/build/bin")
+-    GGUF = "/termux-home/models/gemma-4-e2b-it-q4_k_m.gguf"
++    # Speed variants (ladder s1o_*) swap the build and the GGUF; the letter scoring stays the same.
++    LLAMA = Path(os.environ.get("S1O_LLAMA_BIN", "/termux-home/llama.cpp/build/bin"))
++    GGUF = os.environ.get("S1O_GGUF", "/termux-home/models/gemma-4-e2b-it-q4_k_m.gguf")
+     PORT = 8091
+     N_PROBS = 1000
+ 

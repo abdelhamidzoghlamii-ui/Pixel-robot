@@ -1,0 +1,30 @@
+--- base2/test_ladder.py	2026-09-26 03:35:34.668317723 +0000
++++ /termux-home/ladder/test_ladder.py	2026-09-26 03:35:45.404317728 +0000
+@@ -1,5 +1,6 @@
+ """Checks for the runner's non-trivial logic: python3 test_ladder.py"""
+ import json
++import os
+ import tempfile
+ from ladder import analyse, fit, hints, load_cases, p95
+ 
+@@ -82,9 +83,19 @@
+     raise AssertionError("stale thermal log accepted")
+ except SystemExit as e:
+     assert "not running" in str(e)
+-readings = iter([{"at": "x", "z9": 33100}, {"at": "x", "z9": 33000}])  # 2.1 degC over idle waits, 2.0 passes
++readings = iter([{"at": "x", "z9": 33100}, {"at": "x", "z9": 33000}])  # idle 31: 33.1 waits, 33.0 passes
+ real_read, real_sleep = ladder.read_thermal, ladder.time.sleep
+ ladder.read_thermal, ladder.time.sleep = (lambda _: next(readings)), (lambda _: None)
+ assert ladder.thermal_gate("p", {"z9": 31000}, "x")["z9"] == 33000
++readings = iter([{"at": "x", "z9": 27000}])  # cooler than idle starts at once (no abs)
++assert ladder.thermal_gate("p", {"z9": 31000}, "x")["z9"] == 27000
+ ladder.read_thermal, ladder.time.sleep = real_read, real_sleep
++os.unlink(t.name)
++
++# Worker.close: a worker that ignores EOF is killed after the timeout and reaped
++import subprocess
++w = ladder.Worker.__new__(ladder.Worker)
++w.proc = subprocess.Popen(["sleep", "60"], stdin=subprocess.PIPE, start_new_session=True)
++began = ladder.time.monotonic()
++assert w.close(timeout=0.5) is None and w.proc.returncode is not None and ladder.time.monotonic() - began < 5
+ print("ok")

@@ -1,0 +1,235 @@
+LADDER REPORT  2026-09-25T22:35:15+00:00
+cases /termux-home/ladder/cases/ladder_cases_v1.jsonl sha256 41eeafd28e2ce499  n=60  levels [1, 2, 3, 4, 5]
+models laya_en, von11, s1o, laya_multi, laya_micro, von12, von10_nli  threads [2, 3, 4]  cores 4-7  device RAM 7468 MiB
+timing: perf_counter in the worker; decision = wall time of adapter.decide; post = total - tokenise - forward
+
+== laya_en (ONNX) [CANDIDATE] ==
+accuracy        correct 48/120 (40%)  acceptable 52/120 (43%)  (both orders)
+  by level      L1 11/24 (46%)  L2 8/24 (33%)  L3 10/24 (42%)  L4 12/24 (50%)  L5 7/24 (29%)
+  by phrasing   direct 13/40 (32%)  indirect 18/40 (45%)  narrative 17/40 (42%)
+order flips     17/60  ['L1_04', 'L1_10', 'L1_12', 'L2_02', 'L2_04', 'L2_05', 'L2_08', 'L2_09', 'L2_12', 'L3_01', 'L3_06', 'L3_10', 'L4_01', 'L4_05', 'L5_03', 'L5_10', 'L5_12']
+decision ms     median 763  P95 2228  (main block, 4 threads, n=120)
+  split median  tokenise 0.3  forward 761.8  post 0.4   [tokenise=runtime.build_sequence, forward=onnxruntime run]
+tokens/s        133   tokens by level L1 50  L2 64  L3 70  L4 64  L5 118   limit 512, hit 0x
+token count     one packed sequence [CLS] instruction [SEP] options [SEP] situation [SEP], model tokenizer, after truncation
+latency fit     ms = 790.3 + 3.794 x tokens   R2 0.02  (n=120, tokens 41-131)
+threads         2: 517 ms  3: 625 ms  4: 518 ms  (written order, fresh cached worker, n=60 each)   torch threads seen {'main': None, 't2': None, 't3': None, 't4': None}
+                repeat check: worst L1_01 1440 ms (main) vs 352 ms (t4) = 4.10x  DISTURBED (>1.3x)
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/60, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/120, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     1.28    0.47
+                import        0.56    0.33
+                init          3.52    2.38
+                warmup        0.26    0.29
+                total         5.62    3.47
+                spawn_to_ready    6.02    3.80
+                weight files 1610 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: Enter pressed but page cache did not drop (2939 -> 2965 MiB)
+RAM             peak 1543 MiB (VmHWM, worker)   largest single process 1545.7 MiB (wait4)
+HINTS
+  - latency is poorly explained by input length (R2 0.02, n 120, tokens 41-131) -> shorter input is not a reliable speed-up
+  - model forward is 100% of decision time (median tokenise 0.3 / forward 761.8 / post 0.4 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - no thread-count hint: the same 4-thread decision took 1440 ms in the main block and 352 ms in the t4 block (L1_01, 4.1x; limit 1.3x) -> timings were disturbed (thermal or scheduler); rerun the scaling blocks
+  - weights-cold load is 2.1 s slower than cached (5.6 vs 3.5 s; file read 1.3 vs 0.5 s) -> keep the worker resident or the weights in page cache
+  - init is 69% of cached load (2.4 of 3.5 s) -> a faster-loading format or a resident worker will help
+  - choice changed under reversed order in 17/60 cases (28%) -> order bias; average over orders or fix the order
+
+== von11 [CANDIDATE] ==
+accuracy        correct 66/120 (55%)  acceptable 72/120 (60%)  (both orders)
+  by level      L1 16/24 (67%)  L2 12/24 (50%)  L3 8/24 (33%)  L4 18/24 (75%)  L5 12/24 (50%)
+  by phrasing   direct 17/40 (42%)  indirect 23/40 (57%)  narrative 26/40 (65%)
+order flips     33/60  ['L1_01', 'L1_02', 'L1_03', 'L1_04', 'L1_05', 'L1_07', 'L1_08', 'L1_09', 'L2_04', 'L2_08', 'L2_09', 'L2_11', 'L2_12', 'L3_01', 'L3_03', 'L3_05', 'L3_06', 'L3_07', 'L3_08', 'L3_09', 'L3_10', 'L3_12', 'L4_06', 'L4_07', 'L4_08', 'L4_11', 'L5_02', 'L5_04', 'L5_05', 'L5_07', 'L5_08', 'L5_10', 'L5_12']
+decision ms     median 846  P95 1690  (main block, 4 threads, n=120)
+  split median  tokenise 1.1  forward 844.5  post 0.8   [tokenise=OptionMarkerModel.tokenizer calls, forward=OptionMarkerModel forward hooks]
+tokens/s        77   tokens by level L1 48  L2 60  L3 67  L4 60  L5 115   limit 8192, hit 0x
+token count     one packed sequence: instruction + situation [SEP] [MASK] option ..., with special tokens
+latency fit     ms = -414.7 + 20.199 x tokens   R2 0.60  (n=120, tokens 38-128)
+threads         2: 1005 ms  3: 823 ms  4: 901 ms  (written order, fresh cached worker, n=60 each)   torch threads seen {'main': 4, 't2': 2, 't3': 3, 't4': 4}
+                repeat check: worst L5_08 4120 ms (main) vs 1288 ms (t4) = 3.20x  DISTURBED (>1.3x)
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/60, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/120, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     2.73    2.16
+                import       22.60   22.00
+                init          4.46    3.87
+                warmup        0.69    0.69
+                total        30.49   28.72
+                spawn_to_ready   30.64   28.94
+                weight files 3021 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: skipped by the human
+RAM             peak 3443 MiB (VmHWM, worker)   largest single process 3443.1 MiB (wait4)
+HINTS
+  - per-token cost is 100% of predicted latency at level 5 (fit -415 ms + 20.20 ms/token x 115 tokens at level 5, R2 0.60) -> shorter input will help
+  - model forward is 100% of decision time (median tokenise 1.1 / forward 844.5 / post 0.8 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - no thread-count hint: the same 4-thread decision took 4120 ms in the main block and 1288 ms in the t4 block (L5_08, 3.2x; limit 1.3x) -> timings were disturbed (thermal or scheduler); rerun the scaling blocks
+  - import is 77% of cached load (22.0 of 28.7 s) -> library import dominates; a resident worker avoids it
+  - choice changed under reversed order in 33/60 cases (55%) -> order bias; average over orders or fix the order
+  - peak RAM 3443 MiB is 46% of device RAM (7468 MiB) -> only one such model can stay resident
+
+== s1o [OUT (speed)] ==
+accuracy        correct 92/120 (77%)  acceptable 97/120 (81%)  (both orders)
+  by level      L1 23/24 (96%)  L2 16/24 (67%)  L3 15/24 (62%)  L4 18/24 (75%)  L5 20/24 (83%)
+  by phrasing   direct 31/40 (78%)  indirect 30/40 (75%)  narrative 31/40 (78%)
+order flips     6/60  ['L1_08', 'L2_11', 'L3_04', 'L4_06', 'L5_07', 'L5_09']
+decision ms     median 7605  P95 14655  (main block, 4 threads, n=120)
+  split median  tokenise 11.3  forward 7592.3  post 0.1   [tokenise=/tokenize HTTP calls, forward=/completion HTTP call (server prompt eval inside)]
+tokens/s        12   tokens by level L1 70  L2 87  L3 96  L4 88  L5 160   limit 2048, hit 0x
+token count     prompt token ids sent to llama-server (Gemma tokenizer, with BOS); the server evaluates them, then 1 token
+latency fit     ms = -740.7 + 93.698 x tokens   R2 0.99  (n=120, tokens 62-173)
+threads         2: 11886 ms  3: 9309 ms  4: 7363 ms  (written order, fresh cached worker, n=60 each)   torch threads seen {'main': None, 't2': None, 't3': None, 't4': None}
+                repeat check: worst L1_03 6279 ms (main) vs 5171 ms (t4) = 1.21x
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/60, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/120, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     3.41    1.80
+                import        0.00    0.00
+                init          4.87    4.84
+                warmup        3.07    3.02
+                total        11.34    9.66
+                spawn_to_ready   11.73   10.01
+                weight files 3302 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: skipped by the human
+RAM             peak 3607 MiB (VmHWM, worker + llama-server)   largest single process 3580.0 MiB (wait4)
+HINTS
+  - per-token cost is 100% of predicted latency at level 5 (fit -741 ms + 93.70 ms/token x 160 tokens at level 5, R2 0.99) -> shorter input will help
+  - model forward is 100% of decision time (median tokenise 11.3 / forward 7592.3 / post 0.1 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - 4 threads is 38% faster than 2, above the 21% noise floor (ranked 4 thr 7363 ms < 3 thr 9309 ms < 2 thr 11886 ms (median of 60 each)) -> run at 4 threads
+  - init is 50% of cached load (4.8 of 9.7 s) -> a faster-loading format or a resident worker will help
+  - choice changed under reversed order in 6/60 cases (10%) -> order bias; average over orders or fix the order
+  - peak RAM 3607 MiB is 48% of device RAM (7468 MiB) -> only one such model can stay resident
+
+== laya_multi [DROPPED] ==
+accuracy        correct 57/120 (48%)  acceptable 63/120 (52%)  (both orders)
+  by level      L1 15/24 (62%)  L2 8/24 (33%)  L3 9/24 (38%)  L4 14/24 (58%)  L5 11/24 (46%)
+  by phrasing   direct 20/40 (50%)  indirect 19/40 (48%)  narrative 18/40 (45%)
+order flips     12/60  ['L1_08', 'L2_03', 'L2_07', 'L2_09', 'L2_11', 'L2_12', 'L3_08', 'L3_10', 'L4_01', 'L4_04', 'L5_11', 'L5_12']
+decision ms     median 383  P95 638  (main block, 4 threads, n=120)
+  split median  tokenise 0.5  forward 381.4  post 0.9   [tokenise=agent tokenizer calls, forward=agent.model forward hooks]
+tokens/s        180   tokens by level L1 48  L2 62  L3 71  L4 62  L5 118   limit 1024, hit 0x
+token count     one packed sequence [CLS] instruction [SEP] options [SEP] situation [SEP], model tokenizer, after truncation
+latency fit     ms = 71.6 + 4.621 x tokens   R2 0.93  (n=120, tokens 41-131)
+threads         2: 449 ms  3: 347 ms  4: 332 ms  (written order, fresh cached worker, n=60 each)   torch threads seen {'main': 4, 't2': 2, 't3': 3, 't4': 4}
+                repeat check: worst L5_01 618 ms (main) vs 446 ms (t4) = 1.39x  DISTURBED (>1.3x)
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/60, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/120, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     0.67    0.19
+                import        8.18    4.11
+                init         28.62   17.83
+                warmup        0.28    0.20
+                total        37.75   22.32
+                spawn_to_ready   37.97   22.46
+                weight files 647 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: skipped by the human
+RAM             peak 2652 MiB (VmHWM, worker)   largest single process 2652.2 MiB (wait4)
+HINTS
+  - per-token cost is 88% of predicted latency at level 5 (fit 72 ms + 4.62 ms/token x 118 tokens at level 5, R2 0.93) -> shorter input will help
+  - model forward is 100% of decision time (median tokenise 0.5 / forward 381.4 / post 0.9 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - no thread-count hint: the same 4-thread decision took 618 ms in the main block and 446 ms in the t4 block (L5_01, 1.4x; limit 1.3x) -> timings were disturbed (thermal or scheduler); rerun the scaling blocks
+  - weights-cold load is 15.4 s slower than cached (37.8 vs 22.3 s; file read 0.7 vs 0.2 s) -> keep the worker resident or the weights in page cache
+  - init is 80% of cached load (17.8 of 22.3 s) -> a faster-loading format or a resident worker will help
+  - choice changed under reversed order in 12/60 cases (20%) -> order bias; average over orders or fix the order
+
+== laya_micro [DROPPED] ==
+accuracy        correct 56/120 (47%)  acceptable 62/120 (52%)  (both orders)
+  by level      L1 16/24 (67%)  L2 6/24 (25%)  L3 11/24 (46%)  L4 12/24 (50%)  L5 11/24 (46%)
+  by phrasing   direct 19/40 (48%)  indirect 16/40 (40%)  narrative 21/40 (52%)
+order flips     14/60  ['L1_05', 'L1_08', 'L2_01', 'L2_03', 'L3_01', 'L3_05', 'L3_09', 'L4_01', 'L4_02', 'L4_09', 'L5_02', 'L5_05', 'L5_11', 'L5_12']
+decision ms     median 261  P95 476  (main block, 4 threads, n=120)
+  split median  tokenise 0.2  forward 260.4  post 0.4   [tokenise=runtime.build_sequence, forward=onnxruntime run]
+tokens/s        293   tokens by level L1 57  L2 72  L3 84  L4 74  L5 138   limit 1024, hit 0x
+token count     one packed sequence [CLS] instruction [SEP] options [SEP] situation [SEP], pruned tokenizer, after truncation
+latency fit     ms = 13.8 + 3.251 x tokens   R2 0.98  (n=120, tokens 47-149)
+threads         2: 410 ms  3: 384 ms  4: 291 ms  (written order, fresh cached worker, n=60 each)   torch threads seen {'main': None, 't2': None, 't3': None, 't4': None}
+                repeat check: worst L1_02 189 ms (main) vs 255 ms (t4) = 1.35x  DISTURBED (>1.3x)
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/60, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/120, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     0.41    0.25
+                import        0.38    0.42
+                init          2.36    3.85
+                warmup        0.19    0.21
+                total         3.34    4.73
+                spawn_to_ready    3.70    5.11
+                weight files 440 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: skipped by the human
+RAM             peak 535 MiB (VmHWM, worker)   largest single process 538.1 MiB (wait4)
+HINTS
+  - per-token cost is 97% of predicted latency at level 5 (fit 14 ms + 3.25 ms/token x 138 tokens at level 5, R2 0.98) -> shorter input will help
+  - model forward is 100% of decision time (median tokenise 0.2 / forward 260.4 / post 0.4 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - no thread-count hint: the same 4-thread decision took 189 ms in the main block and 255 ms in the t4 block (L1_02, 1.3x; limit 1.3x) -> timings were disturbed (thermal or scheduler); rerun the scaling blocks
+  - init is 81% of cached load (3.8 of 4.7 s) -> a faster-loading format or a resident worker will help
+  - choice changed under reversed order in 14/60 cases (23%) -> order bias; average over orders or fix the order
+
+== von12 [DROPPED] ==
+accuracy        correct 66/120 (55%)  acceptable 72/120 (60%)  (both orders)
+  by level      L1 18/24 (75%)  L2 14/24 (58%)  L3 10/24 (42%)  L4 18/24 (75%)  L5 6/24 (25%)
+  by phrasing   direct 18/40 (45%)  indirect 20/40 (50%)  narrative 28/40 (70%)
+order flips     0/60
+decision ms     median 756  P95 1595  (main block, 4 threads, n=120)
+  split median  tokenise 1.1  forward 754.3  post 0.8   [tokenise=OptionMarkerModel.tokenizer calls, forward=OptionMarkerModel forward hooks]
+tokens/s        82   tokens by level L1 48  L2 60  L3 67  L4 60  L5 115   limit 8192, hit 0x
+token count     one packed sequence: instruction + situation [SEP] [MASK] option ..., with special tokens
+latency fit     ms = 8.5 + 12.084 x tokens   R2 0.91  (n=120, tokens 38-128)
+threads         2: 1028 ms  3: 908 ms  4: 851 ms  (written order, fresh cached worker, n=60 each)   torch threads seen {'main': 4, 't2': 2, 't3': 3, 't4': 4}
+                repeat check: worst L5_02 1071 ms (main) vs 1477 ms (t4) = 1.38x  DISTURBED (>1.3x)
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/60, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/120, max prob diff 0.0001
+load (s)        phase         cold  cached
+                file_read     2.53    2.21
+                import       18.51   23.39
+                init          4.20    3.82
+                warmup        0.67    0.55
+                total        25.91   29.97
+                spawn_to_ready   26.18   30.17
+                weight files 3017 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: skipped by the human
+RAM             peak 3432 MiB (VmHWM, worker)   largest single process 3432.9 MiB (wait4)
+HINTS
+  - per-token cost is 99% of predicted latency at level 5 (fit 9 ms + 12.08 ms/token x 115 tokens at level 5, R2 0.91) -> shorter input will help
+  - model forward is 100% of decision time (median tokenise 1.1 / forward 754.3 / post 0.8 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - no thread-count hint: the same 4-thread decision took 1071 ms in the main block and 1477 ms in the t4 block (L5_02, 1.4x; limit 1.3x) -> timings were disturbed (thermal or scheduler); rerun the scaling blocks
+  - import is 78% of cached load (23.4 of 30.0 s) -> library import dominates; a resident worker avoids it
+  - accuracy falls from 75% at level 1 (18/24) to 25% at level 5 (6/24) -> the model breaks down at the harder levels
+  - peak RAM 3432 MiB is 46% of device RAM (7468 MiB) -> only one such model can stay resident
+
+== von10 NLI [DROPPED] ==
+accuracy        correct 78/120 (65%)  acceptable 86/120 (72%)  (both orders)
+  by level      L1 20/24 (83%)  L2 16/24 (67%)  L3 10/24 (42%)  L4 20/24 (83%)  L5 12/24 (50%)
+  by phrasing   direct 24/40 (60%)  indirect 24/40 (60%)  narrative 30/40 (75%)
+order flips     0/60
+decision ms     median 1602  P95 6194  (main block, 4 threads, n=120)
+  split median  tokenise 1.0  forward 1600.8  post 0.5   [tokenise=NLI tokenizer calls, forward=NLI model forward hooks]
+tokens/s        102   tokens by level L1 78  L2 138  L3 166  L4 163  L5 612   limit 512, hit 0x
+token count     sum over options of each (situation, instruction + option) pair, each truncated to 512: one pair per option
+latency fit     ms = 165.2 + 9.152 x tokens   R2 0.99  (n=120, tokens 63-758)
+threads         2: 2241 ms  3: 1994 ms  4: 1930 ms  (written order, fresh cached worker, n=60 each)   torch threads seen {'main': 4, 't2': 2, 't3': 3, 't4': 4}
+                repeat check: worst L2_02 1289 ms (main) vs 1961 ms (t4) = 1.52x  DISTURBED (>1.3x)
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/60, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/120, max prob diff 0.0001
+load (s)        phase         cold  cached
+                file_read     1.23    0.69
+                import       18.85   21.08
+                init          1.41    1.70
+                warmup        0.52    0.57
+                total        22.01   24.04
+                spawn_to_ready   22.31   24.30
+                weight files 1513 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: skipped by the human
+RAM             peak 1826 MiB (VmHWM, worker)   largest single process 1826.2 MiB (wait4)
+HINTS
+  - per-token cost is 97% of predicted latency at level 5 (fit 165 ms + 9.15 ms/token x 612 tokens at level 5, R2 0.99) -> shorter input will help
+  - model forward is 100% of decision time (median tokenise 1.0 / forward 1600.8 / post 0.5 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - no thread-count hint: the same 4-thread decision took 1289 ms in the main block and 1961 ms in the t4 block (L2_02, 1.5x; limit 1.3x) -> timings were disturbed (thermal or scheduler); rerun the scaling blocks
+  - import is 88% of cached load (21.1 of 24.0 s) -> library import dominates; a resident worker avoids it
+  - accuracy falls from 83% at level 1 (20/24) to 50% at level 5 (12/24) -> the model breaks down at the harder levels
+
+== CATEGORY WINNERS ==
+accuracy         s1o          s1o 77%/81%acc  von10_nli 65%/72%acc  von11 55%/60%acc  von12 55%/60%acc  laya_multi 48%/52%acc  laya_micro 47%/52%acc  laya_en 40%/43%acc
+order stability  von12        von12 0% flips  von10_nli 0% flips  s1o 10% flips  laya_multi 20% flips  laya_micro 23% flips  laya_en 28% flips  von11 55% flips
+decision speed   laya_micro   laya_micro 261 ms  laya_multi 383 ms  von12 756 ms  laya_en 763 ms  von11 846 ms  von10_nli 1602 ms  s1o 7605 ms
+cached load      laya_en      laya_en 3.5 s  laya_micro 4.7 s  s1o 9.7 s  laya_multi 22.3 s  von10_nli 24.0 s  von11 28.7 s  von12 30.0 s
+cold load        laya_micro   laya_micro 3.3 s  laya_en 5.6 s  s1o 11.3 s  von10_nli 22.0 s  von12 25.9 s  von11 30.5 s  laya_multi 37.8 s
+RAM              laya_micro   laya_micro 535 MiB  laya_en 1543 MiB  von10_nli 1826 MiB  laya_multi 2652 MiB  von12 3432 MiB  von11 3443 MiB  s1o 3607 MiB
+(ties keep the listed model order; accuracy ties break on acceptable)

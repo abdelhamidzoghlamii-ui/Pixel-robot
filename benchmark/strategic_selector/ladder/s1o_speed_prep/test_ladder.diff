@@ -1,0 +1,27 @@
+--- orig/test_ladder.py	2026-09-26 02:48:52.700886915 +0000
++++ /termux-home/ladder/test_ladder.py	2026-09-26 02:50:14.813380443 +0000
+@@ -67,3 +67,24 @@
+ assert m["tok_per_s"] > 0
+ assert "per-token cost is 100%" in H(fit={**base["fit"], "fixed_ms": -50})
+ print("ok")
++
++# thermal gate: parse the root log's last line, refuse a stale log, wait until z9 is back near idle
++from datetime import datetime, timezone
++import ladder
++with tempfile.NamedTemporaryFile("w", suffix=".log", delete=False) as t:
++    t.write(f"zone9=BIG\n{datetime.now(timezone.utc):%Y-%m-%dT%H:%M:%SZ} z9=31000 z10=32000 z11=33000\n")
++r = ladder.read_thermal(t.name)
++assert (r["z9"], r["z10"], r["z11"]) == (31000, 32000, 33000)
++with open(t.name, "w") as f:
++    f.write("2026-01-01T00:00:00Z z9=31000 z10=32000 z11=33000\n")
++try:
++    ladder.read_thermal(t.name)
++    raise AssertionError("stale thermal log accepted")
++except SystemExit as e:
++    assert "not running" in str(e)
++readings = iter([{"at": "x", "z9": 33100}, {"at": "x", "z9": 33000}])  # 2.1 degC over idle waits, 2.0 passes
++real_read, real_sleep = ladder.read_thermal, ladder.time.sleep
++ladder.read_thermal, ladder.time.sleep = (lambda _: next(readings)), (lambda _: None)
++assert ladder.thermal_gate("p", {"z9": 31000}, "x")["z9"] == 33000
++ladder.read_thermal, ladder.time.sleep = real_read, real_sleep
++print("ok")

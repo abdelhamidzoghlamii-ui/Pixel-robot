@@ -1,0 +1,541 @@
+{
+ "started": "2026-09-25T20:39:59+00:00",
+ "cases_file": "/data/data/com.termux/files/home/ladder/toy_cases.jsonl",
+ "cases_sha256": "2ebe1f9fd4eac5d9329d6fe8af2b2bb7dbccf170239c687191ed6ae9e5ebb7bc",
+ "n_cases": 3,
+ "levels": [
+  1,
+  3,
+  5
+ ],
+ "models": [
+  "laya_en",
+  "von11"
+ ],
+ "threads": [
+  2,
+  3,
+  4
+ ],
+ "mem_total_mib": 7468,
+ "per_model": [
+  {
+   "model": "laya_en",
+   "threads_main": 4,
+   "cases": 3,
+   "correct": [
+    4,
+    6
+   ],
+   "acceptable": [
+    4,
+    6
+   ],
+   "by_level": {
+    "1": {
+     "correct": [
+      2,
+      2
+     ],
+     "acceptable": [
+      2,
+      2
+     ]
+    },
+    "3": {
+     "correct": [
+      2,
+      2
+     ],
+     "acceptable": [
+      2,
+      2
+     ]
+    },
+    "5": {
+     "correct": [
+      0,
+      2
+     ],
+     "acceptable": [
+      0,
+      2
+     ]
+    }
+   },
+   "by_phrasing": {
+    "direct": {
+     "correct": [
+      2,
+      2
+     ],
+     "acceptable": [
+      2,
+      2
+     ]
+    },
+    "indirect": {
+     "correct": [
+      2,
+      2
+     ],
+     "acceptable": [
+      2,
+      2
+     ]
+    },
+    "narrative": {
+     "correct": [
+      0,
+      2
+     ],
+     "acceptable": [
+      0,
+      2
+     ]
+    }
+   },
+   "flips": 1,
+   "flip_cases": [
+    "toy_3"
+   ],
+   "median_ms": 545.9181724872906,
+   "p95_ms": 1043.9160165115027,
+   "tok_per_s": 155.72836577738366,
+   "split_ms": {
+    "tokenise_ms": 0.31184949330054224,
+    "forward_ms": 545.3255619795527,
+    "post_ms": 0.3165480156894773
+   },
+   "split_share": {
+    "tokenise_ms": 0.0005218516376054098,
+    "forward_ms": 0.9989792644110396,
+    "post_ms": 0.000498883951354986
+   },
+   "fit": {
+    "fixed_ms": 32.385496605562594,
+    "per_token_ms": 6.011110843332855,
+    "r2": 0.9996762235887562,
+    "n": 6,
+    "tokens_min": 49,
+    "tokens_max": 168
+   },
+   "tokens_by_level": {
+    "1": 49.0,
+    "3": 85.0,
+    "5": 168.0
+   },
+   "truncated": 0,
+   "limit": 512,
+   "scaling": {
+    "2": {
+     "median_ms": 584.6071779960766,
+     "n": 3
+    },
+    "3": {
+     "median_ms": 712.9623619839549,
+     "n": 3
+    },
+    "4": {
+     "median_ms": 554.0498860063963,
+     "n": 3
+    }
+   },
+   "repeat_worst": {
+    "case_id": "toy_1",
+    "main_ms": 324.6141360141337,
+    "repeat_ms": 342.8861499996856,
+    "ratio": 1.0562884112500768
+   },
+   "thread_choice_diffs": 0,
+   "thread_max_prob_diff": 0.0,
+   "cold": {
+    "file_read": 1272.1381439478137,
+    "import": 451.6291910549626,
+    "init": 2261.393068009056,
+    "warmup": 229.59680203348398,
+    "total": 4214.757205045316,
+    "spawn_to_ready": 4541.2528500310145,
+    "file_bytes": 1688716816,
+    "state": {
+     "mode": "weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)",
+     "drop_caches_error": "bash: line 1: /proc/sys/vm/drop_caches: Permission denied"
+    }
+   },
+   "cached": {
+    "file_read": 393.0849200114608,
+    "import": 270.93379700090736,
+    "init": 2188.2004409562796,
+    "warmup": 209.81905102962628,
+    "total": 3062.038208998274,
+    "spawn_to_ready": 3394.5137949776836,
+    "file_bytes": 1688716816,
+    "state": {
+     "mode": "cached"
+    }
+   },
+   "peak_mib": 1538,
+   "wait4_maxrss_mib": 1539.0,
+   "timing_note": "tokenise=runtime.build_sequence, forward=onnxruntime run",
+   "torch_threads": {
+    "main": null,
+    "t2": null,
+    "t3": null,
+    "t4": null
+   },
+   "hints": [
+    "per-token cost is 97% of predicted latency at level 5 (fit 32 ms + 6.01 ms/token x 168 tokens at level 5, R2 1.00) -> shorter input will help",
+    "model forward is 100% of decision time (median tokenise 0.3 / forward 545.3 / post 0.3 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck",
+    "2 vs 4 threads differ by 5%, within the 15% noise floor (2 thr 585 ms, 3 thr 713 ms, 4 thr 554 ms (median of 3 each)) -> 2 threads frees cores at no measurable cost",
+    "weights-cold load is 1.2 s slower than cached (4.2 vs 3.1 s; file read 1.3 vs 0.4 s) -> keep the worker resident or the weights in page cache",
+    "init is 71% of cached load (2.2 of 3.1 s) -> a faster-loading format or a resident worker will help",
+    "choice changed under reversed order in 1/3 cases (33%) -> order bias; average over orders or fix the order",
+    "accuracy falls from 100% at level 1 (2/2) to 0% at level 5 (0/2) -> the model breaks down at the harder levels",
+    "sensitive to phrasing: 'direct' 2/2 vs 'narrative' 0/2 correct (100% gap) -> normalise phrasing before the model"
+   ],
+   "blocks": [
+    {
+     "block": "main",
+     "threads": 4,
+     "load_state": {
+      "mode": "weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)",
+      "drop_caches_error": "bash: line 1: /proc/sys/vm/drop_caches: Permission denied"
+     },
+     "phases": {
+      "file_read": 1272.1381439478137,
+      "import": 451.6291910549626,
+      "init": 2261.393068009056,
+      "warmup": 229.59680203348398
+     },
+     "file_bytes": 1688716816,
+     "spawn_to_ready_ms": 4541.2528500310145,
+     "timing_note": "tokenise=runtime.build_sequence, forward=onnxruntime run",
+     "torch_threads": null,
+     "rss_mib": 1537,
+     "peak_mib": 1537,
+     "wait4_maxrss_mib": 1538.4
+    },
+    {
+     "block": "t2",
+     "threads": 2,
+     "load_state": {
+      "mode": "cached"
+     },
+     "phases": {
+      "file_read": 510.6652840040624,
+      "import": 314.15661599021405,
+      "init": 2198.802124999929,
+      "warmup": 229.04382401611656
+     },
+     "file_bytes": 1688716816,
+     "spawn_to_ready_ms": 3609.894003951922,
+     "timing_note": "tokenise=runtime.build_sequence, forward=onnxruntime run",
+     "torch_threads": null,
+     "rss_mib": 1538,
+     "peak_mib": 1538,
+     "wait4_maxrss_mib": 1539.0
+    },
+    {
+     "block": "t3",
+     "threads": 3,
+     "load_state": {
+      "mode": "cached"
+     },
+     "phases": {
+      "file_read": 434.4833579962142,
+      "import": 310.3776450152509,
+      "init": 2198.3474939479493,
+      "warmup": 239.64151996187866
+     },
+     "file_bytes": 1688716816,
+     "spawn_to_ready_ms": 3561.2091890070587,
+     "timing_note": "tokenise=runtime.build_sequence, forward=onnxruntime run",
+     "torch_threads": null,
+     "rss_mib": 1538,
+     "peak_mib": 1538,
+     "wait4_maxrss_mib": 1538.6
+    },
+    {
+     "block": "t4",
+     "threads": 4,
+     "load_state": {
+      "mode": "cached"
+     },
+     "phases": {
+      "file_read": 393.0849200114608,
+      "import": 270.93379700090736,
+      "init": 2188.2004409562796,
+      "warmup": 209.81905102962628
+     },
+     "file_bytes": 1688716816,
+     "spawn_to_ready_ms": 3394.5137949776836,
+     "timing_note": "tokenise=runtime.build_sequence, forward=onnxruntime run",
+     "torch_threads": null,
+     "rss_mib": 1537,
+     "peak_mib": 1537,
+     "wait4_maxrss_mib": 1538.8
+    }
+   ]
+  },
+  {
+   "model": "von11",
+   "threads_main": 4,
+   "cases": 3,
+   "correct": [
+    4,
+    6
+   ],
+   "acceptable": [
+    5,
+    6
+   ],
+   "by_level": {
+    "1": {
+     "correct": [
+      2,
+      2
+     ],
+     "acceptable": [
+      2,
+      2
+     ]
+    },
+    "3": {
+     "correct": [
+      1,
+      2
+     ],
+     "acceptable": [
+      1,
+      2
+     ]
+    },
+    "5": {
+     "correct": [
+      1,
+      2
+     ],
+     "acceptable": [
+      2,
+      2
+     ]
+    }
+   },
+   "by_phrasing": {
+    "direct": {
+     "correct": [
+      2,
+      2
+     ],
+     "acceptable": [
+      2,
+      2
+     ]
+    },
+    "indirect": {
+     "correct": [
+      1,
+      2
+     ],
+     "acceptable": [
+      1,
+      2
+     ]
+    },
+    "narrative": {
+     "correct": [
+      1,
+      2
+     ],
+     "acceptable": [
+      2,
+      2
+     ]
+    }
+   },
+   "flips": 2,
+   "flip_cases": [
+    "toy_2",
+    "toy_3"
+   ],
+   "median_ms": 804.4975994853303,
+   "p95_ms": 1329.1767172486288,
+   "tok_per_s": 101.95099906448567,
+   "split_ms": {
+    "tokenise_ms": 2.0477290090639144,
+    "forward_ms": 802.2572835325263,
+    "post_ms": 0.5550945061258972
+   },
+   "split_share": {
+    "tokenise_ms": 0.00217185655764167,
+    "forward_ms": 0.9971662304292592,
+    "post_ms": 0.0006619130130990646
+   },
+   "fit": {
+    "fixed_ms": 338.43340678964034,
+    "per_token_ms": 5.813643392830135,
+    "r2": 0.9848576226830207,
+    "n": 6,
+    "tokens_min": 46,
+    "tokens_max": 165
+   },
+   "tokens_by_level": {
+    "1": 46.0,
+    "3": 82.0,
+    "5": 165.0
+   },
+   "truncated": 0,
+   "limit": 8192,
+   "scaling": {
+    "2": {
+     "median_ms": 978.585448989179,
+     "n": 3
+    },
+    "3": {
+     "median_ms": 937.6048190169968,
+     "n": 3
+    },
+    "4": {
+     "median_ms": 851.4699310180731,
+     "n": 3
+    }
+   },
+   "repeat_worst": {
+    "case_id": "toy_3",
+    "main_ms": 1244.3699550349265,
+    "repeat_ms": 1348.327882005833,
+    "ratio": 1.0835426205448593
+   },
+   "thread_choice_diffs": 0,
+   "thread_max_prob_diff": 0.0,
+   "cold": {
+    "file_read": 2486.548056011088,
+    "import": 19514.245940023102,
+    "init": 4791.976279986557,
+    "warmup": 675.5164799978957,
+    "total": 27468.286756018642,
+    "spawn_to_ready": 27730.198460048996,
+    "file_bytes": 3168262887,
+    "state": {
+     "mode": "weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)",
+     "drop_caches_error": "bash: line 1: /proc/sys/vm/drop_caches: Permission denied"
+    }
+   },
+   "cached": {
+    "file_read": 1858.4403489949182,
+    "import": 15826.597704959568,
+    "init": 2830.766399973072,
+    "warmup": 491.9179689604789,
+    "total": 21007.722422888037,
+    "spawn_to_ready": 21231.62981204223,
+    "file_bytes": 3168262887,
+    "state": {
+     "mode": "cached"
+    }
+   },
+   "peak_mib": 3441,
+   "wait4_maxrss_mib": 3441.7,
+   "timing_note": "tokenise=OptionMarkerModel.tokenizer calls, forward=OptionMarkerModel forward hooks",
+   "torch_threads": {
+    "main": 4,
+    "t2": 2,
+    "t3": 3,
+    "t4": 4
+   },
+   "hints": [
+    "per-token cost is 74% of predicted latency at level 5 (fit 338 ms + 5.81 ms/token x 165 tokens at level 5, R2 0.98) -> shorter input will help",
+    "model forward is 100% of decision time (median tokenise 2.0 / forward 802.3 / post 0.6 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck",
+    "2 vs 4 threads differ by 13%, within the 15% noise floor (2 thr 979 ms, 3 thr 938 ms, 4 thr 851 ms (median of 3 each)) -> 2 threads frees cores at no measurable cost",
+    "weights-cold load is 6.5 s slower than cached (27.5 vs 21.0 s; file read 2.5 vs 1.9 s) -> keep the worker resident or the weights in page cache",
+    "import is 75% of cached load (15.8 of 21.0 s) -> library import dominates; a resident worker avoids it",
+    "choice changed under reversed order in 2/3 cases (67%) -> order bias; average over orders or fix the order",
+    "accuracy falls from 100% at level 1 (2/2) to 50% at level 5 (1/2) -> the model breaks down at the harder levels",
+    "sensitive to phrasing: 'direct' 2/2 vs 'indirect' 1/2 correct (50% gap) -> normalise phrasing before the model",
+    "peak RAM 3441 MiB is 46% of device RAM (7468 MiB) -> only one such model can stay resident"
+   ],
+   "blocks": [
+    {
+     "block": "main",
+     "threads": 4,
+     "load_state": {
+      "mode": "weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)",
+      "drop_caches_error": "bash: line 1: /proc/sys/vm/drop_caches: Permission denied"
+     },
+     "phases": {
+      "file_read": 2486.548056011088,
+      "import": 19514.245940023102,
+      "init": 4791.976279986557,
+      "warmup": 675.5164799978957
+     },
+     "file_bytes": 3168262887,
+     "spawn_to_ready_ms": 27730.198460048996,
+     "timing_note": "tokenise=OptionMarkerModel.tokenizer calls, forward=OptionMarkerModel forward hooks",
+     "torch_threads": 4,
+     "rss_mib": 1601,
+     "peak_mib": 3326,
+     "wait4_maxrss_mib": 3326.9
+    },
+    {
+     "block": "t2",
+     "threads": 2,
+     "load_state": {
+      "mode": "cached"
+     },
+     "phases": {
+      "file_read": 1607.21264698077,
+      "import": 16226.174609037116,
+      "init": 3029.355958045926,
+      "warmup": 565.7578129903413
+     },
+     "file_bytes": 3168262887,
+     "spawn_to_ready_ms": 21695.124400022905,
+     "timing_note": "tokenise=OptionMarkerModel.tokenizer calls, forward=OptionMarkerModel forward hooks",
+     "torch_threads": 2,
+     "rss_mib": 1966,
+     "peak_mib": 3441,
+     "wait4_maxrss_mib": 3441.7
+    },
+    {
+     "block": "t3",
+     "threads": 3,
+     "load_state": {
+      "mode": "cached"
+     },
+     "phases": {
+      "file_read": 1919.8506690445356,
+      "import": 13657.304083986674,
+      "init": 2686.953858996276,
+      "warmup": 637.0768640190363
+     },
+     "file_bytes": 3168262887,
+     "spawn_to_ready_ms": 19112.116097996477,
+     "timing_note": "tokenise=OptionMarkerModel.tokenizer calls, forward=OptionMarkerModel forward hooks",
+     "torch_threads": 3,
+     "rss_mib": 1938,
+     "peak_mib": 3402,
+     "wait4_maxrss_mib": 3402.6
+    },
+    {
+     "block": "t4",
+     "threads": 4,
+     "load_state": {
+      "mode": "cached"
+     },
+     "phases": {
+      "file_read": 1858.4403489949182,
+      "import": 15826.597704959568,
+      "init": 2830.766399973072,
+      "warmup": 491.9179689604789
+     },
+     "file_bytes": 3168262887,
+     "spawn_to_ready_ms": 21231.62981204223,
+     "timing_note": "tokenise=OptionMarkerModel.tokenizer calls, forward=OptionMarkerModel forward hooks",
+     "torch_threads": 4,
+     "rss_mib": 1958,
+     "peak_mib": 3420,
+     "wait4_maxrss_mib": 3420.8
+    }
+   ]
+  }
+ ]
+}

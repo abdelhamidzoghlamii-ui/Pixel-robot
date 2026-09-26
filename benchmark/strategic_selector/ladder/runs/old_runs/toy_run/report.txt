@@ -1,0 +1,78 @@
+LADDER REPORT  2026-09-25T20:39:59+00:00
+cases /data/data/com.termux/files/home/ladder/toy_cases.jsonl sha256 2ebe1f9fd4eac5d9  n=3  levels [1, 3, 5]
+models laya_en, von11  threads [2, 3, 4]  cores 4-7  device RAM 7468 MiB
+timing: perf_counter in the worker; decision = wall time of adapter.decide; post = total - tokenise - forward
+
+== laya_en (ONNX) [CANDIDATE] ==
+accuracy        correct 4/6 (67%)  acceptable 4/6 (67%)  (both orders)
+  by level      L1 2/2 (100%)  L3 2/2 (100%)  L5 0/2 (0%)
+  by phrasing   direct 2/2 (100%)  indirect 2/2 (100%)  narrative 0/2 (0%)
+order flips     1/3  ['toy_3']
+decision ms     median 546  P95 1044  (main block, 4 threads, n=6)
+  split median  tokenise 0.3  forward 545.3  post 0.3   [tokenise=runtime.build_sequence, forward=onnxruntime run]
+tokens/s        156   tokens by level L1 49  L3 85  L5 168   limit 512, hit 0x
+latency fit     ms = 32.4 + 6.011 x tokens   R2 1.00  (n=6, tokens 49-168)
+threads         2: 585 ms  3: 713 ms  4: 554 ms  (written order, fresh cached worker, n=3 each)   torch threads seen {'main': None, 't2': None, 't3': None, 't4': None}
+                repeat check: worst toy_1 325 ms (main) vs 343 ms (t4) = 1.06x
+                choice differs from main block in 0 decisions, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     1.27    0.39
+                import        0.45    0.27
+                init          2.26    2.19
+                warmup        0.23    0.21
+                total         4.21    3.06
+                spawn_to_ready    4.54    3.39
+                weight files 1610 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                drop_caches not possible: bash: line 1: /proc/sys/vm/drop_caches: Permission denied
+RAM             peak 1538 MiB (VmHWM, worker)   largest single process 1539.0 MiB (wait4)
+HINTS
+  - per-token cost is 97% of predicted latency at level 5 (fit 32 ms + 6.01 ms/token x 168 tokens at level 5, R2 1.00) -> shorter input will help
+  - model forward is 100% of decision time (median tokenise 0.3 / forward 545.3 / post 0.3 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - 2 vs 4 threads differ by 5%, within the 15% noise floor (2 thr 585 ms, 3 thr 713 ms, 4 thr 554 ms (median of 3 each)) -> 2 threads frees cores at no measurable cost
+  - weights-cold load is 1.2 s slower than cached (4.2 vs 3.1 s; file read 1.3 vs 0.4 s) -> keep the worker resident or the weights in page cache
+  - init is 71% of cached load (2.2 of 3.1 s) -> a faster-loading format or a resident worker will help
+  - choice changed under reversed order in 1/3 cases (33%) -> order bias; average over orders or fix the order
+  - accuracy falls from 100% at level 1 (2/2) to 0% at level 5 (0/2) -> the model breaks down at the harder levels
+  - sensitive to phrasing: 'direct' 2/2 vs 'narrative' 0/2 correct (100% gap) -> normalise phrasing before the model
+
+== von11 [CANDIDATE] ==
+accuracy        correct 4/6 (67%)  acceptable 5/6 (83%)  (both orders)
+  by level      L1 2/2 (100%)  L3 1/2 (50%)  L5 1/2 (50%)
+  by phrasing   direct 2/2 (100%)  indirect 1/2 (50%)  narrative 1/2 (50%)
+order flips     2/3  ['toy_2', 'toy_3']
+decision ms     median 804  P95 1329  (main block, 4 threads, n=6)
+  split median  tokenise 2.0  forward 802.3  post 0.6   [tokenise=OptionMarkerModel.tokenizer calls, forward=OptionMarkerModel forward hooks]
+tokens/s        102   tokens by level L1 46  L3 82  L5 165   limit 8192, hit 0x
+latency fit     ms = 338.4 + 5.814 x tokens   R2 0.98  (n=6, tokens 46-165)
+threads         2: 979 ms  3: 938 ms  4: 851 ms  (written order, fresh cached worker, n=3 each)   torch threads seen {'main': 4, 't2': 2, 't3': 3, 't4': 4}
+                repeat check: worst toy_3 1244 ms (main) vs 1348 ms (t4) = 1.08x
+                choice differs from main block in 0 decisions, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     2.49    1.86
+                import       19.51   15.83
+                init          4.79    2.83
+                warmup        0.68    0.49
+                total        27.47   21.01
+                spawn_to_ready   27.73   21.23
+                weight files 3021 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                drop_caches not possible: bash: line 1: /proc/sys/vm/drop_caches: Permission denied
+RAM             peak 3441 MiB (VmHWM, worker)   largest single process 3441.7 MiB (wait4)
+HINTS
+  - per-token cost is 74% of predicted latency at level 5 (fit 338 ms + 5.81 ms/token x 165 tokens at level 5, R2 0.98) -> shorter input will help
+  - model forward is 100% of decision time (median tokenise 2.0 / forward 802.3 / post 0.6 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - 2 vs 4 threads differ by 13%, within the 15% noise floor (2 thr 979 ms, 3 thr 938 ms, 4 thr 851 ms (median of 3 each)) -> 2 threads frees cores at no measurable cost
+  - weights-cold load is 6.5 s slower than cached (27.5 vs 21.0 s; file read 2.5 vs 1.9 s) -> keep the worker resident or the weights in page cache
+  - import is 75% of cached load (15.8 of 21.0 s) -> library import dominates; a resident worker avoids it
+  - choice changed under reversed order in 2/3 cases (67%) -> order bias; average over orders or fix the order
+  - accuracy falls from 100% at level 1 (2/2) to 50% at level 5 (1/2) -> the model breaks down at the harder levels
+  - sensitive to phrasing: 'direct' 2/2 vs 'indirect' 1/2 correct (50% gap) -> normalise phrasing before the model
+  - peak RAM 3441 MiB is 46% of device RAM (7468 MiB) -> only one such model can stay resident
+
+== CATEGORY WINNERS ==
+accuracy         von11        von11 67%/83%acc  laya_en 67%/67%acc
+order stability  laya_en      laya_en 33% flips  von11 67% flips
+decision speed   laya_en      laya_en 546 ms  von11 804 ms
+cached load      laya_en      laya_en 3.1 s  von11 21.0 s
+cold load        laya_en      laya_en 4.2 s  von11 27.5 s
+RAM              laya_en      laya_en 1538 MiB  von11 3441 MiB
+(ties keep the listed model order; accuracy ties break on acceptable)

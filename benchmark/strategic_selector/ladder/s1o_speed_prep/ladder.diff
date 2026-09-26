@@ -1,0 +1,133 @@
+--- orig/ladder.py	2026-09-26 02:48:52.692886915 +0000
++++ /termux-home/ladder/ladder.py	2026-09-26 02:56:46.633576719 +0000
+@@ -50,6 +50,21 @@
+     "von12": [VON12_SNAP],
+     "von10_nli": [VON11_SNAP / f for f in ("model.safetensors", "config.json", "tokenizer.json", "tokenizer_config.json")],
+ }
++# s1o speed variants: same S1O adapter and letter scoring, other llama.cpp build / GGUF. name -> (env, gguf)
++B1609, B2351 = "/termux-home/llama.cpp/build/bin", "/termux-home/llama.cpp-upstream/build/bin"
++# b2351 keeps a host-RAM prompt cache and SWA checkpoints by default; off, so no decision reuses another's prompt.
++# -b/-ub 512 are the defaults, pinned: the longest ladder prompt (173 tokens) is evaluated as one batch.
++# Flash attention off: b2351's CPU flash attention segfaults on Gemma 4 prompts of >= 64 tokens (b1609 runs it on).
++B2351_ARGS = "--flash-attn off --cache-ram 0 --ctx-checkpoints 0 --batch-size 512 --ubatch-size 512"
++GGUFS = {"q4km": "/termux-home/models/gemma-4-e2b-it-q4_k_m.gguf", "q40": "/termux-home/models/gemma-4-E2B-it-Q4_0.gguf",
++         "qwen2b": "/termux-home/models/qwen35/Qwen3.5-2B-Q4_K_M.gguf",
++         "qwen08b": "/termux-home/models/qwen35/Qwen3.5-0.8B-Q4_K_M.gguf"}
++VARIANTS = {"s1o_b1609": (B1609, "q4km", ""), "s1o_b2351": (B2351, "q4km", B2351_ARGS),
++            "s1o_b2351_q40": (B2351, "q40", B2351_ARGS), "s1o_b2351_qwen2b": (B2351, "qwen2b", B2351_ARGS),
++            "s1o_b2351_qwen08b": (B2351, "qwen08b", B2351_ARGS)}
++VARIANT_ENV = {n: {"S1O_LLAMA_BIN": b, "S1O_GGUF": GGUFS[g], "S1O_SERVER_ARGS": a} for n, (b, g, a) in VARIANTS.items()}
++MODELS = {**MODELS, **{n: MODELS["s1o"] for n in VARIANTS}}
++WEIGHTS.update({n: [Path(GGUFS[g])] for n, (_, g, _) in VARIANTS.items()})
+ 
+ 
+ def files_of(paths):
+@@ -136,7 +151,8 @@
+         adapter, python, hf, _ = MODELS[name]
+         env = dict(os.environ, HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", TOKENIZERS_PARALLELISM="false",
+                    USE_TF="0", OMP_NUM_THREADS=str(threads), V3_THREADS=str(threads),
+-                   LADDER_FILES=json.dumps(files), S1O_SERVER_LOG=str(logdir / f"{name}.{tag}.server.log"))
++                   LADDER_FILES=json.dumps(files), S1O_SERVER_LOG=str(logdir / f"{name}.{tag}.server.log"),
++                   **VARIANT_ENV.get(name, {}))
+         if hf:
+             env.update(HF_HOME=hf, HF_HUB_CACHE=f"{hf}/hub")
+         (logdir / f"{name}.{tag}.server.log").unlink(missing_ok=True)  # s1o opens it exclusive-create
+@@ -179,9 +195,45 @@
+         return maxrss
+ 
+ 
+-def run_block(name, block, threads, cases, orders, files, out, log, cold):
++THERMAL_MAX_AGE_S = 30  # the root logger writes every ~5 s; an older last line means it stopped
++GATE_MC = 2000         # a block starts only when z9 is within 2 degC of the idle reading
++
++
++def read_thermal(path):
++    """Last line of the root thermal log: '2026-09-25T21:51:27Z z9=36000 z10=36000 z11=37000' (millidegrees)."""
++    last = Path(path).read_text().strip().splitlines()[-1].split()
++    stamp = datetime.strptime(last[0], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
++    age = (datetime.now(timezone.utc) - stamp).total_seconds()
++    if age > THERMAL_MAX_AGE_S:
++        raise SystemExit(f"thermal log {path} last line is {age:.0f} s old: the logger is not running")
++    z = dict(kv.split("=") for kv in last[1:])
++    return {"at": last[0], **{k: int(z[k]) for k in ("z9", "z10", "z11")}}
++
++
++def thermal_gate(path, idle, label):
++    """Waits until z9 is within GATE_MC of the idle reading; returns the reading the block starts at."""
++    began = time.monotonic()
++    while abs((t := read_thermal(path))["z9"] - idle["z9"]) > GATE_MC:
++        print(f"  [{label}] waiting: z9 {t['z9'] / 1000:.1f} degC, idle {idle['z9'] / 1000:.1f} "
++              f"(+-{GATE_MC / 1000:.0f}), {time.monotonic() - began:.0f} s", flush=True)
++        time.sleep(10)
++    t["waited_s"] = round(time.monotonic() - began)
++    return t
++
++
++def fmt_thermal(t):
++    return " ".join(f"{k} {t[k] / 1000:.1f}" for k in ("z9", "z10", "z11")) + f" degC at {t['at']}"
++
++
++def run_block(name, block, threads, cases, orders, files, out, log, cold, thermal=None):
+     check_cores("before " + block)
+     load_state = make_cold(name, files) if cold else {"mode": "cached"}
++    therm = None
++    if thermal:
++        path, idle = thermal
++        therm = {"start": thermal_gate(path, idle, f"{name} {block}")}
++        print(f"  [{name} {block}] thermal start: {fmt_thermal(therm['start'])} (waited {therm['start']['waited_s']} s)",
++              flush=True)
+     w = Worker(name, threads, files, out / "logs", block)
+     rows = []
+     try:
+@@ -202,8 +254,11 @@
+         mem = w.ask({"cmd": "mem"})
+     finally:
+         maxrss = w.close()
++    if thermal:
++        therm["end"] = read_thermal(thermal[0])
++        print(f"  [{name} {block}] thermal end:   {fmt_thermal(therm['end'])}", flush=True)
+     check_cores("after " + block)
+-    return {"block": block, "threads": threads, "load_state": load_state, "phases": w.ready["phases"],
++    return {"block": block, "threads": threads, "load_state": load_state, "thermal": therm, "phases": w.ready["phases"],
+             "file_bytes": w.ready["file_bytes"], "spawn_to_ready_ms": w.spawn_to_ready_ms,
+             "timing_note": w.ready["timing_note"], "token_def": w.ready["token_def"], "torch_threads": w.ready["torch_threads"],
+             "rss_mib": mem["rss_mib"], "peak_mib": mem["peak_mib"], "wait4_maxrss_mib": maxrss, "rows": rows}
+@@ -496,6 +551,8 @@
+     ap.add_argument("--models", default="all", help="comma list of " + ",".join(MODELS))
+     ap.add_argument("--levels", default=None, help="comma list, e.g. 1,2")
+     ap.add_argument("--threads", default="2,3,4", help="comma list; the highest also runs the main block")
++    ap.add_argument("--thermal-log", default=None, help="root thermal log (z9/z10/z11 millidegrees); gates every block "
++                    "on z9 within 2 degC of the reading at run start and prints start/end readings")
+     a = ap.parse_args()
+     models = list(MODELS) if a.models == "all" else a.models.split(",")
+     if set(models) - set(MODELS):
+@@ -508,19 +565,26 @@
+     a.out.mkdir(parents=True, exist_ok=False)
+     (a.out / "logs").mkdir()
+     check_cores("at start")
++    thermal = None
++    if a.thermal_log:
++        idle = read_thermal(a.thermal_log)
++        print(f"thermal idle reading (gate z9 +-{GATE_MC / 1000:.0f} degC): {fmt_thermal(idle)}", flush=True)
++        thermal = (a.thermal_log, idle)
+     mem_total = next(int(l.split()[1]) // 1024 for l in open("/proc/meminfo") if l.startswith("MemTotal"))
+     res = {"started": datetime.now(timezone.utc).isoformat(timespec="seconds"), "cases_file": str(Path(a.cases).resolve()),
+            "cases_sha256": hashlib.sha256(Path(a.cases).read_bytes()).hexdigest(), "n_cases": len(cases),
+            "levels": sorted({c["level"] for c in cases}), "models": models, "threads": threads,
+-           "mem_total_mib": mem_total, "per_model": []}
++           "mem_total_mib": mem_total, "thermal_idle": thermal and thermal[1], "per_model": []}
+     with open(a.out / "decisions.jsonl", "x") as log:
+         for name in models:
+             files = files_of(WEIGHTS[name])
+             print(f"[{name}] main block: cold load, {len(cases)} cases x 2 orders at {threads[-1]} threads", flush=True)
+-            blocks = [run_block(name, "main", threads[-1], cases, ("written", "reversed"), files, a.out, log, cold=True)]
++            blocks = [run_block(name, "main", threads[-1], cases, ("written", "reversed"), files, a.out, log, cold=True,
++                                thermal=thermal)]
+             for t in threads:
+                 print(f"[{name}] t{t}: cached load, {len(cases)} cases written order", flush=True)
+-                blocks.append(run_block(name, f"t{t}", t, cases, ("written",), files, a.out, log, cold=False))
++                blocks.append(run_block(name, f"t{t}", t, cases, ("written",), files, a.out, log, cold=False,
++                                        thermal=thermal))
+             m = analyse(name, blocks, cases)
+             m["hints"] = hints(m, mem_total)
+             m["blocks"] = [{k: v for k, v in b.items() if k != "rows"} for b in blocks]

@@ -1,0 +1,74 @@
+LADDER REPORT  2026-09-26T06:29:50+00:00
+cases /tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/quick5.jsonl sha256 0ea78770cfb86dc2  n=5  levels [1, 2, 3, 4, 5]
+models s1o_b2351_qwen08b, s1o_b2351_qwen2b  threads [3, 4]  cores 4-7  device RAM 7468 MiB
+timing: perf_counter in the worker; decision = wall time of adapter.decide; post = total - tokenise - forward
+
+== s1o_b2351_qwen08b [OUT (speed)] ==
+accuracy        correct 6/10 (60%)  acceptable 6/10 (60%)  (both orders)
+  by level      L1 1/2 (50%)  L2 1/2 (50%)  L3 0/2 (0%)  L4 2/2 (100%)  L5 2/2 (100%)
+  by phrasing   direct 6/10 (60%)
+order flips     3/5  ['L1_01', 'L2_01', 'L3_01']
+decision ms     median 543  P95 954  (main block, 4 threads, n=10)
+  split median  tokenise 7.9  forward 533.7  post 0.1   [tokenise=/tokenize HTTP calls, forward=/completion HTTP call (server prompt eval inside)]
+tokens/s        152   tokens by level L1 60  L2 73  L3 94  L4 82  L5 149   limit 2048, hit 0x
+token count     prompt token ids sent to llama-server (Gemma tokenizer, with BOS); the server evaluates them, then 1 token
+latency fit     ms = 39.4 + 6.089 x tokens   R2 0.97  (n=10, tokens 60-149)
+threads         main block only (no thread blocks)
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/0, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/0, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     0.43     n/a
+                import        0.00     n/a
+                init          2.75     n/a
+                warmup        0.27     n/a
+                total         3.44     n/a
+                spawn_to_ready    3.75     n/a
+                weight files 508 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: handshake answered 'failed'
+RAM             peak 1200 MiB (VmHWM, worker + llama-server)   largest single process 1174.7 MiB (wait4)
+HINTS
+  - per-token cost is 96% of predicted latency at level 5 (fit 39 ms + 6.09 ms/token x 149 tokens at level 5, R2 0.97) -> shorter input will help
+  - model forward is 99% of decision time (median tokenise 7.9 / forward 533.7 / post 0.1 ms; shares 1%/99%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - order flips 3/5 cases: too few to judge (need >= 10 cases)
+  - level: L1 2 decisions, L2 2 decisions, L3 2 decisions, L4 2 decisions, L5 2 decisions -> too few to judge (need >= 10 decisions at the lowest and highest level)
+
+== s1o_b2351_qwen2b [OUT (speed)] ==
+accuracy        correct 8/10 (80%)  acceptable 8/10 (80%)  (both orders)
+  by level      L1 2/2 (100%)  L2 2/2 (100%)  L3 0/2 (0%)  L4 2/2 (100%)  L5 2/2 (100%)
+  by phrasing   direct 8/10 (80%)
+order flips     0/5
+decision ms     median 1137  P95 2020  (main block, 4 threads, n=10)
+  split median  tokenise 9.5  forward 1128.3  post 0.1   [tokenise=/tokenize HTTP calls, forward=/completion HTTP call (server prompt eval inside)]
+tokens/s        72   tokens by level L1 60  L2 73  L3 94  L4 82  L5 149   limit 2048, hit 0x
+token count     prompt token ids sent to llama-server (Gemma tokenizer, with BOS); the server evaluates them, then 1 token
+latency fit     ms = 84.2 + 12.968 x tokens   R2 0.99  (n=10, tokens 60-149)
+threads         3: 1699 ms  4: 1174 ms  (written order, fresh cached worker, n=5 each)   torch threads seen {'main': None, 't3': None, 't4': None}
+                repeat check: worst L1_01 941 ms (main) vs 870 ms (t4) = 1.08x
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/5, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/5, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     0.94    0.35
+                import        0.00    0.00
+                init          3.47    3.59
+                warmup        0.75    0.62
+                total         5.15    4.56
+                spawn_to_ready    5.47    4.80
+                weight files 1222 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: handshake answered 'failed'
+RAM             peak 2638 MiB (VmHWM, worker + llama-server)   largest single process 2612.6 MiB (wait4)
+HINTS
+  - per-token cost is 96% of predicted latency at level 5 (fit 84 ms + 12.97 ms/token x 149 tokens at level 5, R2 0.99) -> shorter input will help
+  - model forward is 99% of decision time (median tokenise 9.5 / forward 1128.3 / post 0.1 ms; shares 1%/99%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - 4 threads is 31% faster than 3, above the 15% noise floor (ranked 4 thr 1174 ms < 3 thr 1699 ms (median of 5 each)) -> run at 4 threads
+  - init is 79% of cached load (3.6 of 4.6 s) -> a faster-loading format or a resident worker will help
+  - order flips 0/5 cases: too few to judge (need >= 10 cases)
+  - level: L1 2 decisions, L2 2 decisions, L3 2 decisions, L4 2 decisions, L5 2 decisions -> too few to judge (need >= 10 decisions at the lowest and highest level)
+
+== CATEGORY WINNERS ==
+accuracy         s1o_b2351_qwen2b s1o_b2351_qwen2b 80%/80%acc  s1o_b2351_qwen08b 60%/60%acc
+order stability  s1o_b2351_qwen2b s1o_b2351_qwen2b 0% flips  s1o_b2351_qwen08b 60% flips
+decision speed   s1o_b2351_qwen08b s1o_b2351_qwen08b 543 ms  s1o_b2351_qwen2b 1137 ms
+cached load      s1o_b2351_qwen2b s1o_b2351_qwen2b 4.6 s
+cold load        s1o_b2351_qwen08b s1o_b2351_qwen08b 3.4 s  s1o_b2351_qwen2b 5.2 s
+RAM              s1o_b2351_qwen08b s1o_b2351_qwen08b 1200 MiB  s1o_b2351_qwen2b 2638 MiB
+(ties keep the listed model order; accuracy ties break on acceptable)

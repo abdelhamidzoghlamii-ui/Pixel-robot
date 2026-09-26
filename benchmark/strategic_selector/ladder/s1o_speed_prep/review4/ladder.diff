@@ -1,0 +1,344 @@
+--- base3/ladder.py	2026-09-26 06:25:33.750174122 +0000
++++ /termux-home/ladder/ladder.py	2026-09-26 06:28:15.718174201 +0000
+@@ -104,10 +104,22 @@
+ 
+ # ---------------------------------------------------------------- workers
+ 
++class CoresLost(Exception):
++    """Android moved Termux off the top-app cpuset mid-block; the block's data is discarded and redone."""
++
++
+ def check_cores(when):
+     if not set(range(4, 8)) <= allowed_cpus():
+-        raise SystemExit(f"cores {CORES} not all allowed {when} (allowed {sorted(allowed_cpus())}); "
+-                         "bring Termux to the foreground (top-app cpuset) and retry")
++        raise CoresLost(f"cores {CORES} not all allowed {when} (allowed {sorted(allowed_cpus())})")
++
++
++def wait_cores(label):
++    """Pauses until cores 4-7 are allowed again (Termux back in the foreground), rechecking every 10 s."""
++    began = time.monotonic()
++    while not set(range(4, 8)) <= allowed_cpus():
++        print(f"  [{label}] paused: cores {CORES} not allowed (allowed {sorted(allowed_cpus())}); bring Termux to the "
++              f"foreground. {time.monotonic() - began:.0f} s", flush=True)
++        time.sleep(10)
+ 
+ 
+ DROP_CMD = "su -c 'sync; echo 3 > /proc/sys/vm/drop_caches'"
+@@ -126,11 +138,44 @@
+             os.close(fd)
+ 
+ 
++DROP_REQUEST, DROP_DONE = HERE / ".drop_request", HERE / ".drop_done"
++HANDSHAKE_S = 60
++
++
++def drop_handshake(name):
++    """Unattended cache drop: create .drop_request; a native-Termux watcher drops the page cache as root and
++    writes 'ok' or 'failed' to .drop_done. Returns that answer, or None after HANDSHAKE_S seconds."""
++    DROP_DONE.unlink(missing_ok=True)
++    DROP_REQUEST.touch()
++    print(f"\n[{name}] cold load next: handshake, waiting up to {HANDSHAKE_S} s for {DROP_DONE}", flush=True)
++    deadline, answer = time.monotonic() + HANDSHAKE_S, None
++    try:
++        while time.monotonic() < deadline:
++            if DROP_DONE.exists() and (text := DROP_DONE.read_text().strip()):  # empty: still being written
++                answer = text
++                break
++            time.sleep(0.5)
++    finally:
++        DROP_REQUEST.unlink(missing_ok=True)
++        DROP_DONE.unlink(missing_ok=True)
++    return answer
++
++
+ def make_cold(name, files):
+-    """Ask the human to drop the page cache from native Termux (Magisk su does not work in proot) and check
+-    /proc/meminfo that it happened; otherwise evict only this model's weight files."""
++    """Drop the page cache from native Termux (Magisk su does not work in proot) and check /proc/meminfo that
++    it happened; otherwise evict only this model's weight files. LADDER_COLD_HANDSHAKE=1 asks through files
++    (unattended runs); otherwise the human is prompted on the terminal."""
+     before = cached_mib()
+-    if not sys.stdin.isatty():
++    if os.environ.get("LADDER_COLD_HANDSHAKE") == "1":
++        answer = drop_handshake(name)
++        after = cached_mib()
++        if answer == "ok" and after < 0.5 * before:
++            return {"mode": "full-cold (page cache dropped by the handshake watcher with drop_caches)",
++                    "cached_mib_before": before, "cached_mib_after": after}
++        why = (f"handshake timed out after {HANDSHAKE_S} s" if answer is None else
++               f"handshake answered {answer!r}" if answer != "ok" else
++               f"handshake answered 'ok' but page cache did not drop ({before} -> {after} MiB)")
++    elif not sys.stdin.isatty():
+         why = "no terminal to prompt on"
+     else:
+         print(f"\n[{name}] COLD LOAD NEXT. In native Termux (not proot) run:\n    {DROP_CMD}\n"
+@@ -207,7 +252,7 @@
+ 
+ 
+ THERMAL_MAX_AGE_S = 30  # the root logger writes every ~5 s; an older last line means it stopped
+-GATE_MC = 2000         # a block starts only when z9 <= idle reading + 2 degC
++GATE_MC = 4000         # a block starts only when z9 <= idle reading + 4 degC (+2 cost ~6 min of waiting per block)
+ 
+ 
+ def read_thermal(path):
+@@ -236,7 +281,9 @@
+     return " ".join(f"{k} {t[k] / 1000:.1f}" for k in ("z9", "z10", "z11")) + f" degC at {t['at']}"
+ 
+ 
+-def run_block(name, block, threads, cases, orders, files, out, log, cold, thermal=None):
++def run_block(name, block, threads, cases, orders, files, out, cold, thermal=None):
++    """One block; raises CoresLost if cores 4-7 go away at any point (the caller waits and redoes it).
++    Rows are returned, not logged: only complete, valid blocks reach decisions.jsonl."""
+     check_cores("before " + block)
+     therm = None
+     if thermal:  # gate before the cache drop, so the block starts right after the drop
+@@ -245,6 +292,7 @@
+         print(f"  [{name} {block}] thermal start: {fmt_thermal(therm['start'])} (waited {therm['start']['waited_s']} s)",
+               flush=True)
+     load_state = make_cold(name, files) if cold else {"mode": "cached"}
++    check_cores("before starting " + block)
+     w = Worker(name, threads, files, out / "logs", block)
+     rows = []
+     try:
+@@ -260,8 +308,8 @@
+                        "choice": choice, "tie": list(r["dist"].values()).count(top) > 1,
+                        "correct": choice == case["answer"], "acceptable": choice in case["acceptable"],
+                        "distribution": r.pop("dist"), **r}
+-                log.write(json.dumps(row) + "\n")
+                 rows.append(row)
++                check_cores(f"during {block}")
+         mem = w.ask({"cmd": "mem"})
+     finally:
+         maxrss = w.close()
+@@ -326,7 +374,7 @@
+     repeat = [(r["case_id"], main_written[r["case_id"]]["total_ms"], r["total_ms"]) for r in (cached or {"rows": []})["rows"]]
+     ratio = lambda a, b: max(a, b) / max(1e-6, min(a, b))  # epsilon: a 0.0 ms reading must not divide by zero
+     worst = max(repeat, key=lambda x: ratio(x[1], x[2]), default=None)
+-    load = lambda b: None if b is None else {**b["phases"], "total": sum(b["phases"].values()),
++    load = lambda b: None if b is None or b["phases"] is None else {**b["phases"], "total": sum(b["phases"].values()),
+                                               "spawn_to_ready": b["spawn_to_ready_ms"], "file_bytes": b["file_bytes"],
+                                               "state": b["load_state"]}
+     return {
+@@ -346,8 +394,9 @@
+         "thread_choice_diffs": thread_choice_diffs, "thread_max_prob_diff": thread_prob_diff,
+         "nondet_choice_diffs": nondet_choice_diffs, "nondet_max_prob_diff": nondet_prob_diff,
+         "nondet_n": sum(len(b["rows"]) for b in same), "thread_n": sum(len(b["rows"]) for b in other),
+-        "cold": load(main), "cached": load(cached),
+-        "peak_mib": max(b["peak_mib"] for b in blocks), "wait4_maxrss_mib": max(b["wait4_maxrss_mib"] or 0 for b in blocks),
++        "cold": load(main), "cached": load(cached), "cold_note": main["load_state"]["mode"],
++        "peak_mib": max((b["peak_mib"] for b in blocks if b["peak_mib"] is not None), default=None), "wait4_maxrss_mib": max((b["wait4_maxrss_mib"] for b in blocks if b["wait4_maxrss_mib"] is not None),
++                                                           default=None),
+         "timing_note": main["timing_note"], "token_def": main["token_def"], "torch_threads": {b["block"]: b["torch_threads"] for b in blocks},
+     }
+ 
+@@ -471,7 +520,7 @@
+                        f"{ph[worst][1]} correct ({pct(gap)} gap) -> normalise phrasing before the model")
+     if m["truncated"]:
+         out.append(f"{m['truncated']} decisions hit the {m['limit']}-token limit -> input was cut; shorten it")
+-    if m["peak_mib"] >= 0.4 * mem_total_mib:
++    if m["peak_mib"] is not None and m["peak_mib"] >= 0.4 * mem_total_mib:
+         out.append(f"peak RAM {m['peak_mib']} MiB is {pct(m['peak_mib'] / mem_total_mib)} of device RAM "
+                    f"({mem_total_mib} MiB) -> only one such model can stay resident")
+     return out
+@@ -509,9 +558,12 @@
+         f = m["fit"]
+         p("latency fit     " + (f"ms = {f['fixed_ms']:.1f} + {f['per_token_ms']:.3f} x tokens   R2 {f['r2']:.2f}  "
+                                 f"(n={f['n']}, tokens {f['tokens_min']}-{f['tokens_max']})" if f else "not possible (no token spread)"))
+-        p("threads         " + "  ".join(f"{t}: {v['median_ms']:.0f} ms" for t, v in sorted(m["scaling"].items())) +
+-          f"  (written order, fresh cached worker, n={next(iter(m['scaling'].values()))['n']} each)"
+-          f"   torch threads seen {m['torch_threads']}")
++        if m["scaling"]:
++            p("threads         " + "  ".join(f"{t}: {v['median_ms']:.0f} ms" for t, v in sorted(m["scaling"].items())) +
++              f"  (written order, fresh cached worker, n={next(iter(m['scaling'].values()))['n']} each)"
++              f"   torch threads seen {m['torch_threads']}")
++        else:
++            p("threads         main block only (no thread blocks)")
+         rw = m["repeat_worst"]
+         if rw:
+             p(f"                repeat check: worst {rw['case_id']} {rw['main_ms']:.0f} ms (main) vs {rw['repeat_ms']:.0f} ms "
+@@ -520,17 +572,21 @@
+           f"{m['nondet_choice_diffs']}/{m['nondet_n']}, max prob diff {m['nondet_max_prob_diff']:.4f}")
+         p(f"                other thread counts vs main: choice differs in {m['thread_choice_diffs']}/{m['thread_n']}, "
+           f"max prob diff {m['thread_max_prob_diff']:.4f}")
++        c, w = m["cold"], m["cached"]
++        sec = lambda x, ph: f"{x[ph] / 1000:>8.2f}" if x else f"{'n/a':>8}"  # n/a: not run, or a legacy block
+         p(f"load (s)        {'phase':<10}{'cold':>8}{'cached':>8}")
+         for ph in ("file_read", "import", "init", "warmup", "total", "spawn_to_ready"):
+-            c, w = m["cold"], m["cached"]
+-            p(f"                {ph:<10}{c[ph] / 1000:>8.2f}{(w[ph] / 1000 if w else float('nan')):>8.2f}")
+-        p(f"                weight files {m['cold']['file_bytes'] / 2**20:.0f} MiB; cold = {m['cold']['state']['mode']}")
+-        st = m["cold"]["state"]
+-        if "fallback_reason" in st:
+-            p(f"                full cold not used: {st['fallback_reason']}")
+-        elif "cached_mib_after" in st:
+-            p(f"                page cache {st['cached_mib_before']} -> {st['cached_mib_after']} MiB after the human drop")
+-        p(f"RAM             peak {m['peak_mib']} MiB (VmHWM, worker{' + llama-server' if m['model'] == 's1o' else ''})   "
++            p(f"                {ph:<10}{sec(c, ph)}{sec(w, ph)}")
++        if c:
++            p(f"                weight files {c['file_bytes'] / 2**20:.0f} MiB; cold = {c['state']['mode']}")
++            st = c["state"]
++            if "fallback_reason" in st:
++                p(f"                full cold not used: {st['fallback_reason']}")
++            elif "cached_mib_after" in st:
++                p(f"                page cache {st['cached_mib_before']} -> {st['cached_mib_after']} MiB after the drop")
++        else:
++            p(f"                cold load not recorded: {m['cold_note']}")
++        p(f"RAM             peak {m['peak_mib']} MiB (VmHWM, worker{' + llama-server' if MODELS[m['model']][0] == 's1o' else ''})   "
+           f"largest single process {m['wait4_maxrss_mib']} MiB (wait4)")
+         p("HINTS")
+         for h in m["hints"]:
+@@ -541,18 +597,62 @@
+     def rank(label, key, fmt, reverse=False):
+         vals = [(key(m), m["model"]) for m in ms if key(m) is not None]
+         vals.sort(key=lambda v: v[0], reverse=reverse)
+-        p(f"{label:<17}{vals[0][1]:<12} " + "  ".join(f"{n} {fmt(v)}" for v, n in vals))
++        p(f"{label:<17}{vals[0][1]:<12} " + "  ".join(f"{n} {fmt(v)}" for v, n in vals) if vals else f"{label:<17}n/a")
+     rank("accuracy", lambda m: (m["correct"][0] / m["correct"][1], m["acceptable"][0] / m["acceptable"][1]),
+          lambda v: f"{v[0] * 100:.0f}%/{v[1] * 100:.0f}%acc", reverse=True)
+     rank("order stability", lambda m: m["flips"] / m["cases"], lambda v: f"{v * 100:.0f}% flips")
+     rank("decision speed", lambda m: m["median_ms"], lambda v: f"{v:.0f} ms")
+     rank("cached load", lambda m: m["cached"]["total"] if m["cached"] else None, lambda v: f"{v / 1000:.1f} s")
+-    rank("cold load", lambda m: m["cold"]["total"], lambda v: f"{v / 1000:.1f} s")
++    rank("cold load", lambda m: m["cold"]["total"] if m["cold"] else None, lambda v: f"{v / 1000:.1f} s")
+     rank("RAM", lambda m: m["peak_mib"], lambda v: f"{v} MiB")
+     p("(ties keep the listed model order; accuracy ties break on acceptable)")
+     return "\n".join(L)
+ 
+ 
++# ---------------------------------------------------------------- resume
++
++# Metadata for a block from a run before blocks.jsonl existed: its decisions were logged, its load was not.
++LEGACY_META = {"load_state": {"mode": "not recorded (block from a run before the runner saved block metadata)"},
++               "thermal": None, "phases": None, "file_bytes": None, "spawn_to_ready_ms": None,
++               "timing_note": "not recorded", "token_def": "not recorded", "torch_threads": None, "rss_mib": None,
++               "peak_mib": None, "wait4_maxrss_mib": None, "legacy": True}
++
++
++def block_plan(models, threads, main_only):
++    """name -> [(block, threads, orders, cold)]: a cold main block at the highest thread count, then cached t<N>."""
++    return {name: [("main", threads[-1], ("written", "reversed"), True)] +
++                  ([] if name in main_only else [(f"t{t}", t, ("written",), False) for t in threads])
++            for name in models}
++
++
++def load_done(out, plan, cases):
++    """{(model, block): block with rows} for the planned blocks an earlier run in OUT completed with valid data.
++    A block is listed in blocks.jsonl only after it finished with cores 4-7 held throughout. OUT from before
++    blocks.jsonl existed: a block counts if all its rows are present and a later block started, because the
++    runner started the next block only after the previous one passed its post-block core check."""
++    rows, seen = {}, []
++    path = out / "decisions.jsonl"
++    for line in path.read_text().splitlines() if path.exists() else []:
++        r = json.loads(line)
++        key = (r["model"], r["block"])
++        if key not in rows:
++            rows[key] = []
++            seen.append(key)
++        rows[key].append(r)
++    if (out / "blocks.jsonl").exists():
++        metas = {(m["model"], m["block"]): m for m in map(json.loads, (out / "blocks.jsonl").read_text().splitlines())}
++    else:
++        metas = {k: {**LEGACY_META, "model": k[0], "block": k[1], "threads": rows[k][0]["threads"]} for k in seen[:-1]}
++    done = {}
++    for name, blocks in plan.items():
++        for block, threads, orders, _ in blocks:
++            k, want = (name, block), {(c["id"], o) for c in cases for o in orders}
++            got = [(r["case_id"], r["order"]) for r in rows.get(k, [])]
++            if k in metas and metas[k]["threads"] == threads and len(got) == len(want) and set(got) == want:
++                done[k] = {**metas[k], "rows": rows[k]}
++    return done
++
++
+ # ---------------------------------------------------------------- main
+ 
+ def main():
+@@ -563,7 +663,10 @@
+     ap.add_argument("--levels", default=None, help="comma list, e.g. 1,2")
+     ap.add_argument("--threads", default="2,3,4", help="comma list; the highest also runs the main block")
+     ap.add_argument("--thermal-log", default=None, help="root thermal log (z9/z10/z11 millidegrees); gates every block "
+-                    "on z9 <= (reading at run start) + 2 degC and prints start/end readings")
++                    "on z9 <= (reading at run start) + 4 degC and prints start/end readings")
++    ap.add_argument("--main-only", default="", help="comma list of models that run the main block only (no t<N>)")
++    ap.add_argument("--resume", action="store_true", help="continue in an existing --out: keep its completed valid "
++                    "blocks, run the rest (the original decisions.jsonl/blocks.jsonl are kept as *.before_resume_<UTC>)")
+     a = ap.parse_args()
+     models = list(MODELS) if a.models == "all" else a.models.split(",")
+     if set(models) - set(MODELS):
+@@ -573,29 +676,62 @@
+     cases = load_cases(a.cases, levels)
+     if not cases:
+         raise SystemExit("no cases left after --levels")
+-    a.out.mkdir(parents=True, exist_ok=False)
+-    (a.out / "logs").mkdir()
+-    check_cores("at start")
++    plan = block_plan(models, threads, set(filter(None, a.main_only.split(","))))
++    run_meta = {"cases_file": str(Path(a.cases).resolve()), "cases_sha256": hashlib.sha256(Path(a.cases).read_bytes()).hexdigest(),
++                "levels": sorted({c["level"] for c in cases})}
++    done = {}
++    if a.resume:
++        if not a.out.is_dir():
++            raise SystemExit(f"--resume: {a.out} does not exist")
++        if (a.out / "run.json").exists() and json.loads((a.out / "run.json").read_text()) != run_meta:
++            raise SystemExit(f"--resume: {a.out}/run.json was made with other cases or levels")
++        done = load_done(a.out, plan, cases)
++        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
++        for f in ("decisions.jsonl", "blocks.jsonl"):
++            if (a.out / f).exists():
++                (a.out / f).rename(a.out / f"{f}.before_resume_{stamp}")
++        with open(a.out / "decisions.jsonl", "x") as log, open(a.out / "blocks.jsonl", "x") as meta:
++            for (name, block), b in done.items():
++                log.writelines(json.dumps(r) + "\n" for r in b["rows"])
++                meta.write(json.dumps({"model": name, **{k: v for k, v in b.items() if k != "rows"}}) + "\n")
++        print(f"resume: keeping {len(done)} completed blocks: " + ", ".join(f"{n} {b}" for n, b in done), flush=True)
++    else:
++        a.out.mkdir(parents=True, exist_ok=False)
++    (a.out / "logs").mkdir(exist_ok=True)
++    (a.out / "run.json").write_text(json.dumps(run_meta) + "\n")
++    wait_cores("start")
+     thermal = None
+     if a.thermal_log:
+         idle = read_thermal(a.thermal_log)
+         print(f"thermal idle reading (gate z9 <= idle + {GATE_MC / 1000:.0f} degC): {fmt_thermal(idle)}", flush=True)
+         thermal = (a.thermal_log, idle)
+     mem_total = next(int(l.split()[1]) // 1024 for l in open("/proc/meminfo") if l.startswith("MemTotal"))
+-    res = {"started": datetime.now(timezone.utc).isoformat(timespec="seconds"), "cases_file": str(Path(a.cases).resolve()),
+-           "cases_sha256": hashlib.sha256(Path(a.cases).read_bytes()).hexdigest(), "n_cases": len(cases),
+-           "levels": sorted({c["level"] for c in cases}), "models": models, "threads": threads,
++    res = {"started": datetime.now(timezone.utc).isoformat(timespec="seconds"), **run_meta, "n_cases": len(cases),
++           "models": models, "threads": threads, "main_only": a.main_only, "resumed_blocks": [list(k) for k in done],
+            "mem_total_mib": mem_total, "thermal_idle": thermal and thermal[1], "per_model": []}
+-    with open(a.out / "decisions.jsonl", "x") as log:
++    with open(a.out / "decisions.jsonl", "a") as log, open(a.out / "blocks.jsonl", "a") as meta:
+         for name in models:
+             files = files_of(WEIGHTS[name])
+-            print(f"[{name}] main block: cold load, {len(cases)} cases x 2 orders at {threads[-1]} threads", flush=True)
+-            blocks = [run_block(name, "main", threads[-1], cases, ("written", "reversed"), files, a.out, log, cold=True,
+-                                thermal=thermal)]
+-            for t in threads:
+-                print(f"[{name}] t{t}: cached load, {len(cases)} cases written order", flush=True)
+-                blocks.append(run_block(name, f"t{t}", t, cases, ("written",), files, a.out, log, cold=False,
+-                                        thermal=thermal))
++            blocks = []
++            for block, t, orders, cold in plan[name]:
++                if (name, block) in done:
++                    print(f"[{name}] {block}: already completed, skipped (--resume)", flush=True)
++                    blocks.append(done[(name, block)])
++                    continue
++                print(f"[{name}] {block}: {'cold' if cold else 'cached'} load, {len(cases)} cases x {len(orders)} "
++                      f"order(s) at {t} threads", flush=True)
++                while True:
++                    wait_cores(f"{name} {block}")
++                    try:
++                        b = run_block(name, block, t, cases, orders, files, a.out, cold=cold, thermal=thermal)
++                        break
++                    except CoresLost as e:
++                        print(f"  [{name} {block}] {e}: discarding this block's data and redoing it", flush=True)
++                log.writelines(json.dumps(r) + "\n" for r in b["rows"])
++                log.flush()
++                meta.write(json.dumps({"model": name, **{k: v for k, v in b.items() if k != "rows"}}) + "\n")
++                meta.flush()
++                blocks.append(b)
+             m = analyse(name, blocks, cases)
+             m["hints"] = hints(m, mem_total)
+             m["blocks"] = [{k: v for k, v in b.items() if k != "rows"} for b in blocks]

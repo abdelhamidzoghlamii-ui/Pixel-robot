@@ -1,0 +1,81 @@
+--- base3/test_ladder.py	2026-09-26 06:25:33.758174122 +0000
++++ /termux-home/ladder/test_ladder.py	2026-09-26 06:27:24.230174176 +0000
+@@ -67,7 +67,6 @@
+ assert m["repeat_worst"]["ratio"] > 1e6 and m["nondet_choice_diffs"] == 1 and m["thread_choice_diffs"] == 0
+ assert m["tok_per_s"] > 0
+ assert "per-token cost is 100%" in H(fit={**base["fit"], "fixed_ms": -50})
+-print("ok")
+ 
+ # thermal gate: parse the root log's last line, refuse a stale log, wait until z9 is back near idle
+ from datetime import datetime, timezone
+@@ -83,10 +82,10 @@
+     raise AssertionError("stale thermal log accepted")
+ except SystemExit as e:
+     assert "not running" in str(e)
+-readings = iter([{"at": "x", "z9": 33100}, {"at": "x", "z9": 33000}])  # idle 31: 33.1 waits, 33.0 passes
++readings = iter([{"at": "x", "z9": 35100}, {"at": "x", "z9": 35000}])  # idle 31: 35.1 waits, 35.0 passes
+ real_read, real_sleep = ladder.read_thermal, ladder.time.sleep
+ ladder.read_thermal, ladder.time.sleep = (lambda _: next(readings)), (lambda _: None)
+-assert ladder.thermal_gate("p", {"z9": 31000}, "x")["z9"] == 33000
++assert ladder.thermal_gate("p", {"z9": 31000}, "x")["z9"] == 35000
+ readings = iter([{"at": "x", "z9": 27000}])  # cooler than idle starts at once (no abs)
+ assert ladder.thermal_gate("p", {"z9": 31000}, "x")["z9"] == 27000
+ ladder.read_thermal, ladder.time.sleep = real_read, real_sleep
+@@ -98,4 +97,57 @@
+ w.proc = subprocess.Popen(["sleep", "60"], stdin=subprocess.PIPE, start_new_session=True)
+ began = ladder.time.monotonic()
+ assert w.close(timeout=0.5) is None and w.proc.returncode is not None and ladder.time.monotonic() - began < 5
++
++# cold handshake: the watcher's answer is read, both files are removed; no answer times out
++import threading
++from pathlib import Path
++d = Path(tempfile.mkdtemp())
++ladder.DROP_REQUEST, ladder.DROP_DONE, ladder.HANDSHAKE_S = d / ".drop_request", d / ".drop_done", 3
++def watcher(answer):
++    while not ladder.DROP_REQUEST.exists():
++        ladder.time.sleep(0.05)
++    (d / "tmp").write_text(answer + "\n")
++    (d / "tmp").rename(ladder.DROP_DONE)  # atomic, as the native-Termux watcher must do
++for answer in ("ok", "failed"):
++    threading.Thread(target=watcher, args=(answer,)).start()
++    assert ladder.drop_handshake("x") == answer and not ladder.DROP_REQUEST.exists() and not ladder.DROP_DONE.exists()
++ladder.HANDSHAKE_S = 0.2
++assert ladder.drop_handshake("x") is None and not ladder.DROP_REQUEST.exists()
++
++# losing cores raises CoresLost (the main loop waits and redoes the block)
++real_cpus = ladder.allowed_cpus
++ladder.allowed_cpus = lambda: {0, 1, 2, 3, 4, 5}
++try:
++    ladder.check_cores("during t3")
++    raise AssertionError("lost cores not detected")
++except ladder.CoresLost:
++    pass
++ladder.allowed_cpus = real_cpus
++
++# --resume: main-only plan; new-format blocks need blocks.jsonl; legacy runs need full rows + a later block
++cs = [{"id": "a"}, {"id": "b"}]
++plan = ladder.block_plan(["m1", "m2"], [3, 4], {"m1"})
++assert [b[0] for b in plan["m1"]] == ["main"] and [b[0] for b in plan["m2"]] == ["main", "t3", "t4"]
++row = lambda m, b, t, c, o: json.dumps({"model": m, "block": b, "threads": t, "case_id": c, "order": o})
++full = lambda m, b, t, orders: [row(m, b, t, c["id"], o) for c in cs for o in orders]
++legacy = Path(tempfile.mkdtemp())
++(legacy / "decisions.jsonl").write_text("\n".join(
++    full("m1", "main", 4, ("written", "reversed")) + full("m1", "t3", 3, ("written",)) +
++    full("m2", "main", 4, ("written", "reversed"))[:3] + full("m2", "t3", 3, ("written",))) + "\n")
++done = ladder.load_done(legacy, plan, cs)  # m1 t3 unplanned, m2 main incomplete, m2 t3 last (unproven)
++assert set(done) == {("m1", "main")} and done[("m1", "main")]["legacy"] and len(done[("m1", "main")]["rows"]) == 4
++(legacy / "blocks.jsonl").write_text(json.dumps({"model": "m2", "block": "t3", "threads": 3}) + "\n")
++assert set(ladder.load_done(legacy, plan, cs)) == {("m2", "t3")}  # new format: only blocks.jsonl entries count
++
++# report copes with a main-only model whose main block is legacy (no load metadata)
++lrows = [{"model": "m1", "block": "main", "threads": 4, "case_id": c, "order": o, "level": 1, "phrasing": "p",
++          "choice": "x", "correct": True, "acceptable": True, "distribution": {"x": 1.0}, "total_ms": 100.0 + i,
++          "tokenise_ms": 1.0, "forward_ms": 98.0, "post_ms": 1.0 + i, "tokens": 50 + i, "longest": 50 + i,
++          "limit": 2048} for i, (c, o) in enumerate([("a", "written"), ("a", "reversed")])]
++ladder.MODELS["m1"] = ladder.MODELS["s1o"]
++m = ladder.analyse("m1", [{**ladder.LEGACY_META, "block": "main", "threads": 4, "rows": lrows}], None)
++m["hints"] = ladder.hints(m, 8000)
++text = ladder.report({"started": "t", "cases_file": "f", "cases_sha256": "0" * 64, "n_cases": 1, "levels": [1],
++                      "models": ["m1"], "threads": [3, 4], "mem_total_mib": 8000, "per_model": [m]})
++assert "main block only" in text and "cold load not recorded" in text and "cold load        n/a" in text
+ print("ok")
