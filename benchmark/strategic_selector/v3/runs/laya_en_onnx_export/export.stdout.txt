@@ -1,0 +1,21 @@
+loading /termux-home/sel-candidates/laya0320/hf-cache/hub/models--convaiinnovations--laya/snapshots/55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851 ...
+  input_ids        (3, 232) torch.int64
+  attention_mask   (3, 232) torch.int64
+  marker_pos       (3, 28) torch.int64
+  marker_mask      (3, 28) torch.bool
+  qtype            (3,) torch.int64
+
+exporting fp32 -> laya_en.onnx  (dynamo, opset 18, dynamic)
+[torch.onnx] Obtain model graph for `DecisionModel([...]` with `torch.export.export(..., strict=False)`...
+[torch.onnx] Obtain model graph for `DecisionModel([...]` with `torch.export.export(..., strict=False)`... ✅
+[torch.onnx] Run decompositions...
+[torch.onnx] Run decompositions... ✅
+[torch.onnx] Translate the graph into ONNX...
+[torch.onnx] Translate the graph into ONNX... ✅
+[torch.onnx] Optimize the ONNX graph...
+[torch.onnx] Optimize the ONNX graph... ✅
+  exported
+  graph inputs: {'input_ids': ['items', 'seq'], 'attention_mask': ['items', 'seq'], 'marker_pos': ['items', 'nopt'], 'marker_mask': ['items', 'nopt'], 'qtype': ['items']}
+  max logit drift vs torch: 0.00001
+
+wrote laya_en.meta.json — now run: quantize_onnx.py laya_en.onnx

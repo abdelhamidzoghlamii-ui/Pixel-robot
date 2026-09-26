@@ -1,0 +1,14 @@
+[0;93m2026-09-25 03:37:04.701752072 [W:onnxruntime:Default, device_discovery.cc:459 DiscoverDevicesForPlatform] GPU device discovery failed: Error: std::error_code with category name: generic, value: 13, message: Permission denied, filesystem path: "/sys/class/drm", context: Iterating over DRM sysfs devices[m
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/robot/benchmark/strategic_selector/v3/run.py", line 153, in <module>
+    main()
+    ~~~~^^
+  File "/data/data/com.termux/files/home/robot/benchmark/strategic_selector/v3/run.py", line 120, in main
+    adapter = CANDIDATES[args.candidate]()
+  File "/data/data/com.termux/files/home/robot/benchmark/strategic_selector/v3/adapters.py", line 226, in __init__
+    self.rt = LayaRuntime(str(SEL / "laya0320/hf-cache" / LAYA_SNAPSHOT), str(self.ONNX), THREADS)
+              ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/termux-home/sel-candidates/laya-micro/src/runtime.py", line 87, in __init__
+    self.mask_id = enc["mask_token_id"]
+                   ~~~^^^^^^^^^^^^^^^^^
+KeyError: 'mask_token_id'

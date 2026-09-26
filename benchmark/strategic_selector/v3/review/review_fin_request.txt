@@ -1,0 +1,908 @@
+EXECUTION PROFILE
+ROLE: Reviewer (fresh independent review) — Pixel Robot project
+PLATFORM: AGY/Antigravity CLI 1.2.10, headless, --sandbox
+MODEL: gemini-3.1-pro-high
+EFFORT: platform-controlled
+PONYTAIL: off — independent correctness/methodology review.
+WHY: finalist speed/accuracy work whose results feed the selector decision
+FALLBACK: none; auth/quota/model/permission failure = incomplete review.
+
+RULES: Read-only. Do NOT edit, create, delete, stage, commit or push anything; do NOT run models or commands. Shell commands are unavailable; ALL evidence is INLINE BELOW (copies also in this workspace). You MUST end with a written final review.
+
+==================== TASK TEXT (verbatim, from the human) ====================
+Human decisions:
+- Rule/selector split taken. Python will answer the rule families; the selector is judged only on the judgment families: room_finished, hall_hint, repeat_search, heard_from_room (24 dev cases).
+- laya_multi and laya_micro dropped.
+- Finalists: laya_en, s1o, and von11 (custom last-chance test).
+- Winner rule: on judgment families, acceptable first, then preferred, then warm median. Gate: warm median ≤ 3000 ms under clean conditions. Held-out stays sealed.
+1. Harness: add a --families filter and report on the four judgment families only from now on.
+2. repeat_search labels: dump all 6 dev rows (state, options, labels, each finalist's choice and full distribution), read-only, and give your judgment on whether the preferred label is right. Change nothing.
+3. laya_en speed: a. Export to ONNX fp32 using laya-micro's export step, without pruning or quantisation. b. Parity gate: argmax identical to the torch run on all 24 judgment cases in both orders; report the max probability difference. If parity fails, stop and report. c. Sweep threads (2, 3, 4) and core sets (4-7, 6-7); report warm median and P95 per setting.
+4. s1o speed, bounded: a. Measure prompt tokens per call and llama.cpp 1609's prompt-eval tok/s. b. Check threads, batch and ubatch settings against the phone's cores. c. Put the constant instruction first and cache that prefix only. Confirm the A–D probabilities are unchanged on all 24 cases. d. Do not rebuild llama.cpp. Report the best warm median. If it is over 3000 ms, s1o is out — say so plainly.
+5. von11 custom test: a. From the existing dev-full result files, no run: order flips, and canonical vs reversed preferred/acceptable, on the 24 judgment cases. b. Permutation averaging: for each case, score every cyclic rotation of the offered options, map back to option keys, average the distributions; choice = argmax of the average. Batch the rotations into one forward pass if von-sdk 1.1 supports it, and say whether it did. Report accuracy and warm median/P95 per decision, all rotations included. c. Check whether von-sdk 1.1 exposes a backend other than option-marker (for example an NLI head). If yes, run it on the 24 cases in both orders. If no, say so and skip. d. Threads sweep as in 3c for the best Von variant. Von is out if its best variant is over 3000 ms warm median.
+6. Timings are provisional (agent resident). Record them anyway; the clean run comes after.
+
+==================== CODER NOTES / EVIDENCE SUMMARY ====================
+Phone CPUs: cpu0-3 Cortex-A55 1.8 GHz, cpu4-5 A78 2.35 GHz, cpu6-7 X1 2.85 GHz.
+CRITICAL TIMING CAVEAT found at the end: Android moved Termux from the top-app cpuset (0-7) to /foreground (Cpus_allowed_list 0-5). taskset -c 4-7 then silently runs on 4-5 only; taskset -c 6-7 fails ("Invalid argument"), which is why von11 6-7/t3 and 6-7/t4 failed to launch (moved to _failed_cpuset, not reported). Earlier runs recorded no cpuset evidence, so the effective cores of every timing below are uncertain. measure.py now records Cpus_allowed_list at start/end and refuses to start if the requested cores are not all allowed (post-run change, included in the diff; tested with a mock: refuses 6-7 when allowed=0-5).
+laya_en ONNX: export via laya-micro@686fc466 export_onnx.py on the English snapshot (max logit drift vs torch 0.00001). runtime.py needs encoder/config.json mask_token_id, absent in the English config; an overlay checkpoint symlinks tokenizer/ and rl_agent_config.json and adds mask_token_id=50284 (the tokenizer's own [MASK] id, which torch laya uses via tok.mask_token_id). First attempt without it failed (KeyError: 'mask_token_id'), kept as _failed_onnx_c47_t4_missing_mask_id.
+Von: von-sdk 1.1.1 has no public batch API; OptionMarkerModel.forward accepts a padded batch with per-row mask positions, so rotations are batched in ONE forward pass (checked against sequential evaluate_choice on 8 decisions: max |diff| 5.0e-5 = its 4-dp rounding). Other backend: BertaBackend "von-1.0" = NLI cross-encoder (ModernBertForSequenceClassification entailment/neutral/contradiction) from the cached wfzyx/von@d8bb5e07 snapshot; run. "deberta-v3" third-party baseline not cached, skipped; "laya" baseline needs local_backends not shipped.
+s1o: llama-bench pp329 (build e1a1abb7/1609): 4-7/t4/ub512 12.27 t/s (best), 6-7/t2 8.71, 4-7/t4/ub128 11.13, 4-7/t2 7.77, 0-7/t8 11.19. Prompts 323-340 tokens (median 329); dev-full server prompt eval median 11.73 t/s. Instruction-first prefix is 41 tokens; server log confirms each scored request evaluated 288 of 329 tokens (prefix reused, nothing else).
+S1O PREFIX-CACHE CHECK: argmax identical 48/48 but probabilities NOT unchanged: max |diff| 0.179, median 0.0017, >0.01 on 10/48, >0.05 on 5/48. Diagnostic (diag.py, one server, worst case dev_repeat_search_5 reverse): uncached twice bit-identical [0.56689,...]; prefix-cached twice bit-identical [0.62155,...] but different from uncached; the harness prefix run gave 0.746 for the same prompt, i.e. cached results depend on slot history. Instruction-first vs original system-one-open order: argmax 44/48 identical, max |diff| 0.680.
+
+Coder's repeat_search judgment: The preferred label (travel to the NEAREST unsearched reachable room) is defensible as an efficiency tie-break and the distances are in the state, but it grades an unstated criterion: the instruction asks for "the single most useful next high-level mission action" and never mentions minimising distance. The acceptable set (any unsearched reachable room; call/ask excluded) is what the instruction supports, and all three finalists are 6/6 acceptable canonically. repeat_search has the same labels and options as room_finished; only the outcome text ("…twice") and note differ. Canonically the finalists mostly pick the FIRST travel option listed (bedroom/living_room order), not the nearest, so the preferred misses reflect position bias more than a label error. Keep the label; it is secondary under the winner rule. If preferred matters, state the distance priority in the instruction.
+
+Von 5a from dev-full (no run), 24 judgment cases: flips 24/24; canonical acceptable 24 preferred 8; reversed acceptable 24 preferred 6.
+Note: cyclic rotations of the reversed list are not the same permutations as cyclic rotations of the canonical list, so cyclic averaging does not guarantee reversal invariance; von11_perm still flips 24/24.
+
+==================== laya_en PARITY ====================
+PARITY torch(dev-full laya_en) vs laya_en_onnx: argmax identical 48/48 decisions (24 judgment cases x 2 orders); max |prob diff| 0.000100; mismatches []
+
+==================== TABLE: dev-full on judgment families (report.py) ====================
+Families: room_finished, hall_hint, repeat_search, heard_from_room
+
+| Run | Candidate | Cores/threads | Cases | Acceptable | Preferred | Acc. rev | Pref. rev | Flips | Load ms | First-call ms | Warm p50 ms | Warm p95 ms | Peak RSS MiB |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| dev-full | laya_en | 4-7/4 | 24 | 24 | 10 | 7 | 2 | 18/24 | 28487.7 | 5265.7 | 3647.0 | 5012.8 | 2810.9 |
+| dev-full | laya_micro | 4-7/4 | 24 | 4 | 0 | 13 | 7 | 15/24 | 2028.3 | 1965.5 | 1425.3 | 1568.1 | 540.0 |
+| dev-full | laya_multi | 4-7/4 | 24 | 8 | 3 | 14 | 7 | 6/24 | 33385.6 | 1104.7 | 1221.5 | 1297.8 | 2585.4 |
+| dev-full | s1o | 4-7/4 | 24 | 24 | 12 | 20 | 9 | 11/24 | 7717.0 | 29138.9 | 28296.9 | 34173.2 | 3665.9 |
+| dev-full | von11 | 4-7/4 | 24 | 24 | 8 | 24 | 6 | 24/24 | 23329.3 | 7973.9 | 2921.3 | 5267.8 | 3362.8 |
+
+Per family, canonical order. Each cell: acceptable y/n · preferred x/n.
+
+| Family | dev-full/laya_en | dev-full/laya_micro | dev-full/laya_multi | dev-full/s1o | dev-full/von11 |
+|---|---:|---:|---:|---:|---:|
+| room_finished | A 6/6 · P 3/6 | A 0/6 · P 0/6 | A 1/6 · P 1/6 | A 6/6 · P 3/6 | A 6/6 · P 3/6 |
+| hall_hint | A 6/6 · P 2/6 | A 0/6 · P 0/6 | A 3/6 · P 1/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 |
+| repeat_search | A 6/6 · P 1/6 | A 4/6 · P 0/6 | A 4/6 · P 1/6 | A 6/6 · P 1/6 | A 6/6 · P 1/6 |
+| heard_from_room | A 6/6 · P 4/6 | A 0/6 · P 0/6 | A 0/6 · P 0/6 | A 6/6 · P 6/6 | A 6/6 · P 2/6 |
+
+- dev-full/laya_en: exit 0; argmax == native choice 48/48 calls
+
+- dev-full/laya_micro: exit 0; tokenizer parity vs stock 0/48 calls; argmax == native choice 48/48 calls
+
+- dev-full/laya_multi: exit 0; argmax == native choice 48/48 calls
+
+- dev-full/s1o: exit 0; letter mass in full vocab min 0.9997 median 1.0000; prompt tokens median 329 (min 323, max 340); server {'server_exit': 0, 'server_peak_rss_mib_wait4': 3665.9}
+
+- dev-full/von11: exit 0; argmax == native choice 48/48 calls
+
+==================== TABLE: laya_en_onnx sweep ====================
+Families: room_finished, hall_hint, repeat_search, heard_from_room
+
+| Run | Candidate | Cores/threads | Cases | Acceptable | Preferred | Acc. rev | Pref. rev | Flips | Load ms | First-call ms | Warm p50 ms | Warm p95 ms | Peak RSS MiB |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| onnx_c47_t2 | laya_en_onnx | 4-7/2 | 24 | 24 | 10 | 7 | 2 | 18/24 | 2659.7 | 2377.6 | 3246.8 | 3895.0 | 1645.1 |
+| onnx_c47_t3 | laya_en_onnx | 4-7/3 | 24 | 24 | 10 | 7 | 2 | 18/24 | 3221.7 | 2775.9 | 3090.8 | 3265.1 | 1645.1 |
+| onnx_c47_t4 | laya_en_onnx | 4-7/4 | 24 | 24 | 10 | 7 | 2 | 18/24 | 2637.6 | 2041.8 | 2092.3 | 2721.7 | 1646.4 |
+| onnx_c67_t2 | laya_en_onnx | 6-7/2 | 24 | 24 | 10 | 7 | 2 | 18/24 | 3777.0 | 3062.1 | 2979.2 | 3765.5 | 1645.1 |
+| onnx_c67_t3 | laya_en_onnx | 6-7/3 | 24 | 24 | 10 | 7 | 2 | 18/24 | 3692.0 | 4357.9 | 3781.0 | 4516.2 | 1641.6 |
+| onnx_c67_t4 | laya_en_onnx | 6-7/4 | 24 | 24 | 10 | 7 | 2 | 18/24 | 4242.7 | 5727.7 | 4303.1 | 5591.8 | 1639.2 |
+
+Per family, canonical order. Each cell: acceptable y/n · preferred x/n.
+
+| Family | onnx_c47_t2/laya_en_onnx | onnx_c47_t3/laya_en_onnx | onnx_c47_t4/laya_en_onnx | onnx_c67_t2/laya_en_onnx | onnx_c67_t3/laya_en_onnx | onnx_c67_t4/laya_en_onnx |
+|---|---:|---:|---:|---:|---:|---:|
+| room_finished | A 6/6 · P 3/6 | A 6/6 · P 3/6 | A 6/6 · P 3/6 | A 6/6 · P 3/6 | A 6/6 · P 3/6 | A 6/6 · P 3/6 |
+| hall_hint | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 |
+| repeat_search | A 6/6 · P 1/6 | A 6/6 · P 1/6 | A 6/6 · P 1/6 | A 6/6 · P 1/6 | A 6/6 · P 1/6 | A 6/6 · P 1/6 |
+| heard_from_room | A 6/6 · P 4/6 | A 6/6 · P 4/6 | A 6/6 · P 4/6 | A 6/6 · P 4/6 | A 6/6 · P 4/6 | A 6/6 · P 4/6 |
+
+- onnx_c47_t2/laya_en_onnx: exit 0; argmax == native choice 48/48 calls
+
+- onnx_c47_t3/laya_en_onnx: exit 0; argmax == native choice 48/48 calls
+
+- onnx_c47_t4/laya_en_onnx: exit 0; argmax == native choice 48/48 calls
+
+- onnx_c67_t2/laya_en_onnx: exit 0; argmax == native choice 48/48 calls
+
+- onnx_c67_t3/laya_en_onnx: exit 0; argmax == native choice 48/48 calls
+
+- onnx_c67_t4/laya_en_onnx: exit 0; argmax == native choice 48/48 calls
+
+==================== TABLE: s1o (dev-full original prompt, instruction-first cache off / prefix) ====================
+Families: room_finished, hall_hint, repeat_search, heard_from_room
+
+| Run | Candidate | Cores/threads | Cases | Acceptable | Preferred | Acc. rev | Pref. rev | Flips | Load ms | First-call ms | Warm p50 ms | Warm p95 ms | Peak RSS MiB |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| dev-full | laya_en | 4-7/4 | 24 | 24 | 10 | 7 | 2 | 18/24 | 28487.7 | 5265.7 | 3647.0 | 5012.8 | 2810.9 |
+| dev-full | laya_micro | 4-7/4 | 24 | 4 | 0 | 13 | 7 | 15/24 | 2028.3 | 1965.5 | 1425.3 | 1568.1 | 540.0 |
+| dev-full | laya_multi | 4-7/4 | 24 | 8 | 3 | 14 | 7 | 6/24 | 33385.6 | 1104.7 | 1221.5 | 1297.8 | 2585.4 |
+| dev-full | s1o | 4-7/4 | 24 | 24 | 12 | 20 | 9 | 11/24 | 7717.0 | 29138.9 | 28296.9 | 34173.2 | 3665.9 |
+| dev-full | von11 | 4-7/4 | 24 | 24 | 8 | 24 | 6 | 24/24 | 23329.3 | 7973.9 | 2921.3 | 5267.8 | 3362.8 |
+| s1o_if_off | s1o_if | 4-7/4 | 24 | 24 | 12 | 24 | 12 | 11/24 | 5810.9 | 21678.2 | 27905.9 | 28916.5 | 3582.6 |
+| s1o_if_prefix | s1o_if | 4-7/4 | 24 | 24 | 12 | 24 | 12 | 11/24 | 4606.6 | 26723.9 | 24880.3 | 25917.8 | 3648.2 |
+
+Per family, canonical order. Each cell: acceptable y/n · preferred x/n.
+
+| Family | dev-full/laya_en | dev-full/laya_micro | dev-full/laya_multi | dev-full/s1o | dev-full/von11 | s1o_if_off/s1o_if | s1o_if_prefix/s1o_if |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| room_finished | A 6/6 · P 3/6 | A 0/6 · P 0/6 | A 1/6 · P 1/6 | A 6/6 · P 3/6 | A 6/6 · P 3/6 | A 6/6 · P 3/6 | A 6/6 · P 3/6 |
+| hall_hint | A 6/6 · P 2/6 | A 0/6 · P 0/6 | A 3/6 · P 1/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 |
+| repeat_search | A 6/6 · P 1/6 | A 4/6 · P 0/6 | A 4/6 · P 1/6 | A 6/6 · P 1/6 | A 6/6 · P 1/6 | A 6/6 · P 1/6 | A 6/6 · P 1/6 |
+| heard_from_room | A 6/6 · P 4/6 | A 0/6 · P 0/6 | A 0/6 · P 0/6 | A 6/6 · P 6/6 | A 6/6 · P 2/6 | A 6/6 · P 6/6 | A 6/6 · P 6/6 |
+
+- dev-full/laya_en: exit 0; argmax == native choice 48/48 calls
+
+- dev-full/laya_micro: exit 0; tokenizer parity vs stock 0/48 calls; argmax == native choice 48/48 calls
+
+- dev-full/laya_multi: exit 0; argmax == native choice 48/48 calls
+
+- dev-full/s1o: exit 0; letter mass in full vocab min 0.9997 median 1.0000; prompt tokens median 329 (min 323, max 340); server {'server_exit': 0, 'server_peak_rss_mib_wait4': 3665.9}
+
+- dev-full/von11: exit 0; argmax == native choice 48/48 calls
+
+- s1o_if_off/s1o_if: exit 0; letter mass in full vocab min 0.9997 median 1.0000; prompt tokens median 329 (min 323, max 340); server {'server_exit': 0, 'server_peak_rss_mib_wait4': 3582.6}
+
+- s1o_if_prefix/s1o_if: exit 0; letter mass in full vocab min 0.9998 median 1.0000; prompt tokens median 329 (min 323, max 340); server {'server_exit': 0, 'server_peak_rss_mib_wait4': 3648.2}
+
+==================== s1o cache check + diagnostic ====================
+S1O PREFIX-CACHE CHECK (instruction-first prompt, cache off vs prefix-only cache), 48 calls = 24 judgment cases x 2 orders: argmax identical 48/48; max |prob diff| 1.79e-01
+For contrast, instruction-first vs original system-one-open prompt order (dev-full s1o): argmax identical 44/48; max |prob diff| 0.680
+"""Scratch diagnostic: same prompt, uncached x2 and prefix-cached x2, one server."""
+import json, random, sys
+sys.path.insert(0, "/termux-home/robot/benchmark/strategic_selector/v3")
+from adapters import S1OInstrFirst
+from cases import load_v2
+v2 = load_v2()
+case = next(json.loads(l) for l in open("/termux-home/robot/benchmark/strategic_selector/v3/dev.jsonl") if '"dev_repeat_search_5"' in l)
+opts = v2.render_options(v2.options_for(case, "filtered_text", "flat", None), "reverse", None)
+ins = ("Given the mission, evidence, room history and previous script result, choose the single most useful next "
+       "high-level mission action. A travel script will handle movement and obstacles itself.")
+s = S1OInstrFirst()
+try:
+    prefix, body = s.split_prompt(v2.to_state(case, False), opts, ins)
+    L = [s.letter_ids[j] for j in range(len(opts))]
+    def dist(cache):
+        if cache:
+            s._post("/completion", {"prompt": prefix, "n_predict": 0, "cache_prompt": True})
+        p = s.completion_probs(prefix + body, cache_prompt=cache)
+        return [round(p[t], 5) for t in L]
+    for label, cache in (("uncached_1", False), ("uncached_2", False), ("prefix_1", True), ("prefix_2", True)):
+        print(label, dist(cache), flush=True)
+finally:
+    print("server", s.close())
+uncached_1 [0.56689, 0.07379, 0.2382, 0.03255, 0.08836]
+uncached_2 [0.56689, 0.07379, 0.2382, 0.03255, 0.08836]
+prefix_1 [0.62155, 0.06516, 0.18815, 0.02318, 0.10172]
+prefix_2 [0.62155, 0.06516, 0.18815, 0.02318, 0.10172]
+server {'server_exit': 0, 'server_peak_rss_mib_wait4': 3544.2}
+
+==================== llama-bench ====================
+## cores 4-7 threads 4 ubatch 512
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| gemma4 E2B Q4_K - Medium       |   3.21 GiB |     4.65 B | CPU        |       4 |           pp329 |         12.27 ± 1.83 |
+build: e1a1abb7 (1609)
+## cores 6-7 threads 2 ubatch 512
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| gemma4 E2B Q4_K - Medium       |   3.21 GiB |     4.65 B | CPU        |       2 |           pp329 |          8.71 ± 0.32 |
+build: e1a1abb7 (1609)
+## cores 4-7 threads 4 ubatch 128
+| model                          |       size |     params | backend    | threads | n_ubatch |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | -------: | --------------: | -------------------: |
+| gemma4 E2B Q4_K - Medium       |   3.21 GiB |     4.65 B | CPU        |       4 |      128 |           pp329 |         11.13 ± 0.20 |
+build: e1a1abb7 (1609)
+## cores 4-7 threads 2 ubatch 512
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| gemma4 E2B Q4_K - Medium       |   3.21 GiB |     4.65 B | CPU        |       2 |           pp329 |          7.77 ± 0.01 |
+build: e1a1abb7 (1609)
+## cores 0-7 threads 8 ubatch 512
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| gemma4 E2B Q4_K - Medium       |   3.21 GiB |     4.65 B | CPU        |       8 |           pp329 |         11.19 ± 0.10 |
+build: e1a1abb7 (1609)
+
+==================== TABLE: Von (von11 sweep, von11_perm, von10_nli) ====================
+Families: room_finished, hall_hint, repeat_search, heard_from_room
+
+| Run | Candidate | Cores/threads | Cases | Acceptable | Preferred | Acc. rev | Pref. rev | Flips | Load ms | First-call ms | Warm p50 ms | Warm p95 ms | Peak RSS MiB |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| von11_c47_t2 | von11 | 4-7/2 | 24 | 24 | 8 | 24 | 6 | 24/24 | 16718.7 | 8084.3 | 3651.3 | 4472.2 | 3316.4 |
+| von11_c47_t3 | von11 | 4-7/3 | 24 | 24 | 8 | 24 | 6 | 24/24 | 19405.4 | 9200.9 | 3157.0 | 3331.1 | 3078.2 |
+| von11_c47_t4 | von11 | 4-7/4 | 24 | 24 | 8 | 24 | 6 | 24/24 | 21212.4 | 7665.7 | 2753.3 | 2945.3 | 3360.1 |
+| von11_c67_t2 | von11 | 6-7/2 | 24 | 24 | 8 | 24 | 6 | 24/24 | 20193.6 | 13103.2 | 4029.5 | 5056.4 | 3062.6 |
+| von11_perm | von11_perm | 4-7/4 | 24 | 24 | 7 | 24 | 7 | 24/24 | 35082.7 | 22553.7 | 13771.7 | 28048.8 | 3370.9 |
+| von10_nli | von10_nli | 4-7/4 | 24 | 24 | 6 | 24 | 6 | 0/24 | 33273.9 | 7196.8 | 8812.9 | 13653.7 | 1845.4 |
+
+Per family, canonical order. Each cell: acceptable y/n · preferred x/n.
+
+| Family | von11_c47_t2/von11 | von11_c47_t3/von11 | von11_c47_t4/von11 | von11_c67_t2/von11 | von11_perm/von11_perm | von10_nli/von10_nli |
+|---|---:|---:|---:|---:|---:|---:|
+| room_finished | A 6/6 · P 3/6 | A 6/6 · P 3/6 | A 6/6 · P 3/6 | A 6/6 · P 3/6 | A 6/6 · P 3/6 | A 6/6 · P 0/6 |
+| hall_hint | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 3/6 |
+| repeat_search | A 6/6 · P 1/6 | A 6/6 · P 1/6 | A 6/6 · P 1/6 | A 6/6 · P 1/6 | A 6/6 · P 0/6 | A 6/6 · P 3/6 |
+| heard_from_room | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 2/6 | A 6/6 · P 0/6 |
+
+- von11_c47_t2/von11: exit 0; argmax == native choice 48/48 calls
+
+- von11_c47_t3/von11: exit 0; argmax == native choice 48/48 calls
+
+- von11_c47_t4/von11: exit 0; argmax == native choice 48/48 calls
+
+- von11_c67_t2/von11: exit 0; argmax == native choice 48/48 calls
+
+- von11_perm/von11_perm: exit 0; rotations per decision 5-5; batched==sequential check on 8 decisions, max |diff| 4.995436668397968e-05
+
+- von10_nli/von10_nli: exit 0; argmax == native choice 48/48 calls
+
+==================== HARNESS DIFF (base = harness before this task) ====================
+--- /termux-home/v3-runs/base_v3_pre_finalists/adapters.py	2026-09-25 03:34:40.316955004 +0000
++++ adapters.py	2026-09-25 03:37:40.924955092 +0000
+@@ -9,6 +9,7 @@
+ import json
+ import math
+ import os
++import shlex
+ import subprocess
+ import sys
+ import time
+@@ -19,9 +20,12 @@
+ LAYA_SNAPSHOT = "hub/models--convaiinnovations--laya/snapshots/55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851"
+ 
+ 
++THREADS = int(os.environ.get("V3_THREADS", "4"))  # set by measure.py for thread sweeps
++
++
+ def torch_threads():
+     import torch
+-    torch.set_num_threads(4)
++    torch.set_num_threads(THREADS)
+     torch.set_num_interop_threads(1)
+     return torch
+ 
+@@ -102,7 +106,7 @@
+         from runtime import LayaRuntime
+         from tokenizers import Tokenizer
+         self.rt = LayaRuntime(str(self.ROOT / "laya-multilingual-en-8192"),
+-                              str(self.ROOT / "laya-micro-8192.int8.onnx"), 4)
++                              str(self.ROOT / "laya-micro-8192.int8.onnx"), THREADS)
+         self.load_ms = (time.perf_counter() - began) * 1000
+         # Pruning only guarantees tokenizer parity on laya-micro's own corpus; log ours per call.
+         self.stock = Tokenizer.from_file(str(self.ROOT / "hf-cache" / LAYA_SNAPSHOT / "multilingual/tokenizer/tokenizer.json"))
+@@ -142,9 +146,11 @@
+         self.log = open(os.environ.get("S1O_SERVER_LOG", "s1o-server.log"), "xb")
+         began = time.perf_counter()
+         self.server = subprocess.Popen(
+-            [str(self.LLAMA / "llama-server"), "-m", self.GGUF, "--threads", "4", "--threads-batch", "4",
+-             "--parallel", "1", "--swa-full", "--ctx-size", "2048", "--host", "127.0.0.1",
+-             "--port", str(self.PORT)], stdout=self.log, stderr=subprocess.STDOUT, env=env)
++            [str(self.LLAMA / "llama-server"), "-m", self.GGUF, "--threads", str(THREADS),
++             "--threads-batch", str(THREADS), "--parallel", "1", "--swa-full", "--ctx-size", "2048",
++             "--host", "127.0.0.1", "--port", str(self.PORT),
++             *shlex.split(os.environ.get("S1O_SERVER_ARGS", ""))],
++            stdout=self.log, stderr=subprocess.STDOUT, env=env)
+         while True:
+             try:
+                 with urllib.request.urlopen(self.url + "/health", timeout=2) as r:
+@@ -207,4 +213,155 @@
+                 "server_peak_rss_mib_wait4": round(usage.ru_maxrss / 1024, 1)}
+ 
+ 
+-CANDIDATES = {c.name: c for c in (Mock, Von11, LayaEn, LayaMulti, LayaMicro, S1O)}
++class LayaEnOnnx:
++    """laya_en (convaiinnovations/laya@55cf4c4e root) exported to ONNX fp32 with laya-micro@686fc466's
++    export_onnx.py (no pruning, no quantisation), run through laya-micro's runtime.py (onnxruntime).
++
++    runtime.py reads mask_token_id from encoder/config.json, which only the multilingual config
++    carries. laya_en_onnx/ckpt is an overlay: symlinks to the snapshot's tokenizer/ and
++    rl_agent_config.json, plus a copy of encoder/config.json with mask_token_id = the tokenizer's
++    own [MASK] id (50284), the id torch Laya uses via tok.mask_token_id."""
++    name = "laya_en_onnx"
++    ONNX = SEL / "laya_en_onnx/laya_en.onnx"
++    CKPT = SEL / "laya_en_onnx/ckpt"
++
++    def __init__(self):
++        began = time.perf_counter()
++        sys.path.insert(0, str(SEL / "laya-micro/src"))
++        from runtime import LayaRuntime
++        self.rt = LayaRuntime(str(self.CKPT), str(self.ONNX), THREADS)
++        self.load_ms = (time.perf_counter() - began) * 1000
++        self.extra = {}
++
++    def decide(self, state, options, instruction):
++        out = self.rt.decide(state, {"next": {"type": "choice", "instructions": instruction, "criteria": options}})
++        answer = out["answers"]["next"]
++        self.extra = {"native_choice": answer["choice"]}
++        return dict(answer["probabilities"])
++
++
++class Von11Perm:
++    """von-sdk 1.1.1 option-marker, permutation-averaged: every cyclic rotation of the offered
++    options is scored, mapped back to option keys and averaged; choice = argmax of the average.
++
++    von-sdk 1.1.1 has no public batch API (decide/evaluate_choice take one question), but
++    OptionMarkerModel.forward takes a padded batch with per-row mask positions, so all rotations
++    go through ONE forward pass here. Each row then gets the backend's own _effective_temperature,
++    exactly as evaluate_choice does. For the first V3_VON_CHECK_N decisions every rotation is also
++    scored through the public evaluate_choice and the max |difference| is logged.
++    """
++    name = "von11_perm"
++
++    def __init__(self):
++        began = time.perf_counter()
++        self.torch = torch_threads()
++        from von.engine import VonEngine
++        from von.types import Choice
++        from von.backends import option_marker_backend as omb
++        self.Choice, self.format_state = Choice, omb._format_state
++        self.backend = VonEngine.get_instance().backend
++        assert type(self.backend).__name__ == "OptionMarkerBackend"
++        self.model = self.backend._get_model()  # load weights now, so load_ms includes them
++        self.tok = self.model.tokenizer
++        self.load_ms = (time.perf_counter() - began) * 1000
++        self.check_left = int(os.environ.get("V3_VON_CHECK_N", "0"))
++        self.extra = {}
++
++    def rotations(self, state_text, instruction, options):
++        keys = list(options)
++        rots = [keys[i:] + keys[:i] for i in range(len(keys))]
++        texts = [self.model.pack_sequence(state_text, instruction,
++                                          [(options[k] or k).strip() for k in rot]) for rot in rots]
++        enc = self.tok(texts, return_tensors="pt", padding=True)
++        pos = [(row == self.model.mask_token_id).nonzero(as_tuple=True)[0].tolist() for row in enc["input_ids"]]
++        assert all(len(p) == len(keys) for p in pos)
++        with self.torch.no_grad():
++            logits = self.model(input_ids=enc["input_ids"], attention_mask=enc["attention_mask"], mask_positions=pos)
++        out = []
++        for rot, lg in zip(rots, logits):
++            t = self.backend._effective_temperature(lg, state_text, len(rot), self.tok, None)
++            out.append(dict(zip(rot, self.torch.softmax(lg / max(t, 1e-4), dim=-1).tolist())))
++        return rots, out
++
++    def decide(self, state, options, instruction):
++        state_text = self.format_state(state)
++        rots, per_rot = self.rotations(state_text, instruction, options)
++        avg = {k: sum(p[k] for p in per_rot) / len(per_rot) for k in options}
++        self.extra = {"rotations": len(rots), "batched_forward": True,
++                      "rotation_argmax": [max(p, key=p.get) for p in per_rot]}
++        if self.check_left > 0:
++            self.check_left -= 1
++            diff = 0.0
++            for rot, p in zip(rots, per_rot):
++                ref = self.backend.evaluate_choice("next", state_text, self.Choice(
++                    instructions=instruction, criteria={k: options[k] for k in rot})).probabilities
++                diff = max(diff, max(abs(ref[k] - p[k]) for k in rot))
++            self.extra["batched_vs_sequential_max_abs_diff"] = diff
++        return avg
++
++
++class Von10Nli:
++    """von-sdk 1.1.1's other shipped backend: BertaBackend variant "von-1.0", an NLI cross-encoder
++    (ModernBertForSequenceClassification, entailment/neutral/contradiction) loaded from the cached
++    wfzyx/von@d8bb5e07 snapshot; each option is scored by its entailment logit."""
++    name = "von10_nli"
++
++    def __init__(self):
++        began = time.perf_counter()
++        torch_threads()
++        from von.engine import VonEngine
++        from von.types import Choice
++        from von.backends import berta_backend as bb
++        self.Choice, self.format_state = Choice, bb._format_state
++        self.backend = VonEngine("von-1.0").backend
++        assert type(self.backend).__name__ == "BertaBackend"
++        self.backend._get_model_and_tok()
++        self.load_ms = (time.perf_counter() - began) * 1000
++        self.extra = {}
++
++    def decide(self, state, options, instruction):
++        ans = self.backend.evaluate_choice("next", self.format_state(state),
++                                           self.Choice(instructions=instruction, criteria=options))
++        self.extra = {"native_choice": ans.choice}
++        return dict(ans.probabilities)
++
++
++class S1OInstrFirst(S1O):
++    """s1o with the constant instruction moved to the front of the prompt and only that prefix cached.
++
++    Prompt: <bos>"Question (choice): {instruction}\\n" + "<state>\\n{state}\\n</state>\\n" +
++    "\\nOptions:" + options rendered by s1.schema.render_option + "\\nAnswer: (". With S1O_CACHE=prefix,
++    each decision first re-primes the slot with the prefix alone (n_predict 0), so the scored request
++    reuses exactly the instruction prefix and nothing from the previous case or order.
++    """
++    name = "s1o_if"
++
++    def __init__(self):
++        self.cache = os.environ.get("S1O_CACHE", "off")
++        assert self.cache in ("off", "prefix")
++        super().__init__()
++        from s1.schema import render_option
++        self.render_option = render_option
++
++    def split_prompt(self, state, options, instruction):
++        state = state if isinstance(state, str) else json.dumps(state, ensure_ascii=False, indent=1)
++        prefix = [self.bos_token_id] + self.encode(f"Question (choice): {instruction.strip()}\n")
++        body = self.encode("<state>\n") + self.encode(state) + self.encode("\n</state>\n")
++        body += self.encode("\nOptions:" + "".join("\n" + self.render_option(self.LETTERS[j], k, options[k])
++                                                   for j, k in enumerate(options)) + "\nAnswer: (")
++        return prefix, body
++
++    def decide(self, state, options, instruction):
++        prefix, body = self.split_prompt(state, options, instruction)
++        if self.cache == "prefix":
++            self._post("/completion", {"prompt": prefix, "n_predict": 0, "cache_prompt": True})
++        by_id = self.completion_probs(prefix + body, cache_prompt=self.cache == "prefix")
++        raw = {k: by_id[self.letter_ids[j]] for j, k in enumerate(options)}
++        mass = sum(raw.values())
++        self.extra = {"prompt_tokens": len(prefix) + len(body), "prefix_tokens": len(prefix),
++                      "letter_mass_full_vocab": mass, "cache": self.cache}
++        return {k: v / mass for k, v in raw.items()}
++
++
++CANDIDATES = {c.name: c for c in (Mock, Von11, LayaEn, LayaMulti, LayaMicro, S1O,
++                                  LayaEnOnnx, Von11Perm, Von10Nli, S1OInstrFirst)}
+--- /termux-home/v3-runs/base_v3_pre_finalists/measure.py	2026-09-25 03:34:40.324955004 +0000
++++ measure.py	2026-09-25 06:12:40.040158470 +0000
+@@ -1,5 +1,7 @@
+ #!/usr/bin/env python3
+-"""Launch run.py for one candidate in its own venv, offline, on cores 4-7; external peak RSS.
++"""Launch run.py for one candidate in its own venv, offline; external peak RSS.
++
++Cores (default 4-7) and threads (default 4) come from V3_CORES / V3_THREADS.
+ 
+ Usage: measure.py OUTDIR CANDIDATE [run.py args...]
+ Writes OUTDIR/CANDIDATE.{json,stdout.txt,stderr.txt,block.json}. Peak RSS is
+@@ -22,26 +24,50 @@
+     "laya_multi": (f"{SEL}/laya-micro/venv/bin/python", f"{SEL}/laya-micro/hf-cache"),
+     "laya_micro": (f"{SEL}/laya-micro/venv/bin/python", f"{SEL}/laya-micro/hf-cache"),
+     "s1o": (f"{SEL}/s1o/venv/bin/python", None),
++    "s1o_if": (f"{SEL}/s1o/venv/bin/python", None),
++    "laya_en_onnx": (f"{SEL}/laya-micro/venv/bin/python", f"{SEL}/laya0320/hf-cache"),
++    "von11_perm": ("/termux-home/laya-test/venv/bin/python", "/termux-home/von-test/hf-cache"),
++    "von10_nli": ("/termux-home/laya-test/venv/bin/python", "/termux-home/von-test/hf-cache"),
+ }
++CORES = os.environ.get("V3_CORES", "4-7")      # thread/core sweeps set these
++THREADS = os.environ.get("V3_THREADS", "4")
++
++
++def allowed_cpus():
++    """This process's CPU list. Android moves Termux between cpusets (top-app 0-7,
++    foreground 0-5), so a requested core set can silently shrink; record it and refuse."""
++    line = next(l for l in open("/proc/self/status") if l.startswith("Cpus_allowed_list"))
++    cpus = set()
++    for part in line.split(":", 1)[1].strip().split(","):
++        lo, _, hi = part.partition("-")
++        cpus.update(range(int(lo), int(hi or lo) + 1))
++    return cpus
+ 
+ 
+ def main():
+     outdir, candidate, *rest = sys.argv[1:]
++    lo, _, hi = CORES.partition("-")
++    wanted = set(range(int(lo), int(hi or lo) + 1))
++    if not wanted <= allowed_cpus():
++        raise SystemExit(f"cores {CORES} not all allowed now (allowed {sorted(allowed_cpus())}); "
++                         "bring Termux to the foreground (top-app cpuset) and retry")
+     outdir = Path(outdir).resolve()
+     outdir.mkdir(parents=True, exist_ok=True)
+     python, hf_home = ENVS[candidate]
+     env = dict(os.environ, HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", TOKENIZERS_PARALLELISM="false",
+-               USE_TF="0", OMP_NUM_THREADS="4", S1O_SERVER_LOG=str(outdir / f"{candidate}.server.log"))
++               USE_TF="0", OMP_NUM_THREADS=THREADS, V3_THREADS=THREADS, S1O_SERVER_LOG=str(outdir / f"{candidate}.server.log"))
+     if hf_home:
+         env.update(HF_HOME=hf_home, HF_HUB_CACHE=f"{hf_home}/hub")
+-    command = ["taskset", "-c", "4-7", python, str(HERE / "run.py"), "--candidate", candidate,
++    command = ["taskset", "-c", CORES, python, str(HERE / "run.py"), "--candidate", candidate,
+                "--out", str(outdir / f"{candidate}.json"), *rest]
+-    record = {"candidate": candidate, "command": command, "hf_home": hf_home,
+-              "start_utc": datetime.now(timezone.utc).isoformat()}
++    record = {"candidate": candidate, "command": command, "hf_home": hf_home, "cores": CORES, "threads": THREADS,
++              "env": {k: v for k, v in env.items() if k.startswith(("S1O_", "V3_"))},
++              "cpus_allowed_start": sorted(allowed_cpus()), "start_utc": datetime.now(timezone.utc).isoformat()}
+     with open(outdir / f"{candidate}.stdout.txt", "xb") as out, open(outdir / f"{candidate}.stderr.txt", "xb") as err:
+         proc = subprocess.Popen(command, cwd=outdir, env=env, stdout=out, stderr=err)
+         _, status, usage = os.wait4(proc.pid, 0)
+-    record.update(end_utc=datetime.now(timezone.utc).isoformat(), exit_code=os.waitstatus_to_exitcode(status),
++    record.update(end_utc=datetime.now(timezone.utc).isoformat(), cpus_allowed_end=sorted(allowed_cpus()),
++                  exit_code=os.waitstatus_to_exitcode(status),
+                   peak_rss_mib_wait4=round(usage.ru_maxrss / 1024, 1))
+     with open(outdir / f"{candidate}.block.json", "x") as f:
+         json.dump(record, f, indent=2)
+--- /termux-home/v3-runs/base_v3_pre_finalists/report.py	2026-09-25 03:34:40.328955004 +0000
++++ report.py	2026-09-25 03:36:46.616955066 +0000
+@@ -1,52 +1,94 @@
+ #!/usr/bin/env python3
+-"""Markdown tables from a measure.py output directory: overall, per family, parity."""
++"""Markdown tables from one or more measure.py output directories, recomputed from rows.
++
++Usage: report.py [--families judgment|all|a,b] DIR [DIR ...]
++Default families are the four judgment families; counts, flips and warm stats are
++recomputed from the logged rows, so a run over all families reports correctly too.
++Warm stats exclude the run's first call. Each row of the table is one DIR/candidate.
++"""
++import argparse
+ import json
++import statistics
+ import sys
+ from pathlib import Path
+ 
++HERE = Path(__file__).resolve().parent
++sys.path.insert(0, str(HERE))
++from cases import load_v2
++from run import JUDGMENT_FAMILIES
++
+ 
+ def main():
+-    outdir = Path(sys.argv[1])
++    ap = argparse.ArgumentParser(description=__doc__)
++    ap.add_argument("--families", default="judgment")
++    ap.add_argument("dirs", nargs="+", type=Path)
++    args = ap.parse_args()
++    v2 = load_v2()
++    fams = (JUDGMENT_FAMILIES if args.families == "judgment" else v2.FAMILIES if args.families == "all"
++            else tuple(args.families.split(",")))
+     results = []
+-    for path in sorted(outdir.glob("*.block.json")):
+-        block = json.loads(path.read_text())
+-        data = json.loads((outdir / f"{block['candidate']}.json").read_text())
+-        results.append((block, data))
+-    print("| Candidate | Cases | Preferred | Acceptable | Pref. rev | Acc. rev | Invalid | Order flips | Ties | "
++    for outdir in args.dirs:
++        for path in sorted(outdir.glob("*.block.json")):
++            block = json.loads(path.read_text())
++            data = json.loads((outdir / f"{block['candidate']}.json").read_text())
++            results.append((outdir, block, data))
++
++    print(f"Families: {', '.join(fams)}\n")
++    print("| Run | Candidate | Cores/threads | Cases | Acceptable | Preferred | Acc. rev | Pref. rev | Flips | "
+           "Load ms | First-call ms | Warm p50 ms | Warm p95 ms | Peak RSS MiB |")
+-    print("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+-    for block, d in results:
+-        s, n, r = d["summary"], d["summary"]["normal"], d["summary"]["reverse"]
+-        print(f"| {d['candidate']} | {s['cases']} | {n['preferred']} | {n['acceptable']} | {r['preferred']} | "
+-              f"{r['acceptable']} | {n['invalid_or_ineligible'] + r['invalid_or_ineligible']} | "
+-              f"{s['order_flips']}/{s['cases']} | {s['ties']} | {d['load_ms']} | {s['first_call_ms']} | "
+-              f"{s['warm_p50_ms']} | {s['warm_p95_ms']} | {block['peak_rss_mib_wait4']} |")
+-    families = list(results[0][1]["summary"]["normal"]["per_family"]) if results else []
+-    print("\nPer family, canonical order. Each cell: preferred x/n · acceptable y/n.\n")
+-    head = [d["candidate"] for _, d in results]
+-    print("| Family | " + " | ".join(head) + " |")
+-    print("|---|" + "---:|" * len(head))
+-    for fam in families:
++    print("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
++    for outdir, block, d in results:
++        rows = [r for r in d["rows"] if r["family"] in fams]
++        first = d["rows"][0]["calls"][0] if d["rows"] else None
++        warm = [c["ms"] for r in rows for c in r["calls"] if c is not first]
++        by = {o: [r for r in rows if r["order"] == o] for o in ("normal", "reverse")}
++        normal = {r["case_id"]: r["choice"] for r in by["normal"]}
++        reverse = {r["case_id"]: r["choice"] for r in by["reverse"]}
++        flips = sum(normal[c] != reverse.get(c) for c in normal)
++        n = len(normal)
++        p95 = round(v2.quantile(warm, 0.95), 1) if warm else None
++        print(f"| {outdir.name} | {d['candidate']} | {block.get('cores', '4-7')}/{block.get('threads', '4')} | {n} | "
++              f"{sum(r['acceptable_match'] for r in by['normal'])} | {sum(r['preferred_match'] for r in by['normal'])} | "
++              f"{sum(r['acceptable_match'] for r in by['reverse'])} | {sum(r['preferred_match'] for r in by['reverse'])} | "
++              f"{flips}/{n} | {d['load_ms']} | {d['summary']['first_call_ms']} | "
++              f"{round(statistics.median(warm), 1) if warm else None} | {p95} | {block['peak_rss_mib_wait4']} |")
++
++    print("\nPer family, canonical order. Each cell: acceptable y/n · preferred x/n.\n")
++    print("| Family | " + " | ".join(f"{o.name}/{d['candidate']}" for o, _, d in results) + " |")
++    print("|---|" + "---:|" * len(results))
++    for fam in fams:
+         cells = []
+-        for _, d in results:
+-            f = d["summary"]["normal"]["per_family"][fam]
+-            cells.append(f"P {f['preferred']}/{f['n']} · A {f['acceptable']}/{f['n']}")
++        for _, _, d in results:
++            rows = [r for r in d["rows"] if r["family"] == fam and r["order"] == "normal"]
++            cells.append(f"A {sum(r['acceptable_match'] for r in rows)}/{len(rows)} · "
++                         f"P {sum(r['preferred_match'] for r in rows)}/{len(rows)}")
+         print(f"| {fam} | " + " | ".join(cells) + " |")
+-    for block, d in results:
+-        calls = [c for row in d["rows"] for c in row["calls"]]
+-        parity = [c["extra"]["tokenizer_parity_vs_stock"] for c in calls if "tokenizer_parity_vs_stock" in c["extra"]]
+-        native = [c["argmax"] == c["extra"]["native_choice"] for c in calls if "native_choice" in c["extra"]]
+-        mass = [c["extra"]["letter_mass_full_vocab"] for c in calls if "letter_mass_full_vocab" in c["extra"]]
++
++    for outdir, block, d in results:
++        calls = [c for r in d["rows"] if r["family"] in fams for c in r["calls"]]
+         notes = []
+-        if parity:
+-            notes.append(f"tokenizer parity vs stock {sum(parity)}/{len(parity)} calls")
++        for key, label in (("tokenizer_parity_vs_stock", "tokenizer parity vs stock"),):
++            vals = [c["extra"][key] for c in calls if key in c["extra"]]
++            if vals:
++                notes.append(f"{label} {sum(vals)}/{len(vals)} calls")
++        native = [c["argmax"] == c["extra"]["native_choice"] for c in calls if "native_choice" in c["extra"]]
+         if native:
+             notes.append(f"argmax == native choice {sum(native)}/{len(native)} calls")
++        mass = [c["extra"]["letter_mass_full_vocab"] for c in calls if "letter_mass_full_vocab" in c["extra"]]
+         if mass:
+-            notes.append(f"A-letter mass in full vocab min {min(mass):.4f} median {sorted(mass)[len(mass) // 2]:.4f}")
++            notes.append(f"letter mass in full vocab min {min(mass):.4f} median {sorted(mass)[len(mass) // 2]:.4f}")
++        toks = [c["extra"]["prompt_tokens"] for c in calls if "prompt_tokens" in c["extra"]]
++        if toks:
++            notes.append(f"prompt tokens median {sorted(toks)[len(toks) // 2]} (min {min(toks)}, max {max(toks)})")
++        rots = [c["extra"]["rotations"] for c in calls if "rotations" in c["extra"]]
++        if rots:
++            chk = [c["extra"]["batched_vs_sequential_max_abs_diff"] for c in calls
++                   if "batched_vs_sequential_max_abs_diff" in c["extra"]]
++            notes.append(f"rotations per decision {min(rots)}-{max(rots)}; batched==sequential check on "
++                         f"{len(chk)} decisions, max |diff| {max(chk) if chk else 'n/a'}")
+         if d.get("close"):
+             notes.append(f"server {d['close']}")
+-        print(f"\n- {d['candidate']}: exit {block['exit_code']}; " + "; ".join(notes))
++        print(f"\n- {outdir.name}/{d['candidate']}: exit {block['exit_code']}; " + "; ".join(notes))
+ 
+ 
+ if __name__ == "__main__":
+--- /termux-home/v3-runs/base_v3_pre_finalists/run.py	2026-09-25 03:34:40.328955004 +0000
++++ run.py	2026-09-25 03:36:05.480955046 +0000
+@@ -22,6 +22,8 @@
+ from cases import load_v2
+ 
+ DEFAULT_FRAME = "filtered_text"
++# Human decision: Python answers the rule families; the selector is judged on these only.
++JUDGMENT_FAMILIES = ("room_finished", "hall_hint", "repeat_search", "heard_from_room")
+ 
+ 
+ class Recorder:
+@@ -52,13 +54,15 @@
+     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+ 
+ 
+-def load_cases(split, subset):
++def load_cases(split, subset, families):
+     manifest = json.loads((HERE / "CASES.json").read_text())
+     info = manifest["splits"][split]
+     path = HERE / info["file"]
+     if sha(path) != info["sha256"]:
+         raise SystemExit(f"{path.name} hash does not match CASES.json")
+     cases = [json.loads(line) for line in path.read_text().splitlines()]
++    if families is not None:
++        cases = [c for c in cases if c["family"] in families]
+     return (cases[:subset] if subset else cases), info["sha256"]
+ 
+ 
+@@ -93,6 +97,8 @@
+     ap.add_argument("--unseal-heldout", action="store_true", help="required to load the sealed held-out split")
+     ap.add_argument("--frame", default=DEFAULT_FRAME, help="any v2 frame; default " + DEFAULT_FRAME)
+     ap.add_argument("--dev-subset", type=int, default=0, metavar="N", help="first N dev cases (spans families)")
++    ap.add_argument("--families", default="judgment",
++                    help="'judgment' (default: %s), 'all', or a comma-separated list" % ",".join(JUDGMENT_FAMILIES))
+     ap.add_argument("--out", type=Path, required=True)
+     args = ap.parse_args()
+     if args.split == "heldout" and not args.unseal_heldout:
+@@ -104,7 +110,11 @@
+         raise SystemExit(f"unknown frame {args.frame}; v2 frames: {v2.FRAMES}")
+     if args.out.exists():
+         raise FileExistsError(args.out)
+-    cases, cases_sha = load_cases(args.split, args.dev_subset)
++    families = (JUDGMENT_FAMILIES if args.families == "judgment" else None if args.families == "all"
++                else tuple(args.families.split(",")))
++    if families is not None and set(families) - set(v2.FAMILIES):
++        raise SystemExit(f"unknown families: {sorted(set(families) - set(v2.FAMILIES))}")
++    cases, cases_sha = load_cases(args.split, args.dev_subset, families)
+ 
+     began = time.perf_counter()
+     adapter = CANDIDATES[args.candidate]()
+@@ -125,7 +135,7 @@
+         closed = adapter.close() if hasattr(adapter, "close") else None
+     summary = summarise(rows, rec.log, v2.quantile)
+     report = {"candidate": args.candidate, "doc": (adapter.__doc__ or "").strip(), "split": args.split,
+-              "frame": args.frame, "dev_subset": args.dev_subset, "cases_sha256": cases_sha,
++              "frame": args.frame, "dev_subset": args.dev_subset, "families": families, "cases_sha256": cases_sha,
+               "load_ms": round(adapter.load_ms, 1), "summary": summary, "close": closed,
+               "harness_sha256": {p.name: sha(p) for p in sorted(HERE.glob("*.py"))},
+               "v2_sha256": sha(HERE.parent / "robot_selector_benchmark.py"),
+--- /termux-home/v3-runs/base_v3_pre_finalists/test_v3.py	2026-09-25 03:34:40.336955004 +0000
++++ test_v3.py	2026-09-25 03:36:30.728955058 +0000
+@@ -29,7 +29,7 @@
+         assert (c["preferred"], c["acceptable"]) == (ref["preferred"], ref["acceptable"]), c["id"]
+         assert c["preferred"] in v2.options_for(c, "filtered_text", "flat", None), c["id"]
+ 
+-    run = [sys.executable, str(HERE / "run.py"), "--candidate", "mock"]
++    run = [sys.executable, str(HERE / "run.py"), "--candidate", "mock", "--families", "all"]
+     sealed = subprocess.run(run + ["--split", "heldout", "--out", "/nonexistent"], capture_output=True, text=True)
+     assert sealed.returncode != 0 and "sealed" in sealed.stderr, sealed.stderr
+ 
+@@ -46,6 +46,11 @@
+         rev = [r for r in d["rows"] if r["order"] == "reverse"]
+         assert all(r["offered_first"] == list(reversed(n["offered_first"]))
+                    for n, r in zip([r for r in d["rows"] if r["order"] == "normal"], rev))
++    with tempfile.TemporaryDirectory() as tmp:  # default = the four judgment families
++        out = Path(tmp) / "mock.json"
++        subprocess.run(run[:-2] + ["--out", str(out)], check=True, capture_output=True)
++        fams = {r["family"] for r in json.loads(out.read_text())["rows"]}
++        assert fams == {"room_finished", "hall_hint", "repeat_search", "heard_from_room"}, fams
+     print("test_v3: all checks passed")
+ 
+ 
+
+==================== FINAL SHA-256 ====================
+23e90a3d51daea89f3689aaadb3f4a56a43f23f26dd76785257f15c653e099bc  adapters.py
+892a946dab0ff0973224b1fceb01400661f7a0f40f22892ace306d2dd4678781  cases.py
+7040be22ec0bf2ef8dadb5b46a52e10402ab84d1ffd38eab0020430519705242  measure.py
+46c34d87d228ac6418e5c457c703494626b49ce2404083fcc74811a0731092c2  report.py
+a491c3646ad1f581d872bef548155b39172db880957f16789aa743d9f6374c48  run.py
+1f176e9430d13f863d47c21002946fd38c2ffd56f254f029e851a2b820a58194  s1o_probs_evidence.py
+696d1f6772df9607453e79999a7be0285f21f837cbdc1351d371426906d051eb  test_v3.py
+fddf3a31f59b3a00dbab16d6e25d37686c74d20171930da395feafd449c0fbe2  CASES.json
+a4e0f0bf318a6d4b068e03dd9325b44c917687e9d8334b1d9c872b3a700b8420  dev.jsonl
+96d41308eb0d2fa0c3bf30c1370eb93d1b4b7afbfd13cd433370cfd5cc3b2601  heldout.jsonl
+
+==================== repeat_search DUMP ====================
+# repeat_search development rows (frame filtered_text), finalists
+
+## dev_repeat_search_0 — normal
+
+State: Mission: find Chiara. Current room: living_room. Localization: confirmed. Room history: bedroom: unsearched; hall: transit; kitchen: unsearched; living_room: searched_no_target; toilet: unsearched. Reachable rooms: bedroom (8.8 m), kitchen (7.8 m), toilet (1.7 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 193 cm; ultrasonic front: 195 cm; sensor age 0.35 s. The room search already repeated without finding Chiara.
+
+Offered (in order): `call_chiara`, `ask_gemma`, `travel:bedroom`, `travel:kitchen`, `travel:toilet`
+
+Label: preferred `travel:toilet`; acceptable ['travel:bedroom', 'travel:kitchen', 'travel:toilet']
+
+| Candidate | Choice | Preferred? | Acceptable? | Distribution |
+|---|---|---|---|---|
+| laya_en | `travel:bedroom` | False | True | call_chiara 0.332, ask_gemma 0.056, travel:bedroom 0.422, travel:kitchen 0.088, travel:toilet 0.102 |
+| s1o | `travel:bedroom` | False | True | call_chiara 0.012, ask_gemma 0.003, travel:bedroom 0.977, travel:kitchen 0.008, travel:toilet 0.000 |
+| von11 | `travel:bedroom` | False | True | call_chiara 0.065, ask_gemma 0.130, travel:bedroom 0.479, travel:kitchen 0.175, travel:toilet 0.150 |
+
+## dev_repeat_search_0 — reverse
+
+State: Mission: find Chiara. Current room: living_room. Localization: confirmed. Room history: bedroom: unsearched; hall: transit; kitchen: unsearched; living_room: searched_no_target; toilet: unsearched. Reachable rooms: bedroom (8.8 m), kitchen (7.8 m), toilet (1.7 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 193 cm; ultrasonic front: 195 cm; sensor age 0.35 s. The room search already repeated without finding Chiara.
+
+Offered (in order): `travel:toilet`, `travel:kitchen`, `travel:bedroom`, `ask_gemma`, `call_chiara`
+
+Label: preferred `travel:toilet`; acceptable ['travel:bedroom', 'travel:kitchen', 'travel:toilet']
+
+| Candidate | Choice | Preferred? | Acceptable? | Distribution |
+|---|---|---|---|---|
+| laya_en | `travel:bedroom` | False | True | travel:toilet 0.136, travel:kitchen 0.158, travel:bedroom 0.340, ask_gemma 0.090, call_chiara 0.276 |
+| s1o | `ask_gemma` | False | False | travel:toilet 0.053, travel:kitchen 0.014, travel:bedroom 0.013, ask_gemma 0.541, call_chiara 0.379 |
+| von11 | `travel:toilet` | True | True | travel:toilet 0.267, travel:kitchen 0.253, travel:bedroom 0.212, ask_gemma 0.151, call_chiara 0.117 |
+
+## dev_repeat_search_1 — normal
+
+State: Mission: find Chiara. Current room: kitchen. Localization: confirmed. Room history: bedroom: unsearched; hall: transit; kitchen: searched_no_target; living_room: unsearched; toilet: unsearched. Reachable rooms: bedroom (1.5 m), living_room (5.0 m), toilet (7.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 218 cm; ultrasonic front: 222 cm; sensor age 0.27 s. The room search already repeated without finding Chiara.
+
+Offered (in order): `call_chiara`, `ask_gemma`, `travel:bedroom`, `travel:living_room`, `travel:toilet`
+
+Label: preferred `travel:bedroom`; acceptable ['travel:bedroom', 'travel:living_room', 'travel:toilet']
+
+| Candidate | Choice | Preferred? | Acceptable? | Distribution |
+|---|---|---|---|---|
+| laya_en | `travel:bedroom` | True | True | call_chiara 0.295, ask_gemma 0.061, travel:bedroom 0.399, travel:living_room 0.127, travel:toilet 0.118 |
+| s1o | `travel:bedroom` | True | True | call_chiara 0.006, ask_gemma 0.001, travel:bedroom 0.959, travel:living_room 0.033, travel:toilet 0.000 |
+| von11 | `travel:bedroom` | True | True | call_chiara 0.079, ask_gemma 0.154, travel:bedroom 0.399, travel:living_room 0.202, travel:toilet 0.166 |
+
+## dev_repeat_search_1 — reverse
+
+State: Mission: find Chiara. Current room: kitchen. Localization: confirmed. Room history: bedroom: unsearched; hall: transit; kitchen: searched_no_target; living_room: unsearched; toilet: unsearched. Reachable rooms: bedroom (1.5 m), living_room (5.0 m), toilet (7.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 218 cm; ultrasonic front: 222 cm; sensor age 0.27 s. The room search already repeated without finding Chiara.
+
+Offered (in order): `travel:toilet`, `travel:living_room`, `travel:bedroom`, `ask_gemma`, `call_chiara`
+
+Label: preferred `travel:bedroom`; acceptable ['travel:bedroom', 'travel:living_room', 'travel:toilet']
+
+| Candidate | Choice | Preferred? | Acceptable? | Distribution |
+|---|---|---|---|---|
+| laya_en | `travel:living_room` | False | True | travel:toilet 0.109, travel:living_room 0.347, travel:bedroom 0.169, ask_gemma 0.090, call_chiara 0.286 |
+| s1o | `call_chiara` | False | False | travel:toilet 0.099, travel:living_room 0.335, travel:bedroom 0.059, ask_gemma 0.130, call_chiara 0.377 |
+| von11 | `travel:toilet` | False | True | travel:toilet 0.415, travel:living_room 0.200, travel:bedroom 0.124, ask_gemma 0.144, call_chiara 0.117 |
+
+## dev_repeat_search_2 — normal
+
+State: Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; hall: transit; kitchen: unsearched; living_room: unsearched; toilet: unsearched. Reachable rooms: living_room (5.0 m), kitchen (2.1 m), toilet (8.9 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 67 cm; ultrasonic front: 67 cm; sensor age 0.45 s. The room search already repeated without finding Chiara.
+
+Offered (in order): `call_chiara`, `ask_gemma`, `travel:living_room`, `travel:kitchen`, `travel:toilet`
+
+Label: preferred `travel:kitchen`; acceptable ['travel:living_room', 'travel:kitchen', 'travel:toilet']
+
+| Candidate | Choice | Preferred? | Acceptable? | Distribution |
+|---|---|---|---|---|
+| laya_en | `travel:living_room` | False | True | call_chiara 0.284, ask_gemma 0.069, travel:living_room 0.457, travel:kitchen 0.069, travel:toilet 0.122 |
+| s1o | `travel:living_room` | False | True | call_chiara 0.001, ask_gemma 0.000, travel:living_room 0.998, travel:kitchen 0.000, travel:toilet 0.000 |
+| von11 | `travel:living_room` | False | True | call_chiara 0.067, ask_gemma 0.131, travel:living_room 0.479, travel:kitchen 0.174, travel:toilet 0.148 |
+
+## dev_repeat_search_2 — reverse
+
+State: Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; hall: transit; kitchen: unsearched; living_room: unsearched; toilet: unsearched. Reachable rooms: living_room (5.0 m), kitchen (2.1 m), toilet (8.9 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 67 cm; ultrasonic front: 67 cm; sensor age 0.45 s. The room search already repeated without finding Chiara.
+
+Offered (in order): `travel:toilet`, `travel:kitchen`, `travel:living_room`, `ask_gemma`, `call_chiara`
+
+Label: preferred `travel:kitchen`; acceptable ['travel:living_room', 'travel:kitchen', 'travel:toilet']
+
+| Candidate | Choice | Preferred? | Acceptable? | Distribution |
+|---|---|---|---|---|
+| laya_en | `call_chiara` | False | False | travel:toilet 0.150, travel:kitchen 0.143, travel:living_room 0.234, ask_gemma 0.123, call_chiara 0.351 |
+| s1o | `travel:living_room` | False | True | travel:toilet 0.008, travel:kitchen 0.003, travel:living_room 0.971, ask_gemma 0.009, call_chiara 0.009 |
+| von11 | `travel:toilet` | False | True | travel:toilet 0.425, travel:kitchen 0.194, travel:living_room 0.180, ask_gemma 0.111, call_chiara 0.090 |
+
+## dev_repeat_search_3 — normal
+
+State: Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; hall: transit; kitchen: unsearched; living_room: unsearched; toilet: unsearched. Reachable rooms: living_room (3.7 m), kitchen (1.7 m), toilet (6.6 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 49 cm; ultrasonic front: 50 cm; sensor age 0.13 s. The room search already repeated without finding Chiara.
+
+Offered (in order): `call_chiara`, `ask_gemma`, `travel:living_room`, `travel:kitchen`, `travel:toilet`
+
+Label: preferred `travel:kitchen`; acceptable ['travel:living_room', 'travel:kitchen', 'travel:toilet']
+
+| Candidate | Choice | Preferred? | Acceptable? | Distribution |
+|---|---|---|---|---|
+| laya_en | `travel:living_room` | False | True | call_chiara 0.297, ask_gemma 0.073, travel:living_room 0.459, travel:kitchen 0.074, travel:toilet 0.097 |
+| s1o | `travel:living_room` | False | True | call_chiara 0.001, ask_gemma 0.000, travel:living_room 0.998, travel:kitchen 0.000, travel:toilet 0.000 |
+| von11 | `travel:living_room` | False | True | call_chiara 0.068, ask_gemma 0.134, travel:living_room 0.486, travel:kitchen 0.167, travel:toilet 0.146 |
+
+## dev_repeat_search_3 — reverse
+
+State: Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; hall: transit; kitchen: unsearched; living_room: unsearched; toilet: unsearched. Reachable rooms: living_room (3.7 m), kitchen (1.7 m), toilet (6.6 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 49 cm; ultrasonic front: 50 cm; sensor age 0.13 s. The room search already repeated without finding Chiara.
+
+Offered (in order): `travel:toilet`, `travel:kitchen`, `travel:living_room`, `ask_gemma`, `call_chiara`
+
+Label: preferred `travel:kitchen`; acceptable ['travel:living_room', 'travel:kitchen', 'travel:toilet']
+
+| Candidate | Choice | Preferred? | Acceptable? | Distribution |
+|---|---|---|---|---|
+| laya_en | `call_chiara` | False | False | travel:toilet 0.146, travel:kitchen 0.147, travel:living_room 0.200, ask_gemma 0.127, call_chiara 0.381 |
+| s1o | `travel:living_room` | False | True | travel:toilet 0.023, travel:kitchen 0.008, travel:living_room 0.807, ask_gemma 0.040, call_chiara 0.122 |
+| von11 | `travel:toilet` | False | True | travel:toilet 0.412, travel:kitchen 0.207, travel:living_room 0.191, ask_gemma 0.106, call_chiara 0.084 |
+
+## dev_repeat_search_4 — normal
+
+State: Mission: find Chiara. Current room: living_room. Localization: confirmed. Room history: bedroom: unsearched; hall: transit; kitchen: unsearched; living_room: searched_no_target; toilet: unsearched. Reachable rooms: bedroom (8.1 m), kitchen (6.9 m), toilet (2.6 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 152 cm; ultrasonic front: 156 cm; sensor age 0.20 s. The room search already repeated without finding Chiara.
+
+Offered (in order): `call_chiara`, `ask_gemma`, `travel:bedroom`, `travel:kitchen`, `travel:toilet`
+
+Label: preferred `travel:toilet`; acceptable ['travel:bedroom', 'travel:kitchen', 'travel:toilet']
+
+| Candidate | Choice | Preferred? | Acceptable? | Distribution |
+|---|---|---|---|---|
+| laya_en | `travel:bedroom` | False | True | call_chiara 0.344, ask_gemma 0.061, travel:bedroom 0.406, travel:kitchen 0.086, travel:toilet 0.103 |
+| s1o | `travel:bedroom` | False | True | call_chiara 0.034, ask_gemma 0.004, travel:bedroom 0.953, travel:kitchen 0.009, travel:toilet 0.000 |
+| von11 | `travel:bedroom` | False | True | call_chiara 0.065, ask_gemma 0.131, travel:bedroom 0.481, travel:kitchen 0.172, travel:toilet 0.151 |
+
+## dev_repeat_search_4 — reverse
+
+State: Mission: find Chiara. Current room: living_room. Localization: confirmed. Room history: bedroom: unsearched; hall: transit; kitchen: unsearched; living_room: searched_no_target; toilet: unsearched. Reachable rooms: bedroom (8.1 m), kitchen (6.9 m), toilet (2.6 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 152 cm; ultrasonic front: 156 cm; sensor age 0.20 s. The room search already repeated without finding Chiara.
+
+Offered (in order): `travel:toilet`, `travel:kitchen`, `travel:bedroom`, `ask_gemma`, `call_chiara`
+
+Label: preferred `travel:toilet`; acceptable ['travel:bedroom', 'travel:kitchen', 'travel:toilet']
+
+| Candidate | Choice | Preferred? | Acceptable? | Distribution |
+|---|---|---|---|---|
+| laya_en | `travel:bedroom` | False | True | travel:toilet 0.147, travel:kitchen 0.150, travel:bedroom 0.312, ask_gemma 0.096, call_chiara 0.294 |
+| s1o | `call_chiara` | False | False | travel:toilet 0.057, travel:kitchen 0.011, travel:bedroom 0.010, ask_gemma 0.181, call_chiara 0.742 |
+| von11 | `travel:toilet` | True | True | travel:toilet 0.296, travel:kitchen 0.251, travel:bedroom 0.179, ask_gemma 0.152, call_chiara 0.121 |
+
+## dev_repeat_search_5 — normal
+
+State: Mission: find Chiara. Current room: living_room. Localization: confirmed. Room history: bedroom: unsearched; hall: transit; kitchen: unsearched; living_room: searched_no_target; toilet: unsearched. Reachable rooms: bedroom (5.2 m), kitchen (8.0 m), toilet (1.4 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 41 cm; ultrasonic front: 43 cm; sensor age 0.10 s. The room search already repeated without finding Chiara.
+
+Offered (in order): `call_chiara`, `ask_gemma`, `travel:bedroom`, `travel:kitchen`, `travel:toilet`
+
+Label: preferred `travel:toilet`; acceptable ['travel:bedroom', 'travel:kitchen', 'travel:toilet']
+
+| Candidate | Choice | Preferred? | Acceptable? | Distribution |
+|---|---|---|---|---|
+| laya_en | `travel:bedroom` | False | True | call_chiara 0.339, ask_gemma 0.060, travel:bedroom 0.398, travel:kitchen 0.098, travel:toilet 0.105 |
+| s1o | `travel:bedroom` | False | True | call_chiara 0.015, ask_gemma 0.004, travel:bedroom 0.976, travel:kitchen 0.005, travel:toilet 0.000 |
+| von11 | `travel:bedroom` | False | True | call_chiara 0.069, ask_gemma 0.130, travel:bedroom 0.477, travel:kitchen 0.174, travel:toilet 0.150 |
+
+## dev_repeat_search_5 — reverse
+
+State: Mission: find Chiara. Current room: living_room. Localization: confirmed. Room history: bedroom: unsearched; hall: transit; kitchen: unsearched; living_room: searched_no_target; toilet: unsearched. Reachable rooms: bedroom (5.2 m), kitchen (8.0 m), toilet (1.4 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 41 cm; ultrasonic front: 43 cm; sensor age 0.10 s. The room search already repeated without finding Chiara.
+
+Offered (in order): `travel:toilet`, `travel:kitchen`, `travel:bedroom`, `ask_gemma`, `call_chiara`
+
+Label: preferred `travel:toilet`; acceptable ['travel:bedroom', 'travel:kitchen', 'travel:toilet']
+
+| Candidate | Choice | Preferred? | Acceptable? | Distribution |
+|---|---|---|---|---|
+| laya_en | `travel:bedroom` | False | True | travel:toilet 0.149, travel:kitchen 0.151, travel:bedroom 0.311, ask_gemma 0.102, call_chiara 0.287 |
+| s1o | `call_chiara` | False | False | travel:toilet 0.039, travel:kitchen 0.017, travel:bedroom 0.014, ask_gemma 0.161, call_chiara 0.769 |
+| von11 | `travel:kitchen` | False | True | travel:toilet 0.242, travel:kitchen 0.269, travel:bedroom 0.212, ask_gemma 0.157, call_chiara 0.120 |
+
+
+==================== REVIEW REQUEST ====================
+1. Harness diff: correctness of --families (run.py, report.py recompute from rows incl. warm stats excluding the run's first call), the new adapters (LayaEnOnnx overlay, Von11Perm batching/temperature/averaging, Von10Nli, S1OInstrFirst prompt and prefix-only caching), measure.py cpuset guard.
+2. laya_en parity gate: is 48/48 argmax with max |diff| 0.0001 valid evidence (torch probabilities are rounded to 4 dp)?
+3. s1o: is the conclusion "prefix caching changes probabilities in build 1609, so 'unchanged' cannot be confirmed; s1o is out (best warm median ~24.9 s >> 3000 ms)" supported?
+4. Von: are 5a numbers right from the table; is the permutation-averaging implementation faithful to the spec (cyclic rotations, map back to keys, average, argmax) and is the reversal-invariance note correct; is von10_nli a legitimate second backend; which Von variant is best under the winner rule and does it pass the 3000 ms gate provisionally?
+5. repeat_search: is the coder's judgment of the preferred label sound?
+6. Gate status per finalist, and threats (esp. the cpuset caveat, provisional timings, laya_en reversed-order acceptable 7/24 vs canonical 24/24).
+Return: verdict (PASS / PASS WITH CAVEATS / FAIL / INCOMPLETE), numbered findings with severity and evidence.

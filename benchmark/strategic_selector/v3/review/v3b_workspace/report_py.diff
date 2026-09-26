@@ -1,0 +1,25 @@
+--- /tmp/claude-0/-data-data-com-termux-files-home-robot/861a0a6f-957a-4f4c-89f0-a59cee9d75e3/scratchpad/review_v3/v3/report.py	2026-09-25 00:07:28.616948934 +0000
++++ /termux-home/robot/benchmark/strategic_selector/v3/report.py	2026-09-25 03:10:48.108954305 +0000
+@@ -22,15 +22,16 @@
+               f"{s['order_flips']}/{s['cases']} | {s['ties']} | {d['load_ms']} | {s['first_call_ms']} | "
+               f"{s['warm_p50_ms']} | {s['warm_p95_ms']} | {block['peak_rss_mib_wait4']} |")
+     families = list(results[0][1]["summary"]["normal"]["per_family"]) if results else []
+-    print("\nPer family, canonical order, preferred/acceptable (n per family shown in header):\n")
++    print("\nPer family, canonical order. Each cell: preferred x/n · acceptable y/n.\n")
+     head = [d["candidate"] for _, d in results]
+-    print("| Family (n) | " + " | ".join(head) + " |")
++    print("| Family | " + " | ".join(head) + " |")
+     print("|---|" + "---:|" * len(head))
+     for fam in families:
+-        n = results[0][1]["summary"]["normal"]["per_family"][fam]["n"]
+-        cells = [f"{d['summary']['normal']['per_family'][fam]['preferred']}/"
+-                 f"{d['summary']['normal']['per_family'][fam]['acceptable']}" for _, d in results]
+-        print(f"| {fam} ({n}) | " + " | ".join(cells) + " |")
++        cells = []
++        for _, d in results:
++            f = d["summary"]["normal"]["per_family"][fam]
++            cells.append(f"P {f['preferred']}/{f['n']} · A {f['acceptable']}/{f['n']}")
++        print(f"| {fam} | " + " | ".join(cells) + " |")
+     for block, d in results:
+         calls = [c for row in d["rows"] for c in row["calls"]]
+         parity = [c["extra"]["tokenizer_parity_vs_stock"] for c in calls if "tokenizer_parity_vs_stock" in c["extra"]]
