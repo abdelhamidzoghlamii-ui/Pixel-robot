@@ -1,0 +1,27 @@
+# robot-jevlike request (like a Jev request: one INPUT, any number of QUESTIONs).
+# Write the situation after INPUT:, then each QUESTION: with its instruction and
+# one choice per line starting with "-". Lines starting with # are ignored.
+# Save and exit (nano: Ctrl-O Enter, Ctrl-X), then compile or add a question.
+#
+# No limit is enforced. Advised maximums (choices per question / questions per run):
+#   laya_en, laya_multi, laya_micro   10 / 10
+#       instruction + all choices share a 192-token head, each choice is cut at 48
+#       tokens; past the budget choices get truncated. Calibrated for 2, 3-5, 6-10, 11+.
+#       Whole sequence 512 tokens: a long INPUT gets cut at the end. ~0.3-0.6 s/question.
+#   von11, von12                      8 / 6
+#       one 2048-token sequence; calibration trained on up to ~8 options. ~0.8 s/question.
+#   von10 NLI                         6 / 3
+#       one 512-token pair per choice, time grows with choices (~0.45 s per choice).
+#   s1o                               12 / 1-2
+#       hard stop at 52 choices (A-Z, a-z); only A-L are checked single-token.
+#       2048-token context. ~5 s per question.
+
+INPUT:
+you are a robot ,your objective is: find chiara,navigation history:bedroom,searched bedroom,livingroom..
+
+QUESTION: What should the robot do next?
+- search this room
+- return to previous room
+- go to next room
+- give up and ask for help
+- do a little dance!

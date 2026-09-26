@@ -17,7 +17,7 @@ stdin/stdout), reusing the unmodified v3 harness adapters in `../../v3`
 (`adapters.py`, `measure.py`), which must be present. One model is loaded at a
 time; s1o starts and stops its own llama-server; nothing is left running on
 quit or Ctrl-C. Worker logs and the last request live outside the repo in
-`/termux-home/jevlike/`.
+`/termux-home/jevlike/`; the logs of the 2026-09-25 sessions are archived in [logs/](logs/README.md).
 
 ## Launch
 
