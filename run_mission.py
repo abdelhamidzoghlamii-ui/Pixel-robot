@@ -22,6 +22,7 @@ if not dry:
     print("distance:", motors.get_distance(), "cm")
 
 robot = R.Robot(motors)
+R.warm_up()
 print(f"\nmission: {mission}{'   [DRY — no motor commands]' if dry else ''}")
 print("ctrl-C to stop\n")
 

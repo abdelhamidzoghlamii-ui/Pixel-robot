@@ -118,7 +118,7 @@ EXAMPLES:
 → [{"type":"come_back"}]
 """
 
-def parse_command(text):
+def parse_command(text, timeout=40):
     prompt = (
         '<start_of_turn>user\n' + PARSE_SYS +
         '\nCommand: "' + text + '"'
@@ -128,7 +128,7 @@ def parse_command(text):
         resp = requests.post(GEMMA_URL, json={
             'prompt': prompt, 'n_predict': 300,
             'temperature': 0.05, 'stop': ['<end_of_turn>', '\n\n']
-        }, timeout=20)
+        }, timeout=timeout)
         raw = resp.json()['content']
         # Model starts after [ which we injected
         raw = '[' + raw
@@ -144,6 +144,25 @@ def parse_command(text):
     except Exception as ex:
         print(f'[PARSE] Error: {ex}')
     return []
+
+def warm_up():
+    """Once the server answers /health (up to 60 s), send one parse and discard it,
+    so the first real command skips the cold prompt (a cold first parse took 39 s)."""
+    health = GEMMA_URL.replace('/completion', '/health')
+    deadline = time.time() + 60
+    while time.time() < deadline:
+        try:
+            if requests.get(health, timeout=max(0.1, min(2, deadline - time.time()))).status_code == 200:
+                break
+        except Exception:
+            pass
+        time.sleep(max(0, min(1, deadline - time.time())))
+    else:
+        print('[WARMUP] server not ready after 60 s; skipped')
+        return
+    t = time.time()
+    parse_command('Go to the kitchen', timeout=60)
+    print(f'[WARMUP] done in {time.time() - t:.1f} s')
 
 # ── TTS ───────────────────────────────────────────────
 def speak(text):
@@ -369,6 +388,7 @@ if __name__ == '__main__':
     print('Robot system initialized')
     print('Testing scene detection...')
     robot = Robot()
+    warm_up()
 
     # Test with scene photo
     if os.path.exists('test_photos/scene_test.jpg'):
