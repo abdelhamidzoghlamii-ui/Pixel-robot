@@ -3,7 +3,7 @@ import time
 import urllib.request
 
 HOME = "/data/data/com.termux/files/home"
-LLAMA_SERVER = HOME + "/llama.cpp/build/bin/llama-server"
+LLAMA_SERVER = HOME + "/llama.cpp-b1609-dotprod/build/bin/llama-server"
 
 # Optimal config (benchmarked on Pixel 7 Tensor G2):
 # --threads 4 --threads-batch 4 → 11-12 tok/s for E2B
