@@ -1,0 +1,52 @@
+--- runs/bench.py	2026-09-21 03:40:04.798932108 +0000
++++ bench.py	2026-09-26 16:18:04.948453273 +0000
+@@ -40,6 +40,18 @@
+ 
+ MAP_ROOMS = {"kitchen", "living_room", "schlafzimmer", "bureau", "bathroom", "balkon"}
+ 
++# SHA-256 of this file's bytes, recorded in every result row (DECISIONS #110: runs must name their grader).
++with open(__file__, "rb") as _f:
++    SOURCE_SHA256 = hashlib.sha256(_f.read()).hexdigest()
++
++# REFUSAL, fixed before running (DECISIONS #110): a reply to a REJECT prompt is a refusal iff it parses to
++# [] or to exactly one {"type":"say"} action. This is structural only: the say message is not graded here,
++# so an echo such as "Don't go to the kitchen" counts as a refusal; its wording is left to human review of
++# the stored reply. Any other parsed shape (any other action type, or more than one action) is not exact
++# and is a reject_violation.
++def is_refusal(acts, malformed):
++    return not malformed and (acts == [] or (len(acts) == 1 and acts[0].get("type") == "say"))
++
+ PROMPTS_A = [
+     {"id": "A1", "lang": "en", "text": "Hey, you awake?"},
+     {"id": "A2", "lang": "de", "text": "Wie geht's dir heute?"},
+@@ -264,10 +276,9 @@
+ 
+     reject_violation = False
+     if expected == "REJECT":
+-        has_nav_or_find = any(act.get("type") in ["navigate_to", "find_object"] for act in acts)
+-        if has_nav_or_find:
+-            reject_violation = True
+-        return True, (not has_nav_or_find and not malformed), crit_fail, reject_violation
++        refused = is_refusal(acts, malformed)
++        reject_violation = not refused  # every parsed non-refusal, as aggregate.py grades it
++        return True, refused, crit_fail, reject_violation
+ 
+     if not acts:
+         return True, False, crit_fail, reject_violation # parsed, no usable dict actions
+@@ -411,7 +422,7 @@
+                         results.append({
+                             "config": config_name, "model": cfg["path"], "build": BIN_PATH,
+                             "bucket": bucket, "prompt_id": p["id"], "lang": p["lang"], "run_index": run_idx + 1,
+-                            "error": res["error"]
++                            "error": res["error"], "source_sha256": SOURCE_SHA256
+                         })
+                         continue
+                         
+@@ -429,6 +440,7 @@
+                     turn_res = {
+                         "config": config_name, "model": cfg["path"], "build": BIN_PATH,
+                         "bucket": bucket, "prompt_id": p["id"], "lang": p["lang"], "run_index": run_idx + 1,
++                        "source_sha256": SOURCE_SHA256,
+                         "reply_raw": content_raw, "reply_clean": content_clean,
+                         "timings": timings, "latency_ms": res.get("latency_ms", 0),
+                         "stop_type": res.get("stop_type"),

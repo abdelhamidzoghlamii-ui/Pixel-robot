@@ -1,0 +1,14 @@
+CONVERSATION SPEED REPORT  (server_manager flags, cores 4-7, one pass over the 27 #110 prompts per block)
+ttft = client time to first streamed token; prompt tok/s median; gen tok/s token-weighted (>= 10 tokens)
+
+model           block     load s  ttft s prompt t/s  gen t/s peak MiB trunc   thermal start -> end (z9 z10 z11 degC); load state
+gemma_e2b_q4km  cold         6.5    3.58       53.4    11.72     4222     0   z9 42.0 z10 38.0 z11 37.0 -> z9 80.0 z10 78.0 z11 79.0; full-cold
+gemma_e2b_q4km  cached       5.4    4.48       39.3    10.59     4628     0   z9 45.0 z10 46.0 z11 46.0 -> z9 68.0 z10 69.0 z11 70.0; cached
+gemma_e2b_q40   cold         7.1    3.58       50.5    12.36     4332     0   z9 44.0 z10 45.0 z11 46.0 -> z9 69.0 z10 70.0 z11 70.0; full-cold
+gemma_e2b_q40   cached       4.9    3.77       48.7    12.10     4332     0   z9 44.0 z10 45.0 z11 46.0 -> z9 67.0 z10 69.0 z11 72.0; cached
+gemma_e4b_q4km  cold        11.8    8.24       20.2     5.48     5494     0   z9 45.0 z10 46.0 z11 46.0 -> z9 68.0 z10 69.0 z11 71.0; full-cold
+gemma_e4b_q4km  cached      11.3    8.37       20.1     5.41     5562     0   z9 45.0 z10 46.0 z11 46.0 -> z9 67.0 z10 68.0 z11 70.0; cached
+qwen35_4b       cold         9.1    5.79       19.4     5.52     5420     0   z9 45.0 z10 46.0 z11 47.0 -> z9 67.0 z10 67.0 z11 70.0; full-cold
+qwen35_4b       cached       8.3    7.21       19.1     5.39     5167     0   z9 46.0 z10 47.0 z11 47.0 -> z9 64.0 z10 65.0 z11 65.0; cached
+qwen35_2b       cold         5.4    1.99       50.0    11.83     2619     0   z9 46.0 z10 47.0 z11 47.0 -> z9 60.0 z10 60.0 z11 60.0; full-cold
+qwen35_2b       cached       4.9    2.64       40.4    10.36     2620     0   z9 46.0 z10 46.0 z11 47.0 -> z9 60.0 z10 60.0 z11 60.0; cached

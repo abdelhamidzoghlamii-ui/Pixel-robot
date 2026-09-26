@@ -1,0 +1,70 @@
+conversation_quality_combined.json
+bench.py source_sha256 in rows: {'0792beeed813d94df2a1d9ce7bffe2f5e2a00a564de4a32aaecfa0182b8e6f8f': 195}
+
+model           regime     run-1 exact  all-run exact   parse  crit reject viol cross-ling r1  errors  trunc
+gemma_e2b_q40   harness          11/13          33/39      39     0           3           5/6       0      0
+gemma_e2b_q40   strict           11/13          33/39      39     0           3           5/6       0      0
+gemma_e2b_q40   lenient          11/13          33/39      39     0           3           5/6       0      0
+gemma_e2b_q4km  harness          11/13          33/39      39     0           3           5/6       0      0
+gemma_e2b_q4km  strict           11/13          33/39      39     0           3           5/6       0      0
+gemma_e2b_q4km  lenient          11/13          33/39      39     0           3           5/6       0      0
+gemma_e4b_q4km  harness          11/13          32/39      38     0           3           5/6       0      0
+gemma_e4b_q4km  strict           11/13          32/39      38     0           3           5/6       0      0
+gemma_e4b_q4km  lenient          11/13          33/39      39     0           3           5/6       0      0
+qwen35_2b       harness           6/13          17/39      39     0           0           3/6       0      0
+qwen35_2b       strict            6/13          17/39      39     0           0           3/6       0      0
+qwen35_2b       lenient           6/13          17/39      39     0           0           3/6       0      0
+qwen35_4b       harness          12/13          36/39      39     0           0           5/6       0      0
+qwen35_4b       strict           12/13          36/39      39     0           0           5/6       0      0
+qwen35_4b       lenient          12/13          36/39      39     0           0           5/6       0      0
+
+Harness-grader misses (prompt, run, reply):
+  gemma_e2b_q40: 6
+    C7 run 1: '[{"type":"navigate_to","room":"schlafzimmer"}]'
+    C7 run 2: '[{"type":"navigate_to","room":"schlafzimmer"}]'
+    C7 run 3: '[{"type":"navigate_to","room":"schlafzimmer"}]'
+    C13 run 1: '[{"type":"say","message":"The food is ready."}]'
+    C13 run 2: '[{"type":"say","message":"Das Essen ist fertig."}]'
+    C13 run 3: '[{"type":"say","message":"Das Essen ist fertig."}]'
+  gemma_e2b_q4km: 6
+    C7 run 1: '[{"type":"navigate_to","room":"schlafzimmer"}]'
+    C7 run 2: '[{"type":"navigate_to","room":"schlafzimmer"}]'
+    C7 run 3: '[{"type":"navigate_to","room":"schlafzimmer"}]'
+    C13 run 1: '[{"type":"say","message":"The food is ready."}]'
+    C13 run 2: '[{"type":"say","message":"The food is ready."}]'
+    C13 run 3: '[{"type":"say","message":"The food is ready."}]'
+  gemma_e4b_q4km: 7
+    C7 run 1: '[{"type":"navigate_to","room":"schlafzimmer"}]'
+    C7 run 2: '[{"type":"find_person","name":"Chiara","message":"Going to Chiara\'s room."}]'
+    C7 run 3: '[{"type":"navigate_to","room":"schlafzimmer"}]'
+    C8 run 3: '{"type":"say","message":"Okay, I will not go to the kitchen."}'
+    C13 run 1: '[{"type":"say","message":"Chiara, das Essen ist fertig."}]'
+    C13 run 2: '[{"type":"say","message":"Chiara, das Essen ist fertig."}]'
+    C13 run 3: '[{"type":"say","message":"Das Essen ist fertig, Chiara."}]'
+  qwen35_2b: 22
+    C1 run 2: '[]'
+    C1 run 3: '[]'
+    C2 run 1: '[]'
+    C2 run 3: '[]'
+    C3 run 1: '[]'
+    C3 run 2: '[]'
+    C3 run 3: '[]'
+    C9 run 1: '[]'
+    C9 run 2: '[]'
+    C9 run 3: '[]'
+    C10 run 1: '[]'
+    C10 run 2: '[]'
+    C10 run 3: '[]'
+    C11 run 1: '[]'
+    C11 run 2: '[]'
+    C11 run 3: '[]'
+    C12 run 1: '[]'
+    C12 run 2: '[]'
+    C12 run 3: '[]'
+    C13 run 1: '[]'
+    C13 run 2: '[]'
+    C13 run 3: '[]'
+  qwen35_4b: 3
+    C3 run 1: '[]'
+    C3 run 2: '[]'
+    C3 run 3: '[]'

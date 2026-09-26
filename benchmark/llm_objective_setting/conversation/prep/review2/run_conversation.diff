@@ -1,0 +1,9 @@
+--- run_conversation.sh.reviewed	2026-09-26 18:42:30.427850598 +0000
++++ /termux-home/ladder/run_conversation.sh	2026-09-26 18:23:01.627850027 +0000
+@@ -1,5 +1,6 @@
+ #!/bin/bash
+ # Conversation speed of five models on the robot's llama.cpp (server_manager.py's binary and flags).
++# Server: server_manager.py binary and flags plus --cache-ram 0 (see conv_speed.server_cmd).
+ # Research only: offline, no motors, no main.py. Per model: a cold block and a cached block, each one pass over
+ # the 27 DECISIONS #110 prompts (conversation, Q&A, objective-setting): load time, time to first token, prompt and
+ # generation tok/s, peak RSS, thermal start/end. Every block waits until z9 <= idle + 4 degC; losing cores 4-7

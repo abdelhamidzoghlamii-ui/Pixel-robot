@@ -1,0 +1,31 @@
+0.00.007.112 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.008.463 W srv  llama_server: -----------------
+0.00.008.524 W srv  llama_server: CORS is set to allow all origins ('*') and no API key is set
+0.00.008.611 W srv  llama_server: this can be a security risk (cross-origin attacks)
+0.00.008.613 W srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655
+0.00.008.668 W srv  llama_server: -----------------
+0.00.010.768 I srv    load_model: loading model '/data/data/com.termux/files/home/models/gemma-4-e4b-it-q4_k_m.gguf'
+0.02.412.144 W load: override 'tokenizer.ggml.add_bos_token' to 'true' for Gemma4
+0.02.528.188 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.02.541.922 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.02.596.972 W load: special_eog_ids contains '<|tool_response>', removing '</s>' token from EOG list
+1.10.482.212 W llama_kv_cache_iswa: using full-size SWA cache (ref: https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
+1.13.528.252 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 2048, kv_unified = 'false'
+1.13.548.542 W common_chat_try_specialized_template: detected an outdated gemma4 chat template, applying compatibility workarounds. Consider updating to the official template.
+1.13.553.104 I srv  llama_server: model loaded
+1.13.553.220 I srv  llama_server: listening on http://127.0.0.1:8080
+1.15.790.271 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+1.15.791.081 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+2.26.244.295 I slot print_timing: id  0 | task 0 | prompt eval time =    8007.16 ms /   102 tokens (   78.50 ms per token,    12.74 tokens per second)
+2.26.244.653 I slot print_timing: id  0 | task 0 |        eval time =   11283.16 ms /    25 tokens (  451.33 ms per token,     2.22 tokens per second)
+2.26.244.657 I slot print_timing: id  0 | task 0 |       total time =   19290.32 ms /   127 tokens
+2.26.244.658 I slot print_timing: id  0 | task 0 |    graphs reused =         24
+2.26.245.782 I slot      release: id  0 | task 0 | stop processing: n_tokens = 126, truncated = 0
+2.26.316.570 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 46395320499
+2.26.324.173 I slot launch_slot_: id  0 | task 26 | processing task, is_child = 0
+2.46.109.679 I slot print_timing: id  0 | task 26 | prompt eval time =   16862.67 ms /   220 tokens (   76.65 ms per token,    13.05 tokens per second)
+2.46.110.503 I slot print_timing: id  0 | task 26 |        eval time =    2922.55 ms /     9 tokens (  324.73 ms per token,     3.08 tokens per second)
+2.46.110.505 I slot print_timing: id  0 | task 26 |       total time =   19785.22 ms /   229 tokens
+2.46.110.507 I slot print_timing: id  0 | task 26 |    graphs reused =         31
+2.46.112.490 I slot      release: id  0 | task 26 | stop processing: n_tokens = 239, truncated = 0
+2.46.132.263 I srv    operator(): operator(): cleaning up before exit...

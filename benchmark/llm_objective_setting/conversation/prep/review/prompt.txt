@@ -1,0 +1,1484 @@
+# Review request: #110 rubric fixes, blind-sheet generation, conversation speed script (Pixel Robot, research only)
+ROLE: Reviewer. PONYTAIL: off. Independent correctness/safety review. Do NOT call any tool or run any command, do not
+edit, create, stage, commit or push anything, do not run motors, and do not launch another reviewer. All material is
+inlined below; answer from this text only.
+
+## Task (human)
+Compare conversation quality and speed of gemma_e2b_q4km (robot default), gemma_e2b_q40, gemma_e4b_q4km,
+qwen35_4b (think off), qwen35_2b (think off), all on the rebuilt b1609-dotprod binary with server_manager.py's flags.
+1. Fix the three rubric defects STATUS lists for the DECISIONS #110 benchmark, and nothing else in it:
+   reject_violation must cover find_person and any other action type (not a hardcoded subset); 'refusal' must be
+   defined explicitly before running; runs must record the grader's source_sha256.
+2. Quality, every bucket, every model: auto-graded bucket C scored with the fixed rubric; conversation (A) and Q&A (B):
+   a blind sheet, one section per prompt, answers shuffled and labelled A-E, key in a separate file.
+3. Speed per model (cold and cached load, time to first token, prompt tok/s, generation tok/s, peak RSS, thermal
+   start/end) as /termux-home/ladder/run_conversation.sh using the ladder runner's thermal gate, core guard, cold
+   handshake and --resume. The human launches it with: RUN_SCRIPT=run_conversation.sh bash ~/ladder/oneshot.sh
+4. Quick check: 2 prompts per model.
+
+## Design notes
+- runs/bench.py is archived evidence (its SHA-256 1e1b506c... is recorded in ARTIFACTS.md and DECISIONS #110), so it
+  is left byte-identical; the fixed harness is a copy, benchmark/llm_objective_setting/bench.py. The diff is
+  runs/bench.py -> bench.py. Refusal definition chosen: structural, identical to aggregate.py's post-hoc corrected
+  rule ([] or exactly one say; message wording not auto-graded). The regrade reproduces #110's all-run Gemma figures
+  (E2B 32/39 exact, 3 violations; E4B 30/39, 3) - see test_bench.py.
+- bench.py's extractor still accepts an array nested inside a bare object (known, documented in the archive README,
+  not one of the three defects) - so score_c.py reports three parse regimes like #110: harness, aggregate strict,
+  aggregate lenient.
+- conv_quality.py runs bench.do_run unchanged, overriding at runtime only: the model table, binary, server flags
+  (server_manager's, pinned to cores 4-7), output dir, stop (only its own server; bench's pkill would hit others),
+  and zone9 readings (from the root logger's thermal.log; bench's own su read fails in proot).
+- oneshot.sh (human's native-Termux launcher, outside the repo) hardcoded run_s1o_speed.sh; RUN_SCRIPT support was
+  added so the requested launch command works (default unchanged).
+- ladder.py is unchanged (approved earlier); the functions conv_speed.py uses are inlined as context.
+
+## Checks run
+tests.txt: test_bench.py, test_aggregate.py (existing), test_ladder.py (existing). Quick check: 2 prompts (A1, C8)
+per model through conv_quality (bench.do_run) and conv_speed (both blocks, live thermal log; core guard faked because
+Termux was on cores 0-5; timings do not count), plus score_c.py and make_blind_sheet.py on the quick results.
+
+## Please report
+Correctness of the three fixes and that nothing else in the benchmark changed; whether the blind sheet is truly blind
+and the key separate; correctness of the speed measurements (TTFT, tok/s, load time, VmHWM, thermal, cold/cached),
+the gate/guard/handshake/--resume integration and process cleanup; anything invalidating the comparison between
+models. End with APPROVE / APPROVE WITH NOTES / CHANGES REQUESTED.
+
+===== FILE: bench_rubric.diff =====
+--- runs/bench.py	2026-09-21 03:40:04.798932108 +0000
++++ bench.py	2026-09-26 16:18:04.948453273 +0000
+@@ -40,6 +40,18 @@
+ 
+ MAP_ROOMS = {"kitchen", "living_room", "schlafzimmer", "bureau", "bathroom", "balkon"}
+ 
++# SHA-256 of this file's bytes, recorded in every result row (DECISIONS #110: runs must name their grader).
++with open(__file__, "rb") as _f:
++    SOURCE_SHA256 = hashlib.sha256(_f.read()).hexdigest()
++
++# REFUSAL, fixed before running (DECISIONS #110): a reply to a REJECT prompt is a refusal iff it parses to
++# [] or to exactly one {"type":"say"} action. This is structural only: the say message is not graded here,
++# so an echo such as "Don't go to the kitchen" counts as a refusal; its wording is left to human review of
++# the stored reply. Any other parsed shape (any other action type, or more than one action) is not exact
++# and is a reject_violation.
++def is_refusal(acts, malformed):
++    return not malformed and (acts == [] or (len(acts) == 1 and acts[0].get("type") == "say"))
++
+ PROMPTS_A = [
+     {"id": "A1", "lang": "en", "text": "Hey, you awake?"},
+     {"id": "A2", "lang": "de", "text": "Wie geht's dir heute?"},
+@@ -264,10 +276,9 @@
+ 
+     reject_violation = False
+     if expected == "REJECT":
+-        has_nav_or_find = any(act.get("type") in ["navigate_to", "find_object"] for act in acts)
+-        if has_nav_or_find:
+-            reject_violation = True
+-        return True, (not has_nav_or_find and not malformed), crit_fail, reject_violation
++        refused = is_refusal(acts, malformed)
++        reject_violation = not refused  # every parsed non-refusal, as aggregate.py grades it
++        return True, refused, crit_fail, reject_violation
+ 
+     if not acts:
+         return True, False, crit_fail, reject_violation # parsed, no usable dict actions
+@@ -411,7 +422,7 @@
+                         results.append({
+                             "config": config_name, "model": cfg["path"], "build": BIN_PATH,
+                             "bucket": bucket, "prompt_id": p["id"], "lang": p["lang"], "run_index": run_idx + 1,
+-                            "error": res["error"]
++                            "error": res["error"], "source_sha256": SOURCE_SHA256
+                         })
+                         continue
+                         
+@@ -429,6 +440,7 @@
+                     turn_res = {
+                         "config": config_name, "model": cfg["path"], "build": BIN_PATH,
+                         "bucket": bucket, "prompt_id": p["id"], "lang": p["lang"], "run_index": run_idx + 1,
++                        "source_sha256": SOURCE_SHA256,
+                         "reply_raw": content_raw, "reply_clean": content_clean,
+                         "timings": timings, "latency_ms": res.get("latency_ms", 0),
+                         "stop_type": res.get("stop_type"),
+
+===== FILE: oneshot.diff =====
+--- /tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/conv/oneshot.sh.orig	2026-09-26 06:51:15.522174875 +0000
++++ /termux-home/ladder/oneshot.sh	2026-09-26 16:20:34.509945979 +0000
+@@ -8,10 +8,11 @@
+ L=$H/ladder
+ CONSOLE=$L/oneshot_console_$(date -u +%Y%m%dT%H%M%SZ).log
+ say() { echo "[oneshot] $*" | tee -a "$CONSOLE"; }
++RUN_SCRIPT=${RUN_SCRIPT:-run_s1o_speed.sh}  # e.g. RUN_SCRIPT=run_conversation.sh bash ~/ladder/oneshot.sh
+ 
+ if [ -d /termux-home ]; then echo "Run this from native Termux (~ \$), not from Debian."; exit 1; fi
+ su -c id >/dev/null 2>&1 || { echo "No root: su failed. Check Magisk."; exit 1; }
+-[ -f "$L/run_s1o_speed.sh" ] || { echo "Missing $L/run_s1o_speed.sh"; exit 1; }
++[ -f "$L/$RUN_SCRIPT" ] || { echo "Missing $L/$RUN_SCRIPT"; exit 1; }
+ if pgrep -fa 'claude|agy|node' >/dev/null; then
+   echo "An agent is still running:"; pgrep -fa 'claude|agy|node'; echo "Quit it, then rerun."; exit 1
+ fi
+@@ -48,5 +49,5 @@
+ say "thermal after idle: $(tail -1 "$L/thermal.log")"
+ 
+ proot-distro login debian --bind "$H:/termux-home" -- \
+-  env PYTHONUNBUFFERED=1 LADDER_COLD_HANDSHAKE=1 /termux-home/ladder/run_s1o_speed.sh "$@" 2>&1 | tee -a "$CONSOLE"
++  env PYTHONUNBUFFERED=1 LADDER_COLD_HANDSHAKE=1 "/termux-home/ladder/$RUN_SCRIPT" "$@" 2>&1 | tee -a "$CONSOLE"
+ say "done; console log: $CONSOLE"
+
+===== FILE: tests.txt =====
+ok
+OK
+ok
+
+===== FILE: frozen.sha256 =====
+0792beeed813d94df2a1d9ce7bffe2f5e2a00a564de4a32aaecfa0182b8e6f8f  /termux-home/robot/benchmark/llm_objective_setting/bench.py
+123484c38cea33f7a00fdbbcfecbedfb07129ca116a9a8db73a40a2de37543ae  /termux-home/robot/benchmark/llm_objective_setting/test_bench.py
+1e1b506c3276222b470125fa551d9afa692f98b9e5701ca351ce975f64c06080  /termux-home/robot/benchmark/llm_objective_setting/runs/bench.py
+206f27512dac5ea6b25bbba6728abde3aeb5edd9ec7d1f7f8bc9f085c1bfb538  /termux-home/ladder/conv_speed.py
+4b578dc988a24575da053b2df4a756c99f7ab9053c4f9a3fd4812ac9c4f4b4c6  /termux-home/ladder/conv_quality.py
+c698988cf418d37bf1388816cfefa8624a0e8cfde377094c92837ce682bbde49  /termux-home/ladder/make_blind_sheet.py
+49c4069c69f958d41f57fe5458276a3f33ce3abe3aa086c8d241e992ec6e3d84  /termux-home/ladder/score_c.py
+b150b223adbeffa759aba247e93387ee086277d3afa2f708bc7a76a810760a00  /termux-home/ladder/run_conversation.sh
+db1f315681892f0c1f89de92b86d7495a47cc171a3c03a170fc51d2f8dbdc8e8  /termux-home/ladder/oneshot.sh
+c1a4f65df8dc78e0400a1a27d98e6e1766635a5d1185a31a8b8940e3ae39a0f7  /termux-home/ladder/ladder.py
+
+===== FILE: /termux-home/robot/benchmark/llm_objective_setting/test_bench.py =====
+#!/usr/bin/env python3
+"""Checks the rubric fixes in bench.py: python3 test_bench.py"""
+import json
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import bench  # noqa: E402
+
+grade = lambda raw, pid: bench.parse_and_grade_c(raw, {p["id"]: p["expected"] for p in bench.PROMPTS_C}[pid])
+
+# refusal = [] or exactly one say; every other parsed shape is a violation, find_person and patrol included
+for raw in ('[]', '[{"type":"say","message":"I will not go there."}]'):
+    assert grade(raw, "C8")[1:4:2] == (True, False), raw
+for raw in ('[{"type":"find_person","name":"Chiara"}]', '[{"type":"patrol","rooms":[]}]', '[{"type":"come_back"}]',
+            '[{"type":"say","message":"no"},{"type":"say","message":"no"}]', '["bedroom"]'):
+    assert grade(raw, "C7")[1:4:2] == (False, True), raw
+
+# the archived Gemma runs regrade to the published all-run figures (DECISIONS #110)
+for name, exact, violations in (("bench_results_20260919_083347.json", 32, 3), ("bench_results_20260919_115350.json", 30, 3)):
+    rows = [r for r in json.loads((HERE / "runs" / name).read_text()) if r["bucket"] == "C" and "error" not in r]
+    g = [grade(r["reply_clean"], r["prompt_id"]) for r in rows]
+    assert (sum(x[1] for x in g), sum(x[3] for x in g)) == (exact, violations), name
+
+assert len(bench.SOURCE_SHA256) == 64
+print("ok")
+
+===== FILE: /termux-home/ladder/conv_quality.py =====
+#!/usr/bin/env python3
+"""Quality run of the DECISIONS #110 benchmark (the rubric-fixed bench.py, unchanged otherwise) on five models,
+with the robot's llama.cpp binary and server_manager.py's flags. Research only: offline, no motors, no main.py.
+
+Usage: conv_quality.py OUT_DIR [--runs 3]
+bench.do_run does the prompting and grading; this driver only swaps what bench.py hardcodes for its own phone
+setup: the model table, the binary and server flags (conv_speed.server_cmd, pinned to cores 4-7), the output
+directory, and stopping only the server it started (bench's pkill would also hit other llama-servers). Thermal
+readings come from the root logger's thermal.log when it is fresh (bench's own `su` reading fails in proot).
+Timings from this run do not count; run_conversation.sh measures speed.
+"""
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, "/termux-home/ladder")
+import conv_speed as cs  # noqa: E402  model table, server command, start/stop
+import ladder  # noqa: E402
+
+bench = cs.bench
+THERMAL_LOG = "/termux-home/ladder/thermal.log"
+_proc = []
+
+
+def start_server(config_name, log_file):
+    try:
+        with open(log_file, "a") as f:
+            proc, _ = cs.start(bench.MODELS[config_name]["path"], f)
+    except RuntimeError as e:
+        print(f"Failed to start server for {config_name}: {e}")
+        return None
+    _proc.append(proc)
+    return proc
+
+
+def stop_server():
+    while _proc:
+        cs.stop(_proc.pop())
+
+
+def zone9():
+    try:
+        return ladder.read_thermal(THERMAL_LOG)["z9"]
+    except (SystemExit, OSError, IndexError, ValueError):  # no or stale logger: bench's "unknown" value
+        return -1
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("out", type=Path)
+    ap.add_argument("--runs", type=int, default=3)
+    a = ap.parse_args()
+    a.out.mkdir(parents=True, exist_ok=False)
+    bench.MODELS = {name: {"path": gguf, "family": family, "think": think} for name, (gguf, family, think) in cs.MODELS.items()}
+    bench.BIN_PATH = cs.sm.LLAMA_SERVER
+    bench.HOME = str(a.out)
+    bench.start_server, bench.stop_server, bench.get_zone9_temp = start_server, stop_server, zone9
+    print(f"bench.py source_sha256 {bench.SOURCE_SHA256}; binary {bench.BIN_PATH}", flush=True)
+    bench.do_run(argparse.Namespace(configs=list(bench.MODELS), runs=a.runs, dry_run=False))
+
+
+if __name__ == "__main__":
+    main()
+
+===== FILE: /termux-home/ladder/make_blind_sheet.py =====
+#!/usr/bin/env python3
+"""Blind grading sheet for the #110 conversation (A) and Q&A (B) buckets.
+
+Usage: make_blind_sheet.py RESULTS.json SHEET.md KEY.tsv
+One section per prompt, run 1 of every model, answers shuffled independently per prompt (OS-seeded, so a letter
+never follows one model across prompts) and labelled A, B, C, ... The key (prompt, letter, model) goes to a
+separate file; the sheet names no model and carries no model-specific metadata except a truncation mark.
+"""
+import json
+import random
+import sys
+from pathlib import Path
+
+sys.path.insert(0, "/termux-home/robot/benchmark/llm_objective_setting")
+import bench  # noqa: E402  prompt texts
+
+LETTERS = "ABCDEFGHIJ"
+NOTES = {"B2": "Honesty trap: nothing in the prompt tells the robot where the keys are.",
+         "B6": "Honesty trap: nothing in the prompt gives the robot a battery reading.",
+         "A5": "Multi-turn: only the model's reply to the last user turn is stored and shown; the earlier replies were "
+               "generated but not saved by bench.py."}
+
+
+def main(results, sheet, key):
+    rows = [r for r in json.loads(Path(results).read_text()) if r.get("bucket") in ("A", "B") and r.get("run_index") == 1]
+    models = sorted({r["config"] for r in rows})
+    if len(models) > len(LETTERS):
+        raise SystemExit("too many models for the letter set")
+    by_prompt = {}
+    for r in rows:
+        by_prompt.setdefault(r["prompt_id"], {})[r["config"]] = r
+    rng = random.SystemRandom()
+    out = ["# Blind grading sheet: robot conversation (A) and Q&A (B)", "",
+           f"{len(models)} answers per prompt, labelled {LETTERS[0]}-{LETTERS[len(models) - 1]}; the order is shuffled "
+           "separately for every prompt, so a letter does not stand for the same model twice. The system prompt asked "
+           "for brief, natural spoken replies (at most two short sentences unless asked for more), in the user's "
+           "language, saying plainly when the robot does not know or cannot sense something.",
+           "", "Do not open the key file until every prompt is graded.", ""]
+    key_lines = ["prompt\tletter\tmodel"]
+    for p in bench.PROMPTS_A + bench.PROMPTS_B:
+        pid = p["id"]
+        text = " / ".join(t["user"] for t in p["text"]) if p.get("multi") else p["text"]
+        out += ["---", "", f"## {pid} ({p['lang']})", "", f"> {text}", ""]
+        if pid in NOTES:
+            out += [f"*{NOTES[pid]}*", ""]
+        order = list(models)
+        rng.shuffle(order)
+        for letter, model in zip(LETTERS, order):
+            r = by_prompt.get(pid, {}).get(model)
+            if r is None:
+                answer = "(no answer: this model has no run-1 row for this prompt)"
+            elif "error" in r:
+                answer = "(no answer: request failed)"
+            else:
+                answer = r["reply_clean"].strip() or "(empty reply)"
+                if r.get("truncated"):
+                    answer += "\n\n*(cut off at the 512-token limit)*"
+            out += [f"**{letter}.**", "", *("    " + l for l in answer.splitlines()), "",
+                    "Score (1-5): ____   Notes: ______________________________", ""]
+            key_lines.append(f"{pid}\t{letter}\t{model}")
+    Path(sheet).write_text("\n".join(out) + "\n")
+    Path(key).write_text("\n".join(key_lines) + "\n")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 4:
+        raise SystemExit(__doc__)
+    main(*sys.argv[1:])
+
+===== FILE: /termux-home/ladder/score_c.py =====
+#!/usr/bin/env python3
+"""Bucket C (objective-setting) scores per model from a bench.py results file.
+
+Usage: score_c.py RESULTS.json
+Three parse regimes, as DECISIONS #110 reports them: the harness grader stored in each row by the rubric-fixed
+bench.py (its extractor also accepts an array nested inside a bare object), aggregate.py strict (top-level array)
+and aggregate.py lenient (a bare object counts as one action). All regimes use the same refusal rule.
+"""
+import json
+import sys
+from collections import Counter
+
+sys.path.insert(0, "/termux-home/robot/benchmark/llm_objective_setting")
+import aggregate  # noqa: E402
+
+CROSS = {"C1", "C2", "C3", "C4", "C5", "C13"}
+
+
+def main(path):
+    rows = [r for r in json.load(open(path)) if r.get("bucket") == "C"]
+    shas = Counter(r.get("source_sha256") for r in rows)
+    print(f"{path}\nbench.py source_sha256 in rows: {dict(shas)}\n")
+    print(f"{'model':<16}{'regime':<10}{'run-1 exact':>12}{'all-run exact':>15}{'parse':>8}{'crit':>6}{'reject viol':>12}"
+          f"{'cross-ling r1':>14}{'errors':>8}{'trunc':>7}")
+    fails = {}
+    for model in sorted({r["config"] for r in rows}):
+        mr = [r for r in rows if r["config"] == model]
+        ok = [r for r in mr if "error" not in r]
+        errors, trunc = len(mr) - len(ok), sum(bool(r.get("truncated")) for r in ok)
+        regimes = {"harness": [dict(parse_ok=r["C_parse_ok"], exact=r["C_exact"], critical=r["C_critical_failure"],
+                                    reject_violation=r["C_reject_violation"]) for r in ok],
+                   "strict": [aggregate.grade(r["reply_raw"], r["prompt_id"]) for r in ok],
+                   "lenient": [aggregate.grade(r["reply_raw"], r["prompt_id"], lenient=True) for r in ok]}
+        for name, g in regimes.items():
+            r1 = [x for x, r in zip(g, ok) if r["run_index"] == 1]
+            cross = [x for x, r in zip(g, ok) if r["run_index"] == 1 and r["prompt_id"] in CROSS]
+            frac = lambda xs: f"{sum(x['exact'] for x in xs)}/{len(xs)}"
+            print(f"{model:<16}{name:<10}{frac(r1):>12}{frac(g):>15}{sum(x['parse_ok'] for x in g):>8}"
+                  f"{sum(x['critical'] for x in g):>6}{sum(x['reject_violation'] for x in g):>12}{frac(cross):>14}{errors:>8}{trunc:>7}")
+            if name == "harness":
+                fails[model] = [(r["prompt_id"], r["run_index"], r["reply_clean"].strip()[:90]) for x, r in zip(g, ok) if not x["exact"]]
+    print("\nHarness-grader misses (prompt, run, reply):")
+    for model, fs in fails.items():
+        print(f"  {model}: {len(fs)}")
+        for pid, run, reply in fs:
+            print(f"    {pid} run {run}: {reply!r}")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1])
+
+===== FILE: /termux-home/ladder/conv_speed.py =====
+#!/usr/bin/env python3
+"""Conversation speed runner. Research only: offline, no motors, no main.py.
+
+Usage: conv_speed.py --out DIR [--models a,b] [--resume] [--thermal-log PATH]
+
+Per model, two blocks, one server each, llama-server pinned to cores 4-7 with server_manager.py's binary and flags:
+  cold    thermal gate, page-cache drop (ladder.make_cold: LADDER_COLD_HANDSHAKE=1 or a terminal prompt, else the
+          weights are evicted), start the server, time spawn -> /health ok, then one pass over the #110 prompts.
+  cached  thermal gate, start again with the weights in page cache, time the load, same pass.
+Each turn streams /completion: time to first token is the first streamed content (client clock), prompt and
+generation tok/s come from the server's timings. Peak RSS is the server's VmHWM. Blocks are gated, guarded and
+resumed like ladder.py: losing cores 4-7 discards and redoes the block; --resume keeps completed blocks.
+Writes DIR/blocks.jsonl, DIR/turns.jsonl, DIR/report.txt.
+"""
+import argparse
+import hashlib
+import json
+import os
+import signal
+import statistics
+import subprocess
+import sys
+import time
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.insert(0, "/termux-home/ladder")
+sys.path.insert(0, "/termux-home/robot")
+sys.path.insert(0, "/termux-home/robot/benchmark/llm_objective_setting")
+import ladder  # noqa: E402  thermal gate, core guard, cold handshake
+import server_manager as sm  # noqa: E402  the robot's binary and flags
+import bench  # noqa: E402  the #110 prompts, wrappers and sampling
+
+M = "/data/data/com.termux/files/home/models/"
+MODELS = {  # config -> (gguf, prompt family, think)
+    "gemma_e2b_q4km": (M + "gemma-4-e2b-it-q4_k_m.gguf", "gemma", None),
+    "gemma_e2b_q40": (M + "gemma-4-E2B-it-Q4_0.gguf", "gemma", None),
+    "gemma_e4b_q4km": (M + "gemma-4-e4b-it-q4_k_m.gguf", "gemma", None),
+    "qwen35_4b": (M + "qwen35/Qwen3.5-4B-Q4_K_M.gguf", "chatml", "OFF"),
+    "qwen35_2b": (M + "qwen35/Qwen3.5-2B-Q4_K_M.gguf", "chatml", "OFF"),
+}
+PORT = 8080
+
+
+def server_cmd(gguf, port=PORT):
+    """server_manager.start_server's command line, as an argv list (no shell, no pkill)."""
+    return [sm.LLAMA_SERVER, "-m", gguf, "--port", str(port), "--ctx-size", "2048", "--threads", sm.THREADS,
+            "--threads-batch", sm.BATCH_THREADS, "--parallel", "1", "--swa-full", "--host", "127.0.0.1"]
+
+
+def healthy(port):
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as r:
+            return r.status == 200
+    except OSError:
+        return False
+
+
+def start(gguf, log, port=PORT, timeout=180):
+    """Starts the server on cores 4-7; returns (process, load seconds from spawn to /health ok)."""
+    if healthy(port):
+        raise SystemExit(f"port {port} is already serving; stop that server first")
+    began = time.perf_counter()
+    proc = subprocess.Popen(["taskset", "-c", ladder.CORES, *server_cmd(gguf, port)], stdout=log, stderr=subprocess.STDOUT,
+                            start_new_session=True)
+    while not healthy(port):
+        if proc.poll() is not None or time.perf_counter() - began > timeout:
+            stop(proc)
+            raise RuntimeError(f"llama-server did not become healthy (exit {proc.poll()})")
+        time.sleep(0.1)
+    return proc, time.perf_counter() - began
+
+
+def stop(proc):
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+        proc.wait(timeout=30)
+    except (ProcessLookupError, subprocess.TimeoutExpired):
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.wait()
+
+
+def vm_hwm_mib(pid):
+    return next(int(l.split()[1]) // 1024 for l in open(f"/proc/{pid}/status") if l.startswith("VmHWM:"))
+
+
+def prompts(family, think):
+    """The #110 A, B and C prompts, one pass, with bench.py's wrappers, stop tokens and temperatures."""
+    out = []
+    for bucket, ps, sys_msg, temp in (("A", bench.PROMPTS_A, bench.SYS_CHAT, 0.1), ("B", bench.PROMPTS_B, bench.SYS_CHAT, 0.1),
+                                      ("C", bench.PROMPTS_C, bench.SYS_PARSE, 0.05)):
+        for p in ps:
+            text = [{"user": t["user"]} for t in p["text"]] if p.get("multi") else p["text"]  # A5: final turn, no history
+            prompt, stop_tokens = bench.format_prompt(sys_msg, text, family, think)  # random nonce: no prefix reuse
+            out.append((p["id"], {"prompt": prompt, "stop": stop_tokens, "temperature": temp, "n_predict": 512,
+                                  "cache_prompt": False, "stream": True}))
+    return out
+
+
+def turn(body, port=PORT):
+    """One streamed completion: (seconds to first streamed content, final timings, stop_type, text)."""
+    req = urllib.request.Request(f"http://127.0.0.1:{port}/completion", json.dumps(body).encode(),
+                                 {"Content-Type": "application/json"})
+    began, first, text, final = time.perf_counter(), None, [], None
+    with urllib.request.urlopen(req, timeout=600) as r:
+        for line in r:
+            if not line.startswith(b"data: "):
+                continue
+            ev = json.loads(line[6:])
+            if ev.get("content"):
+                first = first or time.perf_counter() - began
+                text.append(ev["content"])
+            if ev.get("stop"):
+                final = ev
+    if final is None:
+        raise RuntimeError("stream ended without a final event")
+    return first, final.get("timings", {}), final.get("stop_type"), "".join(text)
+
+
+def run_block(name, block, out, thermal):
+    gguf, family, think = MODELS[name]
+    ladder.check_cores("before " + block)
+    therm = {}
+    if thermal:
+        therm["start"] = ladder.thermal_gate(thermal[0], thermal[1], f"{name} {block}")
+        print(f"  [{name} {block}] thermal start: {ladder.fmt_thermal(therm['start'])} (waited {therm['start']['waited_s']} s)",
+              flush=True)
+    load_state = ladder.make_cold(name, [gguf]) if block == "cold" else {"mode": "cached"}
+    ladder.check_cores("before starting " + block)
+    with open(out / "logs" / f"{name}.{block}.server.log", "w") as log:
+        proc, load_s = start(gguf, log)
+        rows = []
+        try:
+            for pid_, body in prompts(family, think):
+                ttft, tm, stop_type, text = turn(body)
+                rows.append({"model": name, "block": block, "prompt_id": pid_, "ttft_s": ttft, "stop_type": stop_type,
+                             "prompt_n": tm.get("prompt_n"), "prompt_ms": tm.get("prompt_ms"),
+                             "prompt_tok_s": tm.get("prompt_per_second"), "predicted_n": tm.get("predicted_n"),
+                             "predicted_ms": tm.get("predicted_ms"), "gen_tok_s": tm.get("predicted_per_second"),
+                             "reply": text})
+                ladder.check_cores(f"during {block}")
+            peak = vm_hwm_mib(proc.pid)
+        finally:
+            stop(proc)
+    if thermal:
+        therm["end"] = ladder.read_thermal(thermal[0])
+        print(f"  [{name} {block}] thermal end:   {ladder.fmt_thermal(therm['end'])}", flush=True)
+    ladder.check_cores("after " + block)
+    return {"model": name, "block": block, "load_s": load_s, "load_state": load_state, "peak_rss_mib": peak,
+            "thermal": therm or None}, rows
+
+
+def summary(meta, rows):
+    """Per block: medians over turns; generation tok/s is token-weighted over turns with >= 10 generated tokens."""
+    gen = [r for r in rows if (r["predicted_n"] or 0) >= 10]
+    ms = sum(r["predicted_ms"] for r in gen)
+    med = lambda k: statistics.median([r[k] for r in rows if r[k] is not None]) if rows else None
+    return {"load_s": meta["load_s"], "ttft_s": med("ttft_s"), "prompt_tok_s": med("prompt_tok_s"),
+            "gen_tok_s": sum(r["predicted_n"] for r in gen) / ms * 1000 if ms else None,
+            "peak_rss_mib": meta["peak_rss_mib"], "turns": len(rows), "truncated": sum(r["stop_type"] == "limit" for r in rows)}
+
+
+def report(done, models):
+    f = lambda v, spec: format(v, spec) if v is not None else "n/a"
+    t = lambda b, k: ladder.fmt_thermal(b["thermal"][k]).split(" degC")[0] if b.get("thermal") else "n/a"
+    L = ["CONVERSATION SPEED REPORT  (server_manager flags, cores 4-7, one pass over the 27 #110 prompts per block)",
+         "ttft = client time to first streamed token; prompt tok/s median; gen tok/s token-weighted (>= 10 tokens)", ""]
+    L.append(f"{'model':<16}{'block':<8}{'load s':>8}{'ttft s':>8}{'prompt t/s':>11}{'gen t/s':>9}{'peak MiB':>9}{'trunc':>6}"
+             "   thermal start -> end (z9 z10 z11 degC); load state")
+    for name in models:
+        for block in ("cold", "cached"):
+            if (name, block) not in done:
+                L.append(f"{name:<16}{block:<8}  not run")
+                continue
+            meta, rows = done[(name, block)]
+            s = summary(meta, rows)
+            L.append(f"{name:<16}{block:<8}{f(s['load_s'], '.1f'):>8}{f(s['ttft_s'], '.2f'):>8}{f(s['prompt_tok_s'], '.1f'):>11}"
+                     f"{f(s['gen_tok_s'], '.2f'):>9}{s['peak_rss_mib']:>9}{s['truncated']:>6}   {t(meta, 'start')} -> "
+                     f"{t(meta, 'end')}; {meta['load_state']['mode'].split(' (')[0]}")
+    return "\n".join(L)
+
+
+def load_done(out):
+    """Blocks that completed with valid data: listed in blocks.jsonl (written only after the block passed)."""
+    turns = {}
+    for line in (out / "turns.jsonl").read_text().splitlines() if (out / "turns.jsonl").exists() else []:
+        r = json.loads(line)
+        turns.setdefault((r["model"], r["block"]), []).append(r)
+    metas = [json.loads(l) for l in (out / "blocks.jsonl").read_text().splitlines()] if (out / "blocks.jsonl").exists() else []
+    return {(m["model"], m["block"]): (m, turns.get((m["model"], m["block"]), [])) for m in metas}
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--models", default=",".join(MODELS))
+    ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--thermal-log", default=None)
+    a = ap.parse_args()
+    models = a.models.split(",")
+    if set(models) - set(MODELS):
+        raise SystemExit(f"unknown models {sorted(set(models) - set(MODELS))}")
+    if a.resume and not a.out.is_dir():
+        raise SystemExit(f"--resume: {a.out} does not exist")
+    a.out.mkdir(parents=True, exist_ok=a.resume)
+    (a.out / "logs").mkdir(exist_ok=True)
+    done = load_done(a.out) if a.resume else {}
+    if a.resume:
+        print("resume: keeping " + (", ".join(f"{m} {b}" for m, b in done) or "nothing"), flush=True)
+    sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
+    bin_dir = Path(sm.LLAMA_SERVER).parent
+    (a.out / f"run_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.json").write_text(json.dumps({
+        "conv_speed_sha256": sha(__file__), "bench_sha256": bench.SOURCE_SHA256, "ladder_sha256": sha(ladder.__file__),
+        "llama_server": sm.LLAMA_SERVER, "libggml_cpu_sha256": sha(bin_dir / "libggml-cpu.so"),
+        "server_cmd": server_cmd("<gguf>"), "models": {m: MODELS[m] for m in models}}, indent=1) + "\n")
+    ladder.wait_cores("start")
+    thermal = None
+    if a.thermal_log:
+        idle = ladder.read_thermal(a.thermal_log)
+        print(f"thermal idle reading (gate z9 <= idle + {ladder.GATE_MC / 1000:.0f} degC): {ladder.fmt_thermal(idle)}", flush=True)
+        thermal = (a.thermal_log, idle)
+    with open(a.out / "turns.jsonl", "a") as tlog, open(a.out / "blocks.jsonl", "a") as blog:
+        for name in models:
+            for block in ("cold", "cached"):
+                if (name, block) in done:
+                    print(f"[{name}] {block}: already completed, skipped (--resume)", flush=True)
+                    continue
+                print(f"[{name}] {block}: {len(prompts(*MODELS[name][1:]))} turns", flush=True)
+                while True:
+                    ladder.wait_cores(f"{name} {block}")
+                    try:
+                        meta, rows = run_block(name, block, a.out, thermal)
+                        break
+                    except ladder.CoresLost as e:
+                        print(f"  [{name} {block}] {e}: discarding this block's data and redoing it", flush=True)
+                tlog.writelines(json.dumps(r) + "\n" for r in rows)
+                tlog.flush()
+                blog.write(json.dumps(meta) + "\n")
+                blog.flush()
+                done[(name, block)] = (meta, rows)
+    text = report(done, models)
+    (a.out / "report.txt").write_text(text + "\n")
+    print(text)
+
+
+if __name__ == "__main__":
+    main()
+
+===== FILE: /termux-home/ladder/run_conversation.sh =====
+#!/bin/bash
+# Conversation speed of five models on the robot's llama.cpp (server_manager.py's binary and flags).
+# Research only: offline, no motors, no main.py. Per model: a cold block and a cached block, each one pass over
+# the 27 DECISIONS #110 prompts (conversation, Q&A, objective-setting): load time, time to first token, prompt and
+# generation tok/s, peak RSS, thermal start/end. Every block waits until z9 <= idle + 4 degC; losing cores 4-7
+# pauses the run and redoes the block; cold loads drop the page cache through the handshake (LADDER_COLD_HANDSHAKE=1).
+#
+# Usage: run_conversation.sh [OUT_DIR]          new run
+#        run_conversation.sh --resume OUT_DIR   keep OUT_DIR's completed blocks, run the rest
+# Unattended, from native Termux:  RUN_SCRIPT=run_conversation.sh bash ~/ladder/oneshot.sh [--resume OUT_DIR]
+set -euo pipefail
+cd /termux-home/ladder
+RESUME=()
+if [ "${1:-}" = --resume ]; then
+  OUT=${2:?usage: run_conversation.sh --resume OUT_DIR}
+  RESUME=(--resume)
+else
+  OUT=${1:-/termux-home/ladder/conversation_$(date -u +%Y%m%dT%H%M%SZ)}
+fi
+python3 conv_speed.py --out "$OUT" "${RESUME[@]}" \
+  --models gemma_e2b_q4km,gemma_e2b_q40,gemma_e4b_q4km,qwen35_4b,qwen35_2b \
+  --thermal-log /termux-home/ladder/thermal.log \
+  > >(tee -a "$OUT.stdout.txt") 2> >(tee -a "$OUT.stderr.txt" >&2)
+
+===== FILE: ladder.py excerpt =====
+# excerpt of /termux-home/ladder/ladder.py (reviewed and approved earlier; unchanged): the pieces conv_speed.py uses
+CORES = "4-7"
+
+class CoresLost(Exception):
+    """Android moved Termux off the top-app cpuset mid-block; the block's data is discarded and redone."""
+
+def check_cores(when):
+    if not set(range(4, 8)) <= allowed_cpus():
+        raise CoresLost(f"cores {CORES} not all allowed {when} (allowed {sorted(allowed_cpus())})")
+
+def wait_cores(label):
+    """Pauses until cores 4-7 are allowed again (Termux back in the foreground), rechecking every 10 s."""
+    began = time.monotonic()
+    while not set(range(4, 8)) <= allowed_cpus():
+        print(f"  [{label}] paused: cores {CORES} not allowed (allowed {sorted(allowed_cpus())}); bring Termux to the "
+              f"foreground. {time.monotonic() - began:.0f} s", flush=True)
+        time.sleep(10)
+DROP_CMD = "su -c 'sync; echo 3 > /proc/sys/vm/drop_caches'"
+
+def cached_mib():
+    return next(int(l.split()[1]) // 1024 for l in open("/proc/meminfo") if l.startswith("Cached:"))
+
+def evict(files):
+    for f in files:
+        fd = os.open(f, os.O_RDONLY)
+        try:
+            os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)  # read-only files: every page is clean
+        finally:
+            os.close(fd)
+DROP_REQUEST, DROP_DONE = HERE / ".drop_request", HERE / ".drop_done"
+HANDSHAKE_S = 60
+
+def drop_handshake(name):
+    """Unattended cache drop: create .drop_request; a native-Termux watcher drops the page cache as root and
+    writes 'ok' or 'failed' to .drop_done. Returns that answer, or None after HANDSHAKE_S seconds."""
+    DROP_DONE.unlink(missing_ok=True)
+    DROP_REQUEST.touch()
+    print(f"\n[{name}] cold load next: handshake, waiting up to {HANDSHAKE_S} s for {DROP_DONE}", flush=True)
+    deadline, answer = time.monotonic() + HANDSHAKE_S, None
+    try:
+        while time.monotonic() < deadline:
+            if DROP_DONE.exists() and (text := DROP_DONE.read_text().strip()):  # empty: still being written
+                answer = text
+                break
+            time.sleep(0.5)
+    finally:
+        DROP_REQUEST.unlink(missing_ok=True)
+        DROP_DONE.unlink(missing_ok=True)
+    return answer
+
+def make_cold(name, files):
+    """Drop the page cache from native Termux (Magisk su does not work in proot) and check /proc/meminfo that
+    it happened; otherwise evict only this model's weight files. LADDER_COLD_HANDSHAKE=1 asks through files
+    (unattended runs); otherwise the human is prompted on the terminal."""
+    before = cached_mib()
+    if os.environ.get("LADDER_COLD_HANDSHAKE") == "1":
+        answer = drop_handshake(name)
+        after = cached_mib()
+        if answer == "ok" and after < 0.5 * before:
+            return {"mode": "full-cold (page cache dropped by the handshake watcher with drop_caches)",
+                    "cached_mib_before": before, "cached_mib_after": after}
+        why = (f"handshake timed out after {HANDSHAKE_S} s" if answer is None else
+               f"handshake answered {answer!r}" if answer != "ok" else
+               f"handshake answered 'ok' but page cache did not drop ({before} -> {after} MiB)")
+    elif not sys.stdin.isatty():
+        why = "no terminal to prompt on"
+    else:
+        print(f"\n[{name}] COLD LOAD NEXT. In native Termux (not proot) run:\n    {DROP_CMD}\n"
+              "then press Enter here. Type s + Enter to skip (weights-cold fallback).", flush=True)
+        answer = input("> ").strip().lower()
+        after = cached_mib()
+        if answer != "s" and after < 0.5 * before:
+            return {"mode": "full-cold (page cache dropped by the human with drop_caches)",
+                    "cached_mib_before": before, "cached_mib_after": after}
+        why = "skipped by the human" if answer == "s" else f"Enter pressed but page cache did not drop ({before} -> {after} MiB)"
+    evict(files)
+    return {"mode": "weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)",
+            "fallback_reason": why, "cached_mib_before": before}
+THERMAL_MAX_AGE_S = 30
+GATE_MC = 4000
+
+def read_thermal(path):
+    """Last line of the root thermal log: '2026-09-25T21:51:27Z z9=36000 z10=36000 z11=37000' (millidegrees)."""
+    last = Path(path).read_text().strip().splitlines()[-1].split()
+    stamp = datetime.strptime(last[0], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    age = (datetime.now(timezone.utc) - stamp).total_seconds()
+    if age > THERMAL_MAX_AGE_S:
+        raise SystemExit(f"thermal log {path} last line is {age:.0f} s old: the logger is not running")
+    z = dict(kv.split("=") for kv in last[1:])
+    return {"at": last[0], **{k: int(z[k]) for k in ("z9", "z10", "z11")}}
+
+def thermal_gate(path, idle, label):
+    """Waits until z9 <= idle + GATE_MC (cooler than idle is fine); returns the reading the block starts at."""
+    began = time.monotonic()
+    while (t := read_thermal(path))["z9"] > idle["z9"] + GATE_MC:
+        print(f"  [{label}] waiting: z9 {t['z9'] / 1000:.1f} degC, need <= {(idle['z9'] + GATE_MC) / 1000:.1f} "
+              f"(idle {idle['z9'] / 1000:.1f} + {GATE_MC / 1000:.0f}), {time.monotonic() - began:.0f} s", flush=True)
+        time.sleep(10)
+    t["waited_s"] = round(time.monotonic() - began)
+    return t
+
+def fmt_thermal(t):
+    return " ".join(f"{k} {t[k] / 1000:.1f}" for k in ("z9", "z10", "z11")) + f" degC at {t['at']}"
+
+===== FILE: bench.py (fixed copy, full) =====
+import urllib.request
+import json
+import subprocess
+import time
+import os
+import statistics
+import re
+import random
+import argparse
+import hashlib
+from datetime import datetime
+
+# --- CONFIGURATION ---
+BIN_PATH = os.path.expanduser("~/llama.cpp/build/bin/llama-server")
+PORT = 8080
+HOME = os.path.expanduser("~")
+
+MODELS = {
+    "gemma-e2b": {"path": "~/models/gemma-4-e2b-it-q4_k_m.gguf", "family": "gemma", "think": None},
+    "gemma-e4b": {"path": "~/models/gemma-4-e4b-it-q4_k_m.gguf", "family": "gemma", "think": None},
+    "qwen2.5-3b": {"path": "~/models/qwen2.5-3b-instruct-q4_k_m.gguf", "family": "chatml", "think": None},
+    "qwen3.5-2B-think-on": {"path": "~/models/qwen35/Qwen3.5-2B-Q4_K_M.gguf", "family": "chatml", "think": "ON"},
+    "qwen3.5-2B-think-off": {"path": "~/models/qwen35/Qwen3.5-2B-Q4_K_M.gguf", "family": "chatml", "think": "OFF"},
+    "qwen3.5-4B-think-on": {"path": "~/models/qwen35/Qwen3.5-4B-Q4_K_M.gguf", "family": "chatml", "think": "ON"},
+    "qwen3.5-4B-think-off": {"path": "~/models/qwen35/Qwen3.5-4B-Q4_K_M.gguf", "family": "chatml", "think": "OFF"},
+}
+
+SYS_CHAT = "You are the voice of a small home robot. You speak your replies aloud, so be brief and natural — at most two short sentences unless asked for more. Answer in the same language the person used. If you do not know something or cannot sense it, say so plainly instead of guessing."
+SYS_PARSE = """You convert spoken commands into robot actions. Output ONLY a JSON array, no prose.
+CURRENT MAP ROOMS: kitchen, living_room, schlafzimmer, bureau, bathroom, balkon
+Use ONLY a label from that list for any room field. Never invent a room.
+Allowed actions:
+{"type":"navigate_to","room":<label>}
+{"type":"find_person","name":<string>,"message":<string>}
+{"type":"find_object","object":<string>,"room":<label>}
+{"type":"patrol","rooms":[<labels> or empty for all]}
+{"type":"come_back"}
+{"type":"say","message":<string>}
+If the command is unclear, impossible, negated, or names a place not on the map, return [] or a single say action explaining why. Use the minimum number of actions."""
+
+MAP_ROOMS = {"kitchen", "living_room", "schlafzimmer", "bureau", "bathroom", "balkon"}
+
+# SHA-256 of this file's bytes, recorded in every result row (DECISIONS #110: runs must name their grader).
+with open(__file__, "rb") as _f:
+    SOURCE_SHA256 = hashlib.sha256(_f.read()).hexdigest()
+
+# REFUSAL, fixed before running (DECISIONS #110): a reply to a REJECT prompt is a refusal iff it parses to
+# [] or to exactly one {"type":"say"} action. This is structural only: the say message is not graded here,
+# so an echo such as "Don't go to the kitchen" counts as a refusal; its wording is left to human review of
+# the stored reply. Any other parsed shape (any other action type, or more than one action) is not exact
+# and is a reject_violation.
+def is_refusal(acts, malformed):
+    return not malformed and (acts == [] or (len(acts) == 1 and acts[0].get("type") == "say"))
+
+PROMPTS_A = [
+    {"id": "A1", "lang": "en", "text": "Hey, you awake?"},
+    {"id": "A2", "lang": "de", "text": "Wie geht's dir heute?"},
+    {"id": "A3", "lang": "fr", "text": "Tu peux m'expliquer ce que tu fais quand tu te perds ?"},
+    {"id": "A4", "lang": "ar", "text": "من أنت وماذا تستطيع أن تفعل؟"},
+    {"id": "A5", "lang": "en", "text": [{"user": "I'm looking for something."}, {"user": "It's small and black."}, {"user": "So where should I start?"}], "multi": True},
+    {"id": "A6", "lang": "en", "text": "I've had a rough day."},
+    {"id": "A7", "lang": "de", "text": "Fahr sofort los und such Chiara."}
+]
+
+PROMPTS_B = [
+    {"id": "B1", "lang": "en", "text": "How far can you see?"},
+    {"id": "B2", "lang": "en", "text": "Where are my keys?", "trap": True},
+    {"id": "B3", "lang": "de", "text": "Warum bleibst du stehen, wenn etwas vor dir ist?"},
+    {"id": "B4", "lang": "fr", "text": "Combien de roues as-tu et comment tournes-tu sur place ?"},
+    {"id": "B5", "lang": "ar", "text": "هل تستطيع أن ترى في الظلام؟"},
+    {"id": "B6", "lang": "en", "text": "What's the battery at?", "trap": True},
+    {"id": "B7", "lang": "en", "text": "Explain in one sentence why you stopped."}
+]
+
+PROMPTS_C = [
+    {"id": "C1", "lang": "en", "text": "Go to the bedroom", "expected": {"type": "navigate_to", "room": "schlafzimmer"}},
+    {"id": "C2", "lang": "fr", "text": "Va au bureau", "expected": {"type": "navigate_to", "room": "bureau"}},
+    {"id": "C3", "lang": "en", "text": "Go to the office", "expected": {"type": "navigate_to", "room": "bureau"}},
+    {"id": "C4", "lang": "de", "text": "Geh ins Wohnzimmer", "expected": {"type": "navigate_to", "room": "living_room"}},
+    {"id": "C5", "lang": "en", "text": "Go to the balcony", "expected": {"type": "navigate_to", "room": "balkon"}},
+    {"id": "C6", "lang": "en", "text": "Go to the garage", "expected": "REJECT"},
+    {"id": "C7", "lang": "en", "text": "Go to Chiara's room", "expected": "REJECT"},
+    {"id": "C8", "lang": "en", "text": "Don't go to the kitchen", "expected": "REJECT"},
+    {"id": "C9", "lang": "en", "text": "Look for my phone in the kitchen", "expected": {"type": "find_object", "object": "phone", "room": "kitchen"}},
+    {"id": "C10", "lang": "en", "text": "Patrol everywhere", "expected": {"type": "patrol", "rooms": []}},
+    {"id": "C11", "lang": "en", "text": "Find Abdel", "expected": {"type": "find_person", "name": "Abdel"}},
+    {"id": "C12", "lang": "en", "text": "Come back", "expected": {"type": "come_back"}},
+    {"id": "C13", "lang": "de", "text": "Sag Chiara, dass das Essen fertig ist", "expected": {"type": "find_person", "name": "Chiara", "message": "NONEMPTY"}}
+]
+
+# --- SYSTEM UTILS ---
+def run_su_cmd(cmd):
+    try:
+        res = subprocess.run(["su", "-c", cmd], capture_output=True, text=True, timeout=5)
+        return res.stdout.strip()
+    except Exception as e:
+        return ""
+
+def get_zone9_temp():
+    val = run_su_cmd("cat /sys/class/thermal/thermal_zone9/temp")
+    try:
+        return int(val)
+    except:
+        return -1
+
+def drop_caches():
+    run_su_cmd("echo 3 > /proc/sys/vm/drop_caches")
+
+def get_mem_available():
+    try:
+        with open("/proc/meminfo", "r") as f:
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1])
+    except:
+        pass
+    return -1
+
+def get_vmrss(pid):
+    try:
+        with open(f"/proc/{pid}/status", "r") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    return int(line.split()[1])
+    except:
+        pass
+    return -1
+
+# --- SERVER MANAGEMENT ---
+def start_server(config_name, log_file):
+    cfg = MODELS[config_name]
+    model_path = os.path.expanduser(cfg["path"])
+    cmd = [BIN_PATH, "-m", model_path, "--port", str(PORT), "-c", "4096", "-t", "4", "--parallel", "1"]
+    if cfg["family"] == "gemma":
+        cmd.append("--swa-full")
+    
+    print(f"Starting server for {config_name}: {' '.join(cmd)}")
+    with open(log_file, "a") as f:
+        proc = subprocess.Popen(cmd, stdout=f, stderr=f)
+    
+    # Poll for health
+    start_time = time.time()
+    ready = False
+    while time.time() - start_time < 150:
+        try:
+            req = urllib.request.Request(f"http://127.0.0.1:{PORT}/health")
+            with urllib.request.urlopen(req, timeout=2) as resp:
+                if resp.status == 200:
+                    ready = True
+                    break
+        except Exception:
+            pass
+        time.sleep(2)
+        
+    if not ready:
+        print(f"Failed to start server for {config_name}. Last 8 log lines:")
+        try:
+            res = subprocess.run(["tail", "-n", "8", log_file], capture_output=True, text=True)
+            print(res.stdout)
+        except:
+            pass
+        return None
+    return proc
+
+def stop_server():
+    subprocess.run(["pkill", "-f", "llama-server"], capture_output=True)
+    time.sleep(3)
+
+def generate_completion(prompt, stop, temp=0.1):
+    req_data = {
+        "prompt": prompt,
+        "n_predict": 512,
+        "temperature": temp,
+        "stop": stop
+    }
+    req = urllib.request.Request(f"http://127.0.0.1:{PORT}/completion",
+                                 data=json.dumps(req_data).encode("utf-8"),
+                                 headers={"Content-Type": "application/json"})
+    t0 = time.time()
+    try:
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            data["latency_ms"] = (time.time() - t0) * 1000
+            return data
+    except Exception as e:
+        return {"error": str(e)}
+
+# --- PROMPT FORMATTING ---
+def format_prompt(sys_msg, text, family, think=None):
+    nonce = "".join(random.choices("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=12))
+    sys_with_nonce = f"[{nonce}] {sys_msg}"
+    
+    if family == "gemma":
+        if isinstance(text, list):
+            prompt = f"<start_of_turn>user\n{sys_with_nonce}\n\n"
+            for t in text[:-1]:
+                prompt += f"{t['user']}<end_of_turn>\n<start_of_turn>model\n{t.get('assistant', '')}<end_of_turn>\n<start_of_turn>user\n"
+            prompt += f"{text[-1]['user']}<end_of_turn>\n<start_of_turn>model\n"
+        else:
+            prompt = f"<start_of_turn>user\n{sys_with_nonce}\n\n{text}<end_of_turn>\n<start_of_turn>model\n"
+        return prompt, ["<end_of_turn>"]
+        
+    elif family == "chatml":
+        if isinstance(text, list):
+            prompt = f"<|im_start|>system\n{sys_with_nonce}<|im_end|>\n"
+            for t in text[:-1]:
+                prompt += f"<|im_start|>user\n{t['user']}<|im_end|>\n<|im_start|>assistant\n{t.get('assistant', '')}<|im_end|>\n"
+            prompt += f"<|im_start|>user\n{text[-1]['user']}<|im_end|>\n<|im_start|>assistant\n"
+        else:
+            prompt = f"<|im_start|>system\n{sys_with_nonce}<|im_end|>\n<|im_start|>user\n{text}<|im_end|>\n<|im_start|>assistant\n"
+        
+        if think == "OFF":
+            prompt += "<think>\n\n</think>\n\n"
+            
+        return prompt, ["<|im_end|>", "<|endoftext|>"]
+
+def strip_think(text):
+    return re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL).strip()
+
+def extract_json(text):
+    text = re.sub(r"```(?:json)?", "", text)
+    best = None
+    i = 0
+    while i < len(text):
+        if text[i] == "[":
+            depth = 0
+            in_str = False
+            esc = False
+            start = i
+            for j in range(i, len(text)):
+                c = text[j]
+                if in_str:
+                    if esc:
+                        esc = False
+                    elif c == "\\":
+                        esc = True
+                    elif c == '"':
+                        in_str = False
+                    continue
+                if c == '"':
+                    in_str = True
+                elif c == "[":
+                    depth += 1
+                elif c == "]":
+                    depth -= 1
+                    if depth == 0:
+                        cand = text[start:j+1]
+                        try:
+                            json.loads(cand)
+                            best = cand
+                            i = j
+                        except Exception:
+                            pass
+                        break
+        i += 1
+    return best if best is not None else text
+
+def parse_and_grade_c(reply_clean, expected):
+    try:
+        reply_json = json.loads(extract_json(reply_clean))
+        if not isinstance(reply_json, list):
+            return False, False, False, False # parse_ok, exact, critical_failure, reject_violation
+    except:
+        return False, False, False, False
+
+    # GUARD: a parseable array may contain non-dict elements (e.g. ["bedroom"]).
+    # Filter to dicts before any .get(); wrong-shape is a FORMATTING failure
+    # (exact=False) not a room-hallucination hazard (crit stays as scanned).
+    malformed = any(not isinstance(a, dict) for a in reply_json)
+    acts = [a for a in reply_json if isinstance(a, dict)]
+
+    crit_fail = False
+    for act in acts:
+        if act.get("type") == "navigate_to" and act.get("room") not in MAP_ROOMS:
+            crit_fail = True
+
+    reject_violation = False
+    if expected == "REJECT":
+        refused = is_refusal(acts, malformed)
+        reject_violation = not refused  # every parsed non-refusal, as aggregate.py grades it
+        return True, refused, crit_fail, reject_violation
+
+    if not acts:
+        return True, False, crit_fail, reject_violation # parsed, no usable dict actions
+
+    match = False
+    for act in acts:
+        if expected["type"] == "navigate_to":
+            if act.get("type") == "navigate_to" and act.get("room") == expected["room"]:
+                match = True
+        elif expected["type"] == "find_object":
+            if act.get("type") == "find_object" and act.get("object", "").lower() == expected["object"].lower() and act.get("room") == expected["room"]:
+                match = True
+        elif expected["type"] == "patrol":
+            if act.get("type") == "patrol" and (act.get("rooms") == [] or set(act.get("rooms") or []) == MAP_ROOMS):
+                match = True
+        elif expected["type"] == "come_back":
+            if act.get("type") == "come_back":
+                match = True
+        elif expected["type"] == "find_person":
+            if act.get("type") == "find_person" and act.get("name", "").lower() == expected["name"].lower():
+                if "message" in expected and expected["message"] == "NONEMPTY":
+                    if bool(act.get("message")):
+                        match = True
+                else:
+                    match = True
+
+    return True, (match and not malformed), crit_fail, False
+
+def run_self_check(config_name, family, think_mode):
+    if not think_mode: return True, None
+    prompt, stop = format_prompt("You are a helpful assistant.", "What is 1+1?", family, think_mode)
+    res = generate_completion(prompt, stop, temp=0.1)
+    if "error" in res: return False, None
+    content = res.get("content", "")
+    
+    if think_mode == "ON":
+        if "<think>" not in content:
+            print(f"WARNING: Self-check failed for {config_name}. think=ON but no <think> found.")
+            return False, None
+    elif think_mode == "OFF":
+        if "<think>" in content:
+            print(f"WARNING: Self-check failed for {config_name}. think=OFF but <think> found. Trying fallback '/no_think'...")
+            prompt, stop = format_prompt("You are a helpful assistant.", "What is 1+1?\n/no_think", family, think_mode)
+            res = generate_completion(prompt, stop, temp=0.1)
+            content = res.get("content", "")
+            if "<think>" not in content:
+                print(f"SUCCESS: Fallback '/no_think' worked for {config_name}.")
+                return True, "/no_think"
+            else:
+                print(f"WARNING: Fallback '/no_think' also failed for {config_name}.")
+                return False, None
+    return True, None
+
+def do_run(args):
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    results_file = os.path.join(HOME, f"bench_results_{ts}.json")
+    speed_file = os.path.join(HOME, f"bench_speed_summary.txt")
+    c_summary_file = os.path.join(HOME, f"bench_c_summary.txt")
+    blind_transcripts_file = os.path.join(HOME, f"bench_blind_transcripts.txt")
+    blind_key_file = os.path.join(HOME, f"bench_blind_key.txt")
+    
+    results = []
+    
+    configs_to_run = args.configs if args.configs else list(MODELS.keys())
+    
+    # Shuffle for blind grading
+    blind_key = {}
+    config_ids = [f"M{i+1}" for i in range(len(configs_to_run))]
+    random.shuffle(config_ids)
+    for c, cid in zip(configs_to_run, config_ids):
+        blind_key[c] = cid
+        
+    with open(blind_key_file, "w") as f:
+        for c, cid in blind_key.items():
+            f.write(f"{cid}: {c}\n")
+            
+    blind_data = {} # prompt_id -> {config_id -> reply}
+
+    if args.dry_run:
+        print(f"Dry run. Would test configs: {configs_to_run}")
+        return
+
+    for config_name in configs_to_run:
+        cfg = MODELS[config_name]
+        log_file = os.path.join(HOME, f"bench_{config_name}_{ts}.log")
+        
+        pre_temp = get_zone9_temp()
+        
+        proc = start_server(config_name, log_file)
+        if not proc: continue
+        
+        time.sleep(2)
+        pid = proc.pid
+        
+        mem_avail = get_mem_available()
+        vmrss = get_vmrss(pid)
+        
+        think_verified, fallback = run_self_check(config_name, cfg["family"], cfg["think"])
+        
+        for bucket, prompts, sys_msg, temp in [("A", PROMPTS_A, SYS_CHAT, 0.1), ("B", PROMPTS_B, SYS_CHAT, 0.1), ("C", PROMPTS_C, SYS_PARSE, 0.05)]:
+            for p in prompts:
+                for run_idx in range(args.runs):
+                    text_input = p["text"]
+                    if fallback == "/no_think":
+                        if isinstance(text_input, list):
+                            text_input = [dict(t) for t in text_input]
+                            text_input[-1]["user"] += "\n/no_think"
+                        else:
+                            text_input = text_input + "\n/no_think"
+                            
+                    # Handle multi-turn for A5
+                    if p.get("multi"):
+                        # To keep it self-contained and simple, we'll run the multi-turn sequence
+                        # But wait, the spec says "run all prompts". For A5, we can just run it once to get the final reply,
+                        # but we need the intermediate assistant replies.
+                        # Simplification: we'll simulate the intermediate replies or generate them.
+                        # Actually, we need to generate t1, feed it back, generate t2, feed it back, generate t3.
+                        pass # handled below
+                        
+                    prompt_str, stop_tokens = format_prompt(sys_msg, text_input, cfg["family"], cfg["think"])
+                    
+                    if p.get("multi"):
+                        # We need to build the multi-turn history
+                        history = []
+                        for turn in p["text"]:
+                            history.append({"user": turn["user"]})
+                            p_str, s_tok = format_prompt(sys_msg, history, cfg["family"], cfg["think"])
+                            res = generate_completion(p_str, s_tok, temp)
+                            if "error" in res:
+                                history[-1]["assistant"] = ""
+                                continue
+                            history[-1]["assistant"] = strip_think(res.get("content", ""))
+                        # The final result is the last turn's result
+                        prompt_str = p_str
+                        
+                    else:
+                        res = generate_completion(prompt_str, stop_tokens, temp)
+                        
+                    if "error" in res:
+                        print(f"Error on {config_name} {p['id']}: {res['error']}")
+                        results.append({
+                            "config": config_name, "model": cfg["path"], "build": BIN_PATH,
+                            "bucket": bucket, "prompt_id": p["id"], "lang": p["lang"], "run_index": run_idx + 1,
+                            "error": res["error"], "source_sha256": SOURCE_SHA256
+                        })
+                        continue
+                        
+                    content_raw = res.get("content", "")
+                    content_clean = strip_think(content_raw)
+                    
+                    # Calculate timings
+                    timings = res.get("timings", {})
+                    prompt_n = timings.get("prompt_n", 0)
+                    predicted_n = timings.get("predicted_n", 0)
+                    prompt_ms = timings.get("prompt_ms", 0)
+                    prompt_per_second = timings.get("prompt_per_second", 0)
+                    predicted_per_second = timings.get("predicted_per_second", 0)
+                    
+                    turn_res = {
+                        "config": config_name, "model": cfg["path"], "build": BIN_PATH,
+                        "bucket": bucket, "prompt_id": p["id"], "lang": p["lang"], "run_index": run_idx + 1,
+                        "source_sha256": SOURCE_SHA256,
+                        "reply_raw": content_raw, "reply_clean": content_clean,
+                        "timings": timings, "latency_ms": res.get("latency_ms", 0),
+                        "stop_type": res.get("stop_type"),
+                        "stopped_eos": res.get("stopped_eos"),
+                        "stopped_limit": res.get("stopped_limit"),
+                        "truncated": (res.get("stop_type") == "limit"),
+                        "prompt_n": prompt_n, "predicted_n": predicted_n,
+                        "think_mode": cfg["think"], "think_mode_verified": think_verified,
+                        "think_fallback": fallback,
+                        "think_chars": len(content_raw) - len(content_clean),
+                        "zone9_pre": pre_temp, "zone9_post": get_zone9_temp(),
+                        "MemAvailable": mem_avail, "VmRSS": vmrss,
+                        "prompt_per_second": prompt_per_second,
+                        "predicted_per_second": predicted_per_second,
+                        "trap": p.get("trap", False)
+                    }
+                    
+                    if bucket == "C":
+                        parse_ok, exact, crit_fail, reject_viol = parse_and_grade_c(content_clean, p["expected"])
+                        turn_res["C_parse_ok"] = parse_ok
+                        turn_res["C_exact"] = exact
+                        turn_res["C_critical_failure"] = crit_fail
+                        turn_res["C_reject_violation"] = reject_viol
+                        if crit_fail:
+                            print(f"CRITICAL FAILURE: {config_name} on {p['id']}! Replied: {content_clean}")
+                        if reject_viol:
+                            print(f"REJECT VIOLATION: {config_name} on {p['id']}! Replied: {content_clean}")
+                            
+                    results.append(turn_res)
+                    
+                    if run_idx == 0 and bucket in ["A", "B"]:
+                        if p["id"] not in blind_data: blind_data[p["id"]] = {}
+                        blind_data[p["id"]][blind_key[config_name]] = content_clean
+
+        stop_server()
+        
+        # Incremental save
+        with open(results_file, "w") as f:
+            json.dump(results, f, indent=2)
+            
+        # Rest and cooldown
+        drop_caches()
+        print(f"Cooling down after {config_name}...")
+        start_cool = time.time()
+        while time.time() - start_cool < 300:
+            z9 = get_zone9_temp()
+            if z9 != -1 and z9 <= 45000: # assuming milli-C
+                break
+            time.sleep(5)
+            
+    # Summaries
+    def get_stats(data):
+        if not data: return 0, 0, 0
+        return statistics.median(data), min(data), max(data)
+
+    with open(speed_file, "w") as f:
+        f.write("config | decode tok/s (total) (med/min/max) | decode tok/s (weighted) | prefill tok/s (med/min/max) | TTFT (ms) (med/min/max) | turn latency (ms) (med/min/max) | truncs | think chars (med/min/max)\n")
+        f.write("-" * 180 + "\n")
+        for c in configs_to_run:
+            c_res = [r for r in results if r.get("config") == c and "error" not in r]
+            if not c_res: continue
+            
+            rate_rows = [r for r in c_res if r.get("predicted_n", 0) >= 10 and r.get("predicted_per_second")]
+            if not rate_rows:
+                rate_rows = [r for r in c_res if r.get("predicted_per_second")]
+            dec_tot = get_stats([r["predicted_per_second"] for r in rate_rows])
+            _tok = sum(r.get("predicted_n", 0) for r in rate_rows)
+            _ms = sum(r["timings"].get("predicted_ms", 0) for r in rate_rows if r.get("timings"))
+            dec_wt = (_tok / _ms * 1000) if _ms > 0 else 0
+            pref_tok = get_stats([r["prompt_per_second"] for r in c_res if r.get("prompt_per_second")])
+            ttft = get_stats([r["timings"].get("prompt_ms", 0) for r in c_res if r.get("timings")])
+            lat = get_stats([r["latency_ms"] for r in c_res if r.get("latency_ms")])
+            think_c = get_stats([r.get("think_chars", 0) for r in c_res])
+            truncs = sum(1 for r in c_res if r.get("stop_type") == "limit")
+            
+            f.write(f"{c: <20} | {dec_tot[0]:.2f}/{dec_tot[1]:.2f}/{dec_tot[2]:.2f} | {dec_wt:.2f} | {pref_tok[0]:.2f}/{pref_tok[1]:.2f}/{pref_tok[2]:.2f} | {ttft[0]:.2f}/{ttft[1]:.2f}/{ttft[2]:.2f} | {lat[0]:.2f}/{lat[1]:.2f}/{lat[2]:.2f} | {truncs} | {think_c[0]:.0f}/{think_c[1]:.0f}/{think_c[2]:.0f}\n")
+            
+    with open(c_summary_file, "w") as f:
+        f.write("config | parse_ok % | exact % | cross_lingual % | critical_failures | reject_violations\n")
+        f.write("-" * 100 + "\n")
+        for c in configs_to_run:
+            c_res = [r for r in results if r.get("config") == c and r.get("bucket") == "C" and "error" not in r]
+            if not c_res: continue
+            
+            # Using run 1 only for grading metrics to keep it standard
+            c_res_run1 = [r for r in c_res if r["run_index"] == 1]
+            if not c_res_run1: continue
+            
+            parse_ok = sum(1 for r in c_res_run1 if r.get("C_parse_ok")) / len(c_res_run1) * 100
+            exact = sum(1 for r in c_res_run1 if r.get("C_exact")) / len(c_res_run1) * 100
+            crit = sum(1 for r in c_res_run1 if r.get("C_critical_failure"))
+            rej_viol = sum(1 for r in c_res_run1 if r.get("C_reject_violation"))
+            
+            cross = [r for r in c_res_run1 if r["prompt_id"] in ["C1", "C2", "C3", "C4", "C5", "C13"]]
+            cross_ok = sum(1 for r in cross if r.get("C_exact")) / len(cross) * 100 if cross else 0
+            
+            f.write(f"{c: <20} | {parse_ok: .1f}% | {exact: .1f}% | {cross_ok: .1f}% | {crit} | {rej_viol}\n")
+            
+        f.write("\n" + "=" * 80 + "\nPER-CASE PASS/FAIL TABLE (RUN 1 ONLY)\n" + "=" * 80 + "\n")
+        for c in configs_to_run:
+            c_res_run1 = [r for r in results if r.get("config") == c and r.get("bucket") == "C" and "error" not in r and r["run_index"] == 1]
+            if not c_res_run1: continue
+            
+            f.write(f"\n[{c}]\n")
+            for r in sorted(c_res_run1, key=lambda x: int(x["prompt_id"].replace("C", ""))):
+                parse_str = 'OK' if r.get("C_parse_ok") else 'FAIL'
+                exact_str = 'OK' if r.get("C_exact") else 'FAIL'
+                crit_str = 'YES' if r.get("C_critical_failure") else 'NO'
+                rej_str = 'YES' if r.get("C_reject_violation") else 'NO'
+                f.write(f"  {r['prompt_id']: <4}: Parse={parse_str: <4} Exact={exact_str: <4} CritFail={crit_str: <4} RejViol={rej_str}\n")
+            
+    with open(blind_transcripts_file, "w") as f:
+        for p_id in sorted(blind_data.keys()):
+            f.write(f"=== PROMPT {p_id} ===\n")
+            cids = list(blind_data[p_id].keys())
+            random.shuffle(cids)
+            for cid in cids:
+                f.write(f"\n--- {cid} ---\n{blind_data[p_id][cid]}\n")
+            f.write("\n\n")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--configs", nargs="+", help="Specific configs to run")
+    parser.add_argument("--runs", type=int, default=3, help="Number of runs per prompt")
+    parser.add_argument("--dry-run", action="store_true", help="Print plan without loading models")
+    args = parser.parse_args()
+    do_run(args)
+
+===== FILE: quick-check wrappers =====
+"""Quick check only: conv_quality with 2 prompts per model (A1, C8), 1 run."""
+import sys
+sys.path.insert(0, "/termux-home/ladder")
+import conv_quality as q
+q.bench.PROMPTS_A = [p for p in q.bench.PROMPTS_A if p["id"] == "A1"]
+q.bench.PROMPTS_B = []
+q.bench.PROMPTS_C = [p for p in q.bench.PROMPTS_C if p["id"] == "C8"]
+sys.argv = ["conv_quality.py", sys.argv[1], "--runs", "1"]
+q.main()
+"""Quick check only: conv_speed with 2 prompts per block (A1, C8); core guard faked (timings do not count)."""
+import sys
+sys.path.insert(0, "/termux-home/ladder")
+import conv_speed as cs
+cs.ladder.allowed_cpus = lambda: set(range(8))  # Termux is on cores 0-5 now; check only
+full = cs.prompts
+cs.prompts = lambda family, think: [p for p in full(family, think) if p[0] in ("A1", "C8")]
+sys.argv = ["conv_speed.py", *sys.argv[1:]]
+cs.main()
+#!/bin/bash
+cd /termux-home/ladder
+python3 /tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/conv/quick_quality.py /tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/conv/quick_quality > /tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/conv/quick_quality.stdout.txt 2> /tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/conv/quick_quality.stderr.txt; echo "quality exit $?"
+python3 /tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/conv/quick_speed.py --out /tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/conv/quick_speed --thermal-log /termux-home/ladder/thermal.log </dev/null > /tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/conv/quick_speed.stdout.txt 2> /tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/conv/quick_speed.stderr.txt; echo "speed exit $?"
+
+===== FILE: quick quality stdout / stderr =====
+bench.py source_sha256 0792beeed813d94df2a1d9ce7bffe2f5e2a00a564de4a32aaecfa0182b8e6f8f; binary /data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server
+Cooling down after gemma_e2b_q4km...
+Cooling down after gemma_e2b_q40...
+Cooling down after gemma_e4b_q4km...
+Cooling down after qwen35_4b...
+Cooling down after qwen35_2b...
+
+===== FILE: quick speed stdout / stderr =====
+thermal idle reading (gate z9 <= idle + 4 degC): z9 45.0 z10 46.0 z11 47.0 degC at 2026-09-26T16:27:56Z
+[gemma_e2b_q4km] cold: 2 turns
+  [gemma_e2b_q4km cold] thermal start: z9 45.0 z10 46.0 z11 47.0 degC at 2026-09-26T16:27:56Z (waited 0 s)
+  [gemma_e2b_q4km cold] thermal end:   z9 70.0 z10 77.0 z11 76.0 degC at 2026-09-26T16:28:21Z
+[gemma_e2b_q4km] cached: 2 turns
+  [gemma_e2b_q4km cached] waiting: z9 70.0 degC, need <= 49.0 (idle 45.0 + 4), 0 s
+  [gemma_e2b_q4km cached] waiting: z9 52.0 degC, need <= 49.0 (idle 45.0 + 4), 10 s
+  [gemma_e2b_q4km cached] thermal start: z9 45.0 z10 44.0 z11 44.0 degC at 2026-09-26T16:28:41Z (waited 20 s)
+  [gemma_e2b_q4km cached] thermal end:   z9 98.0 z10 92.0 z11 92.0 degC at 2026-09-26T16:28:57Z
+[gemma_e2b_q40] cold: 2 turns
+  [gemma_e2b_q40 cold] waiting: z9 98.0 degC, need <= 49.0 (idle 45.0 + 4), 0 s
+  [gemma_e2b_q40 cold] waiting: z9 51.0 degC, need <= 49.0 (idle 45.0 + 4), 10 s
+  [gemma_e2b_q40 cold] thermal start: z9 43.0 z10 43.0 z11 43.0 degC at 2026-09-26T16:29:17Z (waited 20 s)
+  [gemma_e2b_q40 cold] thermal end:   z9 101.0 z10 88.0 z11 86.0 degC at 2026-09-26T16:29:32Z
+[gemma_e2b_q40] cached: 2 turns
+  [gemma_e2b_q40 cached] waiting: z9 101.0 degC, need <= 49.0 (idle 45.0 + 4), 0 s
+  [gemma_e2b_q40 cached] thermal start: z9 47.0 z10 47.0 z11 47.0 degC at 2026-09-26T16:29:43Z (waited 10 s)
+  [gemma_e2b_q40 cached] thermal end:   z9 101.0 z10 92.0 z11 93.0 degC at 2026-09-26T16:29:53Z
+[gemma_e4b_q4km] cold: 2 turns
+  [gemma_e4b_q4km cold] waiting: z9 101.0 degC, need <= 49.0 (idle 45.0 + 4), 0 s
+  [gemma_e4b_q4km cold] thermal start: z9 48.0 z10 47.0 z11 48.0 degC at 2026-09-26T16:30:03Z (waited 10 s)
+  [gemma_e4b_q4km cold] thermal end:   z9 100.0 z10 94.0 z11 94.0 degC at 2026-09-26T16:30:29Z
+[gemma_e4b_q4km] cached: 2 turns
+  [gemma_e4b_q4km cached] waiting: z9 100.0 degC, need <= 49.0 (idle 45.0 + 4), 0 s
+  [gemma_e4b_q4km cached] waiting: z9 52.0 degC, need <= 49.0 (idle 45.0 + 4), 10 s
+  [gemma_e4b_q4km cached] thermal start: z9 47.0 z10 47.0 z11 48.0 degC at 2026-09-26T16:30:49Z (waited 20 s)
+  [gemma_e4b_q4km cached] thermal end:   z9 93.0 z10 81.0 z11 81.0 degC at 2026-09-26T16:31:15Z
+[qwen35_4b] cold: 2 turns
+  [qwen35_4b cold] waiting: z9 93.0 degC, need <= 49.0 (idle 45.0 + 4), 0 s
+  [qwen35_4b cold] waiting: z9 60.0 degC, need <= 49.0 (idle 45.0 + 4), 10 s
+  [qwen35_4b cold] waiting: z9 51.0 degC, need <= 49.0 (idle 45.0 + 4), 20 s
+  [qwen35_4b cold] thermal start: z9 48.0 z10 46.0 z11 47.0 degC at 2026-09-26T16:31:40Z (waited 30 s)
+  [qwen35_4b cold] thermal end:   z9 79.0 z10 80.0 z11 80.0 degC at 2026-09-26T16:32:06Z
+[qwen35_4b] cached: 2 turns
+  [qwen35_4b cached] waiting: z9 79.0 degC, need <= 49.0 (idle 45.0 + 4), 0 s
+  [qwen35_4b cached] waiting: z9 57.0 degC, need <= 49.0 (idle 45.0 + 4), 10 s
+  [qwen35_4b cached] waiting: z9 50.0 degC, need <= 49.0 (idle 45.0 + 4), 20 s
+  [qwen35_4b cached] thermal start: z9 45.0 z10 46.0 z11 47.0 degC at 2026-09-26T16:32:36Z (waited 30 s)
+  [qwen35_4b cached] thermal end:   z9 81.0 z10 80.0 z11 80.0 degC at 2026-09-26T16:32:57Z
+[qwen35_2b] cold: 2 turns
+  [qwen35_2b cold] waiting: z9 81.0 degC, need <= 49.0 (idle 45.0 + 4), 0 s
+  [qwen35_2b cold] waiting: z9 52.0 degC, need <= 49.0 (idle 45.0 + 4), 10 s
+  [qwen35_2b cold] thermal start: z9 46.0 z10 47.0 z11 47.0 degC at 2026-09-26T16:33:17Z (waited 20 s)
+  [qwen35_2b cold] thermal end:   z9 80.0 z10 81.0 z11 80.0 degC at 2026-09-26T16:33:27Z
+[qwen35_2b] cached: 2 turns
+  [qwen35_2b cached] waiting: z9 80.0 degC, need <= 49.0 (idle 45.0 + 4), 0 s
+  [qwen35_2b cached] thermal start: z9 48.0 z10 49.0 z11 49.0 degC at 2026-09-26T16:33:38Z (waited 10 s)
+  [qwen35_2b cached] thermal end:   z9 82.0 z10 78.0 z11 78.0 degC at 2026-09-26T16:33:43Z
+CONVERSATION SPEED REPORT  (server_manager flags, cores 4-7, one pass over the 27 #110 prompts per block)
+ttft = client time to first streamed token; prompt tok/s median; gen tok/s token-weighted (>= 10 tokens)
+
+model           block     load s  ttft s prompt t/s  gen t/s peak MiB trunc   thermal start -> end (z9 z10 z11 degC); load state
+gemma_e2b_q4km  cold         7.8    6.06       26.3     7.10     4289     0   z9 45.0 z10 46.0 z11 47.0 -> z9 70.0 z10 77.0 z11 76.0; weights-cold
+gemma_e2b_q4km  cached       4.9    2.80       59.6    12.56     4521     0   z9 45.0 z10 44.0 z11 44.0 -> z9 98.0 z10 92.0 z11 92.0; cached
+gemma_e2b_q40   cold         5.5    2.23       72.8    14.24     4331     0   z9 43.0 z10 43.0 z11 43.0 -> z9 101.0 z10 88.0 z11 86.0; weights-cold
+gemma_e2b_q40   cached       3.5    2.19       76.2    14.21     4332     0   z9 47.0 z10 47.0 z11 47.0 -> z9 101.0 z10 92.0 z11 93.0; cached
+gemma_e4b_q4km  cold         9.4    5.19       32.8     6.13     5411     0   z9 48.0 z10 47.0 z11 48.0 -> z9 100.0 z10 94.0 z11 94.0; weights-cold
+gemma_e4b_q4km  cached       9.2    5.23       31.7     6.91     5433     0   z9 47.0 z10 47.0 z11 48.0 -> z9 93.0 z10 81.0 z11 81.0; cached
+qwen35_4b       cold         7.1    6.07       28.2     7.05     5345     0   z9 48.0 z10 46.0 z11 47.0 -> z9 79.0 z10 80.0 z11 80.0; weights-cold
+qwen35_4b       cached       6.8    5.57       28.0     6.84     4607     0   z9 45.0 z10 46.0 z11 47.0 -> z9 81.0 z10 80.0 z11 80.0; cached
+qwen35_2b       cold         4.1    1.99       78.4    15.19     2658     0   z9 46.0 z10 47.0 z11 47.0 -> z9 80.0 z10 81.0 z11 80.0; weights-cold
+qwen35_2b       cached       3.1    2.02       77.8    15.12     2659     0   z9 48.0 z10 49.0 z11 49.0 -> z9 82.0 z10 78.0 z11 78.0; cached
+
+===== FILE: score_c.py on quick results =====
+/tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/conv/quick_quality/bench_results_20260926_162121.json
+bench.py source_sha256 in rows: {'0792beeed813d94df2a1d9ce7bffe2f5e2a00a564de4a32aaecfa0182b8e6f8f': 5}
+
+model           regime     run-1 exact  all-run exact   parse  crit reject viol cross-ling r1  errors  trunc
+gemma_e2b_q40   harness            1/1            1/1       1     0           0           0/0       0      0
+gemma_e2b_q40   strict             1/1            1/1       1     0           0           0/0       0      0
+gemma_e2b_q40   lenient            1/1            1/1       1     0           0           0/0       0      0
+gemma_e2b_q4km  harness            1/1            1/1       1     0           0           0/0       0      0
+gemma_e2b_q4km  strict             1/1            1/1       1     0           0           0/0       0      0
+gemma_e2b_q4km  lenient            1/1            1/1       1     0           0           0/0       0      0
+gemma_e4b_q4km  harness            1/1            1/1       1     0           0           0/0       0      0
+gemma_e4b_q4km  strict             1/1            1/1       1     0           0           0/0       0      0
+gemma_e4b_q4km  lenient            1/1            1/1       1     0           0           0/0       0      0
+qwen35_2b       harness            1/1            1/1       1     0           0           0/0       0      0
+qwen35_2b       strict             1/1            1/1       1     0           0           0/0       0      0
+qwen35_2b       lenient            1/1            1/1       1     0           0           0/0       0      0
+qwen35_4b       harness            1/1            1/1       1     0           0           0/0       0      0
+qwen35_4b       strict             1/1            1/1       1     0           0           0/0       0      0
+qwen35_4b       lenient            1/1            1/1       1     0           0           0/0       0      0
+
+Harness-grader misses (prompt, run, reply):
+  gemma_e2b_q40: 0
+  gemma_e2b_q4km: 0
+  gemma_e4b_q4km: 0
+  qwen35_2b: 0
+  qwen35_4b: 0
+
+===== FILE: quick blind sheet (first 45 lines) and key (first 6) =====
+# Blind grading sheet: robot conversation (A) and Q&A (B)
+
+5 answers per prompt, labelled A-E; the order is shuffled separately for every prompt, so a letter does not stand for the same model twice. The system prompt asked for brief, natural spoken replies (at most two short sentences unless asked for more), in the user's language, saying plainly when the robot does not know or cannot sense something.
+
+Do not open the key file until every prompt is graded.
+
+---
+
+## A1 (en)
+
+> Hey, you awake?
+
+**A.**
+
+    Yes, I am awake. How can I help you today?
+
+Score (1-5): ____   Notes: ______________________________
+
+**B.**
+
+    Yes, I'm awake and ready to help. How can I assist you today?
+
+Score (1-5): ____   Notes: ______________________________
+
+**C.**
+
+    Yes, I am awake. How can I help you today?
+
+Score (1-5): ____   Notes: ______________________________
+
+**D.**
+
+    Yes, I'm awake and ready to help. What can I do for you?
+
+Score (1-5): ____   Notes: ______________________________
+
+**E.**
+
+    Beep boop! Yes, I am awake and ready to assist you. What can I do for you today?
+
+Score (1-5): ____   Notes: ______________________________
+
+---
+
+## A2 (de)
+prompt	letter	model
+A1	A	gemma_e2b_q40
+A1	B	qwen35_2b
+A1	C	gemma_e2b_q4km
+A1	D	qwen35_4b
+A1	E	gemma_e4b_q4km

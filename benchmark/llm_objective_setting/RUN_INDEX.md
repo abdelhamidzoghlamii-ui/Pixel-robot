@@ -15,3 +15,15 @@ Completed on rooted Pixel 7 / Termux with llama-server build 1609. [runs/](runs/
 The Gemmas tie only in the run-1 headline; E2B leads after all three runs. The strict semantic reading of E2B C8 would instead produce 10/13 (76.9%) run 1 and 31/39 (79.5%) overall; that interpretation remains open pending an upfront refusal definition in the next benchmark.
 
 The historical stored C fields use a defective refusal rule that misses action types such as `find_person` and `patrol`. [aggregate.py](aggregate.py) applies the corrected structural rule to raw replies. All result rows lack `source_sha256`, so exact grader-byte association remains inferred. The Laya/Von [strategic selector run index](../strategic_selector/RUN_INDEX.md) belongs to a separate experiment.
+
+## 2026-09-26 runs (rubric-fixed `bench.py` `0792beee…`, dotprod b1609)
+
+| Run | Output | Status | Result |
+|---|---|---|---|
+| quality, 5 models × 3 runs | `conversation/conversation_quality/`, `conversation/conversation_quality_qwen35_4b/` | complete (Qwen3.5-4B rerun after an LMK kill, kept) | C all-run exact: Qwen3.5-4B 36/39, E2B Q4_0 33/39, E2B Q4_K_M 33/39, E4B 32–33/39, Qwen3.5-2B 17/39 |
+| blind A/B grading | `conversation/conversation_blind_sheet.md`, `…_key.tsv`, `local_ai_blind_scores.tsv` | complete | of 70: E2B Q4_0 41, Qwen3.5-4B 41, E2B Q4_K_M 39, Qwen3.5-2B 36, E4B 34 |
+| conversation speed, cold + cached | `conversation/conversation_20260926T185957Z/` | complete | E2B Q4_0 ~12.2 gen tok/s |
+| server memory, 9 runs | `memory_check/` | complete | flag removes conversation-shape growth; no measurable cost |
+| cold start + 5 voice parses (task C) | `memory_check/timeout_check.*` | complete | first parse 39.07 s against the 40 s timeout |
+| cold start + warm-up + 5 voice parses | `memory_check/timeout_check_warmup.*` | superseded (warm-up without a 60 s deadline) | warm-up 45.6 s (discarded), then 11.4 / 7.7 / 10.2 / 11.5 / 12.1 s |
+| same, after the 60 s deadline fix | `memory_check/timeout_check_warmup2.*`, `warmup_no_server.txt` | complete | warm-up 45.5 s, then 11.2 / 7.5 / 9.4 / 12.7 / 12.0 s; no server: gives up after 60.0 s |

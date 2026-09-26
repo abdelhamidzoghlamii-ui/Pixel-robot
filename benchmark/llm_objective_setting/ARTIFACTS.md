@@ -32,3 +32,5 @@ python aggregate.py
 ```
 
 `aggregate.py` reads the JSONs and writes only derived, ignored files in this directory. It does not run inference, contact a network, alter raw evidence or touch hardware.
+
+Additions of 2026-09-26 (rubric-fixed rerun, conversation grading and speed, server memory check) are hashed in [ARTIFACTS_2026-09-26.md](ARTIFACTS_2026-09-26.md).

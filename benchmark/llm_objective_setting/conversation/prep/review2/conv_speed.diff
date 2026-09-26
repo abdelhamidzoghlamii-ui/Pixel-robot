@@ -1,0 +1,18 @@
+--- conv_speed.py.reviewed	2026-09-26 18:42:30.423850598 +0000
++++ /termux-home/ladder/conv_speed.py	2026-09-26 18:22:59.943850026 +0000
+@@ -44,9 +44,13 @@
+ 
+ 
+ def server_cmd(gguf, port=PORT):
+-    """server_manager.start_server's command line, as an argv list (no shell, no pkill)."""
++    """server_manager.start_server's command line, as an argv list (no shell, no pkill), plus --cache-ram 0.
++    DEVIATION (human decision 2026-09-26): with server_manager's flags alone the server's host prompt cache grew
++    ~104 MiB anonymous memory per request on Qwen3.5-4B until Android killed it (~25 turns, Termux too); with
++    --cache-ram 0 it stayed flat over 20 turns. server_manager.py's comment claims this flag but never passes it."""
+     return [sm.LLAMA_SERVER, "-m", gguf, "--port", str(port), "--ctx-size", "2048", "--threads", sm.THREADS,
+-            "--threads-batch", sm.BATCH_THREADS, "--parallel", "1", "--swa-full", "--host", "127.0.0.1"]
++            "--threads-batch", sm.BATCH_THREADS, "--parallel", "1", "--swa-full", "--host", "127.0.0.1",
++            "--cache-ram", "0"]
+ 
+ 
+ def healthy(port):

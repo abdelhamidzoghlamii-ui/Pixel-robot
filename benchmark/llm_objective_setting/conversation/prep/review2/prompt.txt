@@ -1,0 +1,463 @@
+# Re-review: --cache-ram 0 added to the conversation benchmark's server command (Pixel Robot, research only)
+ROLE: Reviewer. PONYTAIL: off. Independent correctness/safety review. Do NOT call any tool or run any command, do not
+edit, create, stage, commit or push anything, do not run motors, and do not launch another reviewer. All material is
+inlined below; answer from this text only.
+
+## Context
+The previous candidate (rubric fixes, blind sheet, conv_speed.py/run_conversation.sh speed script) was reviewed
+APPROVE WITH NOTES. Afterwards the full quality run showed a problem: with server_manager.py's flags, Qwen3.5-4B's
+llama-server died silently after ~25 turns (twice at the same point; the second time Android also killed Termux).
+Per-turn measurement (mem_diag) showed the server's anonymous RSS growing ~104 MiB per request while its file-backed
+weight pages were squeezed out; with --cache-ram 0 anonymous RSS stayed flat over 20 turns. The human chose: add
+--cache-ram 0 to the benchmark's server flags only (quality rerun for Qwen3.5-4B + speed script), report it as a
+deviation, re-review. server_manager.py itself was not changed.
+
+## Changes since the reviewed version (reviewed files reconstructed; their SHA-256 match the earlier frozen hashes)
+conv_speed.diff, run_conversation.diff below. conv_quality.py uses conv_speed.server_cmd, so the Qwen3.5-4B quality
+rerun used --cache-ram 0; the other four models' quality rows come from the first run, which used server_manager's
+flags without it (all 81 turns completed for each). Combination: rows of the first run minus qwen35_4b, plus the
+qwen35_4b rerun (81 rows) -> conversation_quality_combined.json. The killed attempt's directory was kept, renamed.
+
+## Please report
+Correctness of the change; whether mixing the four first-run models (no --cache-ram 0) with the Qwen3.5-4B rerun
+(with it) invalidates any quality comparison (prompts carry a random nonce and cache_prompt is the server default);
+whether the speed comparison stays fair; any other issue. End with APPROVE / APPROVE WITH NOTES / CHANGES REQUESTED.
+
+===== FILE: conv_speed.diff =====
+--- conv_speed.py.reviewed	2026-09-26 18:42:30.423850598 +0000
++++ /termux-home/ladder/conv_speed.py	2026-09-26 18:22:59.943850026 +0000
+@@ -44,9 +44,13 @@
+ 
+ 
+ def server_cmd(gguf, port=PORT):
+-    """server_manager.start_server's command line, as an argv list (no shell, no pkill)."""
++    """server_manager.start_server's command line, as an argv list (no shell, no pkill), plus --cache-ram 0.
++    DEVIATION (human decision 2026-09-26): with server_manager's flags alone the server's host prompt cache grew
++    ~104 MiB anonymous memory per request on Qwen3.5-4B until Android killed it (~25 turns, Termux too); with
++    --cache-ram 0 it stayed flat over 20 turns. server_manager.py's comment claims this flag but never passes it."""
+     return [sm.LLAMA_SERVER, "-m", gguf, "--port", str(port), "--ctx-size", "2048", "--threads", sm.THREADS,
+-            "--threads-batch", sm.BATCH_THREADS, "--parallel", "1", "--swa-full", "--host", "127.0.0.1"]
++            "--threads-batch", sm.BATCH_THREADS, "--parallel", "1", "--swa-full", "--host", "127.0.0.1",
++            "--cache-ram", "0"]
+ 
+ 
+ def healthy(port):
+
+===== FILE: run_conversation.diff =====
+--- run_conversation.sh.reviewed	2026-09-26 18:42:30.427850598 +0000
++++ /termux-home/ladder/run_conversation.sh	2026-09-26 18:23:01.627850027 +0000
+@@ -1,5 +1,6 @@
+ #!/bin/bash
+ # Conversation speed of five models on the robot's llama.cpp (server_manager.py's binary and flags).
++# Server: server_manager.py binary and flags plus --cache-ram 0 (see conv_speed.server_cmd).
+ # Research only: offline, no motors, no main.py. Per model: a cold block and a cached block, each one pass over
+ # the 27 DECISIONS #110 prompts (conversation, Q&A, objective-setting): load time, time to first token, prompt and
+ # generation tok/s, peak RSS, thermal start/end. Every block waits until z9 <= idle + 4 degC; losing cores 4-7
+
+===== FILE: mem_diag.py =====
+"""Diagnose qwen35_4b dying after ~25 bench turns: replay bench's turn order (A1.. x3 runs) on server_manager flags
+and sample memory each turn. Stops at MemAvailable < 1000 MiB or after 20 turns (before the low-memory killer)."""
+import sys, time
+sys.path.insert(0, "/termux-home/ladder")
+import conv_speed as cs
+b = cs.bench
+extra = sys.argv[2:]
+gguf, fam, think = cs.MODELS["qwen35_4b"]
+field = lambda pid, k: next(int(l.split()[1]) // 1024 for l in open(f"/proc/{pid}/status") if l.startswith(k + ":"))
+avail = lambda: next(int(l.split()[1]) // 1024 for l in open("/proc/meminfo") if l.startswith("MemAvailable"))
+cmd = cs.server_cmd
+cs.server_cmd = lambda g, port=cs.PORT: cmd(g, port) + extra
+proc, load = cs.start(gguf, open(sys.argv[1], "w"))
+print(f"extra args {extra}; loaded; MemAvailable {avail()} MiB; RssAnon {field(proc.pid, 'RssAnon')} RssFile {field(proc.pid, 'RssFile')}", flush=True)
+n = 0
+try:
+    for p in b.PROMPTS_A + b.PROMPTS_B:
+        for run in range(3):
+            text = [{"user": t["user"]} for t in p["text"]] if p.get("multi") else p["text"]
+            prompt, stop = b.format_prompt(b.SYS_CHAT, text, fam, think)
+            res = b.generate_completion(prompt, stop, 0.1)
+            n += 1
+            alive = proc.poll() is None
+            print(f"{n:2} {p['id']} r{run + 1} {'ok ' if 'error' not in res else 'ERR'} MemAvailable {avail():5} MiB  server "
+                  + (f"RssAnon {field(proc.pid, 'RssAnon'):5} RssFile {field(proc.pid, 'RssFile'):5}" if alive else f"EXITED {proc.poll()}"), flush=True)
+            if not alive or avail() < 1000 or n >= 20:
+                raise StopIteration
+except StopIteration:
+    pass
+finally:
+    if proc.poll() is None:
+        cs.stop(proc)
+
+===== mem_diag, server_manager flags (stopped at MemAvailable < 700 MiB) =====
+extra args []; loaded; MemAvailable 1995 MiB; RssAnon 2748 RssFile 1813
+(13 turns: RssAnon 2825 2929 3029 3133 3237 3341 3448 3553 3658 3764 3869 3969 4078; RssFile 1591 .. 34; MemAvailable 1887 .. 594)
+
+===== mem_diag, + --cache-ram 0 (20 turns) =====
+extra args ['--cache-ram', '0']; loaded; MemAvailable 2243 MiB; RssAnon 2748 RssFile 1982
+ 1 A1 r1 ok  MemAvailable  2050 MiB  server RssAnon  2824 RssFile  1759
+ 2 A1 r2 ok  MemAvailable  1992 MiB  server RssAnon  2825 RssFile  1538
+ 3 A1 r3 ok  MemAvailable  1889 MiB  server RssAnon  2825 RssFile  1328
+ 4 A2 r1 ok  MemAvailable  1905 MiB  server RssAnon  2825 RssFile  1328
+ 5 A2 r2 ok  MemAvailable  1926 MiB  server RssAnon  2826 RssFile  1328
+ 6 A2 r3 ok  MemAvailable  1923 MiB  server RssAnon  2826 RssFile  1329
+ 7 A3 r1 ok  MemAvailable  1861 MiB  server RssAnon  2829 RssFile  1330
+ 8 A3 r2 ok  MemAvailable  1877 MiB  server RssAnon  2829 RssFile  1332
+ 9 A3 r3 ok  MemAvailable  1851 MiB  server RssAnon  2829 RssFile  1122
+10 A4 r1 ok  MemAvailable  1857 MiB  server RssAnon  2830 RssFile  1122
+11 A4 r2 ok  MemAvailable  1870 MiB  server RssAnon  2831 RssFile  1123
+12 A4 r3 ok  MemAvailable  1880 MiB  server RssAnon  2831 RssFile  1123
+13 A5 r1 ok  MemAvailable  1864 MiB  server RssAnon  2836 RssFile  1123
+14 A5 r2 ok  MemAvailable  1783 MiB  server RssAnon  2836 RssFile  1124
+15 A5 r3 ok  MemAvailable  1680 MiB  server RssAnon  2836 RssFile   925
+16 A6 r1 ok  MemAvailable  1720 MiB  server RssAnon  2836 RssFile   926
+17 A6 r2 ok  MemAvailable  1752 MiB  server RssAnon  2836 RssFile   927
+18 A6 r3 ok  MemAvailable  1771 MiB  server RssAnon  2836 RssFile   927
+19 A7 r1 ok  MemAvailable  1766 MiB  server RssAnon  2837 RssFile   927
+20 A7 r2 ok  MemAvailable  1774 MiB  server RssAnon  2837 RssFile   927
+
+===== first quality run: per-config row/error counts =====
+gemma_e2b_q40 81/0 err, gemma_e2b_q4km 81/0, gemma_e4b_q4km 81/0, qwen35_2b 81/0, qwen35_4b 18 ok / 63 errors (first error A7 run 1: 'Remote end closed connection without response', then 'Connection refused'); server log ends mid prompt processing, no error line.
+
+===== qwen35_4b rerun with --cache-ram 0 =====
+81 rows, 0 errors, 0 truncated, think-off self-check verified
+
+===== FILE: conversation_quality_scores.txt (combined) =====
+conversation_quality_combined.json
+bench.py source_sha256 in rows: {'0792beeed813d94df2a1d9ce7bffe2f5e2a00a564de4a32aaecfa0182b8e6f8f': 195}
+
+model           regime     run-1 exact  all-run exact   parse  crit reject viol cross-ling r1  errors  trunc
+gemma_e2b_q40   harness          11/13          33/39      39     0           3           5/6       0      0
+gemma_e2b_q40   strict           11/13          33/39      39     0           3           5/6       0      0
+gemma_e2b_q40   lenient          11/13          33/39      39     0           3           5/6       0      0
+gemma_e2b_q4km  harness          11/13          33/39      39     0           3           5/6       0      0
+gemma_e2b_q4km  strict           11/13          33/39      39     0           3           5/6       0      0
+gemma_e2b_q4km  lenient          11/13          33/39      39     0           3           5/6       0      0
+gemma_e4b_q4km  harness          11/13          32/39      38     0           3           5/6       0      0
+gemma_e4b_q4km  strict           11/13          32/39      38     0           3           5/6       0      0
+gemma_e4b_q4km  lenient          11/13          33/39      39     0           3           5/6       0      0
+qwen35_2b       harness           6/13          17/39      39     0           0           3/6       0      0
+qwen35_2b       strict            6/13          17/39      39     0           0           3/6       0      0
+qwen35_2b       lenient           6/13          17/39      39     0           0           3/6       0      0
+qwen35_4b       harness          12/13          36/39      39     0           0           5/6       0      0
+qwen35_4b       strict           12/13          36/39      39     0           0           5/6       0      0
+qwen35_4b       lenient          12/13          36/39      39     0           0           5/6       0      0
+
+
+===== FILE: conv_speed.py (candidate, full) =====
+#!/usr/bin/env python3
+"""Conversation speed runner. Research only: offline, no motors, no main.py.
+
+Usage: conv_speed.py --out DIR [--models a,b] [--resume] [--thermal-log PATH]
+
+Per model, two blocks, one server each, llama-server pinned to cores 4-7 with server_manager.py's binary and flags:
+  cold    thermal gate, page-cache drop (ladder.make_cold: LADDER_COLD_HANDSHAKE=1 or a terminal prompt, else the
+          weights are evicted), start the server, time spawn -> /health ok, then one pass over the #110 prompts.
+  cached  thermal gate, start again with the weights in page cache, time the load, same pass.
+Each turn streams /completion: time to first token is the first streamed content (client clock), prompt and
+generation tok/s come from the server's timings. Peak RSS is the server's VmHWM. Blocks are gated, guarded and
+resumed like ladder.py: losing cores 4-7 discards and redoes the block; --resume keeps completed blocks.
+Writes DIR/blocks.jsonl, DIR/turns.jsonl, DIR/report.txt.
+"""
+import argparse
+import hashlib
+import json
+import os
+import signal
+import statistics
+import subprocess
+import sys
+import time
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.insert(0, "/termux-home/ladder")
+sys.path.insert(0, "/termux-home/robot")
+sys.path.insert(0, "/termux-home/robot/benchmark/llm_objective_setting")
+import ladder  # noqa: E402  thermal gate, core guard, cold handshake
+import server_manager as sm  # noqa: E402  the robot's binary and flags
+import bench  # noqa: E402  the #110 prompts, wrappers and sampling
+
+M = "/data/data/com.termux/files/home/models/"
+MODELS = {  # config -> (gguf, prompt family, think)
+    "gemma_e2b_q4km": (M + "gemma-4-e2b-it-q4_k_m.gguf", "gemma", None),
+    "gemma_e2b_q40": (M + "gemma-4-E2B-it-Q4_0.gguf", "gemma", None),
+    "gemma_e4b_q4km": (M + "gemma-4-e4b-it-q4_k_m.gguf", "gemma", None),
+    "qwen35_4b": (M + "qwen35/Qwen3.5-4B-Q4_K_M.gguf", "chatml", "OFF"),
+    "qwen35_2b": (M + "qwen35/Qwen3.5-2B-Q4_K_M.gguf", "chatml", "OFF"),
+}
+PORT = 8080
+
+
+def server_cmd(gguf, port=PORT):
+    """server_manager.start_server's command line, as an argv list (no shell, no pkill), plus --cache-ram 0.
+    DEVIATION (human decision 2026-09-26): with server_manager's flags alone the server's host prompt cache grew
+    ~104 MiB anonymous memory per request on Qwen3.5-4B until Android killed it (~25 turns, Termux too); with
+    --cache-ram 0 it stayed flat over 20 turns. server_manager.py's comment claims this flag but never passes it."""
+    return [sm.LLAMA_SERVER, "-m", gguf, "--port", str(port), "--ctx-size", "2048", "--threads", sm.THREADS,
+            "--threads-batch", sm.BATCH_THREADS, "--parallel", "1", "--swa-full", "--host", "127.0.0.1",
+            "--cache-ram", "0"]
+
+
+def healthy(port):
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as r:
+            return r.status == 200
+    except OSError:
+        return False
+
+
+def start(gguf, log, port=PORT, timeout=180):
+    """Starts the server on cores 4-7; returns (process, load seconds from spawn to /health ok)."""
+    if healthy(port):
+        raise SystemExit(f"port {port} is already serving; stop that server first")
+    began = time.perf_counter()
+    proc = subprocess.Popen(["taskset", "-c", ladder.CORES, *server_cmd(gguf, port)], stdout=log, stderr=subprocess.STDOUT,
+                            start_new_session=True)
+    while not healthy(port):
+        if proc.poll() is not None or time.perf_counter() - began > timeout:
+            stop(proc)
+            raise RuntimeError(f"llama-server did not become healthy (exit {proc.poll()})")
+        time.sleep(0.1)
+    return proc, time.perf_counter() - began
+
+
+def stop(proc):
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+        proc.wait(timeout=30)
+    except (ProcessLookupError, subprocess.TimeoutExpired):
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.wait()
+
+
+def vm_hwm_mib(pid):
+    return next(int(l.split()[1]) // 1024 for l in open(f"/proc/{pid}/status") if l.startswith("VmHWM:"))
+
+
+def prompts(family, think):
+    """The #110 A, B and C prompts, one pass, with bench.py's wrappers, stop tokens and temperatures."""
+    out = []
+    for bucket, ps, sys_msg, temp in (("A", bench.PROMPTS_A, bench.SYS_CHAT, 0.1), ("B", bench.PROMPTS_B, bench.SYS_CHAT, 0.1),
+                                      ("C", bench.PROMPTS_C, bench.SYS_PARSE, 0.05)):
+        for p in ps:
+            text = [{"user": t["user"]} for t in p["text"]] if p.get("multi") else p["text"]  # A5: final turn, no history
+            prompt, stop_tokens = bench.format_prompt(sys_msg, text, family, think)  # random nonce: no prefix reuse
+            out.append((p["id"], {"prompt": prompt, "stop": stop_tokens, "temperature": temp, "n_predict": 512,
+                                  "cache_prompt": False, "stream": True}))
+    return out
+
+
+def turn(body, port=PORT):
+    """One streamed completion: (seconds to first streamed content, final timings, stop_type, text)."""
+    req = urllib.request.Request(f"http://127.0.0.1:{port}/completion", json.dumps(body).encode(),
+                                 {"Content-Type": "application/json"})
+    began, first, text, final = time.perf_counter(), None, [], None
+    with urllib.request.urlopen(req, timeout=600) as r:
+        for line in r:
+            if not line.startswith(b"data: "):
+                continue
+            ev = json.loads(line[6:])
+            if ev.get("content"):
+                first = first or time.perf_counter() - began
+                text.append(ev["content"])
+            if ev.get("stop"):
+                final = ev
+    if final is None:
+        raise RuntimeError("stream ended without a final event")
+    return first, final.get("timings", {}), final.get("stop_type"), "".join(text)
+
+
+def run_block(name, block, out, thermal):
+    gguf, family, think = MODELS[name]
+    ladder.check_cores("before " + block)
+    therm = {}
+    if thermal:
+        therm["start"] = ladder.thermal_gate(thermal[0], thermal[1], f"{name} {block}")
+        print(f"  [{name} {block}] thermal start: {ladder.fmt_thermal(therm['start'])} (waited {therm['start']['waited_s']} s)",
+              flush=True)
+    load_state = ladder.make_cold(name, [gguf]) if block == "cold" else {"mode": "cached"}
+    ladder.check_cores("before starting " + block)
+    with open(out / "logs" / f"{name}.{block}.server.log", "w") as log:
+        proc, load_s = start(gguf, log)
+        rows = []
+        try:
+            for pid_, body in prompts(family, think):
+                ttft, tm, stop_type, text = turn(body)
+                rows.append({"model": name, "block": block, "prompt_id": pid_, "ttft_s": ttft, "stop_type": stop_type,
+                             "prompt_n": tm.get("prompt_n"), "prompt_ms": tm.get("prompt_ms"),
+                             "prompt_tok_s": tm.get("prompt_per_second"), "predicted_n": tm.get("predicted_n"),
+                             "predicted_ms": tm.get("predicted_ms"), "gen_tok_s": tm.get("predicted_per_second"),
+                             "reply": text})
+                ladder.check_cores(f"during {block}")
+            peak = vm_hwm_mib(proc.pid)
+        finally:
+            stop(proc)
+    if thermal:
+        therm["end"] = ladder.read_thermal(thermal[0])
+        print(f"  [{name} {block}] thermal end:   {ladder.fmt_thermal(therm['end'])}", flush=True)
+    ladder.check_cores("after " + block)
+    return {"model": name, "block": block, "load_s": load_s, "load_state": load_state, "peak_rss_mib": peak,
+            "thermal": therm or None}, rows
+
+
+def summary(meta, rows):
+    """Per block: medians over turns; generation tok/s is token-weighted over turns with >= 10 generated tokens."""
+    gen = [r for r in rows if (r["predicted_n"] or 0) >= 10]
+    ms = sum(r["predicted_ms"] for r in gen)
+    med = lambda k: statistics.median([r[k] for r in rows if r[k] is not None]) if rows else None
+    return {"load_s": meta["load_s"], "ttft_s": med("ttft_s"), "prompt_tok_s": med("prompt_tok_s"),
+            "gen_tok_s": sum(r["predicted_n"] for r in gen) / ms * 1000 if ms else None,
+            "peak_rss_mib": meta["peak_rss_mib"], "turns": len(rows), "truncated": sum(r["stop_type"] == "limit" for r in rows)}
+
+
+def report(done, models):
+    f = lambda v, spec: format(v, spec) if v is not None else "n/a"
+    t = lambda b, k: ladder.fmt_thermal(b["thermal"][k]).split(" degC")[0] if b.get("thermal") else "n/a"
+    L = ["CONVERSATION SPEED REPORT  (server_manager flags, cores 4-7, one pass over the 27 #110 prompts per block)",
+         "ttft = client time to first streamed token; prompt tok/s median; gen tok/s token-weighted (>= 10 tokens)", ""]
+    L.append(f"{'model':<16}{'block':<8}{'load s':>8}{'ttft s':>8}{'prompt t/s':>11}{'gen t/s':>9}{'peak MiB':>9}{'trunc':>6}"
+             "   thermal start -> end (z9 z10 z11 degC); load state")
+    for name in models:
+        for block in ("cold", "cached"):
+            if (name, block) not in done:
+                L.append(f"{name:<16}{block:<8}  not run")
+                continue
+            meta, rows = done[(name, block)]
+            s = summary(meta, rows)
+            L.append(f"{name:<16}{block:<8}{f(s['load_s'], '.1f'):>8}{f(s['ttft_s'], '.2f'):>8}{f(s['prompt_tok_s'], '.1f'):>11}"
+                     f"{f(s['gen_tok_s'], '.2f'):>9}{s['peak_rss_mib']:>9}{s['truncated']:>6}   {t(meta, 'start')} -> "
+                     f"{t(meta, 'end')}; {meta['load_state']['mode'].split(' (')[0]}")
+    return "\n".join(L)
+
+
+def load_done(out):
+    """Blocks that completed with valid data: listed in blocks.jsonl (written only after the block passed)."""
+    turns = {}
+    for line in (out / "turns.jsonl").read_text().splitlines() if (out / "turns.jsonl").exists() else []:
+        r = json.loads(line)
+        turns.setdefault((r["model"], r["block"]), []).append(r)
+    metas = [json.loads(l) for l in (out / "blocks.jsonl").read_text().splitlines()] if (out / "blocks.jsonl").exists() else []
+    return {(m["model"], m["block"]): (m, turns.get((m["model"], m["block"]), [])) for m in metas}
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--models", default=",".join(MODELS))
+    ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--thermal-log", default=None)
+    a = ap.parse_args()
+    models = a.models.split(",")
+    if set(models) - set(MODELS):
+        raise SystemExit(f"unknown models {sorted(set(models) - set(MODELS))}")
+    if a.resume and not a.out.is_dir():
+        raise SystemExit(f"--resume: {a.out} does not exist")
+    a.out.mkdir(parents=True, exist_ok=a.resume)
+    (a.out / "logs").mkdir(exist_ok=True)
+    done = load_done(a.out) if a.resume else {}
+    if a.resume:
+        print("resume: keeping " + (", ".join(f"{m} {b}" for m, b in done) or "nothing"), flush=True)
+    sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
+    bin_dir = Path(sm.LLAMA_SERVER).parent
+    (a.out / f"run_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.json").write_text(json.dumps({
+        "conv_speed_sha256": sha(__file__), "bench_sha256": bench.SOURCE_SHA256, "ladder_sha256": sha(ladder.__file__),
+        "llama_server": sm.LLAMA_SERVER, "libggml_cpu_sha256": sha(bin_dir / "libggml-cpu.so"),
+        "server_cmd": server_cmd("<gguf>"), "models": {m: MODELS[m] for m in models}}, indent=1) + "\n")
+    ladder.wait_cores("start")
+    thermal = None
+    if a.thermal_log:
+        idle = ladder.read_thermal(a.thermal_log)
+        print(f"thermal idle reading (gate z9 <= idle + {ladder.GATE_MC / 1000:.0f} degC): {ladder.fmt_thermal(idle)}", flush=True)
+        thermal = (a.thermal_log, idle)
+    with open(a.out / "turns.jsonl", "a") as tlog, open(a.out / "blocks.jsonl", "a") as blog:
+        for name in models:
+            for block in ("cold", "cached"):
+                if (name, block) in done:
+                    print(f"[{name}] {block}: already completed, skipped (--resume)", flush=True)
+                    continue
+                print(f"[{name}] {block}: {len(prompts(*MODELS[name][1:]))} turns", flush=True)
+                while True:
+                    ladder.wait_cores(f"{name} {block}")
+                    try:
+                        meta, rows = run_block(name, block, a.out, thermal)
+                        break
+                    except ladder.CoresLost as e:
+                        print(f"  [{name} {block}] {e}: discarding this block's data and redoing it", flush=True)
+                tlog.writelines(json.dumps(r) + "\n" for r in rows)
+                tlog.flush()
+                blog.write(json.dumps(meta) + "\n")
+                blog.flush()
+                done[(name, block)] = (meta, rows)
+    text = report(done, models)
+    (a.out / "report.txt").write_text(text + "\n")
+    print(text)
+
+
+if __name__ == "__main__":
+    main()
+
+===== FILE: conv_quality.py (unchanged) =====
+#!/usr/bin/env python3
+"""Quality run of the DECISIONS #110 benchmark (the rubric-fixed bench.py, unchanged otherwise) on five models,
+with the robot's llama.cpp binary and server_manager.py's flags. Research only: offline, no motors, no main.py.
+
+Usage: conv_quality.py OUT_DIR [--runs 3]
+bench.do_run does the prompting and grading; this driver only swaps what bench.py hardcodes for its own phone
+setup: the model table, the binary and server flags (conv_speed.server_cmd, pinned to cores 4-7), the output
+directory, and stopping only the server it started (bench's pkill would also hit other llama-servers). Thermal
+readings come from the root logger's thermal.log when it is fresh (bench's own `su` reading fails in proot).
+Timings from this run do not count; run_conversation.sh measures speed.
+"""
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, "/termux-home/ladder")
+import conv_speed as cs  # noqa: E402  model table, server command, start/stop
+import ladder  # noqa: E402
+
+bench = cs.bench
+THERMAL_LOG = "/termux-home/ladder/thermal.log"
+_proc = []
+
+
+def start_server(config_name, log_file):
+    try:
+        with open(log_file, "a") as f:
+            proc, _ = cs.start(bench.MODELS[config_name]["path"], f)
+    except RuntimeError as e:
+        print(f"Failed to start server for {config_name}: {e}")
+        return None
+    _proc.append(proc)
+    return proc
+
+
+def stop_server():
+    while _proc:
+        cs.stop(_proc.pop())
+
+
+def zone9():
+    try:
+        return ladder.read_thermal(THERMAL_LOG)["z9"]
+    except (SystemExit, OSError, IndexError, ValueError):  # no or stale logger: bench's "unknown" value
+        return -1
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("out", type=Path)
+    ap.add_argument("--runs", type=int, default=3)
+    a = ap.parse_args()
+    a.out.mkdir(parents=True, exist_ok=False)
+    bench.MODELS = {name: {"path": gguf, "family": family, "think": think} for name, (gguf, family, think) in cs.MODELS.items()}
+    bench.BIN_PATH = cs.sm.LLAMA_SERVER
+    bench.HOME = str(a.out)
+    bench.start_server, bench.stop_server, bench.get_zone9_temp = start_server, stop_server, zone9
+    print(f"bench.py source_sha256 {bench.SOURCE_SHA256}; binary {bench.BIN_PATH}", flush=True)
+    bench.do_run(argparse.Namespace(configs=list(bench.MODELS), runs=a.runs, dry_run=False))
+
+
+if __name__ == "__main__":
+    main()

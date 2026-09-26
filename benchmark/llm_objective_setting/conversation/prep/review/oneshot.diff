@@ -1,0 +1,22 @@
+--- /tmp/claude-0/-data-data-com-termux-files-home-robot/b32f7c1a-ea17-4af1-98e0-189c71dbb218/scratchpad/conv/oneshot.sh.orig	2026-09-26 06:51:15.522174875 +0000
++++ /termux-home/ladder/oneshot.sh	2026-09-26 16:20:34.509945979 +0000
+@@ -8,10 +8,11 @@
+ L=$H/ladder
+ CONSOLE=$L/oneshot_console_$(date -u +%Y%m%dT%H%M%SZ).log
+ say() { echo "[oneshot] $*" | tee -a "$CONSOLE"; }
++RUN_SCRIPT=${RUN_SCRIPT:-run_s1o_speed.sh}  # e.g. RUN_SCRIPT=run_conversation.sh bash ~/ladder/oneshot.sh
+ 
+ if [ -d /termux-home ]; then echo "Run this from native Termux (~ \$), not from Debian."; exit 1; fi
+ su -c id >/dev/null 2>&1 || { echo "No root: su failed. Check Magisk."; exit 1; }
+-[ -f "$L/run_s1o_speed.sh" ] || { echo "Missing $L/run_s1o_speed.sh"; exit 1; }
++[ -f "$L/$RUN_SCRIPT" ] || { echo "Missing $L/$RUN_SCRIPT"; exit 1; }
+ if pgrep -fa 'claude|agy|node' >/dev/null; then
+   echo "An agent is still running:"; pgrep -fa 'claude|agy|node'; echo "Quit it, then rerun."; exit 1
+ fi
+@@ -48,5 +49,5 @@
+ say "thermal after idle: $(tail -1 "$L/thermal.log")"
+ 
+ proot-distro login debian --bind "$H:/termux-home" -- \
+-  env PYTHONUNBUFFERED=1 LADDER_COLD_HANDSHAKE=1 /termux-home/ladder/run_s1o_speed.sh "$@" 2>&1 | tee -a "$CONSOLE"
++  env PYTHONUNBUFFERED=1 LADDER_COLD_HANDSHAKE=1 "/termux-home/ladder/$RUN_SCRIPT" "$@" 2>&1 | tee -a "$CONSOLE"
+ say "done; console log: $CONSOLE"
