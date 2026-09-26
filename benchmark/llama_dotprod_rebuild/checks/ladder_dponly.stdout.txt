@@ -1,0 +1,43 @@
+[s1o_b1609dponly] main: cold load, 60 cases x 2 order(s) at 4 threads
+LADDER REPORT  2026-09-26T10:07:23+00:00
+cases /data/data/com.termux/files/home/ladder/cases/ladder_cases_v1.jsonl sha256 41eeafd28e2ce499  n=60  levels [1, 2, 3, 4, 5]
+models s1o_b1609dponly  threads [4]  cores 4-7  device RAM 7468 MiB
+timing: perf_counter in the worker; decision = wall time of adapter.decide; post = total - tokenise - forward
+
+== s1o_b1609dponly [OUT (speed)] ==
+accuracy        correct 94/120 (78%)  acceptable 99/120 (82%)  (both orders)
+  by level      L1 23/24 (96%)  L2 16/24 (67%)  L3 17/24 (71%)  L4 18/24 (75%)  L5 20/24 (83%)
+  by phrasing   direct 32/40 (80%)  indirect 30/40 (75%)  narrative 32/40 (80%)
+order flips     8/60  ['L1_08', 'L2_11', 'L3_01', 'L3_04', 'L3_12', 'L4_06', 'L5_07', 'L5_09']
+decision ms     median 2533  P95 4663  (main block, 4 threads, n=120)
+  split median  tokenise 11.9  forward 2517.9  post 0.1   [tokenise=/tokenize HTTP calls, forward=/completion HTTP call (server prompt eval inside)]
+tokens/s        36   tokens by level L1 70  L2 87  L3 96  L4 88  L5 160   limit 2048, hit 0x
+token count     prompt token ids sent to llama-server (Gemma tokenizer, with BOS); the server evaluates them, then 1 token
+latency fit     ms = -367.5 + 31.156 x tokens   R2 0.98  (n=120, tokens 62-173)
+threads         main block only (no thread blocks)
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/0, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/0, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     2.66     n/a
+                import        0.00     n/a
+                init          4.54     n/a
+                warmup        0.86     n/a
+                total         8.07     n/a
+                spawn_to_ready    8.36     n/a
+                weight files 3302 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: no terminal to prompt on
+RAM             peak 3678 MiB (VmHWM, worker + llama-server)   largest single process 3652.5 MiB (wait4)
+HINTS
+  - per-token cost is 100% of predicted latency at level 5 (fit -368 ms + 31.16 ms/token x 160 tokens at level 5, R2 0.98) -> shorter input will help
+  - model forward is 100% of decision time (median tokenise 11.9 / forward 2517.9 / post 0.1 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - choice changed under reversed order in 8/60 cases (13%) -> order bias; average over orders or fix the order
+  - peak RAM 3678 MiB is 49% of device RAM (7468 MiB) -> only one such model can stay resident
+
+== CATEGORY WINNERS ==
+accuracy         s1o_b1609dponly s1o_b1609dponly 78%/82%acc
+order stability  s1o_b1609dponly s1o_b1609dponly 13% flips
+decision speed   s1o_b1609dponly s1o_b1609dponly 2533 ms
+cached load      n/a
+cold load        s1o_b1609dponly s1o_b1609dponly 8.1 s
+RAM              s1o_b1609dponly s1o_b1609dponly 3678 MiB
+(ties keep the listed model order; accuracy ties break on acceptable)

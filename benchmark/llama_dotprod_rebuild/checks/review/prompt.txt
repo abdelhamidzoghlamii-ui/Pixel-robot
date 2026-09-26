@@ -1,0 +1,648 @@
+# Review request: rebuild of the robot's llama.cpp (b1609) with dotprod, and server_manager.py path change
+ROLE: Reviewer. PONYTAIL: off. Independent correctness/safety review. Do NOT call any tool or run any command, do
+not edit, create, stage, commit or push anything, do not run motors, and do not launch another reviewer. All
+material is inlined below; answer from this text only.
+
+## Task (human decision, Pixel Robot)
+Fix the missing dotprod in the robot's llama.cpp build; must change speed only, not behaviour. (1) Build the SAME
+commit as the robot's b1609 (e1a1abb7) with ARMv8.2 dotprod (+fp16 if supported) into a NEW directory without
+touching the current binary; record flags. (2) Prove dotprod: system_info + objdump sdot counts old vs new.
+(3) Behaviour: a) s1o full ladder both orders vs old b1609 results (agreement, differing cases, max prob diff,
+accuracy, median/P95); b) main.py parse_command() with PARSE_SYS on 15 fixed commands, old vs new side by side;
+c) tokens/s generating 200 tokens old vs new. (4) server_manager.py: change the binary path only.
+
+## Base
+Robot repo /termux-home/robot at 6322dc1; the only tracked change is server_manager.py (diff below). Builds and
+check scripts are outside the repo. frozen.sha256 pins server_manager.py and the new binaries.
+
+## Please report
+Whether the build is the same commit with only the arch flag changed; whether the dotprod evidence is sufficient;
+whether the behaviour checks support "speed only, not behaviour" (note the 2/120 s1o flips and the old-binary
+parse timeouts); any risk in the path change for the robot (runtime from native Termux, RUNPATH, libs, the 20 s
+parse timeout); defects in the check scripts. End with APPROVE / APPROVE WITH NOTES / CHANGES REQUESTED.
+
+===== FILE: EVIDENCE.md =====
+# Evidence: robot llama.cpp b1609 rebuilt with dotprod (+fp16)
+
+## 1. Build
+Commit confirmed from the binary: old `llama-server --version` -> `version: 1609 (e1a1abb7)`; old source tree
+/data/data/com.termux/files/home/llama.cpp at e1a1abb78746c025f5e9039f590e37ccdb758ae7, `git status` clean,
+rev-list count 1609, tag b10194. Old build dir: /data/data/com.termux/files/home/llama.cpp/build (untouched).
+New dir: /data/data/com.termux/files/home/llama.cpp-b1609-dotprod (git clone of the old tree, checkout e1a1abb7).
+Toolchain: Termux clang 21.1.8, cmake 4.3.2, GNU make 4.4.1 (run from proot with PATH/LD_LIBRARY_PATH/PREFIX
+pointing at /data/data/com.termux/files/usr; the build dir uses the native path so RUNPATH works natively).
+```
+cmake -S . -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER=/data/data/com.termux/files/usr/bin/cc -DCMAKE_CXX_COMPILER=/data/data/com.termux/files/usr/bin/c++ \
+  -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16
+make -C build -j6 llama-server        # 7m01s
+```
+CMakeCache GGML_*/LLAMA_*/BUILD_SHARED_LIBS/CMAKE_BUILD_TYPE/compilers/CMAKE_C(XX)_FLAGS* vs the old build: the
+only difference is `GGML_CPU_ARM_ARCH:STRING=` -> `armv8.2-a+dotprod+fp16`. ggml-cpu compile flag added:
+`-march=armv8.2-a+dotprod+fp16`. Configure feature tests: HAVE_DOTPROD Success, HAVE_FP16_VECTOR_ARITHMETIC
+Success, HAVE_SVE/MATMUL_INT8/SME Failed. Build notes: web-UI bundle for b1609 not downloadable (fell back to
+"latest" UI bundle; npm/node step failed under proot) - browser UI only, the robot uses /completion.
+New RUNPATH: /data/data/com.termux/files/usr/bin/../../usr/lib:/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin
+CPU: Pixel 7 Tensor G2 (4x A55, 2x A78, 2x X1), /proc/cpuinfo has asimddp and asimdhp.
+
+## 2. dotprod evidence
+system_info (--verbose, same flags as server_manager):
+- old: `CPU : NEON = 1 | ARM_FMA = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |`
+- new: `CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |`
+llvm-objdump -d | grep -c sdot (and fp16 `fmla vN.8h`):
+| file | old sdot | new sdot | old fp16 fmla | new fp16 fmla |
+|---|---|---|---|---|
+| llama-server (6 KB launcher) | 0 | 0 | 0 | 0 |
+| libggml-cpu.so.0.18.0 | 0 | 1045 | 0 | 456 |
+| libggml-base / libllama / libllama-server-impl | 0 | 0 | 0 | 0 |
+/proc/<pid>/maps confirms each server loads its own build's libggml-cpu.so, both started without LD_LIBRARY_PATH.
+
+## 3a. s1o, full ladder (60 cases x 2 orders, 4 threads, cores 4-7, same S1O adapter & flags; weights-cold)
+Old reference: s1o_b1609 main block of /termux-home/ladder/s1o_speed_20260926T045648Z (same cases file).
+| | old b1609 | new b1609+dotprod+fp16 |
+|---|---|---|
+| correct / acceptable | 92/120 (77%) / 97 (81%) | 94/120 (78%) / 99 (82%) |
+| order flips | 6/60 | 8/60 |
+| median / P95 decision ms | 6650 / 13665 | 2478 / 4605 |
+| prompt eval | 13 tok/s | 37 tok/s |
+Choice agreement: 118/120. Differing: (L3_01, reversed) old 'go to the kitchen' p=0.562 (wrong) -> new 'go to the
+living room' p=0.584 (correct); (L3_12, written) old 'go to the bedroom' p=0.758 (wrong) -> new 'go to the living
+room' p=0.642 (correct). Max |probability difference| 0.4005 (L3_12 written, option 'go to the bedroom').
+Diagnostics: (i) new build is deterministic: L3 rerun 24/24 same, max prob diff 0.0; old was deterministic in its
+own run (main vs t4 0/60, 0.0000). (ii) dotprod-ONLY build (same commit, -march=armv8.2-a+dotprod, dir
+llama.cpp-b1609-dotprod-nofp16): same 2 flips vs old; vs dotprod+fp16 0/120 choice differences, max prob diff
+0.0001 -> the flips come from the dotprod kernels, not fp16. (iii) context: b2351 (other upstream build, FA off)
+differs from old b1609 in 4/120 decisions, max prob diff 0.88.
+
+## 3b. Voice parsing: main.py parse_command() + PARSE_SYS (exec'd from main.py source), server via
+server_manager.start_setup('setup_q4') (exact robot flags, port 8080), only LLAMA_SERVER swapped.
+Result: 15/15 identical parsed actions and identical raw model text once the old binary's timeouts are excluded.
+Old binary: commands 1-2 of the first pass returned [] because parse_command's 20 s timeout expired on the cold
+first request (~600-token prompt at ~10 tok/s); later requests reused the server's prompt cache. Follow-ups:
+cmd 2 with warm cache -> identical; cmd 1 after the old server finished its warm-up -> identical (raw text
+identical). New binary: first cold parse 18.9 s (first pass), 14.2 s (follow-up warm-up), 13.4 s (smoke) - under
+the 20 s timeout but close. See VOICE table below.
+
+## 3c. Generation: 200 tokens, temperature 0, ignore_eos, cache_prompt false; rounds old,new,old,new x3
+old: [6.69, 6.42, 6.5, 6.71, 6.11, 6.27] tok/s, median 6.46; prompt eval median 10.0 tok/s
+new: [8.36, 8.41, 8.06, 9.07, 8.68, 8.63] tok/s, median 8.52 (+32%); prompt eval median 31.6 tok/s
+No thermal gate (the root thermal logger cannot run from proot); rounds were interleaved to spread drift.
+
+## 4. Code change: server_manager.py LLAMA_SERVER only (diff below). Smoke: start_setup('setup_q4') launched the
+new binary with the robot's flags, parse_command('Go to the kitchen') -> [navigate_to kitchen] in 13.4 s,
+start_setup('stop') left no server. No other file in the robot repo changed.
+## VOICE (first pass, old vs new)
+ 1. 'Find Chiara and tell her the pizza is here'  DIFFERENT  (20068 ms old / 18948 ms new)
+    old: []
+    new: [{"type": "find_person", "name": "Chiara", "message": "the pizza is here"}]
+ 2. 'Go to the bathroom'  DIFFERENT  (20025 ms old / 2382 ms new)
+    old: []
+    new: [{"type": "navigate_to", "room": "bathroom"}]
+ 3. 'Patrol the whole apartment'  SAME  (5926 ms old / 2194 ms new)
+    old: [{"type": "patrol", "rooms": []}]
+    new: [{"type": "patrol", "rooms": []}]
+ 4. 'Find my phone in the living room'  SAME  (5584 ms old / 3236 ms new)
+    old: [{"type": "find_object", "object": "phone", "room": "living_room"}]
+    new: [{"type": "find_object", "object": "phone", "room": "living_room"}]
+ 5. 'Come back'  SAME  (3279 ms old / 1778 ms new)
+    old: [{"type": "come_back"}]
+    new: [{"type": "come_back"}]
+ 6. 'Tell Abdel the meeting starts in ten minutes'  SAME  (5988 ms old / 3638 ms new)
+    old: [{"type": "find_person", "name": "Abdel", "message": "the meeting starts in ten minutes"}]
+    new: [{"type": "find_person", "name": "Abdel", "message": "the meeting starts in ten minutes"}]
+ 7. 'Go to the kitchen and say lunch is ready'  SAME  (6215 ms old / 3560 ms new)
+    old: [{"type": "navigate_to", "room": "kitchen"}, {"type": "say", "message": "lunch is ready"}]
+    new: [{"type": "navigate_to", "room": "kitchen"}, {"type": "say", "message": "lunch is ready"}]
+ 8. 'Check the bedroom and the hallway'  SAME  (4816 ms old / 2571 ms new)
+    old: [{"type": "patrol", "rooms": ["bedroom", "hallway"]}]
+    new: [{"type": "patrol", "rooms": ["bedroom", "hallway"]}]
+ 9. 'Where are my glasses'  SAME  (4308 ms old / 2431 ms new)
+    old: [{"type": "find_object", "object": "glasses"}]
+    new: [{"type": "find_object", "object": "glasses"}]
+10. 'Say good night'  SAME  (4081 ms old / 2249 ms new)
+    old: [{"type": "say", "message": "good night"}]
+    new: [{"type": "say", "message": "good night"}]
+11. 'Find someone and tell them the door is open'  SAME  (6003 ms old / 3451 ms new)
+    old: [{"type": "find_person", "name": "someone", "message": "the door is open"}]
+    new: [{"type": "find_person", "name": "someone", "message": "the door is open"}]
+12. 'Go to the living room then come back'  SAME  (6286 ms old / 3504 ms new)
+    old: [{"type": "navigate_to", "room": "living_room"}, {"type": "come_back"}]
+    new: [{"type": "navigate_to", "room": "living_room"}, {"type": "come_back"}]
+13. 'Look for the cat in the bedroom'  SAME  (5362 ms old / 3005 ms new)
+    old: [{"type": "find_object", "object": "cat", "room": "bedroom"}]
+    new: [{"type": "find_object", "object": "cat", "room": "bedroom"}]
+14. 'Tell Chiara I love her'  SAME  (5725 ms old / 3287 ms new)
+    old: [{"type": "find_person", "name": "Chiara", "message": "I love her"}]
+    new: [{"type": "find_person", "name": "Chiara", "message": "I love her"}]
+15. 'Blue banana seven'  SAME  (4401 ms old / 2279 ms new)
+    old: [{"type": "say", "message": "Blue banana seven"}]
+    new: [{"type": "say", "message": "Blue banana seven"}]
+old: generation [6.69, 6.42, 6.5, 6.71, 6.11, 6.27] tok/s (n=[200, 200, 200, 200, 200, 200]), median 6.46; prompt eval median 10.0 tok/s
+new: generation [8.36, 8.41, 8.06, 9.07, 8.68, 8.63] tok/s (n=[200, 200, 200, 200, 200, 200]), median 8.52; prompt eval median 31.6 tok/s
+
+## VOICE follow-up (warm)
+cmd 2 warm: old [navigate_to bathroom] 8260 ms / new same 2634 ms -> SAME
+cmd 1 old after warm-up finished (4122 ms): [find_person Chiara 'the pizza is here'], raw identical to new
+
+===== FILE: server_manager.diff =====
+diff --git a/server_manager.py b/server_manager.py
+index 768b3c9..7b0ebc3 100644
+--- a/server_manager.py
++++ b/server_manager.py
+@@ -3,7 +3,7 @@ import time
+ import urllib.request
+ 
+ HOME = "/data/data/com.termux/files/home"
+-LLAMA_SERVER = HOME + "/llama.cpp/build/bin/llama-server"
++LLAMA_SERVER = HOME + "/llama.cpp-b1609-dotprod/build/bin/llama-server"
+ 
+ # Optimal config (benchmarked on Pixel 7 Tensor G2):
+ # --threads 4 --threads-batch 4 → 11-12 tok/s for E2B
+===== FILE: frozen.sha256 =====
+55beb054b0819573f60da0385e1a5b9b01a5d0bc8eddc0114743316cbd1d1d25  server_manager.py
+a4ef0d97e741f5902919af5e9cef95f808bd98581be76bca66fcee3f4ac8a0dd  /data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libggml-cpu.so.0.18.0
+77eb35a0e716dff307e0d33b0b45ce0ed91e216a20db9411a7b9dc94e6624053  /data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server
+
+===== FILE: scripts/ladder_dp.py =====
+"""3a: the ladder runner, unchanged, with one extra variant added at runtime: b1609 rebuilt with dotprod+fp16.
+Same S1O adapter, same GGUF, same server flags as s1o_b1609 (no extra args)."""
+import sys
+from pathlib import Path
+sys.path.insert(0, "/termux-home/ladder")
+import ladder
+NEW = "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin"
+ladder.VARIANT_ENV["s1o_b1609dp"] = {"S1O_LLAMA_BIN": NEW, "S1O_GGUF": ladder.GGUFS["q4km"], "S1O_SERVER_ARGS": ""}
+ladder.MODELS["s1o_b1609dp"] = ladder.MODELS["s1o"]
+ladder.WEIGHTS["s1o_b1609dp"] = [Path(ladder.GGUFS["q4km"])]
+sys.argv = ["ladder.py", *sys.argv[1:]]
+ladder.main()
+
+===== FILE: scripts/compare_3a.py =====
+"""Choice agreement: new main block vs the old b1609 main block (same cases, both orders)."""
+import json, sys
+old = {(r["case_id"], r["order"]): r for r in map(json.loads, open(sys.argv[1])) if r["model"] == "s1o_b1609" and r["block"] == "main"}
+new = {(r["case_id"], r["order"]): r for r in map(json.loads, open(sys.argv[2])) if r["block"] == "main"}
+assert old.keys() == new.keys(), (len(old), len(new))
+diff = [k for k in old if old[k]["choice"] != new[k]["choice"]]
+pd = max((abs(old[k]["distribution"][o] - new[k]["distribution"][o]), k, o) for k in old for o in old[k]["distribution"])
+print(f"decisions {len(old)}; same choice {len(old) - len(diff)}/{len(old)}")
+for k in diff:
+    print(f"  DIFFERENT {k}: old {old[k]['choice']!r} p={max(old[k]['distribution'].values()):.3f}  new {new[k]['choice']!r} p={max(new[k]['distribution'].values()):.3f}")
+print(f"max |probability difference| {pd[0]:.4f} at {pd[1]} option {pd[2]!r}")
+
+===== FILE: scripts/voice_gen.py =====
+"""3b + 3c. Servers start through server_manager.start_server (the robot's exact flags, port 8080) with only
+LLAMA_SERVER swapped; parse_command and PARSE_SYS are exec'd from main.py's source (main.py is not imported,
+so no camera/detector modules load). Order: old, new, old, new (generation rounds alternate to spread drift)."""
+import ast, json, statistics, sys, time
+import requests
+sys.path.insert(0, "/termux-home/robot")
+import server_manager as sm
+
+OLD = "/data/data/com.termux/files/home/llama.cpp/build/bin/llama-server"  # pinned: server_manager is edited later
+NEW = "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server"
+MODEL = sm.HOME + "/models/gemma-4-e2b-it-q4_k_m.gguf"  # what setup_q4 starts
+src = open("/termux-home/robot/main.py").read()
+tree = ast.parse(src)
+ns = {"requests": requests, "json": json, "GEMMA_URL": "http://127.0.0.1:8080/completion", "__builtins__": __builtins__}
+for node in tree.body:
+    if (isinstance(node, ast.Assign) and node.targets[0].id == "PARSE_SYS") or \
+       (isinstance(node, ast.FunctionDef) and node.name == "parse_command"):
+        exec(compile(ast.Module([node], []), "main.py", "exec"), ns)
+raw = {}
+real_post = requests.post
+def post(url, json=None, **kw):  # capture the model's raw text next to parse_command's result
+    r = real_post(url, json=json, **kw)
+    raw["content"] = r.json().get("content")
+    return r
+ns["requests"] = type("R", (), {"post": staticmethod(post)})
+
+COMMANDS = [
+    "Find Chiara and tell her the pizza is here",
+    "Go to the bathroom",
+    "Patrol the whole apartment",
+    "Find my phone in the living room",
+    "Come back",
+    "Tell Abdel the meeting starts in ten minutes",
+    "Go to the kitchen and say lunch is ready",
+    "Check the bedroom and the hallway",
+    "Where are my glasses",
+    "Say good night",
+    "Find someone and tell them the door is open",
+    "Go to the living room then come back",
+    "Look for the cat in the bedroom",
+    "Tell Chiara I love her",
+    "Blue banana seven",
+]
+GEN = {"prompt": "<start_of_turn>user\nTell me a long story about a small robot exploring a quiet house at night."
+                 "<end_of_turn>\n<start_of_turn>model\n",
+       "n_predict": 200, "temperature": 0, "ignore_eos": True, "cache_prompt": False}
+
+def run(binary, parse):
+    sm.LLAMA_SERVER = binary
+    assert sm.start_setup("setup_q4"), "server did not start"
+    out = {"parse": [], "gen": []}
+    if parse:
+        for c in COMMANDS:
+            t = time.perf_counter()
+            actions = ns["parse_command"](c)
+            out["parse"].append({"cmd": c, "actions": actions, "raw": raw.get("content"),
+                                 "ms": round((time.perf_counter() - t) * 1000)})
+    for _ in range(3):
+        tm = requests.post("http://127.0.0.1:8080/completion", json=GEN, timeout=300).json()["timings"]
+        out["gen"].append({"n": tm["predicted_n"], "tok_s": tm["predicted_per_second"], "prompt_tok_s": tm["prompt_per_second"]})
+    sm.kill_servers()
+    return out
+
+res = {"old_1": run(OLD, True), "new_1": run(NEW, True), "old_2": run(OLD, False), "new_2": run(NEW, False)}
+json.dump(res, open(sys.argv[1], "w"), indent=1)
+for i, c in enumerate(COMMANDS):
+    o, n = res["old_1"]["parse"][i], res["new_1"]["parse"][i]
+    print(f"{i + 1:2}. {c!r}  {'SAME' if o['actions'] == n['actions'] and o['raw'] == n['raw'] else 'DIFFERENT'}"
+          f"  ({o['ms']} ms old / {n['ms']} ms new)")
+    print(f"    old: {json.dumps(o['actions'])}")
+    print(f"    new: {json.dumps(n['actions'])}")
+for b in ("old", "new"):
+    g = res[f"{b}_1"]["gen"] + res[f"{b}_2"]["gen"]
+    print(f"{b}: generation {[round(x['tok_s'], 2) for x in g]} tok/s (n={[x['n'] for x in g]}), median "
+          f"{statistics.median(x['tok_s'] for x in g):.2f}; prompt eval median {statistics.median(x['prompt_tok_s'] for x in g):.1f} tok/s")
+
+===== FILE: scripts/voice_warm.py =====
+"""3b follow-up: commands 1-2 with the server's prompt cache warmed by one discarded parse (the old binary's
+cold first parse exceeds parse_command's 20 s timeout). Everything else as voice_gen.py."""
+import json, sys, time
+sys.argv = [sys.argv[0], "/dev/null"]
+src = open(__file__.replace("voice_warm.py", "voice_gen.py")).read()
+src = src[:src.index("res = {")]  # reuse its setup: server start, parse_command from main.py, capture
+exec(src)
+out = {}
+for label, binary in (("old", OLD), ("new", NEW)):
+    sm.LLAMA_SERVER = binary
+    assert sm.start_setup("setup_q4")
+    t = time.perf_counter(); ns["parse_command"]("Come back"); warm = round(time.perf_counter() - t, 1)
+    out[label] = {"warmup_s": warm, "results": []}
+    for c in COMMANDS[:2]:
+        t = time.perf_counter()
+        a = ns["parse_command"](c)
+        out[label]["results"].append({"cmd": c, "actions": a, "raw": raw.get("content"), "ms": round((time.perf_counter() - t) * 1000)})
+    sm.kill_servers()
+for label in out:
+    print(label, "warm-up parse", out[label]["warmup_s"], "s")
+for i in range(2):
+    o, n = out["old"]["results"][i], out["new"]["results"][i]
+    print(f"{i + 1}. {o['cmd']!r}  {'SAME' if o['actions'] == n['actions'] and o['raw'] == n['raw'] else 'DIFFERENT'} ({o['ms']} / {n['ms']} ms)")
+    print("   old:", json.dumps(o["actions"])); print("   new:", json.dumps(n["actions"]))
+
+===== FILE: scripts/voice_old1.py =====
+"""3b follow-up: command 1 on the old binary after its warm-up request has finished server-side."""
+import json, sys, time
+sys.argv = [sys.argv[0], "/dev/null"]
+src = open(__file__.replace("voice_old1.py", "voice_gen.py")).read()
+exec(src[:src.index("res = {")])
+sm.LLAMA_SERVER = OLD
+assert sm.start_setup("setup_q4")
+ns["parse_command"]("Come back")
+time.sleep(90)
+t = time.perf_counter(); a = ns["parse_command"](COMMANDS[0]); ms = round((time.perf_counter() - t) * 1000)
+sm.kill_servers()
+print(f"old {COMMANDS[0]!r} ({ms} ms): {json.dumps(a)}   raw={raw.get('content')!r}")
+
+===== FILE: scripts/smoke.py =====
+"""Smoke: the edited server_manager.start_setup('setup_q4') + one parse_command (from main.py source)."""
+import sys, time
+sys.argv = [sys.argv[0], "/dev/null"]
+src = open(__file__.replace("smoke.py", "voice_gen.py")).read()
+exec(src[:src.index("OLD = ")] + src[src.index("MODEL = "):src.index("res = {")])  # server_manager's own LLAMA_SERVER
+print("LLAMA_SERVER", sm.LLAMA_SERVER)
+assert sm.start_setup("setup_q4")
+import subprocess
+print(subprocess.run("pgrep -af llama-server | grep -v pgrep", shell=True, capture_output=True, text=True).stdout.strip())
+t = time.perf_counter(); a = ns["parse_command"]("Go to the kitchen"); print(a, round(time.perf_counter() - t, 1), "s")
+sm.start_setup("stop")
+
+===== FILE: server_manager.py (candidate, full) =====
+import os
+import time
+import urllib.request
+
+HOME = "/data/data/com.termux/files/home"
+LLAMA_SERVER = HOME + "/llama.cpp-b1609-dotprod/build/bin/llama-server"
+
+# Optimal config (benchmarked on Pixel 7 Tensor G2):
+# --threads 4 --threads-batch 4 → 11-12 tok/s for E2B
+# --parallel 1                  → no slot splitting
+# --cache-ram 0                 → disables broken SWA cache
+THREADS = "4"
+BATCH_THREADS = "4"
+
+def kill_servers():
+    os.system("pkill -f llama-server 2>/dev/null")
+    time.sleep(2)
+    print("[SERVER] All servers stopped")
+
+def wait_for_server(port=8080, timeout=60):
+    for i in range(timeout):
+        time.sleep(1)
+        try:
+            r = urllib.request.urlopen(
+                "http://127.0.0.1:" + str(port) + "/health", timeout=2)
+            if r.status == 200:
+                print("[SERVER] Ready after " + str(i+1) + "s")
+                return True
+        except:
+            pass
+    print("[SERVER] ERROR: failed to load in " + str(timeout) + "s")
+    return False
+
+def start_server(model_path, port=8080, ctx=2048, extra_args=""):
+    kill_servers()
+    cmd = (
+        LLAMA_SERVER +
+        " -m " + model_path +
+        " --port " + str(port) +
+        " --ctx-size " + str(ctx) +
+        " --threads " + THREADS +
+        " --threads-batch " + BATCH_THREADS +
+        " --parallel 1" +
+        " --swa-full" +
+        " --host 127.0.0.1 " +
+        extra_args +
+        " 2>/dev/null &"
+    )
+    os.system(cmd)
+    print("[SERVER] Starting: " + model_path.split("/")[-1])
+    print("[SERVER] Waiting...")
+    return wait_for_server(port)
+
+def start_setup(setup_name):
+    print("\n" + "="*50)
+    print("  Starting: " + setup_name)
+    print("="*50)
+
+    # ── MAIN ROBOT MODEL ──────────────────────────────
+    if setup_name == "setup_q4":
+        # E2B Q4_K_M — default robot model
+        # Speed: 11-12 tok/s | Size: 3.3GB
+        return start_server(
+            HOME + "/models/gemma-4-e2b-it-q4_k_m.gguf",
+            port=8080, ctx=2048
+        )
+
+    # ── QUALITY MODE ──────────────────────────────────
+    elif setup_name == "setup_e4b":
+        # E4B Q4_K_M — smarter but slower
+        # Speed: 7.2 tok/s | Size: 5.0GB
+        return start_server(
+            HOME + "/models/gemma-4-e4b-it-q4_k_m.gguf",
+            port=8080, ctx=2048
+        )
+
+    # ── LIGHTWEIGHT MODELS ────────────────────────────
+    elif setup_name == "setup_qwen3b":
+        # Qwen 2.5 3B — fast fallback
+        return start_server(
+            HOME + "/models/qwen2.5-3b-instruct-q4_k_m.gguf",
+            port=8080, ctx=2048
+        )
+
+    elif setup_name == "setup_qwen1b":
+        # Qwen 2.5 1.5B — fastest, lowest quality
+        return start_server(
+            HOME + "/models/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+            port=8080, ctx=2048
+        )
+
+    # ── STOP ─────────────────────────────────────────
+    elif setup_name == "stop":
+        kill_servers()
+        return True
+
+    else:
+        print("[SERVER] Unknown setup: " + setup_name)
+        print("[SERVER] Available: setup_q4, setup_e4b, setup_qwen3b, setup_qwen1b, stop")
+        return False
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) < 2:
+        print("Usage: python3 server_manager.py [setup_q4|setup_e4b|setup_qwen3b|setup_qwen1b|stop]")
+        sys.exit(1)
+    start_setup(sys.argv[1])
+
+===== FILE: main.py excerpt (PARSE_SYS + parse_command, unchanged) =====
+PARSE_SYS = """You are a home robot command parser.
+Parse voice commands into a JSON array of actions.
+Output ONLY valid JSON array, no explanation, no markdown.
+
+AVAILABLE ACTIONS:
+{"type":"find_person","name":"NAME","message":"MSG or empty"}
+  → Find a person and optionally deliver a message
+  → Examples: find Chiara, find Abdel, find someone
+
+{"type":"navigate_to","room":"ROOM"}
+  → Go to a room: hallway, kitchen, living_room, bedroom, bathroom
+  → Examples: go to kitchen, go to bedroom
+
+{"type":"say","message":"TEXT"}
+  → Speak a message out loud where robot currently is
+
+{"type":"patrol","rooms":["room1","room2"]}
+  → Visit a list of rooms, or all rooms if empty list
+
+{"type":"find_object","object":"OBJECT","room":"ROOM or empty"}
+  → Look for an object, optionally in a specific room
+
+{"type":"come_back"}
+  → Return to starting position or last known person location
+
+RULES:
+- Chain actions when needed: find person + say message = one find_person with message
+- "Tell X that Y" = find_person X with message Y
+- "Go to kitchen and say hello" = navigate_to + say
+- "Find my keys in bedroom" = find_object keys in bedroom
+- Always use the minimum number of actions
+- Names: capitalize first letter (Chiara, Abdel)
+- Rooms: use underscore format (living_room, not living room)
+- Output [] if command is unclear
+
+EXAMPLES:
+"Find Chiara and tell her dinner is ready"
+→ [{"type":"find_person","name":"Chiara","message":"dinner is ready"}]
+
+"Go to the kitchen"
+→ [{"type":"navigate_to","room":"kitchen"}]
+
+"Tell Abdel his coffee is cold"
+→ [{"type":"find_person","name":"Abdel","message":"your coffee is getting cold"}]
+
+"Patrol the apartment"
+→ [{"type":"patrol","rooms":[]}]
+
+"Find my keys in the bedroom"
+→ [{"type":"find_object","object":"keys","room":"bedroom"}]
+
+"Go to the living room and say good morning"
+→ [{"type":"navigate_to","room":"living_room"},{"type":"say","message":"good morning"}]
+
+"Come back"
+→ [{"type":"come_back"}]
+"""
+
+def parse_command(text):
+    prompt = (
+        '<start_of_turn>user\n' + PARSE_SYS +
+        '\nCommand: "' + text + '"'
+        '<end_of_turn>\n<start_of_turn>model\n[' 
+    )
+    try:
+        resp = requests.post(GEMMA_URL, json={
+            'prompt': prompt, 'n_predict': 300,
+            'temperature': 0.05, 'stop': ['<end_of_turn>', '\n\n']
+        }, timeout=20)
+        raw = resp.json()['content']
+        # Model starts after [ which we injected
+        raw = '[' + raw
+        s = raw.find('['); e = raw.rfind(']') + 1
+        if s >= 0 and e > 0:
+            actions = json.loads(raw[s:e])
+            # Validate each action has required fields
+            valid = []
+            for a in actions:
+                if isinstance(a, dict) and 'type' in a:
+                    valid.append(a)
+            return valid
+    except Exception as ex:
+        print(f'[PARSE] Error: {ex}')
+    return []
+
+# ── TTS ───────────────────────────────────────────────
+
+===== FILE: 3a new ladder report (stdout) =====
+[s1o_b1609dp] main: cold load, 60 cases x 2 order(s) at 4 threads
+LADDER REPORT  2026-09-26T09:36:02+00:00
+cases /data/data/com.termux/files/home/ladder/cases/ladder_cases_v1.jsonl sha256 41eeafd28e2ce499  n=60  levels [1, 2, 3, 4, 5]
+models s1o_b1609dp  threads [4]  cores 4-7  device RAM 7468 MiB
+timing: perf_counter in the worker; decision = wall time of adapter.decide; post = total - tokenise - forward
+
+== s1o_b1609dp [OUT (speed)] ==
+accuracy        correct 94/120 (78%)  acceptable 99/120 (82%)  (both orders)
+  by level      L1 23/24 (96%)  L2 16/24 (67%)  L3 17/24 (71%)  L4 18/24 (75%)  L5 20/24 (83%)
+  by phrasing   direct 32/40 (80%)  indirect 30/40 (75%)  narrative 32/40 (80%)
+order flips     8/60  ['L1_08', 'L2_11', 'L3_01', 'L3_04', 'L3_12', 'L4_06', 'L5_07', 'L5_09']
+decision ms     median 2478  P95 4605  (main block, 4 threads, n=120)
+  split median  tokenise 11.3  forward 2464.1  post 0.1   [tokenise=/tokenize HTTP calls, forward=/completion HTTP call (server prompt eval inside)]
+tokens/s        37   tokens by level L1 70  L2 87  L3 96  L4 88  L5 160   limit 2048, hit 0x
+token count     prompt token ids sent to llama-server (Gemma tokenizer, with BOS); the server evaluates them, then 1 token
+latency fit     ms = -492.1 + 31.184 x tokens   R2 0.97  (n=120, tokens 62-173)
+threads         main block only (no thread blocks)
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/0, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/0, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     2.59     n/a
+                import        0.00     n/a
+                init          4.35     n/a
+                warmup        0.91     n/a
+                total         7.84     n/a
+                spawn_to_ready    8.03     n/a
+                weight files 3302 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: no terminal to prompt on
+RAM             peak 4378 MiB (VmHWM, worker + llama-server)   largest single process 4352.6 MiB (wait4)
+HINTS
+
+== CATEGORY WINNERS ==
+accuracy         s1o_b1609dp  s1o_b1609dp 78%/82%acc
+order stability  s1o_b1609dp  s1o_b1609dp 13% flips
+decision speed   s1o_b1609dp  s1o_b1609dp 2478 ms
+cached load      n/a
+cold load        s1o_b1609dp  s1o_b1609dp 7.8 s
+RAM              s1o_b1609dp  s1o_b1609dp 4378 MiB
+(ties keep the listed model order; accuracy ties break on acceptable)
+===== 3a stderr =====
+
+===== FILE: 3b/3c stdout =====
+
+==================================================
+  Starting: setup_q4
+==================================================
+[SERVER] All servers stopped
+[SERVER] Starting: gemma-4-e2b-it-q4_k_m.gguf
+[SERVER] Waiting...
+[SERVER] Ready after 6s
+[PARSE] Error: HTTPConnectionPool(host='127.0.0.1', port=8080): Read timed out. (read timeout=20)
+[PARSE] Error: HTTPConnectionPool(host='127.0.0.1', port=8080): Read timed out. (read timeout=20)
+[SERVER] All servers stopped
+
+==================================================
+  Starting: setup_q4
+==================================================
+[SERVER] All servers stopped
+[SERVER] Starting: gemma-4-e2b-it-q4_k_m.gguf
+[SERVER] Waiting...
+[SERVER] Ready after 9s
+[SERVER] All servers stopped
+
+==================================================
+  Starting: setup_q4
+==================================================
+[SERVER] All servers stopped
+[SERVER] Starting: gemma-4-e2b-it-q4_k_m.gguf
+[SERVER] Waiting...
+[SERVER] Ready after 6s
+[SERVER] All servers stopped
+
+==================================================
+  Starting: setup_q4
+==================================================
+[SERVER] All servers stopped
+[SERVER] Starting: gemma-4-e2b-it-q4_k_m.gguf
+[SERVER] Waiting...
+[SERVER] Ready after 9s
+[SERVER] All servers stopped
+ 1. 'Find Chiara and tell her the pizza is here'  DIFFERENT  (20068 ms old / 18948 ms new)
+    old: []
+    new: [{"type": "find_person", "name": "Chiara", "message": "the pizza is here"}]
+ 2. 'Go to the bathroom'  DIFFERENT  (20025 ms old / 2382 ms new)
+    old: []
+    new: [{"type": "navigate_to", "room": "bathroom"}]
+ 3. 'Patrol the whole apartment'  SAME  (5926 ms old / 2194 ms new)
+    old: [{"type": "patrol", "rooms": []}]
+    new: [{"type": "patrol", "rooms": []}]
+ 4. 'Find my phone in the living room'  SAME  (5584 ms old / 3236 ms new)
+    old: [{"type": "find_object", "object": "phone", "room": "living_room"}]
+    new: [{"type": "find_object", "object": "phone", "room": "living_room"}]
+ 5. 'Come back'  SAME  (3279 ms old / 1778 ms new)
+    old: [{"type": "come_back"}]
+    new: [{"type": "come_back"}]
+ 6. 'Tell Abdel the meeting starts in ten minutes'  SAME  (5988 ms old / 3638 ms new)
+    old: [{"type": "find_person", "name": "Abdel", "message": "the meeting starts in ten minutes"}]
+    new: [{"type": "find_person", "name": "Abdel", "message": "the meeting starts in ten minutes"}]
+ 7. 'Go to the kitchen and say lunch is ready'  SAME  (6215 ms old / 3560 ms new)
+    old: [{"type": "navigate_to", "room": "kitchen"}, {"type": "say", "message": "lunch is ready"}]
+    new: [{"type": "navigate_to", "room": "kitchen"}, {"type": "say", "message": "lunch is ready"}]
+ 8. 'Check the bedroom and the hallway'  SAME  (4816 ms old / 2571 ms new)
+    old: [{"type": "patrol", "rooms": ["bedroom", "hallway"]}]
+    new: [{"type": "patrol", "rooms": ["bedroom", "hallway"]}]
+ 9. 'Where are my glasses'  SAME  (4308 ms old / 2431 ms new)
+    old: [{"type": "find_object", "object": "glasses"}]
+    new: [{"type": "find_object", "object": "glasses"}]
+10. 'Say good night'  SAME  (4081 ms old / 2249 ms new)
+    old: [{"type": "say", "message": "good night"}]
+    new: [{"type": "say", "message": "good night"}]
+11. 'Find someone and tell them the door is open'  SAME  (6003 ms old / 3451 ms new)
+    old: [{"type": "find_person", "name": "someone", "message": "the door is open"}]
+    new: [{"type": "find_person", "name": "someone", "message": "the door is open"}]
+12. 'Go to the living room then come back'  SAME  (6286 ms old / 3504 ms new)
+    old: [{"type": "navigate_to", "room": "living_room"}, {"type": "come_back"}]
+    new: [{"type": "navigate_to", "room": "living_room"}, {"type": "come_back"}]
+13. 'Look for the cat in the bedroom'  SAME  (5362 ms old / 3005 ms new)
+    old: [{"type": "find_object", "object": "cat", "room": "bedroom"}]
+    new: [{"type": "find_object", "object": "cat", "room": "bedroom"}]
+14. 'Tell Chiara I love her'  SAME  (5725 ms old / 3287 ms new)
+    old: [{"type": "find_person", "name": "Chiara", "message": "I love her"}]
+    new: [{"type": "find_person", "name": "Chiara", "message": "I love her"}]
+15. 'Blue banana seven'  SAME  (4401 ms old / 2279 ms new)
+    old: [{"type": "say", "message": "Blue banana seven"}]
+    new: [{"type": "say", "message": "Blue banana seven"}]
+old: generation [6.69, 6.42, 6.5, 6.71, 6.11, 6.27] tok/s (n=[200, 200, 200, 200, 200, 200]), median 6.46; prompt eval median 10.0 tok/s
+new: generation [8.36, 8.41, 8.06, 9.07, 8.68, 8.63] tok/s (n=[200, 200, 200, 200, 200, 200]), median 8.52; prompt eval median 31.6 tok/s
+===== 3b/3c stderr =====

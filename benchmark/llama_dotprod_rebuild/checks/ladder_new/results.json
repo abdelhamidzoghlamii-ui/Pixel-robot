@@ -1,0 +1,226 @@
+{
+ "started": "2026-09-26T09:36:02+00:00",
+ "cases_file": "/data/data/com.termux/files/home/ladder/cases/ladder_cases_v1.jsonl",
+ "cases_sha256": "41eeafd28e2ce499437f75091e2069bdd89d4e9e0d789f223ff4dd1c9bebb473",
+ "levels": [
+  1,
+  2,
+  3,
+  4,
+  5
+ ],
+ "n_cases": 60,
+ "models": [
+  "s1o_b1609dp"
+ ],
+ "threads": [
+  4
+ ],
+ "main_only": "s1o_b1609dp",
+ "resumed_blocks": [],
+ "mem_total_mib": 7468,
+ "thermal_idle": null,
+ "per_model": [
+  {
+   "model": "s1o_b1609dp",
+   "threads_main": 4,
+   "cases": 60,
+   "correct": [
+    94,
+    120
+   ],
+   "acceptable": [
+    99,
+    120
+   ],
+   "by_level": {
+    "1": {
+     "correct": [
+      23,
+      24
+     ],
+     "acceptable": [
+      23,
+      24
+     ]
+    },
+    "2": {
+     "correct": [
+      16,
+      24
+     ],
+     "acceptable": [
+      18,
+      24
+     ]
+    },
+    "3": {
+     "correct": [
+      17,
+      24
+     ],
+     "acceptable": [
+      17,
+      24
+     ]
+    },
+    "4": {
+     "correct": [
+      18,
+      24
+     ],
+     "acceptable": [
+      21,
+      24
+     ]
+    },
+    "5": {
+     "correct": [
+      20,
+      24
+     ],
+     "acceptable": [
+      20,
+      24
+     ]
+    }
+   },
+   "by_phrasing": {
+    "direct": {
+     "correct": [
+      32,
+      40
+     ],
+     "acceptable": [
+      34,
+      40
+     ]
+    },
+    "indirect": {
+     "correct": [
+      30,
+      40
+     ],
+     "acceptable": [
+      31,
+      40
+     ]
+    },
+    "narrative": {
+     "correct": [
+      32,
+      40
+     ],
+     "acceptable": [
+      34,
+      40
+     ]
+    }
+   },
+   "flips": 8,
+   "flip_cases": [
+    "L1_08",
+    "L2_11",
+    "L3_01",
+    "L3_04",
+    "L3_12",
+    "L4_06",
+    "L5_07",
+    "L5_09"
+   ],
+   "median_ms": 2478.163087000212,
+   "p95_ms": 4604.948242649334,
+   "tok_per_s": 37.254994640988755,
+   "split_ms": {
+    "tokenise_ms": 11.31258149871428,
+    "forward_ms": 2464.084820001517,
+    "post_ms": 0.11307800014037639
+   },
+   "split_share": {
+    "tokenise_ms": 0.004641118739650291,
+    "forward_ms": 0.9953155911097739,
+    "post_ms": 4.3290150575850414e-05
+   },
+   "fit": {
+    "fixed_ms": -492.08529167655615,
+    "per_token_ms": 31.18403742660064,
+    "r2": 0.9665135054934963,
+    "n": 120,
+    "tokens_min": 62,
+    "tokens_max": 173
+   },
+   "tokens_by_level": {
+    "1": 69.5,
+    "2": 87.0,
+    "3": 96.5,
+    "4": 88.5,
+    "5": 160.0
+   },
+   "truncated": 0,
+   "limit": 2048,
+   "scaling": {},
+   "repeat_worst": null,
+   "thread_choice_diffs": 0,
+   "thread_max_prob_diff": 0,
+   "nondet_choice_diffs": 0,
+   "nondet_max_prob_diff": 0,
+   "nondet_n": 0,
+   "thread_n": 0,
+   "cold": {
+    "file_read": 2587.3371599991515,
+    "import": 0.00805600211606361,
+    "init": 4345.506633999321,
+    "warmup": 911.9803880021209,
+    "total": 7844.832238002709,
+    "spawn_to_ready": 8026.430668000103,
+    "file_bytes": 3462677760,
+    "state": {
+     "mode": "weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)",
+     "fallback_reason": "no terminal to prompt on",
+     "cached_mib_before": 3061
+    }
+   },
+   "cached": null,
+   "cold_note": "weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)",
+   "peak_mib": 4378,
+   "wait4_maxrss_mib": 4352.6,
+   "timing_note": "tokenise=/tokenize HTTP calls, forward=/completion HTTP call (server prompt eval inside)",
+   "token_def": "prompt token ids sent to llama-server (Gemma tokenizer, with BOS); the server evaluates them, then 1 token",
+   "torch_threads": {
+    "main": null
+   },
+   "hints": [
+    "per-token cost is 100% of predicted latency at level 5 (fit -492 ms + 31.18 ms/token x 160 tokens at level 5, R2 0.97) -> shorter input will help",
+    "model forward is 100% of decision time (median tokenise 11.3 / forward 2464.1 / post 0.1 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck",
+    "choice changed under reversed order in 8/60 cases (13%) -> order bias; average over orders or fix the order",
+    "peak RAM 4378 MiB is 59% of device RAM (7468 MiB) -> only one such model can stay resident"
+   ],
+   "blocks": [
+    {
+     "block": "main",
+     "threads": 4,
+     "load_state": {
+      "mode": "weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)",
+      "fallback_reason": "no terminal to prompt on",
+      "cached_mib_before": 3061
+     },
+     "thermal": null,
+     "phases": {
+      "file_read": 2587.3371599991515,
+      "import": 0.00805600211606361,
+      "init": 4345.506633999321,
+      "warmup": 911.9803880021209
+     },
+     "file_bytes": 3462677760,
+     "spawn_to_ready_ms": 8026.430668000103,
+     "timing_note": "tokenise=/tokenize HTTP calls, forward=/completion HTTP call (server prompt eval inside)",
+     "token_def": "prompt token ids sent to llama-server (Gemma tokenizer, with BOS); the server evaluates them, then 1 token",
+     "torch_threads": null,
+     "rss_mib": 3094,
+     "peak_mib": 4378,
+     "wait4_maxrss_mib": 4352.6
+    }
+   ]
+  }
+ ]
+}

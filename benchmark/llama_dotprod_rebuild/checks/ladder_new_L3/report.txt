@@ -1,0 +1,43 @@
+LADDER REPORT  2026-09-26T09:55:49+00:00
+cases /data/data/com.termux/files/home/ladder/cases/ladder_cases_v1.jsonl sha256 41eeafd28e2ce499  n=12  levels [3]
+models s1o_b1609dp  threads [4]  cores 4-7  device RAM 7468 MiB
+timing: perf_counter in the worker; decision = wall time of adapter.decide; post = total - tokenise - forward
+
+== s1o_b1609dp [OUT (speed)] ==
+accuracy        correct 17/24 (71%)  acceptable 17/24 (71%)  (both orders)
+  by level      L3 17/24 (71%)
+  by phrasing   direct 4/8 (50%)  indirect 6/8 (75%)  narrative 7/8 (88%)
+order flips     3/12  ['L3_01', 'L3_04', 'L3_12']
+decision ms     median 2359  P95 3189  (main block, 4 threads, n=24)
+  split median  tokenise 11.7  forward 2349.3  post 0.1   [tokenise=/tokenize HTTP calls, forward=/completion HTTP call (server prompt eval inside)]
+tokens/s        42   tokens by level L3 96   limit 2048, hit 0x
+token count     prompt token ids sent to llama-server (Gemma tokenizer, with BOS); the server evaluates them, then 1 token
+latency fit     ms = -338.6 + 29.021 x tokens   R2 0.23  (n=24, tokens 86-106)
+threads         main block only (no thread blocks)
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/0, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/0, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     2.45     n/a
+                import        0.00     n/a
+                init          4.56     n/a
+                warmup        0.92     n/a
+                total         7.92     n/a
+                spawn_to_ready    8.14     n/a
+                weight files 3302 MiB; cold = weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)
+                full cold not used: no terminal to prompt on
+RAM             peak 4138 MiB (VmHWM, worker + llama-server)   largest single process 4112.1 MiB (wait4)
+HINTS
+  - latency is poorly explained by input length (R2 0.23, n 24, tokens 86-106) -> shorter input is not a reliable speed-up
+  - model forward is 100% of decision time (median tokenise 11.7 / forward 2349.3 / post 0.1 ms; shares 0%/100%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - choice changed under reversed order in 3/12 cases (25%) -> order bias; average over orders or fix the order
+  - phrasing: direct 8 decisions, indirect 8 decisions, narrative 8 decisions -> too few to judge (need >= 10 decisions in at least two phrasings)
+  - peak RAM 4138 MiB is 55% of device RAM (7468 MiB) -> only one such model can stay resident
+
+== CATEGORY WINNERS ==
+accuracy         s1o_b1609dp  s1o_b1609dp 71%/71%acc
+order stability  s1o_b1609dp  s1o_b1609dp 25% flips
+decision speed   s1o_b1609dp  s1o_b1609dp 2359 ms
+cached load      n/a
+cold load        s1o_b1609dp  s1o_b1609dp 7.9 s
+RAM              s1o_b1609dp  s1o_b1609dp 4138 MiB
+(ties keep the listed model order; accuracy ties break on acceptable)
