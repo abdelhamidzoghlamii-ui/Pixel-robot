@@ -6,9 +6,11 @@ HOME = "/data/data/com.termux/files/home"
 LLAMA_SERVER = HOME + "/llama.cpp-b1609-dotprod/build/bin/llama-server"
 
 # Optimal config (benchmarked on Pixel 7 Tensor G2):
-# --threads 4 --threads-batch 4 → 11-12 tok/s for E2B
+# --threads 4 --threads-batch 4 → ~12 tok/s for E2B Q4_0 (dotprod build, cores 4-7, 2026-09-26)
 # --parallel 1                  → no slot splitting
-# --cache-ram 0                 → disables broken SWA cache
+# --swa-full                    → full-size SWA cache, so the fixed prompt prefix is reused
+# --cache-ram 0                 → no host-RAM prompt cache; it grew server memory per turn on
+#                                 prompts without a shared prefix (benchmark/llm_objective_setting)
 THREADS = "4"
 BATCH_THREADS = "4"
 
@@ -42,6 +44,7 @@ def start_server(model_path, port=8080, ctx=2048, extra_args=""):
         " --threads-batch " + BATCH_THREADS +
         " --parallel 1" +
         " --swa-full" +
+        " --cache-ram 0" +
         " --host 127.0.0.1 " +
         extra_args +
         " 2>/dev/null &"
@@ -58,10 +61,10 @@ def start_setup(setup_name):
 
     # ── MAIN ROBOT MODEL ──────────────────────────────
     if setup_name == "setup_q4":
-        # E2B Q4_K_M — default robot model
-        # Speed: 11-12 tok/s | Size: 3.3GB
+        # E2B Q4_0 — default robot model
+        # Speed: ~12 tok/s (dotprod build) | Size: 2.8GB
         return start_server(
-            HOME + "/models/gemma-4-e2b-it-q4_k_m.gguf",
+            HOME + "/models/gemma-4-E2B-it-Q4_0.gguf",
             port=8080, ctx=2048
         )
 
@@ -74,21 +77,6 @@ def start_setup(setup_name):
             port=8080, ctx=2048
         )
 
-    # ── LIGHTWEIGHT MODELS ────────────────────────────
-    elif setup_name == "setup_qwen3b":
-        # Qwen 2.5 3B — fast fallback
-        return start_server(
-            HOME + "/models/qwen2.5-3b-instruct-q4_k_m.gguf",
-            port=8080, ctx=2048
-        )
-
-    elif setup_name == "setup_qwen1b":
-        # Qwen 2.5 1.5B — fastest, lowest quality
-        return start_server(
-            HOME + "/models/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-            port=8080, ctx=2048
-        )
-
     # ── STOP ─────────────────────────────────────────
     elif setup_name == "stop":
         kill_servers()
@@ -96,12 +84,12 @@ def start_setup(setup_name):
 
     else:
         print("[SERVER] Unknown setup: " + setup_name)
-        print("[SERVER] Available: setup_q4, setup_e4b, setup_qwen3b, setup_qwen1b, stop")
+        print("[SERVER] Available: setup_q4, setup_e4b, stop")
         return False
 
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2:
-        print("Usage: python3 server_manager.py [setup_q4|setup_e4b|setup_qwen3b|setup_qwen1b|stop]")
+        print("Usage: python3 server_manager.py [setup_q4|setup_e4b|stop]")
         sys.exit(1)
     start_setup(sys.argv[1])
