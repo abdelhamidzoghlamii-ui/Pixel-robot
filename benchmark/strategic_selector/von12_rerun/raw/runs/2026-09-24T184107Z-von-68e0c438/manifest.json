@@ -1,0 +1,481 @@
+{
+  "run_id": "2026-09-24T184107Z-von-68e0c438",
+  "kind": "original",
+  "model": "von",
+  "benchmark_version": 2,
+  "framing": "five development frames; development-selected heldout frame; reversed order",
+  "fixture_split": "variants 0,1 development; variant 2 heldout; model-specific generated cases",
+  "process_started_utc": "2026-09-24T18:41:07.761790+00:00",
+  "process_ended_utc": "2026-09-24T18:47:10.191833+00:00",
+  "exit_code": 0,
+  "command": [
+    "taskset",
+    "-c",
+    "4-7",
+    "/data/data/com.termux/files/home/von12-test/venv/bin/python",
+    "/termux-home/robot/benchmark/strategic_selector/robot_selector_benchmark.py",
+    "--model",
+    "von",
+    "--output",
+    "/termux-home/von12-test/runs/2026-09-24T184107Z-von-68e0c438/results.json"
+  ],
+  "cwd": "/termux-home/von12-test/runs/2026-09-24T184107Z-von-68e0c438",
+  "python_executable": "/data/data/com.termux/files/home/von12-test/venv/bin/python",
+  "python_version": "3.13.5 (main, Aug 10 2026, 12:06:59) [GCC 14.2.0]",
+  "platform": "Linux-6.17.0-PRoot-Distro-aarch64-with-glibc2.41",
+  "machine": "aarch64",
+  "packages": {
+    "torch": {
+      "status": "available",
+      "version": "2.14.0+cpu"
+    },
+    "laya": {
+      "status": "available",
+      "version": "0.3.2"
+    },
+    "von-sdk": {
+      "status": "available",
+      "version": "1.2.0"
+    },
+    "huggingface-hub": {
+      "status": "available",
+      "version": "1.32.0"
+    },
+    "transformers": {
+      "status": "available",
+      "version": "5.17.0"
+    },
+    "safetensors": {
+      "status": "available",
+      "version": "0.8.0"
+    },
+    "tokenizers": {
+      "status": "available",
+      "version": "0.23.2"
+    }
+  },
+  "environment": {
+    "HF_HOME": "/data/data/com.termux/files/home/von12-test/hf-cache",
+    "HF_HUB_CACHE": "/data/data/com.termux/files/home/von12-test/hf-cache/hub",
+    "HF_HUB_OFFLINE": "1",
+    "TRANSFORMERS_OFFLINE": "1",
+    "OMP_NUM_THREADS": "4"
+  },
+  "source": {
+    "archived_path": "robot_selector_benchmark.py",
+    "archived_sha256": "3aa9d399d6978710c143a6f1dfe69541b288cea329f27077b2500e322e8c14e2"
+  },
+  "source_sha256_after_run": "3aa9d399d6978710c143a6f1dfe69541b288cea329f27077b2500e322e8c14e2",
+  "archive_helper_sha256": "1190f81c39b2bd6b9e820aefc631b782e472a686cb695eb2df5ad4e0898b4d31",
+  "phone_snapshot_sha256": "b6268bfd80a0adda68a178741d05b14eb1bcf466e705c3f818fcedc4572df3f4",
+  "model_provenance": {
+    "requested_model_id": "wfzyx/von",
+    "checkpoint_revision": "5df8185a4f2327ad0a7cd117cc4f701ac557b9ae",
+    "weight_identity": {
+      "path_reported_by_runtime": "/data/data/com.termux/files/home/von12-test/hf-cache/hub/models--wfzyx--von/snapshots/5df8185a4f2327ad0a7cd117cc4f701ac557b9ae/option_marker.pt",
+      "sha256_after_run": "3faf27f88d30aaf9aa37860d4cdef99f1d05450cf40364f6236ac892d4d139ed",
+      "bytes": 1581316459,
+      "measured_utc": "2026-09-24T18:47:13.413839+00:00",
+      "evidence": "Von stdout reports this path after its loader; file hashed after process exit."
+    },
+    "status": "partial_runtime_report_and_hash",
+    "encoder_weights": "unverified",
+    "runtime_model_label": "von-1.2.0",
+    "reason": "Option-marker weight verified from runtime report; base encoder and calibration file paths were not independently observed."
+  },
+  "phone_state": {
+    "before": {
+      "started_utc": "2026-09-24T18:41:07.750098+00:00",
+      "source_root": "/",
+      "thermal_zones": {
+        "status": "unavailable",
+        "reason": "no_matching_paths",
+        "entries": {}
+      },
+      "cooling_devices": {
+        "status": "unavailable",
+        "reason": "no_matching_paths",
+        "entries": {}
+      },
+      "virtual_skin": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "not_directly_read_from_sysfs; no estimate made"
+      },
+      "cpu_frequency": {
+        "status": "available",
+        "entries": {
+          "policy0": {
+            "scaling_cur_freq": {
+              "status": "available",
+              "value": "1197000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq",
+              "measured_utc": "2026-09-24T18:41:07.752144+00:00"
+            },
+            "scaling_max_freq": {
+              "status": "available",
+              "value": "1803000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq",
+              "measured_utc": "2026-09-24T18:41:07.752987+00:00"
+            },
+            "cpuinfo_max_freq": {
+              "status": "available",
+              "value": "1803000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_max_freq",
+              "measured_utc": "2026-09-24T18:41:07.753654+00:00"
+            }
+          },
+          "policy4": {
+            "scaling_cur_freq": {
+              "status": "available",
+              "value": "2253000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy4/scaling_cur_freq",
+              "measured_utc": "2026-09-24T18:41:07.754304+00:00"
+            },
+            "scaling_max_freq": {
+              "status": "available",
+              "value": "2348000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq",
+              "measured_utc": "2026-09-24T18:41:07.755067+00:00"
+            },
+            "cpuinfo_max_freq": {
+              "status": "available",
+              "value": "2348000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy4/cpuinfo_max_freq",
+              "measured_utc": "2026-09-24T18:41:07.755783+00:00"
+            }
+          },
+          "policy6": {
+            "scaling_cur_freq": {
+              "status": "available",
+              "value": "2048000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy6/scaling_cur_freq",
+              "measured_utc": "2026-09-24T18:41:07.756747+00:00"
+            },
+            "scaling_max_freq": {
+              "status": "available",
+              "value": "2850000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq",
+              "measured_utc": "2026-09-24T18:41:07.757518+00:00"
+            },
+            "cpuinfo_max_freq": {
+              "status": "available",
+              "value": "2850000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy6/cpuinfo_max_freq",
+              "measured_utc": "2026-09-24T18:41:07.758092+00:00"
+            }
+          }
+        }
+      },
+      "battery": {
+        "status": {
+          "status": "unavailable",
+          "value": null,
+          "unit": null,
+          "source": "/sys/class/power_supply/battery/status",
+          "measured_utc": "2026-09-24T18:41:07.758678+00:00",
+          "reason": "PermissionError"
+        },
+        "capacity": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "percent",
+          "source": "/sys/class/power_supply/battery/capacity",
+          "measured_utc": "2026-09-24T18:41:07.758998+00:00",
+          "reason": "PermissionError"
+        },
+        "temp": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "deci_C_raw",
+          "source": "/sys/class/power_supply/battery/temp",
+          "measured_utc": "2026-09-24T18:41:07.759237+00:00",
+          "reason": "PermissionError"
+        },
+        "voltage_now": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "microvolt",
+          "source": "/sys/class/power_supply/battery/voltage_now",
+          "measured_utc": "2026-09-24T18:41:07.759477+00:00",
+          "reason": "PermissionError"
+        },
+        "current_now": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "microamp",
+          "source": "/sys/class/power_supply/battery/current_now",
+          "measured_utc": "2026-09-24T18:41:07.759745+00:00",
+          "reason": "PermissionError"
+        }
+      },
+      "charging_sources": {
+        "usb": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "raw_boolean",
+          "source": "/sys/class/power_supply/usb/online",
+          "measured_utc": "2026-09-24T18:41:07.760292+00:00",
+          "reason": "FileNotFoundError"
+        },
+        "wireless": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "raw_boolean",
+          "source": "/sys/class/power_supply/wireless/online",
+          "measured_utc": "2026-09-24T18:41:07.760549+00:00",
+          "reason": "FileNotFoundError"
+        },
+        "ac": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "raw_boolean",
+          "source": "/sys/class/power_supply/ac/online",
+          "measured_utc": "2026-09-24T18:41:07.760866+00:00",
+          "reason": "FileNotFoundError"
+        }
+      },
+      "memory": {
+        "MemTotal": {
+          "status": "available",
+          "value": "7647536 kB",
+          "source": "/proc/meminfo",
+          "measured_utc": "2026-09-24T18:41:07.761062+00:00"
+        },
+        "MemAvailable": {
+          "status": "available",
+          "value": "3597196 kB",
+          "source": "/proc/meminfo",
+          "measured_utc": "2026-09-24T18:41:07.761062+00:00"
+        },
+        "SwapTotal": {
+          "status": "available",
+          "value": "3823764 kB",
+          "source": "/proc/meminfo",
+          "measured_utc": "2026-09-24T18:41:07.761062+00:00"
+        },
+        "SwapFree": {
+          "status": "available",
+          "value": "1428360 kB",
+          "source": "/proc/meminfo",
+          "measured_utc": "2026-09-24T18:41:07.761062+00:00"
+        }
+      },
+      "ended_utc": "2026-09-24T18:41:07.761779+00:00"
+    },
+    "after": {
+      "started_utc": "2026-09-24T18:47:10.196140+00:00",
+      "source_root": "/",
+      "thermal_zones": {
+        "status": "unavailable",
+        "reason": "no_matching_paths",
+        "entries": {}
+      },
+      "cooling_devices": {
+        "status": "unavailable",
+        "reason": "no_matching_paths",
+        "entries": {}
+      },
+      "virtual_skin": {
+        "status": "unavailable",
+        "value": null,
+        "reason": "not_directly_read_from_sysfs; no estimate made"
+      },
+      "cpu_frequency": {
+        "status": "available",
+        "entries": {
+          "policy0": {
+            "scaling_cur_freq": {
+              "status": "available",
+              "value": "574000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq",
+              "measured_utc": "2026-09-24T18:47:10.206248+00:00"
+            },
+            "scaling_max_freq": {
+              "status": "available",
+              "value": "1803000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq",
+              "measured_utc": "2026-09-24T18:47:10.209831+00:00"
+            },
+            "cpuinfo_max_freq": {
+              "status": "available",
+              "value": "1803000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_max_freq",
+              "measured_utc": "2026-09-24T18:47:10.211692+00:00"
+            }
+          },
+          "policy4": {
+            "scaling_cur_freq": {
+              "status": "available",
+              "value": "910000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy4/scaling_cur_freq",
+              "measured_utc": "2026-09-24T18:47:10.213674+00:00"
+            },
+            "scaling_max_freq": {
+              "status": "available",
+              "value": "1999000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq",
+              "measured_utc": "2026-09-24T18:47:10.215554+00:00"
+            },
+            "cpuinfo_max_freq": {
+              "status": "available",
+              "value": "2348000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy4/cpuinfo_max_freq",
+              "measured_utc": "2026-09-24T18:47:10.217399+00:00"
+            }
+          },
+          "policy6": {
+            "scaling_cur_freq": {
+              "status": "available",
+              "value": "500000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy6/scaling_cur_freq",
+              "measured_utc": "2026-09-24T18:47:10.219336+00:00"
+            },
+            "scaling_max_freq": {
+              "status": "available",
+              "value": "1745000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq",
+              "measured_utc": "2026-09-24T18:47:10.221971+00:00"
+            },
+            "cpuinfo_max_freq": {
+              "status": "available",
+              "value": "2850000",
+              "unit": "kHz",
+              "source": "/sys/devices/system/cpu/cpufreq/policy6/cpuinfo_max_freq",
+              "measured_utc": "2026-09-24T18:47:10.223950+00:00"
+            }
+          }
+        }
+      },
+      "battery": {
+        "status": {
+          "status": "unavailable",
+          "value": null,
+          "unit": null,
+          "source": "/sys/class/power_supply/battery/status",
+          "measured_utc": "2026-09-24T18:47:10.225795+00:00",
+          "reason": "PermissionError"
+        },
+        "capacity": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "percent",
+          "source": "/sys/class/power_supply/battery/capacity",
+          "measured_utc": "2026-09-24T18:47:10.226902+00:00",
+          "reason": "PermissionError"
+        },
+        "temp": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "deci_C_raw",
+          "source": "/sys/class/power_supply/battery/temp",
+          "measured_utc": "2026-09-24T18:47:10.227647+00:00",
+          "reason": "PermissionError"
+        },
+        "voltage_now": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "microvolt",
+          "source": "/sys/class/power_supply/battery/voltage_now",
+          "measured_utc": "2026-09-24T18:47:10.228345+00:00",
+          "reason": "PermissionError"
+        },
+        "current_now": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "microamp",
+          "source": "/sys/class/power_supply/battery/current_now",
+          "measured_utc": "2026-09-24T18:47:10.229210+00:00",
+          "reason": "PermissionError"
+        }
+      },
+      "charging_sources": {
+        "usb": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "raw_boolean",
+          "source": "/sys/class/power_supply/usb/online",
+          "measured_utc": "2026-09-24T18:47:10.229927+00:00",
+          "reason": "FileNotFoundError"
+        },
+        "wireless": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "raw_boolean",
+          "source": "/sys/class/power_supply/wireless/online",
+          "measured_utc": "2026-09-24T18:47:10.230693+00:00",
+          "reason": "FileNotFoundError"
+        },
+        "ac": {
+          "status": "unavailable",
+          "value": null,
+          "unit": "raw_boolean",
+          "source": "/sys/class/power_supply/ac/online",
+          "measured_utc": "2026-09-24T18:47:10.231364+00:00",
+          "reason": "FileNotFoundError"
+        }
+      },
+      "memory": {
+        "MemTotal": {
+          "status": "available",
+          "value": "7647536 kB",
+          "source": "/proc/meminfo",
+          "measured_utc": "2026-09-24T18:47:10.231960+00:00"
+        },
+        "MemAvailable": {
+          "status": "available",
+          "value": "4164120 kB",
+          "source": "/proc/meminfo",
+          "measured_utc": "2026-09-24T18:47:10.231960+00:00"
+        },
+        "SwapTotal": {
+          "status": "available",
+          "value": "3823764 kB",
+          "source": "/proc/meminfo",
+          "measured_utc": "2026-09-24T18:47:10.231960+00:00"
+        },
+        "SwapFree": {
+          "status": "available",
+          "value": "2312180 kB",
+          "source": "/proc/meminfo",
+          "measured_utc": "2026-09-24T18:47:10.231960+00:00"
+        }
+      },
+      "ended_utc": "2026-09-24T18:47:10.234184+00:00"
+    }
+  },
+  "files": {
+    "results.json": {
+      "archived_name": "results.json",
+      "archived_sha256": "8a50c966270068bb4c32d183ada1bb02995045a51771a653a52120ee77e0b9c9",
+      "bytes": 316643
+    },
+    "stdout.txt": {
+      "archived_name": "stdout.txt",
+      "archived_sha256": "192d01dbdd9493925cc385328ce5abe47871dd35fe7655b356b8a744739b2b31",
+      "bytes": 13963
+    },
+    "stderr.txt": {
+      "archived_name": "stderr.txt",
+      "archived_sha256": "cd249624b58b07af5aefa604a192f9dc8235fd7406a484ead9c7b6a9e3f83d0e",
+      "bytes": 514
+    }
+  }
+}

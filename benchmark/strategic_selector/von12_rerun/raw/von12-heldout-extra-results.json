@@ -1,0 +1,1915 @@
+{
+  "model": "von",
+  "sdk": "1.2.0",
+  "first_call_ms": 7288.665694009978,
+  "filtered_text": {
+    "heldout": {
+      "n": 11,
+      "preferred": 2,
+      "acceptable": 5,
+      "invalid_or_ineligible": 0,
+      "inference_calls": 11,
+      "p50_ms": 1964.2,
+      "p95_ms": 2101.3
+    },
+    "reversed": {
+      "n": 11,
+      "preferred": 2,
+      "acceptable": 5,
+      "invalid_or_ineligible": 0,
+      "inference_calls": 11,
+      "p50_ms": 2016.9,
+      "p95_ms": 2094.2
+    },
+    "order_reversal_flips": 0,
+    "n": 11,
+    "rows": [
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_new_room_2",
+        "family": "new_room",
+        "order": "normal",
+        "preferred": "search_here",
+        "acceptable": [
+          "search_here",
+          "call_chiara"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 2111.041,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.005,
+        "probabilities": {
+          "search_here": 0.1267,
+          "call_chiara": 0.1386,
+          "ask_gemma": 0.1971,
+          "travel:living_room": 0.1842,
+          "travel:kitchen": 0.1614,
+          "travel:toilet": 0.192
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: entered_room; outcome: arrived. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Search room interiors methodically; check each room once.",
+        "offered_first": [
+          "search_here",
+          "call_chiara",
+          "ask_gemma",
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "search_here": "Search the current room for Chiara using the room-coverage script.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "travel:living_room": "Travel to living_room; distance 6.0 m; room status unsearched.",
+          "travel:kitchen": "Travel to kitchen; distance 2.0 m; room status unsearched.",
+          "travel:toilet": "Travel to toilet; distance 8.0 m; room status unsearched."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_room_finished_2",
+        "family": "room_finished",
+        "order": "normal",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "travel:toilet",
+        "first_choice": "travel:toilet",
+        "preferred_match": false,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 1964.152,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.012,
+        "probabilities": {
+          "call_chiara": 0.1764,
+          "ask_gemma": 0.1937,
+          "travel:living_room": 0.2128,
+          "travel:kitchen": 0.192,
+          "travel:toilet": 0.2251
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Search room interiors methodically; check each room once.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma",
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "travel:living_room": "Travel to living_room; distance 6.0 m; room status unsearched.",
+          "travel:kitchen": "Travel to kitchen; distance 2.0 m; room status unsearched.",
+          "travel:toilet": "Travel to toilet; distance 8.0 m; room status unsearched."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_hall_hint_2",
+        "family": "hall_hint",
+        "order": "normal",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "travel:toilet",
+        "first_choice": "travel:toilet",
+        "preferred_match": false,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 2037.993,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.007,
+        "probabilities": {
+          "call_chiara": 0.1285,
+          "ask_gemma": 0.2326,
+          "travel:living_room": 0.2169,
+          "travel:kitchen": 0.183,
+          "travel:toilet": 0.2391
+        },
+        "state": "Mission: find Chiara. Current room: hall. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: bedroom (7.0 m), living_room (8.0 m), kitchen (2.0 m), toilet (10.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: entered_hall; outcome: ready_to_pick_a_room. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Search room interiors methodically; check each room once.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma",
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "travel:living_room": "Travel to living_room; distance 8.0 m; room status unsearched.",
+          "travel:kitchen": "Travel to kitchen; distance 2.0 m; room status unsearched.",
+          "travel:toilet": "Travel to toilet; distance 10.0 m; room status unsearched."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_target_confirmed_2",
+        "family": "target_confirmed",
+        "order": "normal",
+        "preferred": "finish",
+        "acceptable": [
+          "finish"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1768.066,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.086,
+        "probabilities": {
+          "ask_gemma": 0.5428,
+          "finish": 0.4572
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: identity_confirmed_Chiara_ahead_at_50_cm. Voice hint: none. Calls without answer: 0. Previous script: entered_room; outcome: arrived. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Chiara verified by a separate identity confirmation step.",
+        "offered_first": [
+          "ask_gemma",
+          "finish"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "finish": "Stop the search: Chiara's identity and position have been confirmed."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_possible_person_2",
+        "family": "possible_person",
+        "order": "normal",
+        "preferred": "call_chiara",
+        "acceptable": [
+          "call_chiara",
+          "search_here"
+        ],
+        "choice": "travel:toilet",
+        "first_choice": "travel:toilet",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 2091.644,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.009,
+        "probabilities": {
+          "search_here": 0.1465,
+          "call_chiara": 0.1581,
+          "ask_gemma": 0.1756,
+          "travel:living_room": 0.1701,
+          "travel:kitchen": 0.1651,
+          "travel:toilet": 0.1845
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: person_seen_60_cm_identity_unknown. Voice hint: none. Calls without answer: 0. Previous script: entered_room; outcome: arrived. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Camera detected a person; it has not identified Chiara.",
+        "offered_first": [
+          "search_here",
+          "call_chiara",
+          "ask_gemma",
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "search_here": "Search the current room for Chiara using the room-coverage script.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "travel:living_room": "Travel to living_room; distance 6.0 m; room status unsearched.",
+          "travel:kitchen": "Travel to kitchen; distance 2.0 m; room status unsearched.",
+          "travel:toilet": "Travel to toilet; distance 8.0 m; room status unsearched."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_all_rooms_first_2",
+        "family": "all_rooms_first",
+        "order": "normal",
+        "preferred": "call_chiara",
+        "acceptable": [
+          "call_chiara"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1754.738,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.107,
+        "probabilities": {
+          "call_chiara": 0.4467,
+          "ask_gemma": 0.5533
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: searched_no_target; kitchen: searched_no_target; toilet: searched_no_target; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: travel_and_search; outcome: all_reachable_rooms_searched. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. All currently reachable rooms have been searched.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_all_rooms_called_2",
+        "family": "all_rooms_called",
+        "order": "normal",
+        "preferred": "ask_gemma",
+        "acceptable": [
+          "ask_gemma"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": true,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 1739.7,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.129,
+        "probabilities": {
+          "call_chiara": 0.4355,
+          "ask_gemma": 0.5645
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: searched_no_target; kitchen: searched_no_target; toilet: searched_no_target; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 2. Previous script: call_chiara; outcome: no_answer_to_two_calls. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. All currently reachable rooms have been searched.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_localization_lost_2",
+        "family": "localization_lost",
+        "order": "normal",
+        "preferred": "relocalize",
+        "acceptable": [
+          "relocalize"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1816.201,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.021,
+        "probabilities": {
+          "call_chiara": 0.2778,
+          "ask_gemma": 0.3717,
+          "relocalize": 0.3504
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: uncertain_after_wheel_slip. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: travel; outcome: pose_estimate_lost. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Room location is unknown until a fresh scan is aligned.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma",
+          "relocalize"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "relocalize": "Stop travel and re-estimate the robot pose using a new LiDAR scan."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_route_blocked_2",
+        "family": "route_blocked",
+        "order": "normal",
+        "preferred": "relocalize",
+        "acceptable": [
+          "relocalize"
+        ],
+        "choice": "relocalize",
+        "first_choice": "relocalize",
+        "preferred_match": true,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 1850.728,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.021,
+        "probabilities": {
+          "call_chiara": 0.271,
+          "ask_gemma": 0.354,
+          "relocalize": 0.375
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: uncertain_after_blocked_doorway. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: travel; outcome: route_blocked_and_pose_uncertain. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Do not commit to another room until pose is recovered.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma",
+          "relocalize"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "relocalize": "Stop travel and re-estimate the robot pose using a new LiDAR scan."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_repeat_search_2",
+        "family": "repeat_search",
+        "order": "normal",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 2028.529,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.023,
+        "probabilities": {
+          "call_chiara": 0.1967,
+          "ask_gemma": 0.2308,
+          "travel:living_room": 0.1912,
+          "travel:kitchen": 0.1734,
+          "travel:toilet": 0.2079
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. The room search already repeated without finding Chiara.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma",
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "travel:living_room": "Travel to living_room; distance 6.0 m; room status unsearched.",
+          "travel:kitchen": "Travel to kitchen; distance 2.0 m; room status unsearched.",
+          "travel:toilet": "Travel to toilet; distance 8.0 m; room status unsearched."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_heard_from_room_2",
+        "family": "heard_from_room",
+        "order": "normal",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "travel:toilet",
+        "first_choice": "travel:toilet",
+        "preferred_match": false,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 2024.864,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.017,
+        "probabilities": {
+          "call_chiara": 0.1987,
+          "ask_gemma": 0.1738,
+          "travel:living_room": 0.2016,
+          "travel:kitchen": 0.2044,
+          "travel:toilet": 0.2215
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: kitchen. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. A voice answered from kitchen; its identity is unconfirmed.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma",
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "travel:living_room": "Travel to living_room; distance 6.0 m; room status unsearched.",
+          "travel:kitchen": "Travel to kitchen; distance 2.0 m; room status unsearched.",
+          "travel:toilet": "Travel to toilet; distance 8.0 m; room status unsearched."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_new_room_2",
+        "family": "new_room",
+        "order": "reverse",
+        "preferred": "search_here",
+        "acceptable": [
+          "search_here",
+          "call_chiara"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 2061.61,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.005,
+        "probabilities": {
+          "travel:toilet": 0.192,
+          "travel:kitchen": 0.1614,
+          "travel:living_room": 0.1842,
+          "ask_gemma": 0.1971,
+          "call_chiara": 0.1386,
+          "search_here": 0.1267
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: entered_room; outcome: arrived. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Search room interiors methodically; check each room once.",
+        "offered_first": [
+          "travel:toilet",
+          "travel:kitchen",
+          "travel:living_room",
+          "ask_gemma",
+          "call_chiara",
+          "search_here"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "travel:toilet": "Travel to toilet; distance 8.0 m; room status unsearched.",
+          "travel:kitchen": "Travel to kitchen; distance 2.0 m; room status unsearched.",
+          "travel:living_room": "Travel to living_room; distance 6.0 m; room status unsearched.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "search_here": "Search the current room for Chiara using the room-coverage script."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_room_finished_2",
+        "family": "room_finished",
+        "order": "reverse",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "travel:toilet",
+        "first_choice": "travel:toilet",
+        "preferred_match": false,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 2016.929,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.012,
+        "probabilities": {
+          "travel:toilet": 0.2251,
+          "travel:kitchen": 0.192,
+          "travel:living_room": 0.2128,
+          "ask_gemma": 0.1937,
+          "call_chiara": 0.1764
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Search room interiors methodically; check each room once.",
+        "offered_first": [
+          "travel:toilet",
+          "travel:kitchen",
+          "travel:living_room",
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "travel:toilet": "Travel to toilet; distance 8.0 m; room status unsearched.",
+          "travel:kitchen": "Travel to kitchen; distance 2.0 m; room status unsearched.",
+          "travel:living_room": "Travel to living_room; distance 6.0 m; room status unsearched.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_hall_hint_2",
+        "family": "hall_hint",
+        "order": "reverse",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "travel:toilet",
+        "first_choice": "travel:toilet",
+        "preferred_match": false,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 2072.776,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.007,
+        "probabilities": {
+          "travel:toilet": 0.2391,
+          "travel:kitchen": 0.183,
+          "travel:living_room": 0.2169,
+          "ask_gemma": 0.2326,
+          "call_chiara": 0.1285
+        },
+        "state": "Mission: find Chiara. Current room: hall. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: bedroom (7.0 m), living_room (8.0 m), kitchen (2.0 m), toilet (10.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: entered_hall; outcome: ready_to_pick_a_room. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Search room interiors methodically; check each room once.",
+        "offered_first": [
+          "travel:toilet",
+          "travel:kitchen",
+          "travel:living_room",
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "travel:toilet": "Travel to toilet; distance 10.0 m; room status unsearched.",
+          "travel:kitchen": "Travel to kitchen; distance 2.0 m; room status unsearched.",
+          "travel:living_room": "Travel to living_room; distance 8.0 m; room status unsearched.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_target_confirmed_2",
+        "family": "target_confirmed",
+        "order": "reverse",
+        "preferred": "finish",
+        "acceptable": [
+          "finish"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1723.366,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.086,
+        "probabilities": {
+          "finish": 0.4572,
+          "ask_gemma": 0.5428
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: identity_confirmed_Chiara_ahead_at_50_cm. Voice hint: none. Calls without answer: 0. Previous script: entered_room; outcome: arrived. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Chiara verified by a separate identity confirmation step.",
+        "offered_first": [
+          "finish",
+          "ask_gemma"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "finish": "Stop the search: Chiara's identity and position have been confirmed.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_possible_person_2",
+        "family": "possible_person",
+        "order": "reverse",
+        "preferred": "call_chiara",
+        "acceptable": [
+          "call_chiara",
+          "search_here"
+        ],
+        "choice": "travel:toilet",
+        "first_choice": "travel:toilet",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 2115.589,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.009,
+        "probabilities": {
+          "travel:toilet": 0.1845,
+          "travel:kitchen": 0.1651,
+          "travel:living_room": 0.1701,
+          "ask_gemma": 0.1756,
+          "call_chiara": 0.1581,
+          "search_here": 0.1465
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: person_seen_60_cm_identity_unknown. Voice hint: none. Calls without answer: 0. Previous script: entered_room; outcome: arrived. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Camera detected a person; it has not identified Chiara.",
+        "offered_first": [
+          "travel:toilet",
+          "travel:kitchen",
+          "travel:living_room",
+          "ask_gemma",
+          "call_chiara",
+          "search_here"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "travel:toilet": "Travel to toilet; distance 8.0 m; room status unsearched.",
+          "travel:kitchen": "Travel to kitchen; distance 2.0 m; room status unsearched.",
+          "travel:living_room": "Travel to living_room; distance 6.0 m; room status unsearched.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "search_here": "Search the current room for Chiara using the room-coverage script."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_all_rooms_first_2",
+        "family": "all_rooms_first",
+        "order": "reverse",
+        "preferred": "call_chiara",
+        "acceptable": [
+          "call_chiara"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1821.607,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.107,
+        "probabilities": {
+          "ask_gemma": 0.5533,
+          "call_chiara": 0.4467
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: searched_no_target; kitchen: searched_no_target; toilet: searched_no_target; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: travel_and_search; outcome: all_reachable_rooms_searched. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. All currently reachable rooms have been searched.",
+        "offered_first": [
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_all_rooms_called_2",
+        "family": "all_rooms_called",
+        "order": "reverse",
+        "preferred": "ask_gemma",
+        "acceptable": [
+          "ask_gemma"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": true,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 1771.126,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.129,
+        "probabilities": {
+          "ask_gemma": 0.5645,
+          "call_chiara": 0.4355
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: searched_no_target; kitchen: searched_no_target; toilet: searched_no_target; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 2. Previous script: call_chiara; outcome: no_answer_to_two_calls. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. All currently reachable rooms have been searched.",
+        "offered_first": [
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_localization_lost_2",
+        "family": "localization_lost",
+        "order": "reverse",
+        "preferred": "relocalize",
+        "acceptable": [
+          "relocalize"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1876.857,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.021,
+        "probabilities": {
+          "relocalize": 0.3504,
+          "ask_gemma": 0.3717,
+          "call_chiara": 0.2778
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: uncertain_after_wheel_slip. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: travel; outcome: pose_estimate_lost. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Room location is unknown until a fresh scan is aligned.",
+        "offered_first": [
+          "relocalize",
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "relocalize": "Stop travel and re-estimate the robot pose using a new LiDAR scan.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_route_blocked_2",
+        "family": "route_blocked",
+        "order": "reverse",
+        "preferred": "relocalize",
+        "acceptable": [
+          "relocalize"
+        ],
+        "choice": "relocalize",
+        "first_choice": "relocalize",
+        "preferred_match": true,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 1900.809,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.021,
+        "probabilities": {
+          "relocalize": 0.375,
+          "ask_gemma": 0.354,
+          "call_chiara": 0.271
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: uncertain_after_blocked_doorway. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: travel; outcome: route_blocked_and_pose_uncertain. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Do not commit to another room until pose is recovered.",
+        "offered_first": [
+          "relocalize",
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "relocalize": "Stop travel and re-estimate the robot pose using a new LiDAR scan.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_repeat_search_2",
+        "family": "repeat_search",
+        "order": "reverse",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 2049.179,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.023,
+        "probabilities": {
+          "travel:toilet": 0.2079,
+          "travel:kitchen": 0.1734,
+          "travel:living_room": 0.1912,
+          "ask_gemma": 0.2308,
+          "call_chiara": 0.1967
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. The room search already repeated without finding Chiara.",
+        "offered_first": [
+          "travel:toilet",
+          "travel:kitchen",
+          "travel:living_room",
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "travel:toilet": "Travel to toilet; distance 8.0 m; room status unsearched.",
+          "travel:kitchen": "Travel to kitchen; distance 2.0 m; room status unsearched.",
+          "travel:living_room": "Travel to living_room; distance 6.0 m; room status unsearched.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "filtered_text",
+        "case_id": "von_heard_from_room_2",
+        "family": "heard_from_room",
+        "order": "reverse",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "travel:toilet",
+        "first_choice": "travel:toilet",
+        "preferred_match": false,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 2025.111,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.017,
+        "probabilities": {
+          "travel:toilet": 0.2215,
+          "travel:kitchen": 0.2044,
+          "travel:living_room": 0.2016,
+          "ask_gemma": 0.1738,
+          "call_chiara": 0.1987
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: kitchen. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. A voice answered from kitchen; its identity is unconfirmed.",
+        "offered_first": [
+          "travel:toilet",
+          "travel:kitchen",
+          "travel:living_room",
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "travel:toilet": "Travel to toilet; distance 8.0 m; room status unsearched.",
+          "travel:kitchen": "Travel to kitchen; distance 2.0 m; room status unsearched.",
+          "travel:living_room": "Travel to living_room; distance 6.0 m; room status unsearched.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      }
+    ]
+  },
+  "two_stage_text": {
+    "heldout": {
+      "n": 11,
+      "preferred": 2,
+      "acceptable": 2,
+      "invalid_or_ineligible": 0,
+      "inference_calls": 11,
+      "p50_ms": 1831.0,
+      "p95_ms": 1914.5
+    },
+    "reversed": {
+      "n": 11,
+      "preferred": 2,
+      "acceptable": 2,
+      "invalid_or_ineligible": 0,
+      "inference_calls": 11,
+      "p50_ms": 1821.1,
+      "p95_ms": 1923.1
+    },
+    "order_reversal_flips": 0,
+    "n": 11,
+    "rows": [
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_new_room_2",
+        "family": "new_room",
+        "order": "normal",
+        "preferred": "search_here",
+        "acceptable": [
+          "search_here",
+          "call_chiara"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1860.807,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.054,
+        "probabilities": {
+          "search_here": 0.2195,
+          "call_chiara": 0.2351,
+          "ask_gemma": 0.2998,
+          "travel_next": 0.2456
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: entered_room; outcome: arrived. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Search room interiors methodically; check each room once.",
+        "offered_first": [
+          "search_here",
+          "call_chiara",
+          "ask_gemma",
+          "travel_next"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "search_here": "Search the current room for Chiara using the room-coverage script.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "travel_next": "Travel to one unsearched reachable room."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_room_finished_2",
+        "family": "room_finished",
+        "order": "normal",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1795.433,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.018,
+        "probabilities": {
+          "call_chiara": 0.3287,
+          "ask_gemma": 0.3472,
+          "travel_next": 0.3241
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Search room interiors methodically; check each room once.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma",
+          "travel_next"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "travel_next": "Travel to one unsearched reachable room."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_hall_hint_2",
+        "family": "hall_hint",
+        "order": "normal",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1864.838,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.061,
+        "probabilities": {
+          "call_chiara": 0.2626,
+          "ask_gemma": 0.399,
+          "travel_next": 0.3384
+        },
+        "state": "Mission: find Chiara. Current room: hall. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: bedroom (7.0 m), living_room (8.0 m), kitchen (2.0 m), toilet (10.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: entered_hall; outcome: ready_to_pick_a_room. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Search room interiors methodically; check each room once.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma",
+          "travel_next"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "travel_next": "Travel to one unsearched reachable room."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_target_confirmed_2",
+        "family": "target_confirmed",
+        "order": "normal",
+        "preferred": "finish",
+        "acceptable": [
+          "finish"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1729.679,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.086,
+        "probabilities": {
+          "ask_gemma": 0.5428,
+          "finish": 0.4572
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: identity_confirmed_Chiara_ahead_at_50_cm. Voice hint: none. Calls without answer: 0. Previous script: entered_room; outcome: arrived. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Chiara verified by a separate identity confirmation step.",
+        "offered_first": [
+          "ask_gemma",
+          "finish"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "finish": "Stop the search: Chiara's identity and position have been confirmed."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_possible_person_2",
+        "family": "possible_person",
+        "order": "normal",
+        "preferred": "call_chiara",
+        "acceptable": [
+          "call_chiara",
+          "search_here"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1955.63,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.019,
+        "probabilities": {
+          "search_here": 0.2485,
+          "call_chiara": 0.2622,
+          "ask_gemma": 0.2817,
+          "travel_next": 0.2077
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: person_seen_60_cm_identity_unknown. Voice hint: none. Calls without answer: 0. Previous script: entered_room; outcome: arrived. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Camera detected a person; it has not identified Chiara.",
+        "offered_first": [
+          "search_here",
+          "call_chiara",
+          "ask_gemma",
+          "travel_next"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "search_here": "Search the current room for Chiara using the room-coverage script.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "travel_next": "Travel to one unsearched reachable room."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_all_rooms_first_2",
+        "family": "all_rooms_first",
+        "order": "normal",
+        "preferred": "call_chiara",
+        "acceptable": [
+          "call_chiara"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1864.242,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.107,
+        "probabilities": {
+          "call_chiara": 0.4467,
+          "ask_gemma": 0.5533
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: searched_no_target; kitchen: searched_no_target; toilet: searched_no_target; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: travel_and_search; outcome: all_reachable_rooms_searched. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. All currently reachable rooms have been searched.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_all_rooms_called_2",
+        "family": "all_rooms_called",
+        "order": "normal",
+        "preferred": "ask_gemma",
+        "acceptable": [
+          "ask_gemma"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": true,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 1767.035,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.129,
+        "probabilities": {
+          "call_chiara": 0.4355,
+          "ask_gemma": 0.5645
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: searched_no_target; kitchen: searched_no_target; toilet: searched_no_target; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 2. Previous script: call_chiara; outcome: no_answer_to_two_calls. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. All currently reachable rooms have been searched.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_localization_lost_2",
+        "family": "localization_lost",
+        "order": "normal",
+        "preferred": "relocalize",
+        "acceptable": [
+          "relocalize"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1831.017,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.021,
+        "probabilities": {
+          "call_chiara": 0.2778,
+          "ask_gemma": 0.3717,
+          "relocalize": 0.3504
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: uncertain_after_wheel_slip. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: travel; outcome: pose_estimate_lost. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Room location is unknown until a fresh scan is aligned.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma",
+          "relocalize"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "relocalize": "Stop travel and re-estimate the robot pose using a new LiDAR scan."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_route_blocked_2",
+        "family": "route_blocked",
+        "order": "normal",
+        "preferred": "relocalize",
+        "acceptable": [
+          "relocalize"
+        ],
+        "choice": "relocalize",
+        "first_choice": "relocalize",
+        "preferred_match": true,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 1873.366,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.021,
+        "probabilities": {
+          "call_chiara": 0.271,
+          "ask_gemma": 0.354,
+          "relocalize": 0.375
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: uncertain_after_blocked_doorway. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: travel; outcome: route_blocked_and_pose_uncertain. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Do not commit to another room until pose is recovered.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma",
+          "relocalize"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "relocalize": "Stop travel and re-estimate the robot pose using a new LiDAR scan."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_repeat_search_2",
+        "family": "repeat_search",
+        "order": "normal",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1791.763,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.038,
+        "probabilities": {
+          "call_chiara": 0.3473,
+          "ask_gemma": 0.3848,
+          "travel_next": 0.2678
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. The room search already repeated without finding Chiara.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma",
+          "travel_next"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "travel_next": "Travel to one unsearched reachable room."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_heard_from_room_2",
+        "family": "heard_from_room",
+        "order": "normal",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "call_chiara",
+        "first_choice": "call_chiara",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1821.257,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.043,
+        "probabilities": {
+          "call_chiara": 0.3709,
+          "ask_gemma": 0.3284,
+          "travel_next": 0.3007
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: kitchen. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. A voice answered from kitchen; its identity is unconfirmed.",
+        "offered_first": [
+          "call_chiara",
+          "ask_gemma",
+          "travel_next"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "travel_next": "Travel to one unsearched reachable room."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_new_room_2",
+        "family": "new_room",
+        "order": "reverse",
+        "preferred": "search_here",
+        "acceptable": [
+          "search_here",
+          "call_chiara"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1896.24,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.054,
+        "probabilities": {
+          "travel_next": 0.2456,
+          "ask_gemma": 0.2998,
+          "call_chiara": 0.2351,
+          "search_here": 0.2195
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: entered_room; outcome: arrived. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Search room interiors methodically; check each room once.",
+        "offered_first": [
+          "travel_next",
+          "ask_gemma",
+          "call_chiara",
+          "search_here"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "travel_next": "Travel to one unsearched reachable room.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "search_here": "Search the current room for Chiara using the room-coverage script."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_room_finished_2",
+        "family": "room_finished",
+        "order": "reverse",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1804.14,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.018,
+        "probabilities": {
+          "travel_next": 0.3241,
+          "ask_gemma": 0.3472,
+          "call_chiara": 0.3287
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Search room interiors methodically; check each room once.",
+        "offered_first": [
+          "travel_next",
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "travel_next": "Travel to one unsearched reachable room.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_hall_hint_2",
+        "family": "hall_hint",
+        "order": "reverse",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1895.794,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.061,
+        "probabilities": {
+          "travel_next": 0.3384,
+          "ask_gemma": 0.399,
+          "call_chiara": 0.2626
+        },
+        "state": "Mission: find Chiara. Current room: hall. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: bedroom (7.0 m), living_room (8.0 m), kitchen (2.0 m), toilet (10.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: entered_hall; outcome: ready_to_pick_a_room. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Search room interiors methodically; check each room once.",
+        "offered_first": [
+          "travel_next",
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "travel_next": "Travel to one unsearched reachable room.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_target_confirmed_2",
+        "family": "target_confirmed",
+        "order": "reverse",
+        "preferred": "finish",
+        "acceptable": [
+          "finish"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1731.378,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.086,
+        "probabilities": {
+          "finish": 0.4572,
+          "ask_gemma": 0.5428
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: identity_confirmed_Chiara_ahead_at_50_cm. Voice hint: none. Calls without answer: 0. Previous script: entered_room; outcome: arrived. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Chiara verified by a separate identity confirmation step.",
+        "offered_first": [
+          "finish",
+          "ask_gemma"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "finish": "Stop the search: Chiara's identity and position have been confirmed.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_possible_person_2",
+        "family": "possible_person",
+        "order": "reverse",
+        "preferred": "call_chiara",
+        "acceptable": [
+          "call_chiara",
+          "search_here"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1906.185,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.019,
+        "probabilities": {
+          "travel_next": 0.2077,
+          "ask_gemma": 0.2817,
+          "call_chiara": 0.2622,
+          "search_here": 0.2485
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: person_seen_60_cm_identity_unknown. Voice hint: none. Calls without answer: 0. Previous script: entered_room; outcome: arrived. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Camera detected a person; it has not identified Chiara.",
+        "offered_first": [
+          "travel_next",
+          "ask_gemma",
+          "call_chiara",
+          "search_here"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "travel_next": "Travel to one unsearched reachable room.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move.",
+          "search_here": "Search the current room for Chiara using the room-coverage script."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_all_rooms_first_2",
+        "family": "all_rooms_first",
+        "order": "reverse",
+        "preferred": "call_chiara",
+        "acceptable": [
+          "call_chiara"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1811.729,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.107,
+        "probabilities": {
+          "ask_gemma": 0.5533,
+          "call_chiara": 0.4467
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: searched_no_target; kitchen: searched_no_target; toilet: searched_no_target; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: travel_and_search; outcome: all_reachable_rooms_searched. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. All currently reachable rooms have been searched.",
+        "offered_first": [
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_all_rooms_called_2",
+        "family": "all_rooms_called",
+        "order": "reverse",
+        "preferred": "ask_gemma",
+        "acceptable": [
+          "ask_gemma"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": true,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 1793.32,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.129,
+        "probabilities": {
+          "ask_gemma": 0.5645,
+          "call_chiara": 0.4355
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: searched_no_target; kitchen: searched_no_target; toilet: searched_no_target; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 2. Previous script: call_chiara; outcome: no_answer_to_two_calls. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. All currently reachable rooms have been searched.",
+        "offered_first": [
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_localization_lost_2",
+        "family": "localization_lost",
+        "order": "reverse",
+        "preferred": "relocalize",
+        "acceptable": [
+          "relocalize"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1878.589,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.021,
+        "probabilities": {
+          "relocalize": 0.3504,
+          "ask_gemma": 0.3717,
+          "call_chiara": 0.2778
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: uncertain_after_wheel_slip. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: travel; outcome: pose_estimate_lost. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Room location is unknown until a fresh scan is aligned.",
+        "offered_first": [
+          "relocalize",
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "relocalize": "Stop travel and re-estimate the robot pose using a new LiDAR scan.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_route_blocked_2",
+        "family": "route_blocked",
+        "order": "reverse",
+        "preferred": "relocalize",
+        "acceptable": [
+          "relocalize"
+        ],
+        "choice": "relocalize",
+        "first_choice": "relocalize",
+        "preferred_match": true,
+        "acceptable_match": true,
+        "invalid_or_ineligible": false,
+        "total_ms": 1939.964,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.021,
+        "probabilities": {
+          "relocalize": 0.375,
+          "ask_gemma": 0.354,
+          "call_chiara": 0.271
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: uncertain_after_blocked_doorway. Room history: bedroom: unsearched; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: travel; outcome: route_blocked_and_pose_uncertain. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. Do not commit to another room until pose is recovered.",
+        "offered_first": [
+          "relocalize",
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "relocalize": "Stop travel and re-estimate the robot pose using a new LiDAR scan.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_repeat_search_2",
+        "family": "repeat_search",
+        "order": "reverse",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "ask_gemma",
+        "first_choice": "ask_gemma",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1821.137,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.038,
+        "probabilities": {
+          "travel_next": 0.2678,
+          "ask_gemma": 0.3848,
+          "call_chiara": 0.3473
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: none. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete_twice. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. The room search already repeated without finding Chiara.",
+        "offered_first": [
+          "travel_next",
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "travel_next": "Travel to one unsearched reachable room.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      },
+      {
+        "model": "von",
+        "frame": "two_stage_text",
+        "case_id": "von_heard_from_room_2",
+        "family": "heard_from_room",
+        "order": "reverse",
+        "preferred": "travel:kitchen",
+        "acceptable": [
+          "travel:living_room",
+          "travel:kitchen",
+          "travel:toilet"
+        ],
+        "choice": "call_chiara",
+        "first_choice": "call_chiara",
+        "preferred_match": false,
+        "acceptable_match": false,
+        "invalid_or_ineligible": false,
+        "total_ms": 1798.849,
+        "model_calls": 1,
+        "input_tokens": 0,
+        "confidence": 0.043,
+        "probabilities": {
+          "travel_next": 0.3007,
+          "ask_gemma": 0.3284,
+          "call_chiara": 0.3709
+        },
+        "state": "Mission: find Chiara. Current room: bedroom. Localization: confirmed. Room history: bedroom: searched_no_target; living_room: unsearched; kitchen: unsearched; toilet: unsearched; hall: transit. Reachable rooms: living_room (6.0 m), kitchen (2.0 m), toilet (8.0 m). Target evidence: not_seen. Voice hint: kitchen. Calls without answer: 0. Previous script: search_here; outcome: room_coverage_complete. LiDAR front: 65 cm; ultrasonic front: 63 cm; sensor age 0.60 s. A voice answered from kitchen; its identity is unconfirmed.",
+        "offered_first": [
+          "travel_next",
+          "ask_gemma",
+          "call_chiara"
+        ],
+        "first_instruction": "Given the mission, evidence, room history and previous script result, choose the single most useful next high-level mission action. A travel script will handle movement and obstacles itself.",
+        "offered_first_descriptions": {
+          "travel_next": "Travel to one unsearched reachable room.",
+          "ask_gemma": "Ask the dialogue planner to revise the mission after search attempts fail.",
+          "call_chiara": "Call out for Chiara and listen for a reply; do not move."
+        },
+        "second_instruction": null,
+        "offered_second_descriptions": null,
+        "split": "heldout_order_reversed"
+      }
+    ]
+  },
+  "inference_calls": 46,
+  "max_rss_mib_self": 3064.1
+}

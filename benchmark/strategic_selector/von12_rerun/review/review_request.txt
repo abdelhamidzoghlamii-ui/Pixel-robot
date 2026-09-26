@@ -1,0 +1,568 @@
+EXECUTION PROFILE
+ROLE: Reviewer (fresh independent review) — Pixel Robot project
+PLATFORM: AGY/Antigravity CLI 1.2.10, headless, --sandbox
+MODEL: gemini-3.1-pro-high
+EFFORT: platform-controlled
+PONYTAIL: off — do not apply Ponytail/simplification review; this is an independent correctness/methodology review.
+WHY: mandatory independent review of a research benchmark re-run (docs/WORKFLOW.md)
+FALLBACK: none selected; any auth/quota/model/permission failure = incomplete review.
+
+RULES (mandatory): You are read-only. Do NOT edit, create, delete, stage, commit or push any file. Do NOT run models, benchmarks, motors, ESP32, pip, network downloads, or another reviewer. You may read files in this workspace (an isolated frozen copy; FROZEN_SHA256SUMS.txt lists it). Review the ACTUAL files, not only this summary.
+
+WORKSPACE LAYOUT (frozen copy):
+- benchmark_source/robot_selector_benchmark.py  (executed v2, must be SHA 3aa9d399…8c14e2), archive_run.py, phone_snapshot.py (repo helpers, unmodified)
+- archive_1.1/2026-09-23T150926Z-von-v2/ (archived Von 1.1 results.json, stdout.txt, manifest.json)
+- archive_1.1/2026-09-23T155449Z-von-filtered-followup/ (1.1 post-hoc filtered_text follow-up; stdout only)
+- von12-test/ : wrappers (determinism_check.py, run_block.py, von12_heldout_extra.py), stdout/stderr per block, *.block.json, cooldown_gate.txt, thermal.log, venv freezes, von12-heldout-extra-results.json, runs/2026-09-24T184107Z-von-68e0c438/ (Block A: results.json, manifest.json, stdout.txt, stderr.txt)
+Original live paths: /termux-home/von12-test/ and /termux-home/robot/benchmark/strategic_selector/.
+
+==================== TASK TEXT (verbatim, from the human) ====================
+[Message 1]
+You are the Coder for the Pixel Robot project, in /termux-home/robot. Read AGENTS.md, docs/HANDOFF.md, docs/WORKFLOW.md, docs/CODER.md, docs/STATUS.md, DECISIONS #109, and benchmark/strategic_selector/README.md and RUN_INDEX.md in full before acting. Research only: no motors, no ESP32, no main.py changes.
+
+TASK — re-run the strategic-selector v2 benchmark for Von only, with Von upgraded from 1.1 to 1.2, holding everything else fixed.
+
+1. Verify, before installing anything: that Von 1.2 exists as an installable release from the upstream wfzyx/von (the source the archived run used), its exact version string, and the weights file it loads. If 1.2 is not installable, stop and report.
+2. Report the download size and free storage, then stop and ask the human before downloading. Install Von 1.2 in a NEW virtualenv; do not modify the environment the archived run used.
+3. Confirm the benchmark source is byte-identical to the executed v2: robot_selector_benchmark.py SHA-256 3aa9d399d6978710c143a6f1dfe69541b288cea329f27077b2500e322e8c14e2. Do not edit it. Any wrapper you need goes in a separate file.
+4. Determinism check before the full run: confirm the Von cases the script generates now are identical to the archived v1.1 JSON (compare state text, offered options and labels). If they differ, stop and report — the comparison is invalid.
+5. If Von 1.2 prints any head-key load warning (the archived 1.1 run printed a Transformers UNEXPECTED report), stop and report it verbatim before running.
+6. Run the full v2 procedure for Von: five frames on 22 development cases, the selected frame on 11 held-out cases plus reversed option order. Additionally run filtered_text and two_stage_text on held-out + reversed regardless of which frame is selected, so both archived 1.1 rows have a direct 1.2 counterpart.
+7. Same device conditions as the archive: 4 intra-op threads, 1 inter-op, affinity cores 4–7, offline cache after download. Record battery and CPU thermal zone readings at start and end of each block, allow cooldown between blocks, and capture peak RSS with an external wrapper.
+
+Report in one message: Von version, weights file and its SHA-256, the benchmark SHA check, the determinism result, a table matching the archive's (preferred, acceptable, median/P95 ms, order flips, calls) for 1.1 archived vs 1.2 measured, peak RSS, thermal readings, and the raw JSON paths. State plainly whether reversed-order flips are 0/11.
+
+Then auto-invoke the Reviewer (AGY, gemini-3.1-pro-high, Ponytail off, --sandbox, never --dangerously-skip-permissions) on: this task text, the wrapper source, the SHA and determinism evidence, the full results, and the raw JSON. Freeze all edits while it runs; preserve stdout and stderr separately. Permission, quota or model failure is an incomplete review.
+
+Do not commit. Do not push. Do not update docs/.
+
+[Message 2]
+thermal.log is flowing: ~/von12-test/thermal.log (= /termux-home/von12-test/thermal.log). Zone types confirmed from the log header: zone9=BIG, zone10=MID, zone11=LITTLE. Values are millidegrees C; idle is ~28000 on all three as of 18:34Z.
+Before Block A:
+1. Report the step 4 determinism result with evidence (what was compared, match count). If the generated Von cases don't match the archived 1.1 JSON, stop — the comparison is void.
+2. Record archive_run.py's SHA. Check whether the archived 1.1 manifest's /sys thermal readings are null; if so, state that the 1.1 vs 1.2 latency comparison is thermally asymmetric.
+3. Cooldown rule: take an idle zone9 reading after 5 min idle before Block A. Start each block only when zone9 is within 2 °C of it.
+4. Report 1.2 peak RSS against the archived 1.1 figure of 3062 MiB.
+5. Keep the first-call latency in the results; no warm-up discard.
+
+[Human decision at step 2] Approved download; chose von-sdk 1.2.0 (over recommended 1.2.2).
+
+==================== CODER EVIDENCE ====================
+Step 1 (upstream verification, before install):
+- PyPI von-sdk releases: 1.0.0, 1.0.1, 1.1.0, 1.1.1 (archived run), 1.2.0 (2026-09-24T01:25:09, wheel sha256 8cff14a9…6bb6), 1.2.1, 1.2.2. Project URLs point to github.com/wfzyx/von; GitHub tags v1.2.0 e189466a…, v1.2.1, v1.2.2.
+- Archived env /termux-home/laya-test/venv had von-sdk 1.1.1 installed by pip from PyPI (no direct_url.json).
+- Installed 1.2.0 source: VON_MODEL_ID = "von-1.2.0", engine VON_VERSION = "1.2", loads hf_hub_download(repo_id="wfzyx/von", filename="option_marker.pt") with NO pinned revision (1.1.1 did the same).
+- HF wfzyx/von main = 5df8185a4f2327ad0a7cd117cc4f701ac557b9ae ("release: von-1.2.0 weights + calibration (independent_options)"). option_marker.pt 1581316459 B LFS sha256 3faf27f8…d4139ed; model.safetensors 1579143688 B sha256 af57d5d2…df329297a. Both differ from 1.1 cache snapshot d8bb5e07 blobs.
+- 1.2 introduces calibration flag independent_options (source comments describe an order-invariance guarantee).
+- 1.2.0→1.2.2 diff: confidence formula (_margin_confidence), server/types instruction coercion; choice logic unchanged.
+Step 2: download ~3.16 GB weights + ~205 MiB packages; free 32 GB on /termux-home. Human approved. New venv /termux-home/von12-test/venv installed with --no-deps from the archived venv's pip freeze, only von-sdk changed (see von12-test/archived_venv_freeze.txt vs venv_freeze.txt; diff = von-sdk 1.1.1→1.2.0; pip check clean). New HF_HOME /termux-home/von12-test/hf-cache (archived /termux-home/von-test/hf-cache untouched). Downloaded snapshot 5df8185a…; on-disk sha256 of option_marker.pt = 3faf27f88d30aaf9aa37860d4cdef99f1d05450cf40364f6236ac892d4d139ed, model.safetensors = af57d5d2ab15715a753a1eb4add4271d1aecce7e76f3365f629c082df329297a (match HF LFS oids).
+Step 3: sha256 robot_selector_benchmark.py = 3aa9d399d6978710c143a6f1dfe69541b288cea329f27077b2500e322e8c14e2 (match). archive_run.py = 1190f81c39b2bd6b9e820aefc631b782e472a686cb695eb2df5ad4e0898b4d31; phone_snapshot.py = b6268bfd80a0adda68a178741d05b14eb1bcf466e705c3f818fcedc4572df3f4. Block A manifest confirms source_sha256_after_run == archived.
+Step 4 determinism (von12-test/determinism_stdout.txt): 132 archived 1.1 rows regenerated; 824 fields compared (family, preferred, acceptable, state, offered_first order, offered_first_descriptions as ordered items, offered_second_descriptions where present); 0 mismatches. 1.1 filtered_text follow-up (stdout only): 11 EXPECTED labels match; its states/options cannot be compared. Negative control (coder scratch, not saved in workspace): a copy of the archived JSON with a one-character state edit (row 40) and one reversed offered_first list (row 120) produced 2 MISMATCH lines and DETERMINISM=DIFFERENT.
+Step 5 load probe (von12-test/probe.stdout.txt / probe.stderr.txt): no Transformers LOAD REPORT / UNEXPECTED lines; stderr contains only the weight-loading progress bar. Same holds for Block A and Block B stdout/stderr.
+Thermal: /sys/class/thermal is permission-denied inside proot and Magisk su daemon unreachable; the human runs a root logger in native Termux writing von12-test/thermal.log every ~5 s (z9 BIG, z10 MID, z11 LITTLE, millidegrees). phone_snapshot.py thermal/battery fields inside the Block A manifest are therefore "unavailable" (expected). Battery via termux-battery-status in *.block.json.
+Archived 1.1 manifest has NO thermal/phone-state fields at all (assembled post hoc) → the 1.1 vs 1.2 latency comparison is thermally asymmetric.
+Cooldown (von12-test/cooldown_gate.txt): idle baseline z9=27000 at 18:40:51Z after 5 min idle; gate |z9−27000| ≤ 2000. Block A gate reading 29000 (18:41:01Z); Block B gate 29000 (18:57:05Z, after ~10 min cooldown). Note: run_block's own start reading (log line 18:41:07Z) showed z9=38000 for Block A, i.e. z9 rose between the gate check and child launch.
+
+==================== RESULTS ====================
+Block A = archive_run.py run --model von --root /termux-home/von12-test/runs (unmodified v2, taskset 4-7, offline env) wrapped by run_block.py.
+Block B = von12_heldout_extra.py (filtered_text + two_stage_text on held-out, normal then reversed), wrapped by run_block.py.
+
+Development (22 cases/frame), 1.1 archived | 1.2 measured  (preferred/acceptable, invalid, median/P95 ms, calls):
+wide_text       1.1  3/6  inv16 3336.4/3548.9 calls22 | 1.2 6/9  inv3 2784.7/3261.6 calls22
+filtered_text   1.1 13/17 inv0  2478.8/2871.8 calls22 | 1.2 6/9  inv0 2097.8/2587.2 calls22
+filtered_json   1.1  9/14 inv0  3073.3/3534.1 calls22 | 1.2 8/10 inv0 2520.5/3152.7 calls22
+two_stage_text  1.1 14/18 inv0  3383.5/5025.4 calls33 | 1.2 4/5  inv0 2058.4/2887.1 calls23
+two_stage_json  1.1 10/14 inv0  4742.5/6191.0 calls34 | 1.2 7/9  inv0 2366.0/2783.6 calls22
+1.2 SELECTED_ON_DEVELOPMENT = filtered_json (1.1 selected two_stage_text).
+
+Held-out, 11 cases (preferred, acceptable, median, P95, flips, calls):
+1.1 two_stage_text (selected, archived)       4 8 4797.9 5154.9 9/11 17
+1.2 two_stage_text (Block B, not selected)    2 2 1831.0 1914.5 0/11 11   reversed: 2 2 1821.1 1923.1
+1.1 filtered_text (post-hoc follow-up)        4 8 2053.8 5312.7 9/11 11
+1.2 filtered_text (Block B, not selected)     2 5 1964.2 2101.3 0/11 11   reversed: 2 5 2016.9 2094.2
+1.2 filtered_json (Block A, selected)         3 4 3067.1 3291.9 0/11 11   (no 1.1 counterpart)
+Reversed-order flips are 0/11 for all three 1.2 frames. Reversed rows show identical choices and identical confidence values.
+First call (includes lazy weight load; recorded, not discarded): 1.1 8582.2 ms; 1.2 Block A 7506.3 ms, Block B 7288.7 ms, probe 7387.2 ms. Warm-ups are part of main()'s design and excluded from aggregates (as in 1.1). IMPORT_AND_LOAD_MS 1.1 11927.6; 1.2 13647.7.
+Peak RSS: 1.2 Block A 3097.0 MiB (external wait4 ru_maxrss of archive_run.py subtree; benchmark self-report also 3097.0); Block B 3064.1 MiB; probe 3018.2 MiB. Archived 1.1: 3062.3 MiB (self-reported getrusage only).
+Thermal (millidegrees, thermal.log): Block A start z9=38000/z10=32000/z11=33000, end 58000/57000/58000, peak 106000/102000/99000. Block B start 29000/30000/30000, end 88000/80000/80000, peak 104000/99000/98000. Battery: A 83%→78%, 23.3→28.4 °C; B 77%→75%, 29.2→27.5 °C; discharging, unplugged.
+1.2 choice distribution (110 dev rows): ask_gemma 58, travel 31, relocalize 12, call_chiara 5, search_here 4, finish 0. 1.1: travel 67, relocalize 14, ask_gemma 12, finish 8, call_chiara 6, search_here 3. 1.2 held-out confidences 0.007–0.095.
+Raw JSON: /termux-home/von12-test/runs/2026-09-24T184107Z-von-68e0c438/results.json (+manifest.json), /termux-home/von12-test/von12-heldout-extra-results.json, /termux-home/von12-test/von12-probe.json.
+
+==================== WRAPPER SOURCES (also in von12-test/) ====================
+----- determinism_check.py -----
+#!/usr/bin/env python3
+"""Check that the unmodified v2 benchmark regenerates the archived Von v1.1 inputs.
+
+Model-free. Imports robot_selector_benchmark.py by path (read-only) and rebuilds,
+for every archived row, the state, offered options (in order), descriptions,
+instructions and labels exactly as run_case() builds them. Exits 1 on any mismatch.
+"""
+import hashlib
+import importlib.util
+import json
+import random
+import sys
+from pathlib import Path
+
+SEL = Path("/termux-home/robot/benchmark/strategic_selector")
+SRC = SEL / "robot_selector_benchmark.py"
+ARCHIVED = SEL / "results/2026-09-23T150926Z-von-v2/results.json"
+FOLLOWUP = SEL / "results/2026-09-23T155449Z-von-filtered-followup/stdout.txt"
+EXPECTED_SHA = "3aa9d399d6978710c143a6f1dfe69541b288cea329f27077b2500e322e8c14e2"
+
+sha = hashlib.sha256(SRC.read_bytes()).hexdigest()
+print(f"BENCHMARK_SHA256={sha} MATCH={sha == EXPECTED_SHA}")
+if sha != EXPECTED_SHA:
+    sys.exit(1)
+spec = importlib.util.spec_from_file_location("rsb", SRC)
+rsb = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(rsb)
+
+cases = {c["id"]: c for c in rsb.audit_fixtures("von")}
+rows = json.loads(ARCHIVED.read_text(encoding="utf-8"))["rows"]
+mismatches, checked = [], 0
+for row in rows:
+    case = cases[row["case_id"]]
+    frame, order = row["frame"], row["order"]
+    rng = random.Random(case["id"] + frame + order)
+    stage = "mode" if frame.startswith("two_stage") else "flat"
+    opts = rsb.render_options(rsb.options_for(case, frame, stage, rng), order, rng)
+    got = {
+        "family": case["family"], "preferred": case["preferred"],
+        "acceptable": case["acceptable"],
+        "state": rsb.to_state(case, frame.endswith("json")),
+        "offered_first": list(opts),
+        "offered_first_descriptions": list(opts.items()),
+    }
+    # Compare descriptions as ordered item lists so option order is checked too.
+    want = dict(row, offered_first_descriptions=[list(x) for x in row["offered_first_descriptions"].items()])
+    got["offered_first_descriptions"] = [list(x) for x in got["offered_first_descriptions"]]
+    if row["offered_second_descriptions"] is not None:
+        dest = rsb.render_options(rsb.options_for(case, frame, "destination", rng), order, rng)
+        got["offered_second_descriptions"] = [list(x) for x in dest.items()]
+        want["offered_second_descriptions"] = [list(x) for x in row["offered_second_descriptions"].items()]
+    for key, value in got.items():
+        checked += 1
+        if want[key] != value:
+            mismatches.append((row["case_id"], frame, order, key))
+
+# The 1.1 filtered_text held-out follow-up saved stdout only: compare its labels.
+followup = {}
+for line in FOLLOWUP.read_text(encoding="utf-8").splitlines():
+    if line.startswith("CASE="):
+        fields = dict(p.split("=", 1) for p in line.split())
+        followup[fields["CASE"]] = fields["EXPECTED"]
+held = [c for c in cases.values() if c["id"].endswith("_2")]
+followup_ok = followup == {c["id"]: c["preferred"] for c in held}
+
+from collections import Counter
+print("ARCHIVED_ROWS", len(rows), dict(Counter((r["split"], r["frame"]) for r in rows)))
+print(f"FIELDS_CHECKED={checked} MISMATCHES={len(mismatches)}")
+for m in mismatches[:20]:
+    print("MISMATCH", m)
+print(f"FOLLOWUP_STDOUT_EXPECTED_LABELS_MATCH={followup_ok} ({len(followup)} cases)")
+print("NOTE: 1.1 filtered_text held-out has no archived JSON; its states/options cannot be compared, only labels.")
+ok = not mismatches and followup_ok and len(rows) == 132
+print(f"DETERMINISM={'IDENTICAL' if ok else 'DIFFERENT'}")
+sys.exit(0 if ok else 1)
+----- run_block.py -----
+#!/usr/bin/env python3
+"""External block runner: offline env, battery + thermal-log readings, peak RSS.
+
+Usage: run_block.py NAME -- COMMAND...
+Writes NAME.stdout.txt, NAME.stderr.txt and NAME.block.json (exclusive create).
+Peak RSS is ru_maxrss from os.wait4() on the child, i.e. the kernel's high-water
+mark for the child and any descendant it reaped, measured outside the process.
+"""
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+HF_HOME = HERE / "hf-cache"
+# Root-only CPU zones are logged from native Termux (su) to this file; see README.
+THERMAL_LOG = HERE / "thermal.log"
+BATTERY = "/data/data/com.termux/files/usr/bin/termux-battery-status"
+
+
+def utc():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def reading():
+    out = {"utc": utc()}
+    try:
+        out["battery"] = json.loads(subprocess.run([BATTERY], capture_output=True, text=True,
+                                                   timeout=30, check=True).stdout)
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+        out["battery"] = {"unavailable": type(exc).__name__}
+    try:
+        out["thermal_log_last_line"] = THERMAL_LOG.read_text().splitlines()[-1]
+    except (OSError, IndexError) as exc:
+        out["thermal_log_last_line"] = f"unavailable: {type(exc).__name__}"
+    return out
+
+
+def main():
+    name, sep, *command = sys.argv[1:]
+    assert sep == "--" and command, __doc__
+    env = os.environ.copy()
+    env.update(HF_HOME=str(HF_HOME), HF_HUB_CACHE=str(HF_HOME / "hub"),
+               HUGGINGFACE_HUB_CACHE=str(HF_HOME / "hub"), HF_HUB_OFFLINE="1",
+               TRANSFORMERS_OFFLINE="1", TOKENIZERS_PARALLELISM="false", USE_TF="0",
+               OMP_NUM_THREADS="4")
+    record = {"name": name, "command": command, "cwd": str(HERE),
+              "environment": {k: env[k] for k in ("HF_HOME", "HF_HUB_OFFLINE",
+                              "TRANSFORMERS_OFFLINE", "OMP_NUM_THREADS")},
+              "start": reading()}
+    with open(HERE / f"{name}.stdout.txt", "xb") as out, open(HERE / f"{name}.stderr.txt", "xb") as err:
+        proc = subprocess.Popen(command, cwd=HERE, env=env, stdout=out, stderr=err)
+        _, status, usage = os.wait4(proc.pid, 0)
+    record["end"] = reading()
+    record["exit_code"] = os.waitstatus_to_exitcode(status)
+    record["peak_rss_mib_wait4"] = round(usage.ru_maxrss / 1024, 1)
+    with open(HERE / f"{name}.block.json", "x") as f:
+        json.dump(record, f, indent=2)
+        f.write("\n")
+    print(json.dumps({k: record[k] for k in ("name", "exit_code", "peak_rss_mib_wait4")}))
+    return record["exit_code"]
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+----- von12_heldout_extra.py -----
+#!/usr/bin/env python3
+"""Run filtered_text and two_stage_text on Von held-out cases, normal + reversed.
+
+Imports the unmodified v2 benchmark by path and reuses its Adapter, run_case and
+aggregate, mirroring main(): same Adapter (4 intra-op / 1 inter-op threads), same
+two warm-up calls, then held-out normal followed by reversed for each frame.
+`--probe` instead loads Von and makes one warm-up decision (load-warning check).
+"""
+import hashlib
+import importlib.util
+import json
+import random
+import resource
+import sys
+from pathlib import Path
+
+SRC = Path("/termux-home/robot/benchmark/strategic_selector/robot_selector_benchmark.py")
+EXPECTED_SHA = "3aa9d399d6978710c143a6f1dfe69541b288cea329f27077b2500e322e8c14e2"
+FRAMES = ("filtered_text", "two_stage_text")
+
+
+def load_benchmark():
+    sha = hashlib.sha256(SRC.read_bytes()).hexdigest()
+    print(f"BENCHMARK_SHA256={sha}", flush=True)
+    if sha != EXPECTED_SHA:
+        raise SystemExit("benchmark source differs from executed v2")
+    spec = importlib.util.spec_from_file_location("rsb", SRC)
+    rsb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rsb)
+    return rsb
+
+
+def main():
+    probe = sys.argv[1:] == ["--probe"]
+    out = Path("von12-probe.json" if probe else "von12-heldout-extra-results.json")
+    if out.exists():
+        raise FileExistsError(f"Refusing to overwrite: {out}")
+    rsb = load_benchmark()
+    cases = rsb.audit_fixtures("von")
+    dev = [c for c in cases if int(c["id"].rsplit("_", 1)[1]) < 2]
+    held = [c for c in cases if int(c["id"].rsplit("_", 1)[1]) == 2]
+    import von
+    print(f"VON_SDK={von.__version__}", flush=True)
+    adapter = rsb.Adapter("von")
+    warm_state = rsb.to_state(dev[0], False)
+    warm_options = rsb.options_for(dev[0], "filtered_text", "flat", random.Random(0))
+    for n in range(1 if probe else 2):
+        warm = adapter.decide(warm_state, warm_options,
+                              "Which high-level script should the robot run next to find Chiara?")
+        print(f"WARMUP_{n+1}_MS={warm['elapsed_ms']:.1f} CHOICE={warm['choice']}", flush=True)
+    report = {"model": "von", "sdk": von.__version__, "first_call_ms": adapter.first_call_ms}
+    if not probe:
+        for frame in FRAMES:
+            normal = [dict(rsb.run_case(adapter, c, frame), split="heldout") for c in held]
+            reverse = [dict(rsb.run_case(adapter, c, frame, "reverse"), split="heldout_order_reversed")
+                       for c in held]
+            for a, b in zip(normal, reverse):
+                print(f"{frame} CASE={a['case_id']} EXPECTED={a['preferred']} NORMAL={a['choice']} "
+                      f"REVERSED={b['choice']} ACCEPTABLE={a['acceptable_match']} MS={a['total_ms']:.0f}",
+                      flush=True)
+            flips = sum(a["choice"] != b["choice"] for a, b in zip(normal, reverse))
+            report[frame] = {"heldout": rsb.aggregate(normal), "reversed": rsb.aggregate(reverse),
+                             "order_reversal_flips": flips, "n": len(held), "rows": normal + reverse}
+            print(f"{frame} NORMAL_SUMMARY: {json.dumps(report[frame]['heldout'])}", flush=True)
+            print(f"{frame} REVERSED_SUMMARY: {json.dumps(report[frame]['reversed'])}", flush=True)
+            print(f"{frame} ORDER_REVERSAL_FLIPS: {flips} / {len(held)}", flush=True)
+    report["inference_calls"] = adapter.calls
+    report["max_rss_mib_self"] = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1)
+    out.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"INFERENCE_CALLS={adapter.calls} RESULT_FILE={out.resolve()}", flush=True)
+
+
+if __name__ == "__main__":
+    main()
+----- cooldown_gate.txt -----
+IDLE_BASELINE 2026-09-24T18:40:51Z z9=27000 (after 5 min idle from 18:35:38Z); gate |z9-27000|<=2000
+BLOCK_A_GATE 2026-09-24T18:41:01Z z9=29000 z10=27000 z11=27000
+BLOCK_B_GATE 2026-09-24T18:57:05Z z9=29000 z10=30000 z11=30000 (cooldown from 2026-09-24T18:47:15Z)
+----- determinism_stdout.txt -----
+BENCHMARK_SHA256=3aa9d399d6978710c143a6f1dfe69541b288cea329f27077b2500e322e8c14e2 MATCH=True
+ARCHIVED_ROWS 132 {('development', 'wide_text'): 22, ('development', 'filtered_text'): 22, ('development', 'filtered_json'): 22, ('development', 'two_stage_text'): 22, ('development', 'two_stage_json'): 22, ('heldout', 'two_stage_text'): 11, ('heldout_order_reversed', 'two_stage_text'): 11}
+FIELDS_CHECKED=824 MISMATCHES=0
+FOLLOWUP_STDOUT_EXPECTED_LABELS_MATCH=True (11 cases)
+NOTE: 1.1 filtered_text held-out has no archived JSON; its states/options cannot be compared, only labels.
+DETERMINISM=IDENTICAL
+----- probe.block.json -----
+{
+  "name": "probe",
+  "command": [
+    "taskset",
+    "-c",
+    "4-7",
+    "venv/bin/python",
+    "von12_heldout_extra.py",
+    "--probe"
+  ],
+  "cwd": "/data/data/com.termux/files/home/von12-test",
+  "environment": {
+    "HF_HOME": "/data/data/com.termux/files/home/von12-test/hf-cache",
+    "HF_HUB_OFFLINE": "1",
+    "TRANSFORMERS_OFFLINE": "1",
+    "OMP_NUM_THREADS": "4"
+  },
+  "start": {
+    "utc": "2026-09-24T18:05:16.002916+00:00",
+    "battery": {
+      "present": true,
+      "technology": "Li-ion",
+      "health": "GOOD",
+      "plugged": "UNPLUGGED",
+      "status": "DISCHARGING",
+      "temperature": 23.9,
+      "voltage": 4049,
+      "current": -736562,
+      "current_average": -462500,
+      "percentage": 86,
+      "level": 86,
+      "scale": 100,
+      "charge_counter": 3100000,
+      "cycle": 696
+    },
+    "thermal_log_last_line": "unavailable: FileNotFoundError"
+  },
+  "end": {
+    "utc": "2026-09-24T18:05:45.373580+00:00",
+    "battery": {
+      "present": true,
+      "technology": "Li-ion",
+      "health": "GOOD",
+      "plugged": "UNPLUGGED",
+      "status": "DISCHARGING",
+      "temperature": 23.9,
+      "voltage": 4049,
+      "current": -809375,
+      "current_average": -1137187,
+      "percentage": 86,
+      "level": 86,
+      "scale": 100,
+      "charge_counter": 3092000,
+      "cycle": 696
+    },
+    "thermal_log_last_line": "unavailable: FileNotFoundError"
+  },
+  "exit_code": 0,
+  "peak_rss_mib_wait4": 3018.2
+}
+----- blockA.block.json -----
+{
+  "name": "blockA",
+  "command": [
+    "venv/bin/python",
+    "/termux-home/robot/benchmark/strategic_selector/archive_run.py",
+    "run",
+    "--model",
+    "von",
+    "--root",
+    "/termux-home/von12-test/runs"
+  ],
+  "cwd": "/data/data/com.termux/files/home/von12-test",
+  "environment": {
+    "HF_HOME": "/data/data/com.termux/files/home/von12-test/hf-cache",
+    "HF_HUB_OFFLINE": "1",
+    "TRANSFORMERS_OFFLINE": "1",
+    "OMP_NUM_THREADS": "4"
+  },
+  "start": {
+    "utc": "2026-09-24T18:41:06.220451+00:00",
+    "battery": {
+      "present": true,
+      "technology": "Li-ion",
+      "health": "GOOD",
+      "plugged": "UNPLUGGED",
+      "status": "DISCHARGING",
+      "temperature": 23.3,
+      "voltage": 4074,
+      "current": -1066875,
+      "current_average": -236562,
+      "percentage": 83,
+      "level": 83,
+      "scale": 100,
+      "charge_counter": 2984000,
+      "cycle": 696
+    },
+    "thermal_log_last_line": "2026-09-24T18:41:07Z z9=38000 z10=32000 z11=33000"
+  },
+  "end": {
+    "utc": "2026-09-24T18:47:13.512337+00:00",
+    "battery": {
+      "present": true,
+      "technology": "Li-ion",
+      "health": "GOOD",
+      "plugged": "UNPLUGGED",
+      "status": "DISCHARGING",
+      "temperature": 28.4,
+      "voltage": 3882,
+      "current": -644062,
+      "current_average": -892812,
+      "percentage": 78,
+      "level": 78,
+      "scale": 100,
+      "charge_counter": 2816000,
+      "cycle": 696
+    },
+    "thermal_log_last_line": "2026-09-24T18:47:15Z z9=58000 z10=57000 z11=58000"
+  },
+  "exit_code": 0,
+  "peak_rss_mib_wait4": 3097.0
+}
+----- blockB.block.json -----
+{
+  "name": "blockB",
+  "command": [
+    "taskset",
+    "-c",
+    "4-7",
+    "venv/bin/python",
+    "von12_heldout_extra.py"
+  ],
+  "cwd": "/data/data/com.termux/files/home/von12-test",
+  "environment": {
+    "HF_HOME": "/data/data/com.termux/files/home/von12-test/hf-cache",
+    "HF_HUB_OFFLINE": "1",
+    "TRANSFORMERS_OFFLINE": "1",
+    "OMP_NUM_THREADS": "4"
+  },
+  "start": {
+    "utc": "2026-09-24T18:57:08.446198+00:00",
+    "battery": {
+      "present": true,
+      "technology": "Li-ion",
+      "health": "GOOD",
+      "plugged": "UNPLUGGED",
+      "status": "DISCHARGING",
+      "temperature": 29.2,
+      "voltage": 4010,
+      "current": -640000,
+      "current_average": -158437,
+      "percentage": 77,
+      "level": 77,
+      "scale": 100,
+      "charge_counter": 2790000,
+      "cycle": 696
+    },
+    "thermal_log_last_line": "2026-09-24T18:57:05Z z9=29000 z10=30000 z11=30000"
+  },
+  "end": {
+    "utc": "2026-09-24T18:59:03.682886+00:00",
+    "battery": {
+      "present": true,
+      "technology": "Li-ion",
+      "health": "GOOD",
+      "plugged": "UNPLUGGED",
+      "status": "DISCHARGING",
+      "temperature": 27.5,
+      "voltage": 3808,
+      "current": -620000,
+      "current_average": -1645000,
+      "percentage": 75,
+      "level": 75,
+      "scale": 100,
+      "charge_counter": 2732000,
+      "cycle": 696
+    },
+    "thermal_log_last_line": "2026-09-24T18:59:03Z z9=88000 z10=80000 z11=80000"
+  },
+  "exit_code": 0,
+  "peak_rss_mib_wait4": 3064.1
+}
+----- Block A stdout.txt (non-row lines) -----
+BENCHMARK_VERSION=2 MODEL=von
+CASE_COUNTS 22 11 DISJOINT_MODEL_FIXTURES=true
+NO_MOTOR_OR_NETWORK_IO=true
+AFFINITY=[4, 5, 6, 7]
+TORCH=2.14.0+cpu THREADS=4 
+IMPORT_AND_LOAD_MS=13647.7
+[von] Loaded von-1.2.0 weights from Hugging Face Hub 'wfzyx/von:option_marker.pt' (/data/data/com.termux/files/home/von12-test/hf-cache/hub/models--wfzyx--von/snapshots/5df8185a4f2327ad0a7cd117cc4f701ac557b9ae/option_marker.pt) (input-conditioned calibration map active)
+WARMUP_1_MS=7506.3
+WARMUP_2_MS=1993.1
+DEV_SUMMARY wide_text {"n": 22, "preferred": 6, "acceptable": 9, "invalid_or_ineligible": 3, "inference_calls": 22, "p50_ms": 2784.7, "p95_ms": 3261.6}
+DEV_SUMMARY filtered_text {"n": 22, "preferred": 6, "acceptable": 9, "invalid_or_ineligible": 0, "inference_calls": 22, "p50_ms": 2097.8, "p95_ms": 2587.2}
+DEV_SUMMARY filtered_json {"n": 22, "preferred": 8, "acceptable": 10, "invalid_or_ineligible": 0, "inference_calls": 22, "p50_ms": 2520.5, "p95_ms": 3152.7}
+DEV_SUMMARY two_stage_text {"n": 22, "preferred": 4, "acceptable": 5, "invalid_or_ineligible": 0, "inference_calls": 23, "p50_ms": 2058.4, "p95_ms": 2887.1}
+DEV_SUMMARY two_stage_json {"n": 22, "preferred": 7, "acceptable": 9, "invalid_or_ineligible": 0, "inference_calls": 22, "p50_ms": 2366.0, "p95_ms": 2783.6}
+SELECTED_ON_DEVELOPMENT=filtered_json
+FINAL_HELDOUT {"n": 11, "preferred": 3, "acceptable": 4, "invalid_or_ineligible": 0, "inference_calls": 11, "p50_ms": 3067.1, "p95_ms": 3291.9}
+ORDER_REVERSAL_FLIPS=0/11
+INFERENCE_CALLS=135 MAX_RSS_MIB=3097.0
+RESULT_FILE=/termux-home/von12-test/runs/2026-09-24T184107Z-von-68e0c438/results.json
+----- blockB.stdout.txt -----
+BENCHMARK_SHA256=3aa9d399d6978710c143a6f1dfe69541b288cea329f27077b2500e322e8c14e2
+VON_SDK=1.2.0
+TORCH=2.14.0+cpu THREADS=4 
+[von] Loaded von-1.2.0 weights from Hugging Face Hub 'wfzyx/von:option_marker.pt' (/data/data/com.termux/files/home/von12-test/hf-cache/hub/models--wfzyx--von/snapshots/5df8185a4f2327ad0a7cd117cc4f701ac557b9ae/option_marker.pt) (input-conditioned calibration map active)
+WARMUP_1_MS=7288.7 CHOICE=travel:bedroom
+WARMUP_2_MS=1926.6 CHOICE=travel:bedroom
+filtered_text CASE=von_new_room_2 EXPECTED=search_here NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=2111
+filtered_text CASE=von_room_finished_2 EXPECTED=travel:kitchen NORMAL=travel:toilet REVERSED=travel:toilet ACCEPTABLE=True MS=1964
+filtered_text CASE=von_hall_hint_2 EXPECTED=travel:kitchen NORMAL=travel:toilet REVERSED=travel:toilet ACCEPTABLE=True MS=2038
+filtered_text CASE=von_target_confirmed_2 EXPECTED=finish NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1768
+filtered_text CASE=von_possible_person_2 EXPECTED=call_chiara NORMAL=travel:toilet REVERSED=travel:toilet ACCEPTABLE=False MS=2092
+filtered_text CASE=von_all_rooms_first_2 EXPECTED=call_chiara NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1755
+filtered_text CASE=von_all_rooms_called_2 EXPECTED=ask_gemma NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=True MS=1740
+filtered_text CASE=von_localization_lost_2 EXPECTED=relocalize NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1816
+filtered_text CASE=von_route_blocked_2 EXPECTED=relocalize NORMAL=relocalize REVERSED=relocalize ACCEPTABLE=True MS=1851
+filtered_text CASE=von_repeat_search_2 EXPECTED=travel:kitchen NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=2029
+filtered_text CASE=von_heard_from_room_2 EXPECTED=travel:kitchen NORMAL=travel:toilet REVERSED=travel:toilet ACCEPTABLE=True MS=2025
+filtered_text NORMAL_SUMMARY: {"n": 11, "preferred": 2, "acceptable": 5, "invalid_or_ineligible": 0, "inference_calls": 11, "p50_ms": 1964.2, "p95_ms": 2101.3}
+filtered_text REVERSED_SUMMARY: {"n": 11, "preferred": 2, "acceptable": 5, "invalid_or_ineligible": 0, "inference_calls": 11, "p50_ms": 2016.9, "p95_ms": 2094.2}
+filtered_text ORDER_REVERSAL_FLIPS: 0 / 11
+two_stage_text CASE=von_new_room_2 EXPECTED=search_here NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1861
+two_stage_text CASE=von_room_finished_2 EXPECTED=travel:kitchen NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1795
+two_stage_text CASE=von_hall_hint_2 EXPECTED=travel:kitchen NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1865
+two_stage_text CASE=von_target_confirmed_2 EXPECTED=finish NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1730
+two_stage_text CASE=von_possible_person_2 EXPECTED=call_chiara NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1956
+two_stage_text CASE=von_all_rooms_first_2 EXPECTED=call_chiara NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1864
+two_stage_text CASE=von_all_rooms_called_2 EXPECTED=ask_gemma NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=True MS=1767
+two_stage_text CASE=von_localization_lost_2 EXPECTED=relocalize NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1831
+two_stage_text CASE=von_route_blocked_2 EXPECTED=relocalize NORMAL=relocalize REVERSED=relocalize ACCEPTABLE=True MS=1873
+two_stage_text CASE=von_repeat_search_2 EXPECTED=travel:kitchen NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1792
+two_stage_text CASE=von_heard_from_room_2 EXPECTED=travel:kitchen NORMAL=call_chiara REVERSED=call_chiara ACCEPTABLE=False MS=1821
+two_stage_text NORMAL_SUMMARY: {"n": 11, "preferred": 2, "acceptable": 2, "invalid_or_ineligible": 0, "inference_calls": 11, "p50_ms": 1831.0, "p95_ms": 1914.5}
+two_stage_text REVERSED_SUMMARY: {"n": 11, "preferred": 2, "acceptable": 2, "invalid_or_ineligible": 0, "inference_calls": 11, "p50_ms": 1821.1, "p95_ms": 1923.1}
+two_stage_text ORDER_REVERSAL_FLIPS: 0 / 11
+INFERENCE_CALLS=46 RESULT_FILE=/data/data/com.termux/files/home/von12-test/von12-heldout-extra-results.json
+
+==================== REVIEW REQUEST ====================
+Independently verify against the actual files (not this summary):
+1. Wrapper correctness: does von12_heldout_extra.py faithfully reproduce the v2 held-out procedure (run_case usage, order, warm-ups, aggregation, flips)? Does determinism_check.py actually compare what it claims, and could it pass falsely? Is run_block.py's wait4 ru_maxrss a valid external peak-RSS measure for the child tree?
+2. Recompute from the raw JSON: the 1.2 dev table, selected frame, held-out numbers, flips, calls; and the 1.1 numbers from the archived JSON. Report any mismatch with this summary.
+3. Validity of the 1.1-vs-1.2 comparison: held-fixed conditions, what differs (thermal asymmetry, cooldown gate, first-call, IMPORT_AND_LOAD boundary, sdk 1.2.0 vs weights at HF main, unpinned revision, filtered_text 1.1 follow-up being stdout-only/post hoc, 1.2 filtered_text/two_stage_text rows being non-selected extras).
+4. Any claim above that is overstated, unsupported, or wrong; any task requirement not met.
+Return a final review with: verdict (PASS / PASS WITH CAVEATS / FAIL / INCOMPLETE), numbered findings with severity and file evidence, and recomputed numbers.

@@ -1,0 +1,35 @@
+BENCHMARK_SHA256=3aa9d399d6978710c143a6f1dfe69541b288cea329f27077b2500e322e8c14e2
+VON_SDK=1.2.0
+TORCH=2.14.0+cpu THREADS=4 
+[von] Loaded von-1.2.0 weights from Hugging Face Hub 'wfzyx/von:option_marker.pt' (/data/data/com.termux/files/home/von12-test/hf-cache/hub/models--wfzyx--von/snapshots/5df8185a4f2327ad0a7cd117cc4f701ac557b9ae/option_marker.pt) (input-conditioned calibration map active)
+WARMUP_1_MS=7288.7 CHOICE=travel:bedroom
+WARMUP_2_MS=1926.6 CHOICE=travel:bedroom
+filtered_text CASE=von_new_room_2 EXPECTED=search_here NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=2111
+filtered_text CASE=von_room_finished_2 EXPECTED=travel:kitchen NORMAL=travel:toilet REVERSED=travel:toilet ACCEPTABLE=True MS=1964
+filtered_text CASE=von_hall_hint_2 EXPECTED=travel:kitchen NORMAL=travel:toilet REVERSED=travel:toilet ACCEPTABLE=True MS=2038
+filtered_text CASE=von_target_confirmed_2 EXPECTED=finish NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1768
+filtered_text CASE=von_possible_person_2 EXPECTED=call_chiara NORMAL=travel:toilet REVERSED=travel:toilet ACCEPTABLE=False MS=2092
+filtered_text CASE=von_all_rooms_first_2 EXPECTED=call_chiara NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1755
+filtered_text CASE=von_all_rooms_called_2 EXPECTED=ask_gemma NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=True MS=1740
+filtered_text CASE=von_localization_lost_2 EXPECTED=relocalize NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1816
+filtered_text CASE=von_route_blocked_2 EXPECTED=relocalize NORMAL=relocalize REVERSED=relocalize ACCEPTABLE=True MS=1851
+filtered_text CASE=von_repeat_search_2 EXPECTED=travel:kitchen NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=2029
+filtered_text CASE=von_heard_from_room_2 EXPECTED=travel:kitchen NORMAL=travel:toilet REVERSED=travel:toilet ACCEPTABLE=True MS=2025
+filtered_text NORMAL_SUMMARY: {"n": 11, "preferred": 2, "acceptable": 5, "invalid_or_ineligible": 0, "inference_calls": 11, "p50_ms": 1964.2, "p95_ms": 2101.3}
+filtered_text REVERSED_SUMMARY: {"n": 11, "preferred": 2, "acceptable": 5, "invalid_or_ineligible": 0, "inference_calls": 11, "p50_ms": 2016.9, "p95_ms": 2094.2}
+filtered_text ORDER_REVERSAL_FLIPS: 0 / 11
+two_stage_text CASE=von_new_room_2 EXPECTED=search_here NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1861
+two_stage_text CASE=von_room_finished_2 EXPECTED=travel:kitchen NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1795
+two_stage_text CASE=von_hall_hint_2 EXPECTED=travel:kitchen NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1865
+two_stage_text CASE=von_target_confirmed_2 EXPECTED=finish NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1730
+two_stage_text CASE=von_possible_person_2 EXPECTED=call_chiara NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1956
+two_stage_text CASE=von_all_rooms_first_2 EXPECTED=call_chiara NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1864
+two_stage_text CASE=von_all_rooms_called_2 EXPECTED=ask_gemma NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=True MS=1767
+two_stage_text CASE=von_localization_lost_2 EXPECTED=relocalize NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1831
+two_stage_text CASE=von_route_blocked_2 EXPECTED=relocalize NORMAL=relocalize REVERSED=relocalize ACCEPTABLE=True MS=1873
+two_stage_text CASE=von_repeat_search_2 EXPECTED=travel:kitchen NORMAL=ask_gemma REVERSED=ask_gemma ACCEPTABLE=False MS=1792
+two_stage_text CASE=von_heard_from_room_2 EXPECTED=travel:kitchen NORMAL=call_chiara REVERSED=call_chiara ACCEPTABLE=False MS=1821
+two_stage_text NORMAL_SUMMARY: {"n": 11, "preferred": 2, "acceptable": 2, "invalid_or_ineligible": 0, "inference_calls": 11, "p50_ms": 1831.0, "p95_ms": 1914.5}
+two_stage_text REVERSED_SUMMARY: {"n": 11, "preferred": 2, "acceptable": 2, "invalid_or_ineligible": 0, "inference_calls": 11, "p50_ms": 1821.1, "p95_ms": 1923.1}
+two_stage_text ORDER_REVERSAL_FLIPS: 0 / 11
+INFERENCE_CALLS=46 RESULT_FILE=/data/data/com.termux/files/home/von12-test/von12-heldout-extra-results.json
