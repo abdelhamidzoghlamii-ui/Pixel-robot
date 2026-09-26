@@ -24,20 +24,6 @@ MODELS = {
         'vision':  True,
         'ctx':     4096,
     },
-    '4': {
-        'name':    'Qwen 2.5 3B (fast)',
-        'file':    'qwen2.5-3b-instruct-q4_k_m.gguf',
-        'type':    'qwen',
-        'vision':  False,
-        'ctx':     2048,
-    },
-    '5': {
-        'name':    'Qwen 2.5 1.5B (fastest)',
-        'file':    'qwen2.5-1.5b-instruct-q4_k_m.gguf',
-        'type':    'qwen',
-        'vision':  False,
-        'ctx':     2048,
-    },
     '6': {
         'name':    'Mistral 7B (powerful)',
         'file':    'mistral-7b-instruct-v0.2.Q4_K_M.gguf',

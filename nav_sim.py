@@ -1,7 +1,6 @@
 import requests, time, os, sys, random
 sys.path.insert(0, '/data/data/com.termux/files/home/robot')
 
-MODEL  = "/data/data/com.termux/files/home/models/qwen2.5-3b-instruct-q4_k_m.gguf"
 SERVER = "/data/data/com.termux/files/home/llama.cpp/build/bin/llama-server"
 
 WARN_TEMP  = 75000  # pause 5s

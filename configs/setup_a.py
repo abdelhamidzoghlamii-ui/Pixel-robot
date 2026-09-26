@@ -5,7 +5,6 @@ NAME = "setup_a_classic"
 DESCRIPTION = "Whisper + Qwen 3B + YOLOv8m"
 
 # LLM Server
-LLM_MODEL = "/data/data/com.termux/files/home/models/qwen2.5-3b-instruct-q4_k_m.gguf"
 LLM_PORT = 8080
 LLM_CTX = 2048
 LLM_CHAT_TEMPLATE = "qwen"  # <|im_start|> format

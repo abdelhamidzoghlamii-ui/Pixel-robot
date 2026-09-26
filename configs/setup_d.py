@@ -4,7 +4,6 @@
 NAME = "setup_d_hybrid"
 DESCRIPTION = "Whisper + Qwen 3B (LLM) + Gemma 4 E2B (Vision)"
 
-LLM_MODEL = "/data/data/com.termux/files/home/models/qwen2.5-3b-instruct-q4_k_m.gguf"
 LLM_PORT = 8080
 LLM_CTX = 2048
 LLM_CHAT_TEMPLATE = "qwen"

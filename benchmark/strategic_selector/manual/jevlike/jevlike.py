@@ -33,9 +33,6 @@ MODELS = {
     "von11": ("von11", *ENVS["von11"], CAND),
     "s1o": ("s1o", *ENVS["s1o"], OUT),
     "laya_multi": ("laya_multi", *ENVS["laya_multi"], DROP),
-    "laya_micro": ("laya_micro", *ENVS["laya_micro"], DROP),
-    # von-sdk 1.2.0 through the same Von11 adapter, in its own venv and HF cache
-    "von12": ("von11", "/termux-home/von12-test/venv/bin/python", "/termux-home/von12-test/hf-cache", DROP),
     "von10_nli": ("von10_nli", *ENVS["von10_nli"], DROP),
 }
 LABEL = {"laya_en": "laya_en (ONNX)", "von10_nli": "von10 NLI"}
