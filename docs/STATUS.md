@@ -339,6 +339,13 @@ observations and follow-up are retained in
   nothing imports it.
 - Not yet built/wired: Piper TTS, Whisper VAD, room classifier, memory system,
   face recognition.
+- Candidate speed and quality work, none measured (DECISIONS #117):
+  grammar-constrained JSON output for voice parsing; per-step timing of YOLO and
+  Whisper (never measured); Moonshine (English-only, compute scales with audio
+  length) against Whisper on the same recordings; a Vulkan GPU feasibility test
+  in native Termux; YOLO26 as an NMS-free replacement, which would need
+  retraining on the owner's photos; LFM2.5 and SmolLM3-3B as conversation
+  candidates, both needing a newer llama.cpp than b1609.
 - The proposed strategic selector is not wired to the robot. Apartment
   localization from 2D LiDAR, semantic room map, camera–LiDAR object/range
   association, named-person verification, eligible-script gates, safe
@@ -356,8 +363,9 @@ observations and follow-up are retained in
   readings they do not have (battery, why it stopped, vision range), lack
   self-knowledge (wheels, why it stops), sometimes reply in the wrong language,
   and occasionally leak `</start_of_turn>` into replies. A robot fact sheet,
-  live sensor values and a language rule in the system prompt, plus stripping
-  template tokens, are the planned fixes; not implemented.
+  live sensor values and an English-only reply rule in the system prompt
+  (English-only is acceptable, DECISIONS #117), plus stripping template
+  tokens, are the planned fixes; not implemented.
 - b2351 flash-attention segfaults on this phone; not investigated. The robot
   stays on the dotprod b1609 build.
 - Untracked scratch files remain in the repo root (`update_docs.py`,

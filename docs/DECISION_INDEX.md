@@ -22,6 +22,7 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | Data Engineer role | Selector moves to a fine-tuning track; new Data Engineer role created to generate the dataset. | #113 |
 | LLM runtime | Robot runs b1609 rebuilt with ARM dotprod (~3x prompt speed); default model Gemma E2B Q4_0 with `--cache-ram 0` and a voice warm-up. | #114, #115 |
 | Selector direction | Gemma letter-scoring leads (1.55 s, 77%); one resident Gemma for talk + selection under evaluation, not decided. | #116 |
+| Language | English-only speech input and replies are acceptable; English-only components are eligible. | #117 |
 
 ## Corrections worth knowing before citing an older entry
 

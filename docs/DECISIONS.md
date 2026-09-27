@@ -1073,3 +1073,17 @@ Format: `NN. [area] decision — why`
      b76a3c6b291180fb72b97632e4831a0c444595102984fa4a1afe46983e4fe266) stays outside
      the repository at `/termux-home/selector-testset/`. Evidence:
      `benchmark/strategic_selector/ladder/`. Relates to #109, #112, #113.
+
+117. **English-only operation is acceptable.** The human prefers a multilingual robot
+     but accepts English-only speech input and spoken replies. Consequences:
+     English-only components are eligible (for example Moonshine speech-to-text and
+     SmolLM3-3B, whose languages exclude Arabic); the system prompt may require
+     English replies, which removes the wrong-language failure seen in #115; future
+     conversation benchmarks may drop the German, French and Arabic prompts. The
+     current Whisper setup still accepts other languages until it is replaced. The
+     same review of an external optimisation brainstorm listed candidate work, none
+     of it measured: grammar-constrained JSON for voice parsing, per-step timing of
+     YOLO and Whisper, Moonshine against Whisper, a Vulkan GPU feasibility test,
+     YOLO26 (retraining needed), and LFM2.5 / SmolLM3-3B as conversation
+     candidates (newer llama.cpp needed). Human decision, 2026-09-27. Relates to
+     #115, #116.
