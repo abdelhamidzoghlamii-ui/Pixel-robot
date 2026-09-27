@@ -59,7 +59,6 @@ diagnostic) that nothing else in the directory imports. "Imported/called by" bel
 | `quality_benchmark2.py` | Bench Gemma answer *quality* on nav/vision prompts (150 tok). | nobody *(benchmark)* |
 | `quality_benchmark.py` | Earlier version (80 tok). | nobody — **superseded** by `quality_benchmark2.py` |
 | `nav_logic_test.py` | Standalone dual-rate nav bench: Python rules + Gemma only for explore/give-up, scored vs cases. Prototype of `Robot.navigate_rules`. | nobody *(benchmark)* |
-| `nav_sim.py` | Older nav sim driving a **Qwen2.5-3B** gguf directly with its own thermal loop. | nobody — **superseded** (stack moved to Gemma E2B on :8080) |
 
 ## Tests
 
@@ -84,8 +83,7 @@ diagnostic) that nothing else in the directory imports. "Imported/called by" bel
 ## Retention and overlap
 
 The table above identifies superseded and orphaned scripts; it is not deletion
-authority. DECISIONS #85 retains seven previously proposed removals, and #23
-retains `nav_sim.py`. Check the current import graph before removing anything.
+authority. DECISIONS #85 retains seven previously proposed removals, and `nav_sim.py` was deleted by #118. Check the current import graph before removing anything.
 
 **Weaker overlap (one of each pair is redundant):**
 - `test_suite.py` vs `test_suite_m.py`

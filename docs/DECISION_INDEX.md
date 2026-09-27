@@ -31,6 +31,7 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | #33 front/rear motor wording, then #40 left/right mapping | #43 corrects the left-side corner assignment; #89 identifies the corrected committed firmware. |
 | #52's avoidance escalation | #59 changes the counter logic; #62 limits Gemma consultation to once per blockage episode. The planned LLM-free nav direction is #104 and remains unimplemented. |
 | #81 open `nav_stuck` safety defect | #88 records the code fix; #108 records the later STOP fallback for LLM failures. Do not treat #81 as an open code defect. |
+| #23 keeps `nav_sim.py` | #118 deleted it (commit `78b1cc5`). |
 | #84 says seven orphaned scripts were deleted | #85 verifies they remain tracked and explicitly defers deletion. |
 | #77 records a built b2233 binary | #107 says its binary was replaced by b2351; the old source commit is still recoverable. |
 | #95's negative `strings` check for Qwen support | #107 / STATUS report a successful Qwen3.5 text load on b2351; #105 separately records unsuccessful vision tests. |

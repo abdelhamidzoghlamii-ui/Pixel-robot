@@ -1087,3 +1087,24 @@ Format: `NN. [area] decision — why`
      YOLO26 (retraining needed), and LFM2.5 / SmolLM3-3B as conversation
      candidates (newer llama.cpp needed). Human decision, 2026-09-27. Relates to
      #115, #116.
+
+118. **Repo cleanup: `nav_sim.py` deleted, scratch files removed, two archives
+     added.** Supersedes #23. `nav_sim.py` had raised `NameError` since its model
+     entry was removed on 2026-09-26, and restoring it would put an LLM back in
+     navigation, against #104. A full-repo GNU grep found no user outside docs/;
+     it was deleted, with its stale bytecode cache. After a read-only audit of the
+     repo root, nine untracked files with no evidence value were deleted:
+     `bench.py` (an unused variant of the #110 harness; no archived result carries
+     its extra column), `b64.txt`, `vision_test.py` (tested the removed
+     `gemma_decide()`), `update_docs.py`, `test_parse.py`, `scratch_test.py`,
+     `scratch_test2.py`, `run_proof.py`, `simulate.py`. The #105 vision files
+     moved to `benchmark/qwen_vision/`; `qwen_vision_bench.py` there was edited
+     after its 2026-09-14 review, was not re-reviewed, and its result files are
+     unlocated. The live output #108 cites moved to `benchmark/failclosed_108/`;
+     the frozen review copy it came from (`.frozen-failclosed-f0f9cde/`, HEAD
+     `e5b4394`, a local candidate; the pushed fix was `888562e`) was deleted.
+     Commit `78b1cc5`. Also closed without a fix: `main.warm_up()` can overrun
+     its 60 s budget by up to 0.1 s (`timeout=max(0.1, …)`); no effect on the
+     robot. Deferred: the b2351 flash-attention segfault, until a newer llama.cpp
+     is needed. Human decisions, 2026-09-27. Relates to #23, #85, #104, #105,
+     #108, #111.

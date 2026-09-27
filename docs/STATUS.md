@@ -295,7 +295,7 @@ observations and follow-up are retained in
   LLM request with fake external operations. This is regression coverage, not
   hardware validation. See DECISIONS #81, #88, and #111.
 - **Dead and orphaned code mapped** (`FILES.md`). Superseded: `detect_scene.py`,
-  `llm.py`, `voice.py`, `ch340_test.py`, `nav_sim.py`, `thermal_benchmark.py`,
+  `llm.py`, `voice.py`, `ch340_test.py`, `thermal_benchmark.py`,
   `thermal_benchmark2.py`, `quality_benchmark.py`. Orphans never wired in:
   `get_temp.py`, `thermal_guard.py`, `server_manager.py` (nothing starts the
   server programmatically). `mission_test.py` predates the current `Robot` API
@@ -304,9 +304,8 @@ observations and follow-up are retained in
   `llm.py`, `voice.py`, `ch340_test.py`, `thermal_benchmark.py`,
   `thermal_benchmark2.py`, and `quality_benchmark.py` remain tracked and present.
   DECISIONS #84's stated `git rm` did not occur in the checked repository; retain
-  all seven until an explicit future removal task. `nav_sim.py` (#23),
-  `get_temp.py`/`thermal_guard.py` (#75), and `mission_test.py` remain deliberately
-  kept. 420 MB of unused ONNX models remains untouched.
+  all seven until an explicit future removal task. `get_temp.py`/`thermal_guard.py` (#75) and `mission_test.py` remain
+  deliberately kept; `nav_sim.py` was deleted (#118). 420 MB of unused ONNX models remains untouched.
 - **`get_temp()` pause threshold >80 °C is far below the operating band.**
   Measured 97-101 °C sustained under inference, 31-38 °C idle; the kernel's own
   passive trip for zone9 is 100 °C, so the chip runs in equilibrium at its designed
@@ -333,10 +332,6 @@ observations and follow-up are retained in
   wNa8o8 mobile format (the only path to the ~1 GB claim)
   needs llama.cpp load-support confirmed before download. MTP needs a full QAT
   chain incl. a matching QAT drafter. See DECISIONS #71, #72.
-- **`nav_sim.py` is a standalone older simulation** (own thermal limits WARN 75 /
-  KILL 88 / COOL 48 °C). Not part of the live robot path. Since its Qwen2.5 model
-  entry was removed (2026-09-26) it raises `NameError` at server start; superseded,
-  nothing imports it.
 - Not yet built/wired: Piper TTS, Whisper VAD, room classifier, memory system,
   face recognition.
 - Candidate speed and quality work, none measured (DECISIONS #117):
@@ -368,10 +363,10 @@ observations and follow-up are retained in
   tokens, are the planned fixes; not implemented.
 - b2351 flash-attention segfaults on this phone; not investigated. The robot
   stays on the dotprod b1609 build.
-- Untracked scratch files remain in the repo root (`update_docs.py`,
-  `bench.py`, `vision_test.py`, `qwen_vision_bench*`, `scratch_test*.py`,
-  others). `update_docs.py` is unexplained and must not be run; `docs/` is Doc
-  Keeper's.
+- Repo root cleaned 2026-09-27 (#118, commit `78b1cc5`): untracked scratch
+  files deleted; #105 vision files archived in `benchmark/qwen_vision/` (edited
+  harness not re-reviewed, result files unlocated) and the #108 verification
+  output in `benchmark/failclosed_108/`.
 - benchmark/llm_objective_setting/ was published with the docs/WORKFLOW.md
   independent review WAIVED by human decision; the waiver is recorded in its
   README.
