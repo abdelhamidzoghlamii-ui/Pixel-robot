@@ -1,39 +1,31 @@
-import sys, os, requests, time, base64, subprocess
+import sys, os, requests, time, subprocess, shutil
+from pathlib import Path
 sys.path.insert(0, '/data/data/com.termux/files/home/robot')
 
 HOME   = '/data/data/com.termux/files/home'
+MODEL_FILES = (
+    ('Gemma 4 E2B Q4_0', 'gemma-4-E2B-it-Q4_0.gguf', 'gemma', 4096),
+    ('Gemma 4 E2B Q4_K_M', 'gemma-4-e2b-it-q4_k_m.gguf', 'gemma', 4096),
+    ('Gemma 4 E2B Q8_0', 'gemma-4-e2b-it-q8_0.gguf', 'gemma', 2048),
+    ('Gemma 4 E4B Q4_K_M', 'gemma-4-e4b-it-q4_k_m.gguf', 'gemma', 2048),
+    ('Qwen3.5 2B Q4_K_M', 'qwen35/Qwen3.5-2B-Q4_K_M.gguf', 'qwen', 4096),
+    ('Qwen3.5 4B Q4_K_M', 'qwen35/Qwen3.5-4B-Q4_K_M.gguf', 'qwen', 2048),
+    ('Qwen3.5 4B Q5_K_M', 'qwen35/Qwen3.5-4B-Q5_K_M.gguf', 'qwen', 2048),
+    ('Qwen3.5 4B Q6_K', 'qwen35/Qwen3.5-4B-Q6_K.gguf', 'qwen', 2048),
+    ('Mistral 7B Q4_K_M', 'mistral-7b-instruct-v0.2.Q4_K_M.gguf', 'mistral', 2048),
+)
+available_models = [
+    entry for entry in MODEL_FILES
+    if (Path(HOME) / 'models' / entry[1]).is_file()
+    and (Path(HOME) / 'models' / entry[1]).stat().st_size > 1000
+]
 MODELS = {
-    '1': {
-        'name':    'Gemma 4 E2B Q8 (best quality)',
-        'file':    'gemma-4-e2b-it-q8_0.gguf',
-        'type':    'gemma',
-        'vision':  True,
-        'ctx':     4096,
-    },
-    '2': {
-        'name':    'Gemma 4 E2B Q4 (faster)',
-        'file':    'gemma-4-e2b-it-q4_k_m.gguf',
-        'type':    'gemma',
-        'vision':  True,
-        'ctx':     4096,
-    },
-    '3': {
-        'name':    'Gemma 4 E4B Q4 (largest)',
-        'file':    'gemma-4-e4b-it-q4_k_m.gguf',
-        'type':    'gemma',
-        'vision':  True,
-        'ctx':     4096,
-    },
-    '6': {
-        'name':    'Mistral 7B (powerful)',
-        'file':    'mistral-7b-instruct-v0.2.Q4_K_M.gguf',
-        'type':    'mistral',
-        'vision':  False,
-        'ctx':     4096,
-    },
+    str(i): {'name': name, 'file': file, 'type': family, 'ctx': ctx}
+    for i, (name, file, family, ctx) in enumerate(available_models, 1)
 }
 
-SERVER  = HOME + '/llama.cpp/build/bin/llama-server'
+SERVER  = HOME + '/llama.cpp-b1609-dotprod/build/bin/llama-server'
+SERVER_LOG = HOME + '/robot-chat-server.log'
 URL     = 'http://127.0.0.1:8080/completion'
 current_model = None
 history = []
@@ -53,18 +45,28 @@ def colored(text, color):
     return f'{color}{text}{C.RESET}'
 
 # ── Temperature ───────────────────────────────────────
+def get_ram():
+    try:
+        with open('/proc/meminfo') as info:
+            kb = next(int(line.split()[1]) for line in info if line.startswith('MemAvailable:'))
+        return f'RAM:{kb / 1024 / 1024:.1f}GiB available'
+    except (OSError, StopIteration, ValueError):
+        return ''
+
 def get_temp():
+    ram = get_ram()
     try:
         t = int(os.popen('su -c "cat /sys/class/thermal/thermal_zone9/temp"').read().strip()) // 1000
         b = int(os.popen('su -c "cat /sys/class/thermal/thermal_zone25/temp"').read().strip()) // 1000
         cpu_color = C.RED if t > 80 else C.YELLOW if t > 65 else C.GREEN
-        return f'CPU:{colored(str(t)+"°C", cpu_color)} Batt:{b}°C'
+        return f'CPU:{colored(str(t)+"°C", cpu_color)} Batt:{b}°C {ram}'
     except:
-        return ''
+        return ram
 
 # ── Server ────────────────────────────────────────────
 def kill_server():
-    os.system('pkill -f llama-server 2>/dev/null')
+    subprocess.run(['pkill', '-f', '^' + SERVER + ' '], stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL)
     time.sleep(1)
     print(colored('  Server killed', C.YELLOW))
 
@@ -79,24 +81,55 @@ def start_server(model_key):
 
     kill_server()
     time.sleep(1)
+    if server_running():
+        print(colored('  Port 8080 is still in use by another server', C.RED))
+        return False
 
     print(colored(f'  Loading {m["name"]}...', C.CYAN))
-    cmd = f'{SERVER} -m {model_path} --port 8080 --ctx-size {m["ctx"]} --host 127.0.0.1 --threads 8 --threads-batch 8 2>/dev/null &'
-    os.system(cmd)
+    cmd = [
+        SERVER, '-m', model_path, '--port', '8080',
+        '--ctx-size', str(m['ctx']), '--host', '127.0.0.1',
+        '--threads', '4', '--threads-batch', '4', '--parallel', '1',
+        '--swa-full', '--cache-ram', '0',
+    ]
+    if not shutil.which('taskset'):
+        print(colored('  taskset unavailable; using Android CPU scheduling', C.YELLOW))
+    elif {4, 5, 6, 7}.issubset(os.sched_getaffinity(0)):
+        cmd[:0] = ['taskset', '-c', '4-7']
+    else:
+        print(colored('  Cores 4-7 unavailable; using Android CPU scheduling', C.YELLOW))
+    try:
+        with open(SERVER_LOG, 'w') as log:
+            server = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT,
+                                      start_new_session=True)
+    except OSError as e:
+        print(colored(f'  Failed to launch server: {e}', C.RED))
+        return False
 
     # Wait for ready
     import urllib.request
     for i in range(40):
         time.sleep(1)
+        if server.poll() is not None:
+            break
         try:
-            urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)
+            with urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2) as response:
+                if response.status != 200:
+                    continue
             print(colored(f'  Ready after {i+1}s | {get_temp()}', C.GREEN))
             current_model = model_key
             return True
         except:
             if i % 5 == 0:
                 print(f'  Starting... {i+1}s')
-    print(colored('  Failed to start server', C.RED))
+    if server.poll() is None:
+        server.terminate()
+        try:
+            server.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            server.kill()
+            server.wait()
+    print(colored(f'  Failed to start server (exit {server.returncode}); see {SERVER_LOG}', C.RED))
     return False
 
 def server_running():
@@ -107,7 +140,7 @@ def server_running():
         return False
 
 # ── Prompt builders ───────────────────────────────────
-def build_prompt(model_type, messages, image_b64=None):
+def build_prompt(model_type, messages):
     if model_type == 'gemma':
         prompt = ''
         for msg in messages:
@@ -116,10 +149,7 @@ def build_prompt(model_type, messages, image_b64=None):
             if role == 'system':
                 prompt += f'<start_of_turn>user\n{content}<end_of_turn>\n<start_of_turn>model\nUnderstood.<end_of_turn>\n'
             elif role == 'user':
-                if image_b64 and msg == messages[-1]:
-                    prompt += f'<start_of_turn>user\n[img-1]\n{content}<end_of_turn>\n'
-                else:
-                    prompt += f'<start_of_turn>user\n{content}<end_of_turn>\n'
+                prompt += f'<start_of_turn>user\n{content}<end_of_turn>\n'
             elif role == 'assistant':
                 prompt += f'<start_of_turn>model\n{content}<end_of_turn>\n'
         prompt += '<start_of_turn>model\n'
@@ -136,7 +166,7 @@ def build_prompt(model_type, messages, image_b64=None):
                 prompt += f'<|im_start|>user\n{content}<|im_end|>\n'
             elif role == 'assistant':
                 prompt += f'<|im_start|>assistant\n{content}<|im_end|>\n'
-        prompt += '<|im_start|>assistant\n'
+        prompt += '<|im_start|>assistant\n<think>\n\n</think>\n\n'
         return prompt
 
     elif model_type == 'mistral':
@@ -161,29 +191,14 @@ def get_stop_tokens(model_type):
     return stops.get(model_type, [])
 
 # ── Chat ──────────────────────────────────────────────
-def chat(user_input, image_path=None):
+def chat(user_input):
     m = MODELS[current_model]
-
-    # Add image if provided
-    image_b64 = None
-    if image_path and m['vision'] and os.path.exists(image_path):
-        try:
-            from PIL import Image
-            import io
-            img = Image.open(image_path).convert('RGB')
-            img.thumbnail((512, 512))
-            buf = io.BytesIO()
-            img.save(buf, format='JPEG', quality=80)
-            image_b64 = base64.b64encode(buf.getvalue()).decode()
-            print(colored(f'  Image loaded: {image_path}', C.DIM))
-        except Exception as e:
-            print(colored(f'  Image error: {e}', C.RED))
 
     # Add to history
     history.append({'role': 'user', 'content': user_input})
 
     # Build prompt
-    prompt = build_prompt(m['type'], history, image_b64)
+    prompt = build_prompt(m['type'], history)
 
     payload = {
         'prompt':      prompt,
@@ -193,14 +208,13 @@ def chat(user_input, image_path=None):
         'stream':      False,
     }
 
-    if image_b64:
-        payload['image_data'] = [{'data': image_b64, 'id': 1}]
-
     # Call
     t0 = time.time()
     try:
         resp = requests.post(URL, json=payload, timeout=120)
         data = resp.json()
+        if 'content' not in data:
+            raise ValueError(f"{data.get('error', data)}; use /clear to start a fresh conversation")
         reply = data['content'].strip()
         elapsed = round(time.time()-t0, 1)
         tok_s = round(data['timings']['predicted_per_second'], 1)
@@ -208,6 +222,7 @@ def chat(user_input, image_path=None):
         history.append({'role': 'assistant', 'content': reply})
         return reply, elapsed, tok_s
     except Exception as e:
+        history.pop()
         return f'Error: {e}', 0, 0
 
 # ── UI ────────────────────────────────────────────────
@@ -218,17 +233,14 @@ def show_header():
     print(colored('='*50, C.CYAN))
     if current_model:
         m = MODELS[current_model]
-        vision = colored('👁 Vision ON', C.GREEN) if m['vision'] else colored('No vision', C.DIM)
         print(f'  Model: {colored(m["name"], C.YELLOW)}')
-        print(f'  {vision} | {get_temp()}')
+        print(f'  No vision | {get_temp()}')
     print(colored('='*50, C.CYAN))
 
 def show_menu():
     show_header()
     print(f'\n  {colored("COMMANDS:", C.BOLD)}')
     print(f'  {colored("/switch", C.CYAN)}   — switch model')
-    print(f'  {colored("/photo", C.CYAN)}    — attach photo (Gemma only)')
-    print(f'  {colored("/camera", C.CYAN)}   — take photo with phone camera')
     print(f'  {colored("/clear", C.CYAN)}    — clear conversation')
     print(f'  {colored("/history", C.CYAN)}  — show conversation')
     print(f'  {colored("/temp", C.CYAN)}     — show temperatures')
@@ -237,14 +249,16 @@ def show_menu():
     print()
 
 def select_model():
+    if not MODELS:
+        print(colored('  No supported model files found in ~/models', C.RED))
+        return False
     print(f'\n  {colored("AVAILABLE MODELS:", C.BOLD)}')
     for key, m in MODELS.items():
         model_path = f'{HOME}/models/{m["file"]}'
         exists = os.path.exists(model_path) and os.path.getsize(model_path) > 1000
         status = colored('✅', C.GREEN) if exists else colored('❌ missing', C.RED)
-        vision = colored(' 👁', C.CYAN) if m['vision'] else ''
         size = f'{round(os.path.getsize(model_path)/1024/1024/1024, 1)}GB' if exists else '?'
-        print(f'  {colored(key, C.YELLOW)}) {m["name"]}{vision} [{size}] {status}')
+        print(f'  {colored(key, C.YELLOW)}) {m["name"]} [{size}] {status}')
 
     print(f'\n  Enter number (or ENTER to cancel): ', end='')
     choice = input().strip()
@@ -255,17 +269,6 @@ def select_model():
             time.sleep(2)
             return False
         return start_server(choice)
-    return False
-
-def take_camera_photo():
-    path = HOME + '/chat_photo.jpg'
-    print(colored('  Taking photo...', C.CYAN))
-    os.system(f'termux-camera-photo {path} 2>/dev/null')
-    time.sleep(1)
-    if os.path.exists(path) and os.path.getsize(path) > 1000:
-        print(colored(f'  Photo taken: {path}', C.GREEN))
-        return path
-    print(colored('  Photo failed', C.RED))
     return None
 
 # ── Main loop ─────────────────────────────────────────
@@ -274,15 +277,6 @@ def main():
 
     show_header()
     print(colored('\n  Welcome! Select a model to start.\n', C.GREEN))
-
-    # Auto-select if server already running
-    if server_running() and current_model is None:
-        print(colored('  Server already running — attach to it? (y/n): ', C.YELLOW), end='')
-        if input().strip().lower() == 'y':
-            # Try to detect which model
-            for key in MODELS:
-                pass  # just use it as-is
-            globals()['current_model'] = '1'  # assume Gemma E2B
 
     if not current_model:
         select_model()
@@ -293,11 +287,8 @@ def main():
 
     show_menu()
 
-    pending_image = None
-
     while True:
         # Prompt
-        temp = get_temp()
         model_name = MODELS[current_model]['name'].split('(')[0].strip()
         print(f'\n{colored("You", C.GREEN + C.BOLD)}: ', end='')
 
@@ -321,14 +312,16 @@ def main():
                 kill_server()
 
             elif cmd == '/switch':
-                history = []
-                pending_image = None
-                select_model()
+                switched = select_model()
+                if switched is False:
+                    print(colored('  Model switch failed; exiting chat', C.RED))
+                    break
+                if switched:
+                    history = []
                 show_menu()
 
             elif cmd == '/clear':
                 history = []
-                pending_image = None
                 print(colored('  Conversation cleared', C.YELLOW))
 
             elif cmd == '/history':
@@ -351,23 +344,8 @@ def main():
                     except:
                         pass
 
-            elif cmd == '/photo':
-                parts = user_input.split(maxsplit=1)
-                if len(parts) > 1:
-                    path = parts[1].strip()
-                    if os.path.exists(path):
-                        pending_image = path
-                        print(colored(f'  Image queued: {path}', C.GREEN))
-                    else:
-                        print(colored(f'  File not found: {path}', C.RED))
-                else:
-                    print(colored('  Usage: /photo /path/to/image.jpg', C.YELLOW))
-
-            elif cmd == '/camera':
-                if MODELS[current_model]['vision']:
-                    pending_image = take_camera_photo()
-                else:
-                    print(colored('  Current model does not support vision', C.RED))
+            elif cmd in ('/photo', '/camera'):
+                print(colored('  Image chat is unavailable with the current local models', C.RED))
 
             else:
                 print(colored(f'  Unknown command: {cmd}', C.RED))
@@ -377,18 +355,18 @@ def main():
         # Check server still running
         if not server_running():
             print(colored('  Server died — restarting...', C.RED))
-            start_server(current_model)
+            if not start_server(current_model):
+                break
 
         # Chat
         print(f'\n{colored(model_name, C.CYAN + C.BOLD)}: ', end='', flush=True)
-        reply, elapsed, tok_s = chat(user_input, pending_image)
-        pending_image = None
+        reply, elapsed, tok_s = chat(user_input)
 
         print(reply)
         print(colored(f'\n  [{elapsed}s | {tok_s}tok/s | {get_temp()}]', C.DIM))
 
     print(colored('\n  Goodbye!', C.CYAN))
-    print(colored('  Server left running. Use /kill or: pkill -f llama-server', C.DIM))
+    print(colored('  Stop the server from Termux with: pkill -f llama-server', C.DIM))
 
 if __name__ == '__main__':
     main()

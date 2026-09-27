@@ -71,7 +71,7 @@ def start_setup(setup_name):
     # ── QUALITY MODE ──────────────────────────────────
     elif setup_name == "setup_e4b":
         # E4B Q4_K_M — smarter but slower
-        # Speed: 7.2 tok/s | Size: 5.0GB
+        # Speed: ~5.4 tok/s (dotprod build) | Size: 5.0GB
         return start_server(
             HOME + "/models/gemma-4-e4b-it-q4_k_m.gguf",
             port=8080, ctx=2048
