@@ -1014,3 +1014,62 @@ Format: `NN. [area] decision — why`
      Local AI may author complete role/workflow files on the human's instruction;
      STATUS and DECISIONS stay single-writer. Human decision, 2026-09-25.
      Relates to #109 and the harness v3 entry above.
+
+114. **Robot llama.cpp rebuilt with ARM dotprod; same version.** The robot's b1609
+     build (commit e1a1abb7) had been compiled without ARM dotprod (0 `sdot`
+     instructions in the kernel library). It was rebuilt from the same commit with
+     `GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16` into `~/llama.cpp-b1609-dotprod`
+     (1045 `sdot`), and `server_manager.py` points there (commit 341bde6). Same model
+     and flags, measured: letter-scoring median 6650 → 2478 ms, prompt eval ~10 →
+     31.6 tok/s, generation 6.5 → 8.5 tok/s (Q4_K_M, 200-token reply); 15/15 voice
+     parses identical; 2 of 120 ladder choices changed, both from wrong to right
+     (numeric drift, also seen on b2351). Chosen over moving the robot to b2351 to
+     change one variable and avoid b2351's flash-attention segfault. The original
+     build is kept as rollback. Human decision, 2026-09-26. Evidence:
+     `benchmark/llama_dotprod_rebuild/`. Relates to #73, #77, #107.
+
+115. **Robot default model becomes Gemma 4 E2B Q4_0; server and voice fixes; model
+     cleanup.** Conversation benchmark on the dotprod build (the #110 prompts with its
+     rubric fixed, five models, Qwen3.5 think-off): exact command parses Qwen3.5-4B
+     36/39 with 0 reject violations, Gemma E2B 33/39 with 3 (Q4_0 identical to
+     Q4_K_M), E4B 32/39, Qwen3.5-2B 17/39. Local AI blind-graded the conversation and
+     Q&A answers (70, scored before the key was opened): E2B Q4_0 41/70, Qwen3.5-4B
+     41, E2B Q4_K_M 39, Qwen3.5-2B 36, E4B 34. Speed, first token / generation: E2B
+     Q4_0 3.7 s / 12.2 tok/s; Qwen3.5-4B ~6.5 s / 5.4; E4B ~8.3 s / 5.4. The human set
+     speed as the deciding factor for now: E2B Q4_0 is the robot default; Qwen3.5-4B
+     is a candidate second "careful" configuration, to be judged again after prompt
+     tuning; E4B is kept but not recommended. `server_manager.py` now passes
+     `--cache-ram 0` (server memory grew per turn without it on unique conversation
+     prompts; no measurable cost) and its comment is corrected. Voice:
+     `parse_command()` timeout 40 s and `warm_up()` at the entry points, after a cold
+     first parse measured 39.07 s. Deleted from the phone (10.62 GiB freed): Qwen2.5
+     1.5B and 3B, Qwen3.5-0.8B, the empty E4B Q3 file, Von 1.2, laya-micro's graphs.
+     Dead references removed from `chat.py`, jevlike, `configs/setup_a.py`,
+     `configs/setup_d.py` and `nav_sim.py` (which now raises NameError; superseded).
+     Kept: E2B Q4_0 and Q4_K_M, E4B, Qwen3.5-2B and 4B, laya_en, laya_multi, Von 1.1
+     with its NLI head, both Gemma LoRAs, builds b2351 and the original b1609. All
+     models invented sensor readings, lacked self-knowledge, sometimes answered in
+     the wrong language, and leaked template tokens; prompt work is pending. Human
+     decisions, 2026-09-26. Reviews: Codex gpt-6-sol (effort medium), round 3 APPROVE
+     WITH NOTES. Pushed 6322dc1..41b9de1. Evidence:
+     `benchmark/llm_objective_setting/`. Relates to #106, #110, #114.
+
+116. **Selector ladder: only Gemma letter-scoring understands the task; one resident
+     Gemma under evaluation.** A 60-case, five-level ladder (each case in both option
+     orders; a development bench, not the final exam), seven models, choices fully
+     reproducible: s1o (Gemma E2B letter scoring) 77% correct and 96% on the
+     two-option sanity level; Von NLI 65%; von11 and von12 55%; laya_multi 48%,
+     laya_micro 47%, laya_en 40% (46% on the sanity level, i.e. chance). Most timing
+     blocks in that run were disturbed and are not canonical. Clean unattended s1o
+     speed runs (thermal-gated, true cold loads): original b1609 Q4_K_M 6.65 s median;
+     b2351 Q4_K_M 2.05 s; b2351 Gemma E2B Q4_0 1.55 s median, 2.84 s P95, same
+     accuracy; Qwen3.5-2B 1.27 s but 68% and 20/60 order flips; Qwen3.5-0.8B 44%,
+     chance. The human proposed one resident Gemma for conversation, objective
+     setting and script selection, with Python computing eligibility and distances
+     and Gemma reading only language; not decided. Open: RAM next to YOLO and the
+     drive loop, heat under sustained use, quality under a tuned prompt, and a Python
+     fallback if the server dies. Laya/Von fine-tuning (#113) continues as the
+     alternative. The independent test set (62 cases, SHA-256
+     b76a3c6b291180fb72b97632e4831a0c444595102984fa4a1afe46983e4fe266) stays outside
+     the repository at `/termux-home/selector-testset/`. Evidence:
+     `benchmark/strategic_selector/ladder/`. Relates to #109, #112, #113.

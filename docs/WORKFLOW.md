@@ -16,18 +16,19 @@ handoff; do not silently substitute the selected reviewer/model. If one provider
 fills multiple roles, use separate role sessions. The coder never reviews its own
 work in the same conversation.
 
-| Role | Ordinary preference | Current allocation |
-|---|---|---|
-| Local AI: online-app planning and technical orchestration with the human | Local AI app thread | Fresh online thread |
-| Coder/data retriever: actual phone repo, exact evidence, approved changes and checks | Claude Code | Claude Code CLI; Codex as fallback |
-| Reviewer: fresh independent candidate review | Codex | Gemini 3.1 Pro High through AGY; for Data Engineer PRs, Codex GPT-6-Sol first, then AGY Gemini 3.1 Pro High |
-| Data Engineer: training datasets and their generators, via pull requests ([DATA_ENGINEER.md](DATA_ENGINEER.md)) | Jules | Jules (Google AI Pro), prompted by Local AI |
-| Doc Keeper: canonical status and append-only decisions | Online project thread | Online Doc Keeper / Transition thread; AGY is the on-phone documentation executor |
+| Role | Assignment |
+|---|---|
+| Local AI: online-app planning and technical orchestration with the human | Online project thread |
+| Coder/data retriever: actual phone repo, exact evidence, approved changes and checks | Per task, in the EXECUTION PROFILE |
+| Reviewer: fresh independent candidate review | Per task, in the EXECUTION PROFILE |
+| Data Engineer: training datasets and their generators, via pull requests ([DATA_ENGINEER.md](DATA_ENGINEER.md)) | Per task, in the EXECUTION PROFILE |
+| Doc Keeper: canonical status and append-only decisions | Online project thread; the on-phone documentation executor is assigned per task |
 
-Claude Code was parked earlier for a weekly limit; as of 2026-09-25 the human
-again assigns Coder tasks to Claude Code CLI. The human reports paid
-subscriptions to all three providers and Google AI Pro (Jules: 100 tasks per
-rolling 24 h, 15 concurrent); no exact allowance or reset date is assumed.
+No role has a standing model. The human assigns platform and model when a task
+starts, and Local AI writes them into that task's EXECUTION PROFILE. Platforms
+the human reports as available: Claude Code CLI, Codex CLI and AGY CLI on the
+phone, Jules (Google AI Pro: 100 tasks per rolling 24 h, 15 concurrent) and
+Google Colab for training. No exact allowance or reset date is assumed.
 
 Local AI sets objectives, prepares bounded tasks and exact phone commands, requests
 source/output from the executor, evaluates evidence and reviews, and helps the
@@ -161,9 +162,10 @@ agy -p 'Reply exactly: REVIEW_SMOKE_PASS. Do not inspect files, run commands, ca
   --model gemini-3.1-pro-high --output-format json --sandbox --print-timeout 2m
 ```
 returned `{"status":"SUCCESS","response":"REVIEW_SMOKE_PASS\n"}`.
-The concrete invocation pattern is:
+The concrete invocation pattern, when a task assigns an AGY reviewer (use the
+exact model id from that task's EXECUTION PROFILE):
 ```bash
-agy -p "$REVIEW_REQUEST" --model gemini-3.1-pro-high \
+agy -p "$REVIEW_REQUEST" --model "$AGY_MODEL" \
   --output-format json --sandbox --print-timeout 10m
 ```
 `$REVIEW_REQUEST` contains the frozen task, base, complete diff including new
@@ -213,15 +215,17 @@ remains read-only. If credentials fail, report the failure without exposing toke
 
 ## Data Engineer and fine-tuning track
 
-Jules clones this repository into a cloud VM and works only through pull
-requests; it never pushes to `main`. Its rules are in `DATA_ENGINEER.md`.
-Each Data Engineer PR gets two independent reviews in fresh sessions, Ponytail
-`off`: Codex (GPT-6-Sol) first, then AGY `gemini-3.1-pro-high`. The human merges
-after Local AI evaluates both reviews with the human.
+The Data Engineer works in its own clone of this repository (for example a
+cloud coding agent) and only through pull requests; it never pushes to `main`.
+Its rules are in `DATA_ENGINEER.md`. Each Data Engineer PR gets two independent
+reviews in fresh sessions, Ponytail `off`, by the reviewers assigned for that
+task; where possible they come from model families other than the Data
+Engineer's. The human merges after Local AI evaluates both reviews with the
+human.
 
 Test-set custody: any held-out or independent test set used to pick a model is
-kept outside this repository until scoring is finished, because Jules can read
-the whole repository. Only its SHA-256, row count and custody location are
+kept outside this repository until scoring is finished, because a Data Engineer
+agent can read the whole repository. Only its SHA-256, row count and custody location are
 recorded in docs beforehand.
 
 Fine-tuning runs in Google Colab. Each run records: notebook or script source
@@ -229,3 +233,16 @@ and its SHA-256, Colab GPU type, base model id and revision, dataset SHA-256,
 seeds, hyperparameters, training and validation curves, and the SHA-256 of the
 output weights. Weights reach the phone by explicit download and are
 re-hashed there before any benchmark.
+
+## Timed benchmarks on the phone
+
+Timings are only valid with no agent resident. The Coder prepares a run script
+and exits; the human starts it from **native** Termux with `oneshot.sh`
+(archived in `benchmark/strategic_selector/ladder/`), which checks that no
+Claude/AGY/Codex process runs, logs CPU thermals through Magisk `su`, idles
+5 minutes, runs the script inside Debian, and answers each cold-load
+page-cache-drop request (root is only reachable from native Termux, not proot).
+Runners gate each block on temperature, refuse or redo blocks when Android
+moves Termux off cores 4–7 (keep the screen on, Termux in front), and support
+`--resume`. Accuracy results are deterministic and may be taken with an agent
+resident; timings may not. Every run is archived per `benchmark/INDEX.md`.

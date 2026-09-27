@@ -8,8 +8,8 @@ itself. An entry labelled *decided* here may still be unimplemented.
 
 | Area | Current orientation | Evidence |
 |---|---|---|
-| Prototype navigation | Python rules and sensors are intended to own low-level movement; removal of Gemma from the navigation loop is **decided, not implemented**. The as-coded triggers remain. | #104, #88, #108; STATUS Architecture |
-| Strategic selector | Laya or Von as a high-level mission-script selector is **research only**. No chosen model, live map/sensor fusion or motor integration. | #109; [archive](../benchmark/strategic_selector/README.md) |
+| Prototype navigation | Python rules and sensors own low-level movement; Gemma was removed from the navigation loop. No hardware validation yet. | #104, #111, #88; STATUS Architecture |
+| Strategic selector | **Research only, not wired.** Lead candidate: Gemma letter-scoring (1.5 s on b2351 Q4_0); Laya/Von zero-shot near chance, continuing only via fine-tuning. One resident Gemma for talk + selection under evaluation. | #109, #112, #113, #116; [index](../benchmark/INDEX.md) |
 | Motor safety | Firmware watchdog is 1000 ms; the `nav_stuck` safety-move override was fixed in Python; LLM failure paths now select STOP. Hardware validation remains separate. | #47, #88, #108; STATUS Pending |
 | Firmware and wiring | Corrected `mode2_auto.ino` and corner map are committed; what is flashed on the physical board is unconfirmed. | #43, #89; STATUS Architecture |
 | Person stop | Coarse detector area bucket was chosen to replace uncalibrated centimetres, but is not implemented. | #78–#80; STATUS Pending |
@@ -20,6 +20,8 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | Collaboration | Independent Coder/Reviewer/human commit gate and per-task execution profiles are defined in [WORKFLOW.md](WORKFLOW.md). Push needs separate authorization. | #86–#87 |
 | Strategic selector harness v3 | s1o dropped on speed; laya_en and von11 proceed; hardware timings provisional. | #112 |
 | Data Engineer role | Selector moves to a fine-tuning track; new Data Engineer role created to generate the dataset. | #113 |
+| LLM runtime | Robot runs b1609 rebuilt with ARM dotprod (~3x prompt speed); default model Gemma E2B Q4_0 with `--cache-ram 0` and a voice warm-up. | #114, #115 |
+| Selector direction | Gemma letter-scoring leads (1.55 s, 77%); one resident Gemma for talk + selection under evaluation, not decided. | #116 |
 
 ## Corrections worth knowing before citing an older entry
 

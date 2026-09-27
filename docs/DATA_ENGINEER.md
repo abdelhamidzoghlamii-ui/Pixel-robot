@@ -27,7 +27,10 @@ edit `docs/`, or run anything on the robot.
 
 1. **No test data.** You never read, derive from, paraphrase, or reconstruct any
    held-out or test set. Test sets are kept outside this repository on purpose.
-   If you find one, do not open it; report it.
+   If you find one, do not open it; report it. You also never read anything under
+   `benchmark/` unless your task names that exact file: it holds development
+   benches (for example the ladder cases) and the recorded seed of a sealed
+   held-out set, and training on them would make later scores meaningless.
 2. **Independent templates.** Do not reuse phrasings, templates, or state layouts
    from `benchmark/strategic_selector/robot_selector_benchmark.py` or any
    benchmark script. Write your own. Reusing the option-key vocabulary the task
@@ -47,8 +50,10 @@ edit `docs/`, or run anything on the robot.
 
 Each PR gets two independent reviews in fresh sessions, Ponytail `off`:
 
-1. Codex (model in `WORKFLOW.md` allocation) — first reviewer.
-2. AGY `gemini-3.1-pro-high` — second reviewer.
+1. First reviewer, assigned per task in the EXECUTION PROFILE.
+2. Second reviewer, assigned per task in the EXECUTION PROFILE.
+
+Where possible, both come from model families other than yours.
 
 Reviewers check: schema validity; label function correctness against its tests;
 template independence from benchmark scripts; order-position histogram;

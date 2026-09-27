@@ -65,14 +65,18 @@ camera photo → YOLO detect_scene → navigate_rules (pure Python, instant) →
 |---|---|---|
 | YOLO (yolo11m.onnx) | object/person detection, position, coarse distance | every cycle |
 | Python `navigate_rules` | obstacle stop, person approach, room signature logging | every cycle, 0ms |
-| Gemma 4 E2B | voice→intent only, outside navigation | on demand |
+| Gemma 4 E2B (Q4_0, default since 2026-09-26) | voice→intent only, outside navigation | on demand |
 | Whisper.cpp (base) | 5s voice capture → text | on demand |
 | Gemma `PARSE_SYS` | voice text → JSON action array | on demand |
 | `termux-tts-speak` | speech output | on demand |
 
 DECISIONS #109 opens a separate, unimplemented high-level mission-script
-selector using Laya or Von. The current repo describes a mecanum prototype;
-the phone-mounted RC car with 2D LiDAR is a proposed redesign.
+selector. It is still not wired to the robot. After #112–#116 the lead
+candidate is Gemma scoring the offered options by letter probability; Laya and
+Von continue only on the fine-tuning track (#113). A single resident Gemma for
+both conversation and selection is under evaluation, not decided (#116).
+The current repo describes a mecanum prototype; the phone-mounted RC car with
+2D LiDAR is a proposed redesign.
 
 ## Known-good config (as coded)
 
@@ -113,19 +117,26 @@ REAL_HEIGHTS: person 170, refrigerator 180, chair 90, couch 85, dining table 75,
 
 **LLM server** (`server_manager.py`)
 ```
---threads 4 --threads-batch 4 --parallel 1 --swa-full --ctx-size 2048
-setup_q4     Gemma 4 E2B Q4_K_M  3.3GB  11-12 tok/s   ← robot default
-setup_e4b    Gemma 4 E4B Q4_K_M  5.0GB  7.2 tok/s     ← quality/chat mode
-setup_qwen3b / setup_qwen1b                            ← fallbacks
-(Qwen3.5 0.8/2/4B GGUFs at ~/models/qwen35/ are eval-only, not wired into
-server_manager; see DECISIONS #106. #104's navigation removal was implemented
-in #111.)
+--threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --ctx-size 2048
+setup_q4     Gemma 4 E2B Q4_0    2.8GB  ~12 gen tok/s  ← robot default (since 2026-09-26)
+setup_e4b    Gemma 4 E4B Q4_K_M  5.0GB  ~5.4 gen tok/s ← kept, not recommended (#115)
+(setup_qwen3b / setup_qwen1b and the Qwen2.5 files were removed 2026-09-26.
+Qwen3.5 2B and 4B GGUFs at ~/models/qwen35/ are eval-only, not wired into
+server_manager; Qwen3.5-0.8B was deleted. See DECISIONS #106, #115.
+#104's navigation removal was implemented in #111.)
 ```
 
-Current llama.cpp build: commit e1a1abb7, version 1609 (Clang 21.1.8, Android
-aarch64). Shared-library build — `bin/llama-server` is a ~5.9 KB launcher, real
-code in the `.so` files. Rollback is the whole `build/` tree (`build-b1609.tar.gz`,
-verified) or a rebuild of commit e1a1abb7, NOT a single-binary copy (DECISIONS #73).
+Current llama.cpp build: commit e1a1abb7, version 1609, **rebuilt 2026-09-26
+with `GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16`** at `~/llama.cpp-b1609-dotprod`
+(commit 341bde6 points `server_manager.py` there; build commands and evidence in
+`benchmark/llama_dotprod_rebuild/`). The original build had no dotprod
+(0 `sdot` instructions vs 1045); the rebuild reads prompts ~3× faster and
+generates ~+32% faster, with identical voice parses (DECISIONS #114). The
+original tree is kept untouched as rollback. Original build details:
+(Clang 21.1.8, Android aarch64). Shared-library build — `bin/llama-server` is a ~5.9 KB launcher, real
+code in the `.so` files. Rollback of the original is the whole `build/` tree
+(`build-b1609.tar.gz`, verified) or a rebuild of commit e1a1abb7, NOT a
+single-binary copy (DECISIONS #73).
 
 A third build, ~/llama.cpp-upstream rebuilt 2026-09-13 to b2351-790cf51a,
 loads Qwen3.5-0.8B-Q4_K_M with architecture accepted and "modalities: text"
@@ -133,12 +144,18 @@ loads Qwen3.5-0.8B-Q4_K_M with architecture accepted and "modalities: text"
 later vision tests in #105 found no usable on-device LLM vision. Note: `strings`
 on the rebuilt binary returns no qwen35 match despite the successful load —
 the `strings` check used in #95 is not a reliable negative; an actual load
-attempt is ground truth.
+attempt is ground truth. b2351 has dotprod; with it, Gemma E2B Q4_0 scored
+options in 1.55 s median on the ladder (DECISIONS #116). Its flash-attention
+path segfaulted on this phone; the robot does not use b2351.
 
 Benchmarked on build 1609, 15 cycles, realistic robot prompt shape (fixed system
 prefix + varying scene): 11.5 tok/s median (11.1-11.9), prompt eval 1091 ms median,
 free RAM ~3.1 GB, zone9 97-101 °C. Prefix cache reuse confirmed on the live prompt
-shape — 109 tokens on the first call, 18-22 thereafter.
+shape — 109 tokens on the first call, 18-22 thereafter. EVIDENCE CONFLICT: the
+2026-09-26 rebuild report measured the original non-dotprod build at 6.5 gen
+tok/s (200-token reply), not 11.5; the conditions of the earlier figure are not
+recorded, so neither old figure is canonical. Current dotprod-build figures are
+in DECISIONS #114 and #115.
 
 ## Thermal governance
 
@@ -157,6 +174,14 @@ This is a dated measurement, not a current co-residency test; see
 [PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md) and
 DECISIONS #94.
 
+2026-09-26 (dotprod build, Gemma E2B Q4_0): peak server RSS ~4.3 GB in the
+conversation benchmark. Without `--cache-ram 0`, one unique-question
+conversation run grew ~1.9 MiB/turn (then dropped 82 MiB, cause unrecorded;
+VmSwap not recorded); with it ~0.1 MiB/turn. Robot-shaped voice prompts did not
+grow either way. Qwen3.5-4B without the flag grew until Android killed it.
+`--cache-ram 0` is now passed (DECISIONS #115). Co-residency of a resident
+Gemma with YOLO and the drive loop is untested.
+
 ## Model vision
 
 The as-coded image request was confirmed to run as text only (DECISIONS #96).
@@ -171,6 +196,15 @@ observations and follow-up are retained in
   reuse the cached system prompt instead of reprocessing it.
 - YOLO scene detection, position + coarse distance.
 - Voice pipeline end to end: record → Whisper → Gemma JSON parse → TTS.
+  `main.warm_up()` (called from `main.py` and `run_mission.py`) waits for the
+  server and sends one discarded parse; measured cold start: server ready 19 s,
+  warm-up 45.5 s, then five parses in 7.5–12.7 s under the 40 s timeout
+  (DECISIONS #115).
+- Manual selector playground `robot-jevlike`
+  (`benchmark/strategic_selector/manual/jevlike/`): runs one input through any
+  installed selector model side by side. Research only, not a benchmark.
+- Benchmark archive index: `benchmark/INDEX.md` lists every archive folder,
+  its key result and status.
 - Root restored on Android 17; real SoC temps readable (zone9 BIG / 10 MID /
   11 LITTLE / 12 GPU / 14 TPU). The battery zone number is unconfirmed.
 - **Mode 1 teleop — ESP32 standalone** (`mode1_simple.ino`, tracked and retained; commit 9a90d7e, DECISIONS #89 —
@@ -294,10 +328,10 @@ observations and follow-up are retained in
   wNa8o8 mobile format (the only path to the ~1 GB claim)
   needs llama.cpp load-support confirmed before download. MTP needs a full QAT
   chain incl. a matching QAT drafter. See DECISIONS #71, #72.
-- **`nav_sim.py` is a standalone older simulation** (Qwen 2.5 3B, own thermal
-  limits WARN 75 / KILL 88 / COOL 48 °C). Not part of the live robot path.
-- Stale comment: `server_manager.py` still says `--cache-ram 0` disables the broken
-  SWA cache; the code actually uses `--swa-full`.
+- **`nav_sim.py` is a standalone older simulation** (own thermal limits WARN 75 /
+  KILL 88 / COOL 48 °C). Not part of the live robot path. Since its Qwen2.5 model
+  entry was removed (2026-09-26) it raises `NameError` at server start; superseded,
+  nothing imports it.
 - Not yet built/wired: Piper TTS, Whisper VAD, room classifier, memory system,
   face recognition.
 - The proposed strategic selector is not wired to the robot. Apartment
@@ -309,15 +343,22 @@ observations and follow-up are retained in
   additional car-mounted accelerometer helps remain undetermined. The
   current ultrasonic sensor and phone sensors have not been integrated
   into this proposed selector.
-- Objective-setting benchmark is INCOMPLETE: buckets A (conversation) and B
-  (Q&A) were run but never graded; Qwen3.5-4B (think-on and think-off) was
-  never run; Qwen3.5-2B-think-off has only a single smoke run. Qwen3.5
-  think-on results are invalid (42% truncated) and must not be quoted.
-  Rubric fixes required before the next benchmark: reject_violation must cover
-  find_person and any other action type, not a hardcoded subset; 'refusal' must
-  be defined explicitly before running; runs must record the grader's
-  source_sha256. The `think_chars` metric is broken for Qwen3.5 and should be
-  retired.
+- Objective-setting benchmark: the rubric fixes were applied and five models
+  rerun on the dotprod build 2026-09-26 (think-off for Qwen3.5); buckets A and
+  B were blind-graded by Local AI (DECISIONS #115, archive
+  `benchmark/llm_objective_setting/`). Qwen3.5 think-on results remain invalid
+  (42% truncated) and must not be quoted. Still open: all models invent sensor
+  readings they do not have (battery, why it stopped, vision range), lack
+  self-knowledge (wheels, why it stops), sometimes reply in the wrong language,
+  and occasionally leak `</start_of_turn>` into replies. A robot fact sheet,
+  live sensor values and a language rule in the system prompt, plus stripping
+  template tokens, are the planned fixes; not implemented.
+- b2351 flash-attention segfaults on this phone; not investigated. The robot
+  stays on the dotprod b1609 build.
+- Untracked scratch files remain in the repo root (`update_docs.py`,
+  `bench.py`, `vision_test.py`, `qwen_vision_bench*`, `scratch_test*.py`,
+  others). `update_docs.py` is unexplained and must not be run; `docs/` is Doc
+  Keeper's.
 - benchmark/llm_objective_setting/ was published with the docs/WORKFLOW.md
   independent review WAIVED by human decision; the waiver is recorded in its
   README.
