@@ -157,6 +157,8 @@ tok/s (200-token reply), not 11.5; the conditions of the earlier figure are not
 recorded, so neither old figure is canonical. Current dotprod-build figures are
 in DECISIONS #114 and #115.
 
+Archived controlled conversation rates (cold vs cached block aggregate token-weighted gen tok/s for replies >=10 tokens): E2B Q4_0 12.10–12.36, E2B Q4_K_M 10.59–11.72, E4B 5.41–5.48, Qwen3.5 4B Q4_K_M 5.39–5.52, Qwen3.5 2B Q4_K_M 10.36–11.83. Sources: `benchmark/llm_objective_setting/conversation/conversation_20260926T185957Z.stdout.txt` (rates), `benchmark/llm_objective_setting/conversation/conversation_20260926T185957Z/run_20260926T185957Z.json`, and `benchmark/llm_objective_setting/conversation/conv_speed.py` (run model GGUF paths, `server_manager` binary/flags, ctx 2048, cores 4–7). No controlled dotprod chat speed result exists for the other menu entries in this archive. Note: Standalone chat uses ctx 4096 for some models, so these rates do not exactly describe its chat performance.
+
 ## Thermal governance
 
 VIRTUAL-SKIN-CPU-GPU is the reported HAL CPU-throttling signal (first trip
@@ -182,6 +184,8 @@ grow either way. Qwen3.5-4B without the flag grew until Android killed it.
 `--cache-ram 0` is now passed (DECISIONS #115). Co-residency of a resident
 Gemma with YOLO and the drive loop is untested.
 
+Standalone chat uses ctx 4096 for Gemma E2B Q4_0/Q4_K_M and Qwen3.5 2B Q4_K_M; ctx 2048 for all other menu models. No controlled peak memory result at ctx 4096; archived conversation peaks used ctx 2048.
+
 ## Model vision
 
 The as-coded image request was confirmed to run as text only (DECISIONS #96).
@@ -203,6 +207,7 @@ observations and follow-up are retained in
 - Manual selector playground `robot-jevlike`
   (`benchmark/strategic_selector/manual/jevlike/`): runs one input through any
   installed selector model side by side. Research only, not a benchmark.
+- **Standalone chat** (`robot-chat`): Menu filters against installed models (Gemma E2B Q4_0/Q4_K_M/Q8_0, Gemma E4B Q4_K_M, Qwen3.5 2B Q4_K_M, Qwen3.5 4B Q4_K_M/Q5_K_M/Q6_K, Mistral 7B Q4_K_M). None of the menu entries other than the robot's deployed model (Gemma E2B Q4_0) are deployed to the robot loop. Image chat is unavailable in this interface.
 - Benchmark archive index: `benchmark/INDEX.md` lists every archive folder,
   its key result and status.
 - Root restored on Android 17; real SoC temps readable (zone9 BIG / 10 MID /

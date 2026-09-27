@@ -66,16 +66,17 @@ If it's in use, find the holder and kill it **by PID** — see §8.
 
 ## 1. Server control — start this first for autonomous mode
 
-The LLM server must be running before `run_mission.py` or `chat.py`. The nav loop
-consults Gemma on triggers; without the server those calls fail.
+The LLM server must be running before `run_mission.py`. The nav loop
+consults Gemma on triggers; without the server those calls fail. (See §4 for `chat.py`/`robot-chat`: Loading a chat model calls `pkill` on the b1609 dotprod binary, killing the robot LLM server from `server_manager.py`. If another server still occupies port 8080, chat refuses to start. Do not launch chat during a robot mission.)
+Always run `setup_q4` before a mission; it stops any leftover chat server and loads the robot model. Quit any open `robot-chat` session before `setup_q4` or a mission; an open session may reuse or kill the robot server on its next message.
 
 | Command | What it does |
 |---|---|
-| `python3 server_manager.py setup_q4` ✅ | **Robot default.** Gemma 4 E2B Q4_K_M, 3.3 GB, ~11-12 tok/s. Ready in ~6 s. |
-| `python3 server_manager.py setup_e4b` ⚠️ | Gemma 4 E4B Q4_K_M, 5.0 GB, ~7.2 tok/s. Chat only — too slow for the control loop. |
-| `python3 server_manager.py setup_qwen3b` ⚠️ | Qwen 2.5 3B fallback. |
-| `python3 server_manager.py setup_qwen1b` ⚠️ | Qwen 2.5 1.5B — fastest, lowest quality. |
+| `python3 server_manager.py setup_q4` ✅ | **Robot default.** Gemma 4 E2B Q4_0, 2.8 GB, ~12 tok/s.* |
+| `python3 server_manager.py setup_e4b` ⚠️ | Gemma 4 E4B Q4_K_M, 5.0 GB, ~5.4 tok/s.* Not used by chat.py (chat starts its own server); too slow for the control loop. |
 | `python3 server_manager.py stop` ✅ | Kills all llama-server processes. |
+
+*Note: Speeds are token-weighted generation rates over 27 prompts per block (cold vs cached, >=10 gen tokens). Sources: `benchmark/llm_objective_setting/conversation/conversation_20260926T185957Z.stdout.txt` (rates), its `run_20260926T185957Z.json`, and `conv_speed.py` (configuration: b1609 dotprod, ctx 2048). Cores 4-7 were pinned for the benchmark; `server_manager.py` does not pin cores, so rates are not guaranteed.*
 
 > Note: `kill` is not a valid subcommand — prints "Unknown setup". Use `stop`.
 
@@ -240,18 +241,24 @@ helpers or re-send itself.
 
 ## 4. Chat mode ⚠️
 
-`python3 chat.py` — interactive chat with the local model. In-chat commands:
+`robot-chat` — Native Termux interactive chat with the local model (runs `~/robot/robot-chat` via `~/bin/robot-chat` symlink, which executes `chat.py`).
+`python3 chat.py` — Python interactive chat.
+Both entry points use the same script and start their own server on port 8080.
+
+**Server details:** Uses the b1609 dotprod binary, 4 generation/batch threads, parallel 1, SWA full, cache RAM 0, and CPU affinity 4–7 when Android allows those cores. The diagnostic log is `~/robot-chat-server.log`. The header and per-reply status show `MemAvailable` from `/proc/meminfo` in GiB (still displays RAM when thermal reads fail). See STATUS.md for model-specific ctx sizes.
+
+In-chat commands (apply to both):
 
 | Command | What it does |
 |---|---|
-| `/switch` | Switch model without leaving chat |
-| `/photo` | Attach a photo (Gemma vision) |
-| `/camera` | Take a photo with the phone camera and attach it |
+| `/switch` | Success changes model and clears history. Blank/invalid choice cancels without leaving chat. Startup failure exits chat; the previous chat server has normally already been stopped. |
+| `/photo` | Image chat is unavailable in this interface; command explains this |
+| `/camera` | Image chat is unavailable in this interface; command explains this |
 | `/clear` | Clear conversation history |
 | `/history` | Show the conversation so far |
 | `/temp` | Show SoC temperatures |
-| `/kill` | Kill the server |
-| `/quit` | Exit |
+| `/kill` | Kills the b1609 dotprod server (including the robot's server). The next chat message relaunches the chat model automatically. |
+| `/quit` | Exit (leaves the chat's llama-server process running). To stop the chat server, use `/kill` before `/quit`. The exit hint `pkill -f llama-server` stops all servers, including the robot's. |
 
 ---
 
