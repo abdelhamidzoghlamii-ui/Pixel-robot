@@ -37,7 +37,8 @@ and is not built from that app's module layout. It contains no robot or motor co
 - Each frame is published as two files, each through a `*.tmp` file and `rename()`:
   - `frame.jpg` — the JPEG, with a JPEG comment
     `robotcam session=<session_id> frame=<N> capture_wall_ms=<T>`
-  - `frame.json` — the sidecar, written after the image:
+  - `frame.json` — a diagnostics sidecar, written after the image (not part of the
+    reader contract, see below):
     ```json
     {"session_id":"9f2c…","frame":N,"capture_wall_ms":T,"written_wall_ms":W,"mode":"B",
      "rate":1,"width":640,"height":480,"size_rule":"exact 640x480","jpeg_quality":85,
@@ -59,18 +60,25 @@ and is not built from that app's module layout. It contains no robot or motor co
 
 ## Reader rule (for the robot)
 
-A frame is usable only if all of these hold, otherwise treat it as **no frame**:
+The reader contract is **`frame.jpg` alone**. It is replaced by a single `rename()`, so one
+read always gets one whole frame, and its JPEG comment carries everything the reader
+needs: `robotcam session=<session_id> frame=<N> capture_wall_ms=<T>`. `frame.json` is
+diagnostics only and not part of the contract: it is renamed after the JPEG, so a
+reader that reads both can see a new JPEG with the previous sidecar (the Pixel 7 retest
+of e21c970 at 2 frames/s hit this in 19 of 30 reads).
 
-1. `frame.json` and `frame.jpg` both exist and read completely;
-2. the sidecar parses and has `session_id`, `frame`, `capture_wall_ms`;
-3. the JPEG decodes, and its comment carries the same `session=` and `frame=` as the
-   sidecar (the two renames are not one atomic step; a reader between them sees a
-   mismatch);
+A frame is usable only if all of these hold; otherwise treat it as **no frame**:
+
+1. `frame.jpg` exists and reads completely;
+2. it decodes, and its comment matches
+   `robotcam session=<hex> frame=<digits> capture_wall_ms=<digits>`;
+3. the session is the one the robot expects (pin it on the first good frame; a new
+   session means the service restarted);
 4. `now - capture_wall_ms` is at most 2 s.
 
 `read_frame()` in `benchmark/robotcam/robotcam_test.py` implements this rule.
 
-**The robot must treat a missing, old, malformed or mismatched frame as "stop",
+**The robot must treat a missing, old, unreadable or other-session frame as "stop",
 never as "clear".** The files can disappear at any moment (stop, camera error), and
 the start activity and stop receiver are exported without a permission (next
 section), so another app on the phone can switch the camera off.
@@ -92,7 +100,10 @@ No dependencies: Android platform APIs and the Kotlin standard library only.
 **Device-verified 2026-09-28 on the Pixel 7:** the app writes here and Termux
 reads the files without root.
 Retest of 8817a47 (camera JPEG path, 1920x1440 frames): 40/40 frames ok in modes A
-and B, stop cleared the files. The in-app 640x480 path is not device-tested yet.
+and B, stop cleared the files.
+Retest of e21c970 (in-app 640x480): rate 1, modes A and B: 40/40 ok, exact 640x480,
+encode 2-7 ms, decode ~9 ms. Rate 2 exposed the JSON/JPEG read race that led to the
+JPEG-only reader rule below.
 
 Termux sees it as `~/storage/downloads/robotcam/` (after `termux-setup-storage`).
 
@@ -150,6 +161,8 @@ cat ~/storage/downloads/robotcam/frame.json
 
 # test (timed: run with no agent resident, see docs/WORKFLOW.md)
 python benchmark/robotcam/robotcam_test.py -n 60 --out ~/robotcam_test.json
+# at rate 2
+python benchmark/robotcam/robotcam_test.py -n 60 --interval 0.5 --out ~/robotcam_test_r2.json
 ```
 
 Start uses `am start` on an activity, not `am startservice`/`am broadcast`: a
@@ -159,12 +172,11 @@ app was in the foreground (Android 11+ while-in-use rule, enforced at
 foreground for that moment; the service keeps camera access after the activity
 closes. Starting an activity from Termux requires Termux to be in the foreground
 (screen on, Termux visible) or to have "Display over other apps".
-Diagnostics: the notification, the sidecar, or `adb logcat -s RobotCam` from a
-computer. `logcat` inside Termux without root shows only Termux's own log, which is
-why `logcat -s RobotCam` there shows nothing; with root,
-`su -c 'logcat -d -v time -s RobotCam'`. Up to 8817a47 the service logged only at
-start and on errors, so those lines could already have rotated out of the log buffer;
-the heartbeat now adds a line every 30 frames.
+Diagnostics: the notification and `frame.json`. `logcat` is not a reliable
+diagnostic here: on the Pixel 7, `logcat -s RobotCam` showed nothing, from Termux
+and also via `su`, even after the heartbeat line was added in e21c970. The cause is
+not known (not investigated further, by decision). The service logs with `Log.i`
+under tag `RobotCam`; `adb logcat -s RobotCam` from a computer is untested.
 
 ## Build
 

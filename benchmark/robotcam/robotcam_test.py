@@ -1,25 +1,34 @@
 #!/usr/bin/env python3
 """Termux-side check of the RobotCam service (android/robotcam).
 
-Reads frame.json + frame.jpg N times, one read per --interval seconds. Each read is
-classified by read_frame(), which is also the reader rule a robot should follow:
+Reads frame.jpg N times, one read per --interval seconds. Each read is classified by
+read_frame(), which is also the reader rule a robot should follow. The reader contract is
+the JPEG alone: session, frame counter and capture time come from its embedded comment
+(`robotcam session=<id> frame=<n> capture_wall_ms=<t>`). frame.jpg is replaced by a single
+rename, so one read always sees one whole frame. frame.json is diagnostics only.
 
-  ok        sidecar and JPEG agree on session_id and frame, and age <= --max-age
-  missing   sidecar or JPEG absent/unreadable, or the frame is older than --max-age
-  bad       sidecar malformed or partial, or the JPEG does not decode
-  mismatch  JPEG comment and sidecar differ in session_id or frame (read during an update)
+  ok             JPEG decodes, comment parses, session is the expected one, age <= --max-age
+  missing        frame.jpg absent/unreadable, or the frame is older than --max-age
+  bad            the JPEG does not decode, or its comment is missing or malformed
+  other_session  the frame belongs to another session than the pinned one (the service was
+                 restarted); the test pins the first session it sees
 
 Anything but ok means "no usable frame": the robot must treat it as stop, never as clear.
 
 Also reported for ok reads:
-  repeat    same session and frame as the previous ok read (expected now and then: the
-            reader and the writer both run at ~1 Hz with independent phase)
+  repeat    same frame as the previous ok read (expected now and then: the reader and the
+            writer run at independent phase)
   skipped   frame counter advanced by more than one between two ok reads
   read_ms / decode_ms / age_s   timing of the read, the full PIL decode, and frame age
 
+--check-sidecar additionally reads frame.json after each ok read and flags SIDECAR_DIFF
+when it describes another frame. This is expected now and then (the sidecar is renamed
+after the JPEG) and never changes a read's status.
+
 Timings are only valid with no agent resident (docs/WORKFLOW.md, "Timed benchmarks").
 
-Usage: python robotcam_test.py [-n 60] [--interval 1.0] [--max-age 2.0] [--dir DIR] [--out FILE]
+Usage: python robotcam_test.py [-n 60] [--interval 1.0] [--max-age 2.0] [--dir DIR]
+                               [--check-sidecar] [--out FILE]
 """
 import argparse
 import io
@@ -32,27 +41,21 @@ import time
 from PIL import Image
 
 DEFAULT_DIRS = [os.path.expanduser('~/storage/downloads/robotcam'), '/sdcard/Download/robotcam']
-COMMENT_RE = re.compile(rb'session=([0-9a-f]+) frame=(\d+)')
+COMMENT_RE = re.compile(rb'^robotcam session=([0-9a-f]+) frame=(\d+) capture_wall_ms=(\d+)$')
 
 
-def read_frame(d, max_age):
-    """Read and check one frame. Returns a dict with 'status' and, when decoded, 'image'."""
+def read_frame(d, max_age, session=None):
+    """Read and check frame.jpg. Returns a dict with 'status' and, when ok, 'image'.
+
+    session: the expected session id; None accepts any session.
+    """
     t0 = time.perf_counter()
     try:
-        with open(os.path.join(d, 'frame.json'), 'rb') as f:
-            raw = f.read()
         with open(os.path.join(d, 'frame.jpg'), 'rb') as f:
             data = f.read()
     except OSError as e:
         return {'status': 'missing', 'error': f'{type(e).__name__}: {e}'}
     t1 = time.perf_counter()
-    try:
-        meta = json.loads(raw)
-        session = str(meta['session_id'])
-        frame = int(meta['frame'])
-        capture_ms = float(meta['capture_wall_ms'])
-    except (ValueError, TypeError, KeyError) as e:
-        return {'status': 'bad', 'error': f'sidecar {type(e).__name__}: {e}'}
     try:
         im = Image.open(io.BytesIO(data))
         comment = im.info.get('comment', b'')
@@ -60,24 +63,38 @@ def read_frame(d, max_age):
     except (OSError, ValueError, SyntaxError) as e:
         return {'status': 'bad', 'error': f'decode {type(e).__name__}: {e}'}
     t2 = time.perf_counter()
+    m = COMMENT_RE.match(comment) if isinstance(comment, bytes) else None
+    if not m:
+        return {'status': 'bad', 'error': f'jpeg comment {comment!r:.80}'}
     r = {
-        'session': session,
-        'frame': frame,
-        'age_s': time.time() - capture_ms / 1000.0,
+        'session': m.group(1).decode(),
+        'frame': int(m.group(2)),
+        'age_s': time.time() - int(m.group(3)) / 1000.0,
         'read_ms': (t1 - t0) * 1000,
         'decode_ms': (t2 - t1) * 1000,
         'size': f'{im.width}x{im.height}',
         'bytes': len(data),
-        'mode': meta.get('mode'),
     }
-    m = COMMENT_RE.search(comment)
-    if not m or m.group(1).decode() != session or int(m.group(2)) != frame:
-        r.update(status='mismatch', error=f'jpeg comment {comment[:80]!r}')
+    if session is not None and r['session'] != session:
+        r.update(status='other_session', error=f'session {r["session"]} != {session}')
     elif r['age_s'] > max_age:
         r.update(status='missing', error=f'old: age {r["age_s"]:.3f} s > {max_age} s')
     else:
         r.update(status='ok', image=im)
     return r
+
+
+def sidecar_diff(d, r):
+    """Diagnostic only: describe how frame.json differs from the JPEG read in r, or None."""
+    try:
+        with open(os.path.join(d, 'frame.json'), 'rb') as f:
+            meta = json.loads(f.read())
+        pair = (str(meta['session_id']), int(meta['frame']))
+    except (OSError, ValueError, TypeError, KeyError) as e:
+        return f'sidecar unreadable ({type(e).__name__})'
+    if pair != (r['session'], r['frame']):
+        return f'sidecar {pair[0]}/{pair[1]}'
+    return None
 
 
 def summary(values):
@@ -95,22 +112,29 @@ def main():
     ap.add_argument('--max-age', type=float, default=2.0,
                     help='frames older than this many seconds count as missing (default 2.0)')
     ap.add_argument('--dir', help='frame directory (default: first existing of %s)' % DEFAULT_DIRS)
+    ap.add_argument('--check-sidecar', action='store_true',
+                    help='diagnostic: flag reads whose frame.json describes another frame')
     ap.add_argument('--out', help='write per-read results and summary as JSON here')
     args = ap.parse_args()
 
     d = args.dir or next((p for p in DEFAULT_DIRS if os.path.isdir(p)), DEFAULT_DIRS[0])
     print(f'dir {d}  n {args.n}  interval {args.interval}s  max age {args.max_age}s')
 
-    results, prev = [], None
-    counts = {'ok': 0, 'missing': 0, 'bad': 0, 'mismatch': 0, 'repeat': 0, 'skipped': 0}
+    results, prev, pinned = [], None, None
+    counts = {'ok': 0, 'missing': 0, 'bad': 0, 'other_session': 0, 'repeat': 0, 'skipped': 0}
+    if args.check_sidecar:
+        counts['sidecar_diff'] = 0
     start = time.monotonic()
     for i in range(args.n):
-        r = read_frame(d, args.max_age)
+        r = read_frame(d, args.max_age, pinned)
         r.pop('image', None)
+        if r['status'] == 'ok' and pinned is None:
+            pinned = r['session']
+            print(f'     pinned session {pinned}')
         counts[r['status']] += 1
         flags = [] if r['status'] == 'ok' else [r['status'].upper() + ' ' + r['error']]
         if r['status'] == 'ok':
-            if prev is not None and prev['session'] == r['session']:
+            if prev is not None:
                 if r['frame'] == prev['frame']:
                     counts['repeat'] += 1
                     flags.append('REPEAT')
@@ -118,6 +142,11 @@ def main():
                     counts['skipped'] += r['frame'] - prev['frame'] - 1
                     flags.append(f'SKIPPED {r["frame"] - prev["frame"] - 1}')
             prev = r
+            if args.check_sidecar:
+                diff = sidecar_diff(d, r)
+                if diff:
+                    counts['sidecar_diff'] += 1
+                    flags.append('SIDECAR_DIFF ' + diff)
         if 'frame' in r:
             print(f'{i + 1:4d} frame {r["frame"]:6d} {r["size"]} {r["bytes"]:6d} B  '
                   f'read {r["read_ms"]:6.1f} ms  decode {r["decode_ms"]:6.1f} ms  '
@@ -137,7 +166,8 @@ def main():
     print('  age_s     ' + summary([r['age_s'] for r in timed]))
     if args.out:
         with open(args.out, 'w') as f:
-            json.dump({'args': vars(args), 'dir': d, 'counts': counts, 'reads': results}, f, indent=1)
+            json.dump({'args': vars(args), 'dir': d, 'pinned_session': pinned,
+                       'counts': counts, 'reads': results}, f, indent=1)
         print(f'wrote {args.out}')
 
 
