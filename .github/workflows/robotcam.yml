@@ -1,0 +1,31 @@
+name: robotcam debug APK
+
+on:
+  push:
+    branches: [ccr-c04d905b-hv5bvg]
+    paths: ['android/robotcam/**', '.github/workflows/robotcam.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+      # The runner image ships the Android SDK (ANDROID_HOME); AGP fetches missing platform parts.
+      - name: Build debug APK
+        run: gradle -p android/robotcam --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: robotcam-debug-apk
+          path: android/robotcam/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

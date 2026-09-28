@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- No INTERNET permission. Writing to Download/ needs no storage permission on Android 11+. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="android.hardware.camera" android:required="true" />
+
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@android:drawable/ic_menu_camera"
+        android:label="RobotCam">
+
+        <!-- Starts the service. Launched from the launcher or from Termux with `am start`. -->
+        <activity
+            android:name=".StartActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Stops the service. Termux: am broadcast -n .../.ControlReceiver -a com.pixelrobot.robotcam.STOP -->
+        <receiver
+            android:name=".ControlReceiver"
+            android:exported="true" />
+
+        <service
+            android:name=".CameraService"
+            android:exported="false"
+            android:foregroundServiceType="camera" />
+    </application>
+</manifest>
