@@ -36,19 +36,22 @@ and is not built from that app's module layout. It contains no robot or motor co
   value falls back to 1.
 - Each frame is published as two files, each through a `*.tmp` file and `rename()`:
   - `frame.jpg` — the JPEG, with a JPEG comment
-    `robotcam session=<session_id> frame=<N> capture_wall_ms=<T>`
+    `robotcam session=<session_id> frame=<N> capture_boot_ms=<B> capture_wall_ms=<W> clock=<sensor|arrival>`
   - `frame.json` — a diagnostics sidecar, written after the image (not part of the
     reader contract, see below):
     ```json
-    {"session_id":"9f2c…","frame":N,"capture_wall_ms":T,"written_wall_ms":W,"mode":"B",
+    {"session_id":"9f2c…","frame":N,"capture_boot_ms":B,"capture_wall_ms":W,
+     "written_wall_ms":X,"mode":"B",
      "rate":1,"width":640,"height":480,"size_rule":"exact 640x480","jpeg_quality":85,
      "encode_ms":E,"exif_orientation":6,"bytes":B,"fps_min":a,"fps_max":b,
-     "timestamp_source":"sensor","yuv_sizes":["4080x3072",…,"640x480",…]}
+     "clock":"sensor","yuv_sizes":["4080x3072",…,"640x480",…]}
     ```
     `session_id` is random per service start; `frame` counts publications within
-    that session. `capture_wall_ms` is the sensor timestamp converted to wall-clock
-    ms when the camera reports a realtime timestamp base (`"sensor"`), otherwise the
-    arrival time of the frame (`"arrival"`).
+    that session. `capture_boot_ms` is the capture time on the boot clock
+    (`SystemClock.elapsedRealtime`, Linux `CLOCK_BOOTTIME`): the sensor timestamp when
+    the camera reports a realtime timestamp base (`clock=sensor`), otherwise the
+    arrival time of the frame in the app (`clock=arrival`). `capture_wall_ms` is the
+    same instant on the wall clock, for humans only.
 - Unpublishing: both files are deleted before every start and camera restart, on
   any camera error or disconnect, and on stop. Once stop begins nothing more is
   published (publishing and deletion share one lock and a stop flag).
@@ -62,7 +65,7 @@ and is not built from that app's module layout. It contains no robot or motor co
 
 The reader contract is **`frame.jpg` alone**. It is replaced by a single `rename()`, so one
 read always gets one whole frame, and its JPEG comment carries everything the reader
-needs: `robotcam session=<session_id> frame=<N> capture_wall_ms=<T>`. `frame.json` is
+needs: `robotcam session=<session_id> frame=<N> capture_boot_ms=<B> capture_wall_ms=<W> clock=<sensor|arrival>`. `frame.json` is
 diagnostics only and not part of the contract: it is renamed after the JPEG, so a
 reader that reads both can see a new JPEG with the previous sidecar (the Pixel 7 retest
 of e21c970 at 2 frames/s hit this in 19 of 30 reads).
@@ -71,10 +74,15 @@ A frame is usable only if all of these hold; otherwise treat it as **no frame**:
 
 1. `frame.jpg` exists and reads completely;
 2. it decodes, and its comment matches
-   `robotcam session=<hex> frame=<digits> capture_wall_ms=<digits>`;
+   `robotcam session=<hex> frame=<digits> capture_boot_ms=<digits> capture_wall_ms=<digits> clock=<sensor|arrival>`;
 3. the session is the one the robot expects (pin it on the first good frame; a new
    session means the service restarted);
-4. `now - capture_wall_ms` is at most 2 s.
+4. its age on the boot clock, `CLOCK_BOOTTIME now - capture_boot_ms` (Python:
+   `time.clock_gettime(time.CLOCK_BOOTTIME)`), is between -0.2 s and 2 s. The wall
+   clock is not used: it can step (NTP, manual change). A negative age beyond -0.2 s
+   means the clocks disagree and is also "stop".
+
+Frames from builds before this format (no `capture_boot_ms`) fail rule 2.
 
 `read_frame()` in `benchmark/robotcam/robotcam_test.py` implements this rule.
 

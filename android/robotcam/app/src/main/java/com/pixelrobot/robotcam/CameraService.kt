@@ -56,7 +56,8 @@ import java.util.concurrent.Executor
 class CameraService : Service() {
 
     private class Frame(
-        val nv21: ByteArray, val width: Int, val height: Int, val captureWallMs: Long, val seq: Long
+        val nv21: ByteArray, val width: Int, val height: Int,
+        val captureBootMs: Long, val captureWallMs: Long, val seq: Long
     )
 
     // Guards latest, publishing and the published files.
@@ -81,6 +82,8 @@ class CameraService : Service() {
     private var cameraSeq = 0L
     private var nextStreamDue = 0L
     private var stillInFlight = false
+    private var gen = 0L          // current open attempt; see the camera section
+    private var opening = false   // an openCamera() of the current attempt is pending
     private val reopen = Runnable { openCamera() }
     private val stillTick = Runnable { captureStill() }
 
@@ -179,9 +182,15 @@ class CameraService : Service() {
     }
 
     // ---------------------------------------------------------------- camera (camThread)
+    //
+    // Every open attempt gets a generation number; closeCamera() starts a new one. A callback
+    // that belongs to an older generation (an open, session or capture still in flight when a
+    // mode/rate change, error or stop closed that attempt) closes what it was handed and
+    // returns: it never touches the current camera and never unpublishes.
 
     private fun openCamera() {
-        if (!running || device != null) return
+        if (!running || device != null || opening) return
+        val myGen = gen
         val manager = getSystemService(CameraManager::class.java)
         try {
             val id = manager.cameraIdList.first {
@@ -203,7 +212,7 @@ class CameraService : Service() {
             Log.i(TAG, "camera $id YUV output sizes: ${yuvSizes.joinToString(" ")}")
             Log.i(TAG, "chosen ${size.width}x${size.height} ($rule), mode $mode, rate $rate/s, " +
                 "fps $fps, sensor orientation $sensorOrientation (EXIF $exifOrientation), " +
-                "realtime timestamps $realtimeTimestamps")
+                "realtime timestamps $realtimeTimestamps, attempt $myGen")
 
             frameReader = ImageReader.newInstance(size.width, size.height,
                 ImageFormat.YUV_420_888, 3).apply {
@@ -214,22 +223,23 @@ class CameraService : Service() {
                 Log.i(TAG, "preview surface YUV ${small.width}x${small.height}")
                 previewReader = ImageReader.newInstance(small.width, small.height,
                     ImageFormat.YUV_420_888, 2).apply {
-                    // Only there so 3A has a running stream; drop every preview frame.
-                    setOnImageAvailableListener({ r -> r.acquireLatestImage()?.close() }, camHandler)
+                    setOnImageAvailableListener({ r -> onPreview(r) }, camHandler)
                 }
             }
+            opening = true
             manager.openCamera(id, object : CameraDevice.StateCallback() {
                 override fun onOpened(camera: CameraDevice) {
-                    if (!running) { camera.close(); return }
+                    if (myGen != gen || !running) { camera.close(); return }
+                    opening = false
                     device = camera
                     try {
-                        startSession(camera)
+                        startSession(camera, myGen)
                     } catch (e: Exception) {
                         failed("createCaptureSession", e)
                     }
                 }
-                override fun onDisconnected(camera: CameraDevice) = lost(camera, "disconnected")
-                override fun onError(camera: CameraDevice, error: Int) = lost(camera, "error $error")
+                override fun onDisconnected(camera: CameraDevice) = lost(camera, myGen, "disconnected")
+                override fun onError(camera: CameraDevice, error: Int) = lost(camera, myGen, "error $error")
             }, camHandler)
         } catch (e: Exception) {
             // CameraAccessException, SecurityException, IllegalArgumentException, no back camera.
@@ -237,12 +247,12 @@ class CameraService : Service() {
         }
     }
 
-    private fun startSession(camera: CameraDevice) {
+    private fun startSession(camera: CameraDevice, myGen: Long) {
         val frameSurface = frameReader!!.surface
         val previewSurface = previewReader?.surface
         val callback = object : CameraCaptureSession.StateCallback() {
             override fun onConfigured(s: CameraCaptureSession) {
-                if (!running) { s.close(); return }
+                if (myGen != gen || !running) { s.close(); return }
                 session = s
                 try {
                     nextStreamDue = 0L
@@ -264,6 +274,7 @@ class CameraService : Service() {
                 }
             }
             override fun onConfigureFailed(s: CameraCaptureSession) {
+                if (myGen != gen) { s.close(); return }
                 failed("session configuration", null)
             }
         }
@@ -283,6 +294,7 @@ class CameraService : Service() {
     private fun captureStill() {
         val s = session ?: return
         val req = stillRequest ?: return
+        val myGen = gen
         camHandler.postDelayed(stillTick, periodMs)
         if (stillInFlight) return
         try {
@@ -290,10 +302,11 @@ class CameraService : Service() {
             s.capture(req, object : CameraCaptureSession.CaptureCallback() {
                 override fun onCaptureCompleted(
                     session: CameraCaptureSession, request: CaptureRequest, result: TotalCaptureResult
-                ) { stillInFlight = false }
+                ) { if (myGen == gen) stillInFlight = false }
                 override fun onCaptureFailed(
                     session: CameraCaptureSession, request: CaptureRequest, failure: CaptureFailure
                 ) {
+                    if (myGen != gen) return
                     stillInFlight = false
                     Log.i(TAG, "ERROR still capture failed, reason ${failure.reason}")
                 }
@@ -306,32 +319,51 @@ class CameraService : Service() {
     /**
      * Mode A receives every stream frame here and keeps one per period; mode B receives only
      * its stills. Only a frame that will be published is copied out of the camera buffer.
+     * A callback from a reader that is no longer current is ignored; any failure while taking
+     * the image goes through the normal unpublish-and-retry path.
      */
     private fun onFrame(r: ImageReader) {
-        val image = r.acquireLatestImage() ?: return
-        image.use {
-            if (mode == MODE_A) {
-                val now = SystemClock.elapsedRealtime()
-                if (now < nextStreamDue) return
-                nextStreamDue = now + periodMs
+        if (r !== frameReader) return
+        try {
+            val image = r.acquireLatestImage() ?: return
+            image.use {
+                if (mode == MODE_A) {
+                    val now = SystemClock.elapsedRealtime()
+                    if (now < nextStreamDue) return
+                    nextStreamDue = now + periodMs
+                }
+                val nv21 = toNv21(it)
+                // Boot clock (elapsedRealtime, CLOCK_BOOTTIME): the sensor timestamp when it is
+                // on that base, otherwise the arrival time. Wall clock derived from it for humans.
+                val bootNowNs = SystemClock.elapsedRealtimeNanos()
+                val bootNs = if (realtimeTimestamps) it.timestamp else bootNowNs
+                val bootMs = bootNs / 1_000_000
+                val wallMs = System.currentTimeMillis() - (bootNowNs - bootNs) / 1_000_000
+                synchronized(lock) {
+                    if (!publishing) return
+                    latest = Frame(nv21, it.width, it.height, bootMs, wallMs, ++cameraSeq)
+                    lock.notifyAll()
+                }
             }
-            val nv21 = toNv21(it)
-            val wallNow = System.currentTimeMillis()
-            // Convert the sensor timestamp to wall clock when it shares the elapsedRealtime base;
-            // otherwise fall back to arrival time (later than capture by the pipeline latency).
-            val wall = if (realtimeTimestamps) {
-                wallNow - (SystemClock.elapsedRealtimeNanos() - it.timestamp) / 1_000_000
-            } else wallNow
-            synchronized(lock) {
-                if (!publishing) return
-                latest = Frame(nv21, it.width, it.height, wall, ++cameraSeq)
-                lock.notifyAll()
-            }
+        } catch (e: Exception) {
+            // IllegalStateException (reader closed, too many images), buffer errors.
+            failed("frame read", e)
         }
     }
 
-    private fun lost(camera: CameraDevice, why: String) {
+    /** Mode B preview frames only keep 3A running; drop them. */
+    private fun onPreview(r: ImageReader) {
+        if (r !== previewReader) return
+        try {
+            r.acquireLatestImage()?.close()
+        } catch (e: Exception) {
+            failed("preview read", e)
+        }
+    }
+
+    private fun lost(camera: CameraDevice, myGen: Long, why: String) {
         camera.close()
+        if (myGen != gen) return
         if (device === camera) device = null
         failed("camera $why", null)
     }
@@ -358,7 +390,10 @@ class CameraService : Service() {
         if (running) camHandler.postDelayed(reopen, REOPEN_DELAY_MS)
     }
 
+    /** Releases the current attempt and makes every callback still in flight for it obsolete. */
     private fun closeCamera() {
+        gen++
+        opening = false
         camHandler.removeCallbacks(stillTick)
         stillRequest = null
         stillInFlight = false
@@ -416,14 +451,17 @@ class CameraService : Service() {
         YuvImage(f.nv21, ImageFormat.NV21, f.width, f.height, null)
             .compressToJpeg(Rect(0, 0, f.width, f.height), JPEG_QUALITY, raw)
         val encodeMs = SystemClock.elapsedRealtime() - t0
+        val clock = if (realtimeTimestamps) "sensor" else "arrival"
         val jpeg = withComment(withExifOrientation(raw.toByteArray(), exifOrientation),
-            "robotcam session=$sessionId frame=$n capture_wall_ms=${f.captureWallMs}")
-        val json = """{"session_id":"$sessionId","frame":$n,"capture_wall_ms":${f.captureWallMs},""" +
+            "robotcam session=$sessionId frame=$n capture_boot_ms=${f.captureBootMs} " +
+                "capture_wall_ms=${f.captureWallMs} clock=$clock")
+        val json = """{"session_id":"$sessionId","frame":$n,"capture_boot_ms":${f.captureBootMs},""" +
+            """"capture_wall_ms":${f.captureWallMs},""" +
             """"written_wall_ms":${System.currentTimeMillis()},"mode":"$mode","rate":$rate,""" +
             """"width":${f.width},"height":${f.height},"size_rule":"$sizeRule",""" +
             """"jpeg_quality":$JPEG_QUALITY,"encode_ms":$encodeMs,"exif_orientation":$exifOrientation,""" +
             """"bytes":${jpeg.size},"fps_min":${fps.lower},"fps_max":${fps.upper},""" +
-            """"timestamp_source":"${if (realtimeTimestamps) "sensor" else "arrival"}",""" +
+            """"clock":"$clock",""" +
             """"yuv_sizes":[${yuvSizes.joinToString(",") { "\"${it.width}x${it.height}\"" }}]}""" +
             "\n"
         synchronized(lock) {

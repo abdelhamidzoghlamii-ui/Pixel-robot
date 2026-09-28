@@ -4,12 +4,20 @@
 Reads frame.jpg N times, one read per --interval seconds. Each read is classified by
 read_frame(), which is also the reader rule a robot should follow. The reader contract is
 the JPEG alone: session, frame counter and capture time come from its embedded comment
-(`robotcam session=<id> frame=<n> capture_wall_ms=<t>`). frame.jpg is replaced by a single
-rename, so one read always sees one whole frame. frame.json is diagnostics only.
+(`robotcam session=<id> frame=<n> capture_boot_ms=<b> capture_wall_ms=<w> clock=<c>`).
+frame.jpg is replaced by a single rename, so one read always sees one whole frame.
+frame.json is diagnostics only.
 
-  ok             JPEG decodes, comment parses, session is the expected one, age <= --max-age
+Age is computed on the boot clock: CLOCK_BOOTTIME now minus capture_boot_ms. The app takes
+capture_boot_ms from the sensor timestamp (clock=sensor) or, if the camera's timestamps are
+not on that base, from the frame's arrival time (clock=arrival). capture_wall_ms is for
+humans only; wall-clock steps (NTP, manual changes) do not affect the age check.
+
+  ok             JPEG decodes, comment parses, session is the expected one,
+                 -0.2 s <= age <= --max-age
   missing        frame.jpg absent/unreadable, or the frame is older than --max-age
-  bad            the JPEG does not decode, or its comment is missing or malformed
+  bad            the JPEG does not decode, its comment is missing or malformed, or its age is
+                 below -0.2 s (a capture time in the future: clock mismatch)
   other_session  the frame belongs to another session than the pinned one (the service was
                  restarted); the test pins the first session it sees
 
@@ -41,7 +49,14 @@ import time
 from PIL import Image
 
 DEFAULT_DIRS = [os.path.expanduser('~/storage/downloads/robotcam'), '/sdcard/Download/robotcam']
-COMMENT_RE = re.compile(rb'^robotcam session=([0-9a-f]+) frame=(\d+) capture_wall_ms=(\d+)$')
+COMMENT_RE = re.compile(rb'^robotcam session=([0-9a-f]+) frame=(\d+) capture_boot_ms=(\d+) '
+                        rb'capture_wall_ms=(\d+) clock=(sensor|arrival)$')
+MIN_AGE = -0.2  # seconds; a younger (future) frame means the clocks disagree
+
+
+def boot_now():
+    """Seconds since boot including deep sleep: the base of SystemClock.elapsedRealtime()."""
+    return time.clock_gettime(time.CLOCK_BOOTTIME)
 
 
 def read_frame(d, max_age, session=None):
@@ -69,7 +84,8 @@ def read_frame(d, max_age, session=None):
     r = {
         'session': m.group(1).decode(),
         'frame': int(m.group(2)),
-        'age_s': time.time() - int(m.group(3)) / 1000.0,
+        'age_s': boot_now() - int(m.group(3)) / 1000.0,
+        'clock': m.group(5).decode(),
         'read_ms': (t1 - t0) * 1000,
         'decode_ms': (t2 - t1) * 1000,
         'size': f'{im.width}x{im.height}',
@@ -77,6 +93,8 @@ def read_frame(d, max_age, session=None):
     }
     if session is not None and r['session'] != session:
         r.update(status='other_session', error=f'session {r["session"]} != {session}')
+    elif r['age_s'] < MIN_AGE:
+        r.update(status='bad', error=f'age {r["age_s"]:.3f} s < {MIN_AGE} s (clock mismatch)')
     elif r['age_s'] > max_age:
         r.update(status='missing', error=f'old: age {r["age_s"]:.3f} s > {max_age} s')
     else:
