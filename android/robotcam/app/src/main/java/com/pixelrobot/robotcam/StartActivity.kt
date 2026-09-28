@@ -37,7 +37,9 @@ class StartActivity : Activity() {
 
     private fun startAndFinish() {
         // Without the camera permission the service stops itself and says why in logcat.
-        startForegroundService(Intent(this, CameraService::class.java))
+        // `--es mode A` selects the repeating JPEG stream; default is mode B (preview + stills).
+        startForegroundService(Intent(this, CameraService::class.java)
+            .putExtra(CameraService.EXTRA_MODE, intent.getStringExtra(CameraService.EXTRA_MODE)))
         finish()
     }
 }

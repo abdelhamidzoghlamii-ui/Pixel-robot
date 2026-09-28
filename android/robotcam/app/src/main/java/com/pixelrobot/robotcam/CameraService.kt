@@ -13,7 +13,9 @@ import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CaptureFailure
 import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
 import android.media.ImageReader
@@ -30,35 +32,49 @@ import android.util.Range
 import android.util.Size
 import java.io.File
 import java.io.IOException
+import java.security.SecureRandom
 import java.util.concurrent.Executor
-import java.util.concurrent.atomic.AtomicReference
-import kotlin.math.abs
 
 /**
- * Keeps the back camera open, streaming small JPEGs at the lowest supported frame rate,
- * holds only the newest frame in memory, and about once a second writes it to
+ * Keeps the back camera open and about once a second publishes the newest JPEG to
  * Download/robotcam/frame.jpg plus a frame.json sidecar, each via temp file + rename.
+ *
+ * Mode A: repeating JPEG stream; the writer publishes the newest frame once a second.
+ * Mode B (default): repeating preview to a small YUV surface keeps exposure and focus
+ * converged; one still JPEG capture per second is published as soon as it arrives.
+ *
+ * Published files are deleted before every (re)start, on any camera error, and when the
+ * service stops; nothing is published once stopping has begun.
  */
 class CameraService : Service() {
 
-    private class Frame(val jpeg: ByteArray, val captureWallMs: Long, val cameraSeq: Long)
+    private class Frame(val jpeg: ByteArray, val captureWallMs: Long, val seq: Long)
 
-    private val latest = AtomicReference<Frame?>(null)
+    // Guards latest, publishing and the published files.
+    private val lock = Object()
+    private var latest: Frame? = null
+    private var publishing = false
 
     @Volatile private var running = false
-    private val sessionStartMs = System.currentTimeMillis()
+    @Volatile private var mode = MODE_B
+    private var sessionId = ""
 
     // Camera state; touched only on camThread.
     private lateinit var camThread: HandlerThread
     private lateinit var camHandler: Handler
     private var device: CameraDevice? = null
     private var session: CameraCaptureSession? = null
-    private var reader: ImageReader? = null
+    private var jpegReader: ImageReader? = null
+    private var previewReader: ImageReader? = null
     private var cameraSeq = 0L
+    private var stillInFlight = false
     private val reopen = Runnable { openCamera() }
+    private val stillTick = Runnable { captureStill() }
 
-    // Chosen configuration, reported in the notification and the sidecar.
+    // Chosen configuration, reported in the log, the notification and the sidecar.
     @Volatile private var size = Size(0, 0)
+    @Volatile private var sizeRule = ""
+    @Volatile private var jpegSizes = emptyList<Size>()
     @Volatile private var fps = Range(0, 0)
     @Volatile private var realtimeTimestamps = false
 
@@ -83,25 +99,42 @@ class CameraService : Service() {
                 startForeground(NOTIFICATION_ID, notification("starting"))
             }
         } catch (e: SecurityException) {
-            Log.e(TAG, "startForeground refused", e)
+            Log.i(TAG, "ERROR startForeground refused", e)
             stopSelf()
             return START_NOT_STICKY
         } catch (e: IllegalStateException) {
-            Log.e(TAG, "startForeground refused", e)
+            Log.i(TAG, "ERROR startForeground refused", e)
             stopSelf()
             return START_NOT_STICKY
         }
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            Log.e(TAG, "CAMERA permission not granted; open the RobotCam app once to grant it")
+            Log.i(TAG, "ERROR CAMERA permission not granted; open the RobotCam app once to grant it")
             stopSelf()
             return START_NOT_STICKY
         }
+        val requested = if (intent?.getStringExtra(EXTRA_MODE).equals(MODE_A, ignoreCase = true)) {
+            MODE_A
+        } else MODE_B
         if (!running) {
             running = true
+            mode = requested
+            sessionId = newSessionId()
+            synchronized(lock) {
+                latest = null
+                publishing = true
+                deletePublished()
+            }
+            Log.i(TAG, "start: session $sessionId, mode $mode")
             camThread = HandlerThread("robotcam-camera").also { it.start() }
             camHandler = Handler(camThread.looper)
             camHandler.post { openCamera() }
             writer = Thread(::writeLoop, "robotcam-writer").also { it.start() }
+        } else if (requested != mode) {
+            camHandler.post {
+                Log.i(TAG, "switching mode $mode -> $requested")
+                mode = requested
+                restartCamera("mode switch")
+            }
         }
         // Not sticky: a restart by the system would come from the background, where the
         // camera is not available to a foreground service anyway.
@@ -111,13 +144,17 @@ class CameraService : Service() {
     override fun onDestroy() {
         if (running) {
             running = false
+            // After this block the writer can no longer publish, and the files are gone.
+            synchronized(lock) {
+                publishing = false
+                latest = null
+                deletePublished()
+                lock.notifyAll()
+            }
             writer?.interrupt()
-            writer?.join(2000)
             camHandler.post { closeCamera() }
             camThread.quitSafely()
-            // The camera is off: remove the files so no reader mistakes the last frame for a live one.
-            File(outDir, JPEG_NAME).delete()
-            File(outDir, SIDECAR_NAME).delete()
+            Log.i(TAG, "stopped: session $sessionId, frames written $framesWritten")
         }
         super.onDestroy()
     }
@@ -134,69 +171,125 @@ class CameraService : Service() {
             }
             val chars = manager.getCameraCharacteristics(id)
             val map = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
-            size = map.getOutputSizes(ImageFormat.JPEG)
-                .minBy { abs(it.width - WANT_W) + abs(it.height - WANT_H) }
+            jpegSizes = map.getOutputSizes(ImageFormat.JPEG).toList()
+            val (chosen, rule) = chooseJpegSize(jpegSizes)
+            size = chosen
+            sizeRule = rule
             fps = chars.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)!!
                 .minWith(compareBy<Range<Int>>({ it.upper }, { it.lower }))
             realtimeTimestamps = chars.get(CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE) ==
                 CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE_REALTIME
             val orientation = chars.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
-            Log.i(TAG, "camera $id: jpeg ${size.width}x${size.height} (wanted ${WANT_W}x$WANT_H), " +
-                "fps $fps, sensor orientation $orientation, realtime timestamps $realtimeTimestamps")
+            Log.i(TAG, "camera $id JPEG output sizes: ${jpegSizes.joinToString(" ")}")
+            Log.i(TAG, "chosen jpeg ${size.width}x${size.height} ($rule), mode $mode, fps $fps, " +
+                "sensor orientation $orientation, realtime timestamps $realtimeTimestamps")
 
-            reader = ImageReader.newInstance(size.width, size.height, ImageFormat.JPEG, 2).apply {
-                setOnImageAvailableListener({ r -> onImage(r) }, camHandler)
+            jpegReader = ImageReader.newInstance(size.width, size.height, ImageFormat.JPEG, 2).apply {
+                setOnImageAvailableListener({ r -> onJpeg(r) }, camHandler)
+            }
+            if (mode == MODE_B) {
+                val yuv = chooseYuvSize(map.getOutputSizes(ImageFormat.YUV_420_888).toList(), size)
+                Log.i(TAG, "preview surface YUV ${yuv.width}x${yuv.height}")
+                previewReader = ImageReader.newInstance(yuv.width, yuv.height,
+                    ImageFormat.YUV_420_888, 2).apply {
+                    // Only there so 3A has a running stream; drop every preview frame.
+                    setOnImageAvailableListener({ r -> r.acquireLatestImage()?.close() }, camHandler)
+                }
             }
             manager.openCamera(id, object : CameraDevice.StateCallback() {
                 override fun onOpened(camera: CameraDevice) {
                     if (!running) { camera.close(); return }
                     device = camera
-                    startSession(camera, orientation)
+                    try {
+                        startSession(camera, orientation)
+                    } catch (e: Exception) {
+                        failed("createCaptureSession", e)
+                    }
                 }
                 override fun onDisconnected(camera: CameraDevice) = lost(camera, "disconnected")
                 override fun onError(camera: CameraDevice, error: Int) = lost(camera, "error $error")
             }, camHandler)
         } catch (e: Exception) {
-            // CameraAccessException, SecurityException, or no back camera: report and retry.
-            Log.e(TAG, "openCamera failed", e)
-            status("camera open failed: ${e.message}")
-            closeCamera()
-            scheduleReopen()
+            // CameraAccessException, SecurityException, IllegalArgumentException, no back camera.
+            failed("openCamera", e)
         }
     }
 
     private fun startSession(camera: CameraDevice, orientation: Int) {
-        val surface = reader!!.surface
+        val jpegSurface = jpegReader!!.surface
+        val previewSurface = previewReader?.surface
         val callback = object : CameraCaptureSession.StateCallback() {
             override fun onConfigured(s: CameraCaptureSession) {
                 if (!running) { s.close(); return }
                 session = s
-                val request = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                    addTarget(surface)
-                    set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fps)
-                    set(CaptureRequest.JPEG_QUALITY, JPEG_QUALITY)
-                    // Same as termux-camera-photo with the phone upright.
-                    set(CaptureRequest.JPEG_ORIENTATION, orientation)
-                }.build()
-                s.setRepeatingRequest(request, null, camHandler)
-                status("streaming")
+                try {
+                    if (mode == MODE_A) {
+                        s.setRepeatingRequest(request(camera, CameraDevice.TEMPLATE_PREVIEW,
+                            jpegSurface, orientation), null, camHandler)
+                    } else {
+                        val preview = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                            addTarget(previewSurface!!)
+                            set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fps)
+                        }.build()
+                        s.setRepeatingRequest(preview, null, camHandler)
+                        stillRequest = request(camera, CameraDevice.TEMPLATE_STILL_CAPTURE,
+                            jpegSurface, orientation)
+                        stillInFlight = false
+                        camHandler.removeCallbacks(stillTick)
+                        camHandler.postDelayed(stillTick, WRITE_PERIOD_MS)
+                    }
+                    status("streaming")
+                } catch (e: Exception) {
+                    failed("start requests", e)
+                }
             }
             override fun onConfigureFailed(s: CameraCaptureSession) {
-                Log.e(TAG, "capture session configuration failed")
-                status("session configuration failed")
-                closeCamera()
-                scheduleReopen()
+                failed("session configuration", null)
             }
         }
+        val outputs = listOfNotNull(jpegSurface, previewSurface).map { OutputConfiguration(it) }
         camera.createCaptureSession(SessionConfiguration(
-            SessionConfiguration.SESSION_REGULAR,
-            listOf(OutputConfiguration(surface)),
-            Executor { camHandler.post(it) },
-            callback
+            SessionConfiguration.SESSION_REGULAR, outputs, Executor { camHandler.post(it) }, callback
         ))
     }
 
-    private fun onImage(r: ImageReader) {
+    private var stillRequest: CaptureRequest? = null
+
+    private fun request(camera: CameraDevice, template: Int, target: android.view.Surface,
+                        orientation: Int): CaptureRequest =
+        camera.createCaptureRequest(template).apply {
+            addTarget(target)
+            set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fps)
+            set(CaptureRequest.JPEG_QUALITY, JPEG_QUALITY)
+            // Same as termux-camera-photo with the phone upright.
+            set(CaptureRequest.JPEG_ORIENTATION, orientation)
+        }.build()
+
+    /** Mode B: one still JPEG per period; skipped while the previous one is still in flight. */
+    private fun captureStill() {
+        val s = session ?: return
+        val req = stillRequest ?: return
+        camHandler.postDelayed(stillTick, WRITE_PERIOD_MS)
+        if (stillInFlight) return
+        try {
+            stillInFlight = true
+            s.capture(req, object : CameraCaptureSession.CaptureCallback() {
+                override fun onCaptureCompleted(
+                    session: CameraCaptureSession, request: CaptureRequest, result: TotalCaptureResult
+                ) { stillInFlight = false }
+                override fun onCaptureFailed(
+                    session: CameraCaptureSession, request: CaptureRequest, failure: CaptureFailure
+                ) {
+                    stillInFlight = false
+                    Log.i(TAG, "ERROR still capture failed, reason ${failure.reason}")
+                }
+            }, camHandler)
+        } catch (e: Exception) {
+            failed("still capture", e)
+        }
+    }
+
+    private fun onJpeg(r: ImageReader) {
         val image = r.acquireLatestImage() ?: return
         image.use {
             val buffer = it.planes[0].buffer
@@ -208,17 +301,35 @@ class CameraService : Service() {
             val wall = if (realtimeTimestamps) {
                 now - (SystemClock.elapsedRealtimeNanos() - it.timestamp) / 1_000_000
             } else now
-            latest.set(Frame(bytes, wall, ++cameraSeq))
+            synchronized(lock) {
+                if (!publishing) return
+                latest = Frame(bytes, wall, ++cameraSeq)
+                lock.notifyAll()
+            }
         }
     }
 
     private fun lost(camera: CameraDevice, why: String) {
-        Log.w(TAG, "camera $why")
-        status("camera $why, retrying")
         camera.close()
         if (device === camera) device = null
+        failed("camera $why", null)
+    }
+
+    /** Any camera failure: unpublish, release everything, retry after a delay. */
+    private fun failed(what: String, e: Exception?) {
+        Log.i(TAG, "ERROR $what failed${e?.let { ": $it" } ?: ""}", e)
+        status("$what failed, retrying")
+        unpublish()
         closeCamera()
         scheduleReopen()
+    }
+
+    private fun restartCamera(why: String) {
+        Log.i(TAG, "restarting camera: $why")
+        unpublish()
+        closeCamera()
+        camHandler.removeCallbacks(reopen)
+        openCamera()
     }
 
     private fun scheduleReopen() {
@@ -227,30 +338,56 @@ class CameraService : Service() {
     }
 
     private fun closeCamera() {
-        session?.close(); session = null
+        camHandler.removeCallbacks(stillTick)
+        stillRequest = null
+        stillInFlight = false
+        try { session?.close() } catch (e: IllegalStateException) { /* already closed */ }
+        session = null
         device?.close(); device = null
-        reader?.close(); reader = null
+        jpegReader?.close(); jpegReader = null
+        previewReader?.close(); previewReader = null
     }
 
-    // ---------------------------------------------------------------- writer thread
+    // ---------------------------------------------------------------- publishing
+
+    /** Removes the published files and the pending frame, so no reader sees an old frame. */
+    private fun unpublish() {
+        synchronized(lock) {
+            latest = null
+            deletePublished()
+        }
+    }
+
+    /** Caller holds [lock]. */
+    private fun deletePublished() {
+        File(outDir, SIDECAR_NAME).delete()
+        File(outDir, JPEG_NAME).delete()
+    }
 
     private fun writeLoop() {
-        var next = SystemClock.elapsedRealtime() + WRITE_PERIOD_MS
         var lastSeq = 0L
-        while (running) {
-            try {
-                Thread.sleep(maxOf(0L, next - SystemClock.elapsedRealtime()))
-            } catch (e: InterruptedException) {
-                return
+        var nextDue = 0L
+        while (true) {
+            // Wait for a frame newer than the last one published; in mode A also for the period.
+            val f = synchronized(lock) {
+                var pick: Frame? = null
+                while (pick == null) {
+                    if (!publishing) return
+                    val cur = latest
+                    val wait = when {
+                        cur == null || cur.seq == lastSeq -> 0L
+                        mode == MODE_A && SystemClock.elapsedRealtime() < nextDue ->
+                            nextDue - SystemClock.elapsedRealtime()
+                        else -> { pick = cur; break }
+                    }
+                    try { lock.wait(wait) } catch (e: InterruptedException) { return }
+                }
+                pick!!
             }
-            next += WRITE_PERIOD_MS
-            val f = latest.get()
-            // No new camera frame since the last write: leave the files alone. The reader sees an
-            // unchanged frame counter and an ageing capture time.
-            if (f == null || f.cameraSeq == lastSeq) continue
-            lastSeq = f.cameraSeq
+            lastSeq = f.seq
+            nextDue = SystemClock.elapsedRealtime() + WRITE_PERIOD_MS
             try {
-                writeFrame(f)
+                publish(f)
             } catch (e: IOException) {
                 writeFailed(e)
             } catch (e: ErrnoException) {
@@ -259,18 +396,25 @@ class CameraService : Service() {
         }
     }
 
-    private fun writeFrame(f: Frame) {
-        outDir.mkdirs()
+    private fun publish(f: Frame) {
         val n = framesWritten + 1
-        val jpeg = withComment(f.jpeg, "robotcam frame=$n capture_wall_ms=${f.captureWallMs}")
-        val json = """{"frame":$n,"capture_wall_ms":${f.captureWallMs},""" +
-            """"written_wall_ms":${System.currentTimeMillis()},"session_start_ms":$sessionStartMs,""" +
-            """"width":${size.width},"height":${size.height},"bytes":${jpeg.size},""" +
-            """"fps_min":${fps.lower},"fps_max":${fps.upper},""" +
-            """"timestamp_source":"${if (realtimeTimestamps) "sensor" else "arrival"}"}""" + "\n"
-        // Image first, sidecar last: a sidecar always describes an image that is already in place.
-        writeAtomic(JPEG_NAME, jpeg)
-        writeAtomic(SIDECAR_NAME, json.toByteArray())
+        val jpeg = withComment(f.jpeg,
+            "robotcam session=$sessionId frame=$n capture_wall_ms=${f.captureWallMs}")
+        val json = """{"session_id":"$sessionId","frame":$n,"capture_wall_ms":${f.captureWallMs},""" +
+            """"written_wall_ms":${System.currentTimeMillis()},"mode":"$mode",""" +
+            """"width":${size.width},"height":${size.height},"size_rule":"$sizeRule",""" +
+            """"bytes":${jpeg.size},"fps_min":${fps.lower},"fps_max":${fps.upper},""" +
+            """"timestamp_source":"${if (realtimeTimestamps) "sensor" else "arrival"}",""" +
+            """"jpeg_sizes":[${jpegSizes.joinToString(",") { "\"${it.width}x${it.height}\"" }}]}""" +
+            "\n"
+        synchronized(lock) {
+            // Stop, a camera error or a restart since this frame was picked: do not publish it.
+            if (!publishing || latest !== f) return
+            outDir.mkdirs()
+            // Image first, sidecar last: a sidecar always describes an image that is in place.
+            writeAtomic(JPEG_NAME, jpeg)
+            writeAtomic(SIDECAR_NAME, json.toByteArray())
+        }
         framesWritten = n
         if (n == 1L || n % 10 == 0L) status("streaming")
     }
@@ -284,7 +428,7 @@ class CameraService : Service() {
     private fun writeFailed(e: Exception) {
         writeErrors++
         lastError = e.message ?: e.javaClass.simpleName
-        Log.e(TAG, "write failed", e)
+        Log.i(TAG, "ERROR write failed: $lastError")
         if (writeErrors == 1L || writeErrors % 10 == 0L) status("write failed")
     }
 
@@ -300,7 +444,7 @@ class CameraService : Service() {
             NotificationChannel(CHANNEL_ID, "Robot camera", NotificationManager.IMPORTANCE_LOW)
         )
         val detail = buildString {
-            append("${size.width}x${size.height}, fps ${fps.lower}-${fps.upper}, ")
+            append("mode $mode, ${size.width}x${size.height}, fps ${fps.lower}-${fps.upper}, ")
             append("written $framesWritten")
             if (writeErrors > 0) append(", write errors $writeErrors: $lastError")
         }
@@ -317,13 +461,41 @@ class CameraService : Service() {
         private const val TAG = "RobotCam"
         private const val CHANNEL_ID = "robotcam"
         private const val NOTIFICATION_ID = 1
-        private const val WANT_W = 640
-        private const val WANT_H = 480
         private const val JPEG_QUALITY: Byte = 85
         private const val WRITE_PERIOD_MS = 1000L
         private const val REOPEN_DELAY_MS = 2000L
         private const val JPEG_NAME = "frame.jpg"
         private const val SIDECAR_NAME = "frame.json"
+        const val EXTRA_MODE = "mode"
+        const val MODE_A = "A"
+        const val MODE_B = "B"
+
+        private fun newSessionId(): String {
+            val b = ByteArray(8)
+            SecureRandom().nextBytes(b)
+            return b.joinToString("") { "%02x".format(it) }
+        }
+
+        /**
+         * Exactly 640x480 if offered; otherwise the smallest 4:3 size of at least 640x480;
+         * otherwise the smallest size at least 640 wide; otherwise the largest size.
+         */
+        fun chooseJpegSize(sizes: List<Size>): Pair<Size, String> {
+            sizes.firstOrNull { it.width == 640 && it.height == 480 }?.let { return it to "exact 640x480" }
+            val byArea = sizes.sortedBy { it.width.toLong() * it.height }
+            byArea.firstOrNull { it.width * 3 == it.height * 4 && it.width >= 640 && it.height >= 480 }
+                ?.let { return it to "smallest 4:3 >= 640x480" }
+            byArea.firstOrNull { it.width >= 640 }?.let { return it to "smallest >= 640 wide" }
+            return byArea.last() to "largest (none >= 640 wide)"
+        }
+
+        /** Smallest preview size with the JPEG's aspect ratio (same field of view), else smallest. */
+        fun chooseYuvSize(sizes: List<Size>, jpeg: Size): Size {
+            val byArea = sizes.sortedBy { it.width.toLong() * it.height }
+            return byArea.firstOrNull {
+                it.width.toLong() * jpeg.height == it.height.toLong() * jpeg.width && it.width >= 320
+            } ?: byArea.first()
+        }
 
         /**
          * Inserts a JPEG COM segment after the APPn segments, so the reader can check that the

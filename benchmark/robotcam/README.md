@@ -2,7 +2,8 @@
 
 `robotcam_test.py` reads the frames that the RobotCam app (`android/robotcam/`)
 writes to `~/storage/downloads/robotcam/` and reports read and decode time, frame
-age from the sidecar, and missing, repeated, stale, skipped or mismatched frames.
+age from the sidecar, and missing (including older than 2 s), malformed, mismatched,
+repeated or skipped frames. Its `read_frame()` is the reader rule the robot should use.
 Start/stop commands and install steps are in `android/robotcam/README.md`.
 
 ```bash
