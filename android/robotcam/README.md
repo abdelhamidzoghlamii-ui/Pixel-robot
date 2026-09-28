@@ -12,27 +12,37 @@ and is not built from that app's module layout. It contains no robot or motor co
 
 - Foreground service (type `camera`) with an ongoing notification that shows the
   mode, chosen size, frame-rate range, frames written and write errors.
-- Back camera, Camera2, lowest supported AE frame-rate range, `JPEG_ORIENTATION` =
-  sensor orientation (the same as `termux-camera-photo` with the phone upright).
-- JPEG size rule: exactly 640x480 if the camera offers it; otherwise the smallest
-  4:3 size of at least 640x480; otherwise the smallest size at least 640 wide;
-  otherwise the largest size. The full list of JPEG output sizes, the chosen size
-  and the rule that picked it are logged and written into the sidecar.
+- Back camera, Camera2, lowest supported AE frame-rate range.
+- Frames come from a `YUV_420_888` stream and are compressed to JPEG in the app
+  (Android `YuvImage`, quality 85), only for frames that are published. The camera's
+  own JPEG path is not used: on the Pixel 7 its smallest JPEG size is 1920x1080.
+- Frame size rule, applied to the camera's YUV sizes: exactly 640x480 if offered;
+  otherwise the smallest 4:3 size of at least 640x480; otherwise the smallest size at
+  least 640 wide; otherwise the largest size. The full list of YUV sizes, the chosen
+  size and the rule that picked it are logged and written into the sidecar.
+- Orientation: pixels are not rotated. An EXIF Orientation tag derived from the
+  sensor orientation (90° → 6) is written into the JPEG, so PIL's
+  `ImageOps.exif_transpose` (used by `detect_person.py`) turns it upright, as with
+  `termux-camera-photo` and the phone upright.
 - Two capture modes, chosen at start with the intent extra `mode` (default `B`):
-  - `A` — a repeating request streams JPEGs; the newest one is published about
-    once a second.
-  - `B` — a repeating preview to a small YUV surface (same aspect ratio as the JPEG,
-    frames dropped) keeps exposure and focus converged; one still JPEG is captured
-    about once a second and published as soon as it arrives.
+  - `A` — a repeating request streams YUV frames at the frame size; one frame per
+    publish period is copied out and published.
+  - `B` — a repeating preview to a small YUV surface (same aspect ratio, frames
+    dropped) keeps exposure and focus converged; one still capture per publish
+    period goes straight to the YUV frame surface and is published as soon as it
+    arrives.
   Only the newest frame is kept in memory in both modes.
+- Publish rate: intent extra `rate`, 1 (default) or 2 frames per second; any other
+  value falls back to 1.
 - Each frame is published as two files, each through a `*.tmp` file and `rename()`:
   - `frame.jpg` — the JPEG, with a JPEG comment
     `robotcam session=<session_id> frame=<N> capture_wall_ms=<T>`
   - `frame.json` — the sidecar, written after the image:
     ```json
     {"session_id":"9f2c…","frame":N,"capture_wall_ms":T,"written_wall_ms":W,"mode":"B",
-     "width":640,"height":480,"size_rule":"exact 640x480","bytes":B,
-     "fps_min":a,"fps_max":b,"timestamp_source":"sensor","jpeg_sizes":["4080x3072",…]}
+     "rate":1,"width":640,"height":480,"size_rule":"exact 640x480","jpeg_quality":85,
+     "encode_ms":E,"exif_orientation":6,"bytes":B,"fps_min":a,"fps_max":b,
+     "timestamp_source":"sensor","yuv_sizes":["4080x3072",…,"640x480",…]}
     ```
     `session_id` is random per service start; `frame` counts publications within
     that session. `capture_wall_ms` is the sensor timestamp converted to wall-clock
@@ -43,8 +53,9 @@ and is not built from that app's module layout. It contains no robot or motor co
   published (publishing and deletion share one lock and a stop flag).
 - If the camera is lost (another app took it, an error, any exception in a camera
   callback) it closes everything and retries every 2 s.
-- Log: `Log.i` under tag `RobotCam` (size list, chosen size and rule, mode, fps
-  range, errors prefixed `ERROR`).
+- Log: `Log.i` under tag `RobotCam` (size list, chosen size and rule, mode, rate,
+  fps range, errors prefixed `ERROR`), plus a heartbeat line on the first and every
+  30th published frame.
 
 ## Reader rule (for the robot)
 
@@ -80,6 +91,8 @@ No dependencies: Android platform APIs and the Kotlin standard library only.
 
 **Device-verified 2026-09-28 on the Pixel 7:** the app writes here and Termux
 reads the files without root.
+Retest of 8817a47 (camera JPEG path, 1920x1440 frames): 40/40 frames ok in modes A
+and B, stop cleared the files. The in-app 640x480 path is not device-tested yet.
 
 Termux sees it as `~/storage/downloads/robotcam/` (after `termux-setup-storage`).
 
@@ -123,8 +136,11 @@ Limits:
 ```bash
 # start, mode B (default: preview + one still per second)
 am start -n com.pixelrobot.robotcam/.StartActivity
-# start, mode A (repeating JPEG stream); a running service switches mode in place
+# start, mode A (repeating YUV stream); a running service switches mode/rate in place;
+# a plain start resets it to mode B, rate 1
 am start -n com.pixelrobot.robotcam/.StartActivity --es mode A
+# publish twice per second (combine with --es mode A as needed)
+am start -n com.pixelrobot.robotcam/.StartActivity --ei rate 2
 
 # stop (camera off, files removed)
 am broadcast -n com.pixelrobot.robotcam/.ControlReceiver -a com.pixelrobot.robotcam.STOP
@@ -145,7 +161,10 @@ closes. Starting an activity from Termux requires Termux to be in the foreground
 (screen on, Termux visible) or to have "Display over other apps".
 Diagnostics: the notification, the sidecar, or `adb logcat -s RobotCam` from a
 computer. `logcat` inside Termux without root shows only Termux's own log, which is
-why `logcat -s RobotCam` there shows nothing; with root, `su -c logcat -s RobotCam`.
+why `logcat -s RobotCam` there shows nothing; with root,
+`su -c 'logcat -d -v time -s RobotCam'`. Up to 8817a47 the service logged only at
+start and on errors, so those lines could already have rotated out of the log buffer;
+the heartbeat now adds a line every 30 frames.
 
 ## Build
 
