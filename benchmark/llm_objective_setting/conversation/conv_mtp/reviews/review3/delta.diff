@@ -1,0 +1,54 @@
+3c3
+< index 0000000..533dcfb
+---
+> index 0000000..0fa97de
+6c6
+< @@ -0,0 +1,218 @@
+---
+> @@ -0,0 +1,243 @@
+22a23
+> +import os
+23a25
+> +import shutil
+30c32
+< +import conv_speed as cs  # the archived runner: its prompts, server flags, streaming turn, stop, VmHWM, resume
+---
+> +import conv_speed as cs  # the archived runner: its prompts, server flags, streaming turn, stop, VmHWM, summary
+158a161,179
+> +def read_jsonl(p):
+> +    """Rows of a JSONL file; a torn last line (a write cut off by a kill) is dropped."""
+> +    lines = p.read_text().splitlines() if p.exists() else []
+> +    rows = [json.loads(l) for l in lines[:-1]]
+> +    try:
+> +        rows += [json.loads(l) for l in lines[-1:]]
+> +    except json.JSONDecodeError:
+> +        print(f"{p}: dropping torn last line", flush=True)
+> +    return rows
+> +
+> +
+> +def load_done(out):
+> +    """conv_speed.load_done, tolerant of interrupted writes: blocks listed in blocks.jsonl (written only after the
+> +    block passed) with their turns; turns of a block without a record (interrupted) are ignored."""
+> +    turns = read_jsonl(out / "turns.jsonl")
+> +    return {(m["model"], m["block"]): (m, [r for r in turns if (r["model"], r["block"]) == (m["model"], m["block"])])
+> +            for m in read_jsonl(out / "blocks.jsonl")}
+> +
+> +
+176c197
+< +    done = cs.load_done(a.out) if a.resume else {}
+---
+> +    done = load_done(a.out) if a.resume else {}
+182,185c203,210
+< +        turns = a.out / "turns.jsonl"
+< +        if turns.exists():  # drop turns of a block interrupted before its blocks.jsonl record; keep the old file
+< +            turns.rename(a.out / f"turns.jsonl.before_resume_{stamp}")
+< +            turns.write_text("".join(json.dumps(r) + "\n" for _, rows in done.values() for r in rows))
+---
+> +        # rewrite both logs with only the completed blocks (no orphan turns, no torn line to append onto);
+> +        # the old files are kept as *.before_resume_<stamp>, the new ones replace them atomically
+> +        for fname, rows in (("blocks.jsonl", [m for m, _ in done.values()]),
+> +                            ("turns.jsonl", [r for _, rs in done.values() for r in rs])):
+> +            if (a.out / fname).exists():
+> +                shutil.copy2(a.out / fname, a.out / f"{fname}.before_resume_{stamp}")
+> +            (a.out / f"{fname}.tmp").write_text("".join(json.dumps(r) + "\n" for r in rows))
+> +            os.replace(a.out / f"{fname}.tmp", a.out / fname)

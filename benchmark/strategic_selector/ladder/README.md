@@ -10,7 +10,7 @@ set kept outside this repository (DECISIONS #113), not on these cases.
 
 ## Runner
 
-`ladder.py` (runner, SHA-256 `c1a4f65d…` at archive time) starts each model as `ladder_worker.py`
+`ladder.py` (runner, SHA-256 `c1a4f65d…` at archive time; replaced 2026-09-28 by the live `c7e6d3c9…`, see below) starts each model as `ladder_worker.py`
 in its own venv, reusing the v3 adapters (`../v3/adapters.py`) through the jevlike model table
 (`../manual/jevlike/jevlike.py`). Per model it runs both option orders at 4 threads plus 2/3/4-thread
 blocks, records decision time split into tokenise/forward/post, cold vs cached load, peak RSS, order
@@ -46,11 +46,20 @@ b1609 92/120, 6650 ms median; b2351 93/120, 2052 ms; b2351 + Gemma Q4_0 93/120, 
 Qwen3.5-2B 81/120, 1268 ms; b2351 + Qwen3.5-0.8B 53/120, 505 ms. The dotprod rebuild of b1609 is in
 `../../llama_dotprod_rebuild/`.
 
+s1o on the robot's dotprod b1609 build with Gemma Q4_0 (`s1o_b1609dp_q40`, main block only,
+`run_s1o_dp_q40.sh`, `runs/s1o_dp_q40_20260927T224301Z/report.txt`): 93/120 correct, 97/120
+acceptable, 6/60 order flips, decision median 1408 ms (P95 2936), cold load 6.7 s, peak RAM 3920 MiB.
+Model `/termux-home/models/gemma-4-E2B-it-Q4_0.gguf` (server log), 2841481184 bytes, SHA-256
+`8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52` (hashed 2026-09-28; not in Git).
+Same accuracy as b2351 + Q4_0 (93/120, 1547 ms). The only `ladder.py` change for this run adds the
+`B1609DP` path and the `s1o_b1609dp_q40` entry with `B2351_ARGS` (4 lines; archived `ladder.py` is now
+the live `c7e6d3c9…`, the version recorded by the 2026-09-28 conversation-MTP and YOLO runs).
+
 ## Contents
 
 | Path | What |
 |---|---|
-| `ladder.py`, `ladder_worker.py`, `test_ladder.py`, `measure.py`, `run_s1o_speed.sh`, `run_conversation.sh`, `oneshot*.sh` | runner, worker, test, cpuset-guarded measure, run scripts |
+| `ladder.py`, `ladder_worker.py`, `test_ladder.py`, `measure.py`, `run_s1o_speed.sh`, `run_s1o_dp_q40.sh`, `run_conversation.sh`, `oneshot*.sh` | runner, worker, test, cpuset-guarded measure, run scripts |
 | `cases/`, `toy_cases.jsonl` | the 60 development cases; 3 toy cases for runner tests |
 | `runs/old_runs/`, `runs/toy_run/`, `runs/smoke_run/` | toy and smoke runs during the build (2026-09-25) |
 | `runs/real_run/` | the 7-model run |
@@ -68,7 +77,8 @@ Qwen3.5-2B 81/120, 1268 ms; b2351 + Qwen3.5-0.8B 53/120, 505 ms. The dotprod reb
 Ladder build: round 1 (AGY `gemini-3.1-pro-high`) raised findings including a MAJOR thread-hint
 defect; round 2 **PASS**. s1o speed preparation: first request returned an empty response
 (incomplete), then **APPROVE WITH NOTES**; a later request failed with a network ERROR (incomplete)
-and its re-run was **APPROVE**; final round **APPROVE**. The run results themselves were not reviewed.
+and its re-run was **APPROVE**; final round **APPROVE**. The run results themselves were not reviewed. The 2026-09-28 `ladder.py` change and `run_s1o_dp_q40.sh` have no review on record
+(none found under `/termux-home`).
 
 ## Evidence gaps
 
@@ -81,3 +91,5 @@ and its re-run was **APPROVE**; final round **APPROVE**. The run results themsel
 - The models' weights and venvs are not in Git; von12's venv and weights and laya_micro's graphs were
   deleted from the phone on 2026-09-26, and their jevlike menu entries removed, so those two rows cannot
   be rerun as-is.
+- `s1o_dp_q40_20260927T224301Z` records the cases hash but not the runner hash; `ladder.py` `c7e6d3c9…`
+  is inferred (live file last modified 2026-09-27 22:21Z, before the 22:43Z start; later runs record it).

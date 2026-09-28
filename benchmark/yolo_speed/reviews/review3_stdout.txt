@@ -1,0 +1,10 @@
+The runtime check supports the benchmark’s core approach: it uses native Termux Python and ONNX Runtime 1.25.1 with `CPUExecutionProvider`, default session settings, the robot’s image preprocessing, and its NMS function. The 14 configurations loaded and returned detections in the resident-agent checks. Those timings are not benchmark results. No motor or robot-code change appears in the candidate, and the supplied hashes show the deployed model stayed unchanged.
+
+**Required changes**
+
+1. [yolo_speed.py](/termux-home/robot/benchmark/yolo_speed/yolo_speed.py:191) converts completed JSONL rows to a dictionary before validating them. If a file contains two rows for one config, an older row with missing or changed `inputs` is discarded; the later rewrite then erases it. Validate **every** row before deduplicating, and reject duplicate completed configs.
+2. [yolo_speed.py](/termux-home/robot/benchmark/yolo_speed/yolo_speed.py:222) computes the model hash for a new block *after* the worker finishes. If the model changes during that block, the stored `inputs` can claim a model the worker did not run. Record the hash before launch and check it again before accepting the block; discard the block if it changed.
+
+The Round 3 checks do establish that ordinary changed-input resumes reject before `blocks.jsonl` is rewritten. The report supplies the requested timing summaries and per-frame counts in the block rows. The proot worker limits absolute latency comparisons with the native robot; that limitation should accompany any eventual result.
+
+**Verdict: CHANGES REQUIRED.** Fix the two provenance cases and rerun the resume checks. No commit, push, or timed run was performed.

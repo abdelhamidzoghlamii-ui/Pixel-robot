@@ -1,0 +1,9 @@
+**Verdict: REQUEST CHANGES**
+
+1. **MAJOR — Paired replies receive different prompts.** [conv_speed_mtp.py](/termux-home/robot/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py:62) regenerates prompts for each config, while `bench.format_prompt()` inserts a random nonce. At temperature 0, an MTP-on reply can differ from its MTP-off twin because the prompt bytes differ. The reported byte-identical count therefore cannot isolate MTP’s effect. Reuse each prompt’s exact bytes across its pair.
+
+2. **MAJOR — Resume can silently accept an incomplete prompt set.** [conv_speed_mtp.py](/termux-home/robot/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py:166) treats any completed block in the output directory as done without checking its prompt IDs against the current `--ids`. Resuming a two-prompt toy directory with the default 13 IDs skips those blocks and produces a report from two replies per config.
+
+3. **MAJOR — An interrupted write can double-count a block on resume.** [conv_speed_mtp.py](/termux-home/robot/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py:194) flushes turns before writing the completion record. If the unattended run stops between those writes, resume reruns the block, and `cs.load_done()` combines both sets of turns under one completion record. Rates, acceptance, scoring, and the identical-reply denominator can then be wrong.
+
+The supplied smoke logs show both drafters loading and reporting acceptance; the two-prompt toy run completed. Neither check covers these three cases.

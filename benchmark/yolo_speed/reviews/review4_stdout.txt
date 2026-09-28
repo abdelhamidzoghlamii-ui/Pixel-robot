@@ -1,0 +1,9 @@
+**Reviewer finding — resume can accept an incomplete block.** In [yolo_speed.py](/termux-home/robot/benchmark/yolo_speed/yolo_speed.py:197), a row with a valid `config` and current `inputs` passes validation even if it has no `rows` or timing data. Resume then skips that config; [report()](/termux-home/robot/benchmark/yolo_speed/yolo_speed.py:121) fails only after the remaining configs run. Require the fields that make a block complete before rewriting or skipping it.
+
+**Reviewer finding — a complete corrupt last line can be discarded.** [read_jsonl()](/termux-home/robot/benchmark/yolo_speed/yolo_speed.py:145) treats any invalid final JSON line as a torn write, including one terminated by a newline. The resume rewrite then removes it. Drop only an unterminated partial line; reject a malformed complete line.
+
+The reported checks support the round 1–3 fixes: duplicate rows and changed inputs are rejected, and a block whose inputs change while running is discarded. The worker follows the deployed detector’s session, preprocessing, and NMS path; the export and two-frame checks support the stated model compatibility. I found no motor use or edit to robot code or the deployed model. The resident-agent timing check does not establish benchmark speed, as intended.
+
+Required changes: validate completed block structure on resume, and distinguish a torn final write from a malformed complete line. Recheck those two cases, then repeat the independent review. No commit, push, or timed run is authorized by this review.
+
+**CHANGES REQUIRED**

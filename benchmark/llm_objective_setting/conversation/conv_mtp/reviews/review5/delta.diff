@@ -1,0 +1,36 @@
+3c3
+< index 0000000..8b51133
+---
+> index 0000000..7175997
+6c6
+< @@ -0,0 +1,249 @@
+---
+> @@ -0,0 +1,252 @@
+33a34
+> +import aggregate  # noqa: E402  on conv_speed's sys.path: score_c.py's strict and lenient graders
+146c147,148
+< +    That grader raises on some shapes (e.g. "object": null); such a reply is scored as failed, with the error kept."""
+---
+> +    The graders raise on some reply shapes (e.g. "object": null, a list as room); such a row gets score_c.py's "error"
+> +    field, so score_c.py counts it under errors and scores the rest instead of crashing."""
+154c156,158
+< +            err = None
+---
+> +            row = {"config": name, "bucket": "C", "prompt_id": p["id"], "lang": p["lang"], "run_index": 1,
+> +                   "source_sha256": bench.SOURCE_SHA256, "reply_raw": r["reply"], "reply_clean": clean,
+> +                   "truncated": r["stop_type"] == "limit"}
+157,163c161,166
+< +            except (AttributeError, TypeError) as e:
+< +                parse_ok = exact = crit = viol = False
+< +                err = repr(e)
+< +            out.append({"C_grade_error": err, "config": name, "bucket": "C", "prompt_id": p["id"], "lang": p["lang"], "run_index": 1,
+< +                        "source_sha256": bench.SOURCE_SHA256, "reply_raw": r["reply"], "reply_clean": clean,
+< +                        "truncated": r["stop_type"] == "limit", "C_parse_ok": parse_ok, "C_exact": exact,
+< +                        "C_critical_failure": crit, "C_reject_violation": viol})
+---
+> +                for lenient in (False, True):  # the regimes score_c.py adds
+> +                    aggregate.grade(r["reply"], p["id"], lenient=lenient)
+> +                row.update(C_parse_ok=parse_ok, C_exact=exact, C_critical_failure=crit, C_reject_violation=viol)
+> +            except Exception as e:  # any grader crash on model text
+> +                row["error"] = f"grader raised {e!r}"
+> +            out.append(row)

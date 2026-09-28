@@ -52,6 +52,7 @@ WEIGHTS = {
 }
 # s1o speed variants: same S1O adapter and letter scoring, other llama.cpp build / GGUF. name -> (env, gguf)
 B1609, B2351 = "/termux-home/llama.cpp/build/bin", "/termux-home/llama.cpp-upstream/build/bin"
+B1609DP = "/termux-home/llama.cpp-b1609-dotprod/build/bin"  # server_manager.py LLAMA_SERVER (DECISIONS #114)
 # b2351 keeps a host-RAM prompt cache and SWA checkpoints by default; off, so no decision reuses another's prompt.
 # -b/-ub 512 are the defaults, pinned: the longest ladder prompt (173 tokens) is evaluated as one batch.
 # Flash attention off: b2351's CPU flash attention segfaults on Gemma 4 prompts of >= 64 tokens (b1609 runs it on).
@@ -61,7 +62,8 @@ GGUFS = {"q4km": "/termux-home/models/gemma-4-e2b-it-q4_k_m.gguf", "q40": "/term
          "qwen08b": "/termux-home/models/qwen35/Qwen3.5-0.8B-Q4_K_M.gguf"}
 VARIANTS = {"s1o_b1609": (B1609, "q4km", ""), "s1o_b2351": (B2351, "q4km", B2351_ARGS),
             "s1o_b2351_q40": (B2351, "q40", B2351_ARGS), "s1o_b2351_qwen2b": (B2351, "qwen2b", B2351_ARGS),
-            "s1o_b2351_qwen08b": (B2351, "qwen08b", B2351_ARGS)}
+            "s1o_b2351_qwen08b": (B2351, "qwen08b", B2351_ARGS),
+            "s1o_b1609dp_q40": (B1609DP, "q40", B2351_ARGS)}  # same flags as s1o_b2351_q40: only the build differs
 VARIANT_ENV = {n: {"S1O_LLAMA_BIN": b, "S1O_GGUF": GGUFS[g], "S1O_SERVER_ARGS": a} for n, (b, g, a) in VARIANTS.items()}
 MODELS = {**MODELS, **{n: MODELS["s1o"] for n in VARIANTS}}
 WEIGHTS.update({n: [Path(GGUFS[g])] for n, (_, g, _) in VARIANTS.items()})

@@ -1,0 +1,10 @@
+The candidate is fit for the **speed comparison**. The worker uses the robot’s native Python and ONNX Runtime 1.25.1, the same default CPU session and preprocessing, and the same confidence filter and NMS. It runs each config in a fresh process. The supplied checks show all 14 models loading and returning detections; the deployed model’s checked detections match `detect_scene()`. The thermal gate, cores retry, cold-load record, resume provenance checks, and timed-row validation are present in [yolo_speed.py](/data/data/com.termux/files/home/robot/benchmark/yolo_speed/yolo_speed.py:103).
+
+Two notes:
+
+- At 640, the position cutoffs use `imgsz / 3` rather than the deployed detector’s exact `213` and `427`; the worker also omits label and coordinate formatting from its timed post step ([yolo_speed.py](/data/data/com.termux/files/home/robot/benchmark/yolo_speed/yolo_speed.py:55), [detect_person.py](/data/data/com.termux/files/home/robot/detect_person.py:82)). This is a small post-timing and boundary-position difference, with no material effect on the requested speed ranking.
+- The supplied weight comparison suggests the deployed yolo11m is effectively stock, which conflicts with [STATUS.md](/data/data/com.termux/files/home/robot/docs/STATUS.md). Resolve that provenance before interpreting a later accuracy comparison.
+
+The report contains the requested median/P95, load, RSS, thermal, and load-state fields; per-frame detection counts are in `blocks.jsonl`. I found no motor call, robot-code edit, deployed-model write, or file deletion in the supplied candidate. This review used the inlined diff and check output; I did not run a timed benchmark.
+
+**APPROVE WITH NOTES — required changes: none.** This is a review verdict, not commit or push authorization.

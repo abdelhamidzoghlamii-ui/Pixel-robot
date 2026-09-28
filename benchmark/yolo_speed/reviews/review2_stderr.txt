@@ -1,0 +1,2416 @@
+OpenAI Codex v0.157.1
+--------
+workdir: /data/data/com.termux/files/home/robot
+model: gpt-6-sol
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: medium
+reasoning summaries: none
+session id: 01a0e8f9-885f-7612-a0dd-c39f72bdb16f
+--------
+user
+ROUND 2 (fresh session). Round 1 verdict was CHANGES REQUIRED with two findings: (1) benchmark/* is gitignored so the scripts were untrackable; (2) --resume did not validate input hashes. Both are addressed below. Round 1 also reported the sandbox denied reading source files, so the full sources are INLINED here. Review the whole candidate again, not only the fixes.
+
+BASE: main 825152b75fff241429acf69eccbbf01e131a7b8d, uncommitted candidate. The two untracked files under benchmark/llm_objective_setting/conversation/ predate this task and are NOT part of it.
+
+## TASK
+Goal: prepare a SHORT unattended YOLO speed benchmark on the phone to choose which YOLO family/size/input to
+retrain. Speed only; accuracy is a later step on the owner's photos.
+1. Find how the robot runs YOLO today (detect_person.py): runtime and version, execution provider, thread
+   settings, preprocessing, NMS, how frames are captured. The benchmark must use the same runtime and settings.
+2. Exports: stock yolo11n/s/m and yolo26n/s/m (Ultralytics weights) to ONNX at imgsz 320 and 640, same export
+   options the deployed file appears to use. Also make an int8 dynamic-quantized copy of the deployed
+   yolo11m.onnx. Do not touch the deployed file. Put all outputs in /termux-home/yolo_bench/models/ with a
+   SHA-256 list. Export environment: use a NEW venv; never modify the von/von12 venvs.
+3. Frames: a fixed set of 20 frames captured the way the robot captures them (camera, resolution), saved once to
+   /termux-home/yolo_bench/frames/ with hashes. Also time 10 captures.
+4. Write yolo_speed.py + run_yolo_speed.sh (ladder style: thermal gate before each config, cpuset guard cores
+   4-7, --resume, cold start per config). Per config: 5 warm-up frames, then 60 timed frames cycling the 20
+   frames. Report per config: preprocess, inference, NMS/post and total ms (median, P95), model load s, peak RSS
+   MiB, thermal start/end, and detection count per frame. Configs: 12 stock (11/26 x n/s/m x 320/640) + deployed
+   yolo11m@640 + its int8 copy.
+5. Checks without timing (coder resident): each config loads and returns detections on 2 frames.
+6. Freeze edits. Invoke the Reviewer.
+7. STOP. No commit, no push, no timed run. Run via ~/ladder/oneshot.sh (SHA-256 db1f3156...8e8), run script
+   copied into ~/ladder/.
+RULES: no motors; do not edit main.py, detect_person.py or any robot code; do not touch the deployed model or
+the independent test set; do not delete files.
+HUMAN DECISION DURING THE TASK: the 20 live captures were all black (camera covered); the human chose "use
+existing photos", so frames/ holds 20 copies of bench_photos/ (taken by capture_bench.py with main.take_photo's
+exact camera call); the black set was moved (not deleted) to /termux-home/yolo_bench/frames_black_camera_covered/.
+
+## CANDIDATE DIFF (complete, vs base)
+```diff
+diff --git a/.gitignore b/.gitignore
+index 841d7dd..0c692fb 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -7,6 +7,7 @@
+ bench_photos/
+ benchmark/*
+ !benchmark/strategic_selector/
++!benchmark/yolo_speed/
+ 
+ # Run artifacts
+ *.csv
+diff --git a/benchmark/yolo_speed/yolo_speed.py b/benchmark/yolo_speed/yolo_speed.py
+new file mode 100644
+index 0000000..18916da
+--- /dev/null
++++ b/benchmark/yolo_speed/yolo_speed.py
+@@ -0,0 +1,238 @@
++#!/usr/bin/env python3
++"""YOLO speed ladder: which YOLO family/size/input to retrain. Speed only. Research only: offline, no motors,
++no main.py; the deployed model is only read.
++
++Usage: yolo_speed.py --out DIR [--configs a,b] [--resume] [--thermal-log PATH] [--timed N] [--warmup N]
++       yolo_speed.py --worker MODEL IMGSZ WARMUP TIMED      (one cold config; run with the robot's native python)
++
++The parent (Debian python3) runs each config cold, in the ladder's style: wait for cores 4-7, thermal gate
++(z9 <= idle + 4 degC), page-cache drop through the oneshot.sh handshake (ladder.make_cold), then a fresh
++native-Termux python process -- the robot's interpreter and onnxruntime 1.25.1 -- that times WARMUP frames
++untimed, then TIMED frames cycling the 20 frames in BENCH/frames (copies of bench_photos/, which capture_bench.py
++took with main.take_photo's camera call; mapping in frames/SOURCES.txt). The worker does what detect_person.detect_scene does:
++default InferenceSession (CPUExecutionProvider, ORT default threads), PIL open -> RGB -> exif_transpose ->
++resize((imgsz, imgsz)) -> /255 CHW float32; post = per-class CONF filter + detect_person.nms, best box per class
++(the 640-pixel position constants scaled to imgsz). Losing cores 4-7 during a config discards and redoes it.
++Writes DIR/blocks.jsonl (one line per completed config, per-frame rows included) and DIR/report.txt.
++"""
++import argparse
++import hashlib
++import json
++import os
++import statistics
++import subprocess
++import sys
++import time
++from datetime import datetime, timezone
++from pathlib import Path
++
++BENCH = "/termux-home/yolo_bench"
++FRAMES = [f"{BENCH}/frames/frame_{i:02d}.jpg" for i in range(1, 21)]
++NATIVE_PY = "/data/data/com.termux/files/usr/bin/python"
++NATIVE_ENV = {"LD_LIBRARY_PATH": "/data/data/com.termux/files/usr/lib"}
++CONFIGS = {f"{fam}{s}_{sz}": (f"{BENCH}/models/{fam}{s}_{sz}.onnx", sz)
++           for fam in ("yolo11", "yolo26") for s in "nsm" for sz in (320, 640)}
++CONFIGS["deployed_yolo11m_640"] = ("/termux-home/robot/yolo11m.onnx", 640)
++CONFIGS["deployed_yolo11m_640_int8dyn"] = (f"{BENCH}/models/yolo11m_deployed_int8dyn.onnx", 640)
++
++
++def worker(model, imgsz, warmup, timed):
++    """One cold config in this process. Prints one JSON line on stdout."""
++    t0 = time.perf_counter()
++    import numpy as np
++    import onnxruntime as ort
++    from PIL import Image, ImageOps
++    sys.path.insert(0, "/termux-home/robot")
++    from detect_person import CONF, IOU, nms
++    import_s = time.perf_counter() - t0
++    t0 = time.perf_counter()
++    session = ort.InferenceSession(model)  # as detect_person.get_session
++    load_s = time.perf_counter() - t0
++    name = session.get_inputs()[0].name
++    third = imgsz / 3
++
++    rows = []
++    for i in range(warmup + timed):
++        if not {4, 5, 6, 7} <= os.sched_getaffinity(0):
++            print(json.dumps({"cores_lost": sorted(os.sched_getaffinity(0)), "frame_i": i}), flush=True)
++            sys.exit(3)
++        path = FRAMES[i % len(FRAMES)]
++        t0 = time.perf_counter()
++        img = Image.open(path).convert('RGB')
++        img = ImageOps.exif_transpose(img)
++        img = img.resize((imgsz, imgsz))
++        arr = np.array(img).astype(np.float32) / 255.0
++        arr = arr.transpose(2, 0, 1)[np.newaxis]
++        t1 = time.perf_counter()
++        out = session.run(None, {name: arr})[0][0].T
++        t2 = time.perf_counter()
++        by_class = {}
++        for pred in out:
++            scores = pred[4:]
++            cls = int(np.argmax(scores))
++            conf = float(scores[cls])
++            if conf > CONF:
++                cx, cy, w, h = float(pred[0]), float(pred[1]), float(pred[2]), float(pred[3])
++                box = (cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
++                by_class.setdefault(cls, []).append((box, conf, cx, cy, w, h))
++        results = []
++        for cls, items in by_class.items():
++            keep = nms([it[0] for it in items], [it[1] for it in items], IOU)
++            box, conf, cx, cy, w, h = items[keep[0]]
++            area = (w * h) / (imgsz * imgsz)
++            pos = 'left' if cx < third else 'right' if cx > 2 * third else 'center'
++            dist = 'very close' if area > 0.3 else 'close' if area > 0.1 else 'medium' if area > 0.03 else 'far'
++            results.append((cls, round(conf, 2), pos, dist))
++        results.sort(key=lambda x: -x[1])
++        t3 = time.perf_counter()
++        rows.append({"i": i, "warmup": i < warmup, "frame": Path(path).name,
++                     "pre_ms": (t1 - t0) * 1e3, "infer_ms": (t2 - t1) * 1e3, "post_ms": (t3 - t2) * 1e3,
++                     "total_ms": (t3 - t0) * 1e3, "n_det": len(results), "dets": results})
++    hwm = next(int(l.split()[1]) for l in open("/proc/self/status") if l.startswith("VmHWM:")) / 1024
++    print(json.dumps({"import_s": import_s, "load_s": load_s, "peak_rss_mib": hwm, "ort": ort.__version__,
++                      "providers": session.get_providers(), "rows": rows}), flush=True)
++
++
++def run_config(name, a, thermal):
++    import ladder
++    model, imgsz = CONFIGS[name]
++    therm = {}
++    ladder.check_cores("before cold")
++    if thermal:
++        therm["start"] = ladder.thermal_gate(thermal[0], thermal[1], name)
++        print(f"  [{name}] thermal start: {ladder.fmt_thermal(therm['start'])} (waited {therm['start']['waited_s']} s)",
++              flush=True)
++    load_state = ladder.make_cold(name, [model])
++    ladder.check_cores("before starting worker")
++    t0 = time.perf_counter()
++    p = subprocess.run([NATIVE_PY, "-W", "ignore", __file__, "--worker", model, str(imgsz), str(a.warmup), str(a.timed)],
++                       env={**os.environ, **NATIVE_ENV}, capture_output=True, text=True)
++    wall_s = time.perf_counter() - t0
++    (a.out / "logs" / f"{name}.stderr.txt").write_text(p.stderr)
++    if p.returncode == 3:
++        raise ladder.CoresLost(f"worker lost cores 4-7: {p.stdout.strip()}")
++    if p.returncode != 0:
++        raise SystemExit(f"[{name}] worker exit {p.returncode}; stderr in {a.out}/logs/{name}.stderr.txt")
++    res = json.loads(p.stdout.strip().splitlines()[-1])
++    if thermal:
++        therm["end"] = ladder.read_thermal(thermal[0])
++        print(f"  [{name}] thermal end:   {ladder.fmt_thermal(therm['end'])}", flush=True)
++    ladder.check_cores("after worker")
++    return {"config": name, "model": model, "imgsz": imgsz, "warmup": a.warmup, "timed": a.timed,
++            "wall_s": wall_s, "load_state": load_state, "thermal": therm or None, **res}
++
++
++def pct(xs, q):
++    return statistics.median(xs) if q == 50 else statistics.quantiles(xs, n=100, method="inclusive")[q - 1]
++
++
++def report(done, names):
++    hdr = (f"{'config':<30}{'pre ms':>13}{'infer ms':>15}{'post ms':>11}{'total ms':>15}{'load s':>8}{'RSS MiB':>9}"
++           f"{'dets/frame':>16}   thermal z9 start->end degC; load state")
++    lines = ["median / P95 over the timed frames; dets/frame = mean [min-max]", hdr]
++    for n in names:
++        if n not in done:
++            lines.append(f"{n:<30}not run")
++            continue
++        b = done[n]
++        t = [r for r in b["rows"] if not r["warmup"]]
++        mp = lambda k: f"{pct([r[k] for r in t], 50):.1f}/{pct([r[k] for r in t], 95):.1f}"
++        d = [r["n_det"] for r in t]
++        th = (f"{b['thermal']['start']['z9'] / 1000:.0f}->{b['thermal']['end']['z9'] / 1000:.0f}" if b["thermal"]
++              else "n/a")
++        lines.append(f"{n:<30}{mp('pre_ms'):>13}{mp('infer_ms'):>15}{mp('post_ms'):>11}{mp('total_ms'):>15}"
++                     f"{b['load_s']:>8.2f}{b['peak_rss_mib']:>9.0f}"
++                     f"{f'{statistics.mean(d):.2f} [{min(d)}-{max(d)}]':>16}   {th}; {b['load_state']['mode'].split(' (')[0]}")
++    return "\n".join(lines)
++
++
++def read_jsonl(p):
++    """Rows of a JSONL file; a torn last line (a write cut off by a kill) is dropped."""
++    if not p.exists():
++        return []
++    lines = p.read_text().splitlines()
++    rows = []
++    for i, l in enumerate(lines):
++        try:
++            rows.append(json.loads(l))
++        except json.JSONDecodeError:
++            if i != len(lines) - 1:
++                raise
++            print(f"{p}: dropping torn last line", flush=True)
++    return rows
++
++
++def main():
++    if len(sys.argv) > 1 and sys.argv[1] == "--worker":
++        return worker(sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]))
++    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
++    ap.add_argument("--out", type=Path, required=True)
++    ap.add_argument("--configs", default=",".join(CONFIGS))
++    ap.add_argument("--resume", action="store_true")
++    ap.add_argument("--thermal-log", default=None)
++    ap.add_argument("--warmup", type=int, default=5)
++    ap.add_argument("--timed", type=int, default=60)
++    a = ap.parse_args()
++    names = a.configs.split(",")
++    if set(names) - set(CONFIGS):
++        raise SystemExit(f"unknown configs {sorted(set(names) - set(CONFIGS))}")
++    if a.resume and not a.out.is_dir():
++        raise SystemExit(f"--resume: {a.out} does not exist")
++    a.out.mkdir(parents=True, exist_ok=a.resume)
++    (a.out / "logs").mkdir(exist_ok=True)
++    sys.path.insert(0, "/termux-home/ladder")
++    import ladder
++    done = {b["config"]: b for b in read_jsonl(a.out / "blocks.jsonl")} if a.resume else {}
++    for n, b in done.items():
++        if (b["warmup"], b["timed"]) != (a.warmup, a.timed):
++            raise SystemExit(f"--resume: {n} was run with warmup/timed {b['warmup']}/{b['timed']}")
++    if a.resume:  # rewrite without a torn last line so appends start on a clean line
++        (a.out / "blocks.jsonl.tmp").write_text("".join(json.dumps(b) + "\n" for b in done.values()))
++        os.replace(a.out / "blocks.jsonl.tmp", a.out / "blocks.jsonl")
++        print("resume: keeping " + (", ".join(done) or "nothing"), flush=True)
++    sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
++    stamp = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
++    manifest = {
++        "yolo_speed_sha256": sha(__file__), "ladder_sha256": sha(ladder.__file__),
++        "detect_person_sha256": sha("/termux-home/robot/detect_person.py"),
++        "models": {n: [CONFIGS[n][0], sha(CONFIGS[n][0])] for n in names},
++        "frames": {Path(f).name: sha(f) for f in FRAMES}, "warmup": a.warmup, "timed": a.timed}
++    if a.resume:  # every earlier manifest must agree on the inputs, so completed and new configs are comparable
++        for old in sorted(a.out.glob("run_*.json")):
++            m = json.loads(old.read_text())
++            diff = [k for k in manifest if k != "models" and m.get(k) != manifest[k]]
++            diff += [n for n in set(m.get("models", {})) & set(manifest["models"]) if m["models"][n] != manifest["models"][n]]
++            if diff:
++                raise SystemExit(f"--resume: inputs differ from {old.name}: {diff}")
++    (a.out / f"run_{stamp}.json").write_text(json.dumps(manifest, indent=1) + "\n")
++    ladder.wait_cores("start")
++    thermal = None
++    if a.thermal_log:
++        idle = ladder.read_thermal(a.thermal_log)
++        print(f"thermal idle reading (gate z9 <= idle + {ladder.GATE_MC / 1000:.0f} degC): {ladder.fmt_thermal(idle)}",
++              flush=True)
++        thermal = (a.thermal_log, idle)
++    with open(a.out / "blocks.jsonl", "a") as blog:
++        for n in names:
++            if n in done:
++                print(f"[{n}] already completed, skipped (--resume)", flush=True)
++                continue
++            print(f"[{n}] cold: {a.warmup} warm-up + {a.timed} timed frames", flush=True)
++            while True:
++                ladder.wait_cores(n)
++                try:
++                    b = run_config(n, a, thermal)
++                    break
++                except ladder.CoresLost as e:
++                    print(f"  [{n}] {e}: discarding this config's data and redoing it", flush=True)
++            blog.write(json.dumps(b) + "\n")
++            blog.flush()
++            done[n] = b
++            print(report({n: b}, [n]).splitlines()[-1], flush=True)
++    text = report(done, names)
++    (a.out / "report.txt").write_text(text + "\n")
++    print(text)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/benchmark/yolo_speed/run_yolo_speed.sh b/benchmark/yolo_speed/run_yolo_speed.sh
+new file mode 100755
+index 0000000..8f03388
+--- /dev/null
++++ b/benchmark/yolo_speed/run_yolo_speed.sh
+@@ -0,0 +1,22 @@
++#!/bin/bash
++# YOLO speed ladder (yolo_speed.py): 14 configs, stock yolo11/yolo26 n/s/m at 320 and 640, the deployed
++# yolo11m.onnx at 640 and its int8 dynamic-quantized copy. Research only: offline, no motors, no main.py.
++# One cold config at a time: thermal gate z9 <= idle + 4 degC, page-cache drop through the handshake
++# (LADDER_COLD_HANDSHAKE=1), fresh native-Termux python worker, 5 warm-up + 60 timed frames; losing cores 4-7
++# redoes the config.
++#
++# Usage: run_yolo_speed.sh [OUT_DIR]          new run
++#        run_yolo_speed.sh --resume OUT_DIR   keep OUT_DIR's completed configs, run the rest
++# Unattended, from native Termux:  RUN_SCRIPT=run_yolo_speed.sh bash ~/ladder/oneshot.sh [--resume OUT_DIR]
++set -euo pipefail
++cd /termux-home/ladder
++RESUME=()
++if [ "${1:-}" = --resume ]; then
++  OUT=${2:?usage: run_yolo_speed.sh --resume OUT_DIR}
++  RESUME=(--resume)
++else
++  OUT=${1:-/termux-home/ladder/yolo_speed_$(date -u +%Y%m%dT%H%M%SZ)}
++fi
++python3 /termux-home/robot/benchmark/yolo_speed/yolo_speed.py --out "$OUT" "${RESUME[@]}" \
++  --thermal-log /termux-home/ladder/thermal.log \
++  > >(tee -a "$OUT.stdout.txt") 2> >(tee -a "$OUT.stderr.txt" >&2)
+diff --git a/termux-home/yolo_bench/export_models.py b/termux-home/yolo_bench/export_models.py
+new file mode 100644
+index 0000000..a8fa56a
+--- /dev/null
++++ b/termux-home/yolo_bench/export_models.py
+@@ -0,0 +1,25 @@
++# Export stock Ultralytics yolo11/yolo26 n/s/m to ONNX at 320 and 640 with the deployed file's
++# metadata args (batch 1, half False, dynamic False, simplify True, nms False; opset 20 as in the
++# deployed graph), plus an int8 dynamic-quantized copy of the deployed yolo11m.onnx. Run in the
++# yolo_bench venv from /termux-home/yolo_bench/weights.
++import os, shutil
++from ultralytics import YOLO
++from onnxruntime.quantization import quantize_dynamic, QuantType
++
++OUT = '/termux-home/yolo_bench/models'
++for fam in ('yolo11', 'yolo26'):
++    for size in 'nsm':
++        for imgsz in (320, 640):
++            dst = f'{OUT}/{fam}{size}_{imgsz}.onnx'
++            if os.path.exists(dst):
++                continue
++            kw = dict(format='onnx', imgsz=imgsz, batch=1, half=False, dynamic=False,
++                      simplify=True, opset=20, nms=False, device='cpu')
++            if fam == 'yolo26':
++                kw['end2end'] = False  # deployed file is end2end False: same [1,84,N] output and post-processing
++            f = YOLO(f'{fam}{size}.pt').export(**kw)
++            shutil.move(f, dst)
++
++dst = f'{OUT}/yolo11m_deployed_int8dyn.onnx'
++if not os.path.exists(dst):
++    quantize_dynamic('/termux-home/robot/yolo11m.onnx', dst, weight_type=QuantType.QInt8)
+diff --git a/termux-home/yolo_bench/capture_frames.py b/termux-home/yolo_bench/capture_frames.py
+new file mode 100644
+index 0000000..11e0549
+--- /dev/null
++++ b/termux-home/yolo_bench/capture_frames.py
+@@ -0,0 +1,15 @@
++# Capture 20 frames exactly as main.take_photo does (termux-camera-photo, default camera, then sleep 0.5),
++# timing each call. Frames 01-10 timings = the "10 captures". Run with native Termux python.
++import os, time, json
++D = '/data/data/com.termux/files/home/yolo_bench/frames'
++t = []
++for i in range(1, 21):
++    p = f'{D}/frame_{i:02d}.jpg'
++    t0 = time.perf_counter()
++    os.system(f'termux-camera-photo {p} 2>/dev/null')
++    t1 = time.perf_counter()
++    time.sleep(0.5)
++    ok = os.path.exists(p) and os.path.getsize(p) > 1000
++    t.append({'frame': i, 'call_s': round(t1 - t0, 3), 'take_photo_s': round(time.perf_counter() - t0, 3), 'ok': ok})
++    print(t[-1], flush=True)
++json.dump(t, open(f'{D}/../capture_timing.json', 'w'), indent=1)
+```
+Frozen SHA-256:
+5fbd88589ba6000dabd52803a483bf9375189d2e627297bbda7a92be1f56d77c  benchmark/yolo_speed/run_yolo_speed.sh
+3e59005106da81b0ee1a87ac94331d219bfbfa3460993b08fa8d36d4cb60499a  benchmark/yolo_speed/yolo_speed.py
+41f6ce31722c2f2d8cbc24cd5817e95d4ad2b62b0a81a66ef5e81f845c37f19d  .gitignore
+295b5b972296f7d574822522b96d58363656443d16caacb9f7ccbfb6c4960271  /termux-home/yolo_bench/export_models.py
+295b5b972296f7d574822522b96d58363656443d16caacb9f7ccbfb6c4960271  /termux-home/yolo_bench/export_models.py
+f4afd1ec1c35caac8bfc90c49bcc6017e964f290179e29bce6e7674768c5ecfe  /termux-home/yolo_bench/capture_frames.py
+
+## INLINED CONTEXT
+### detect_person.py (unchanged, sha 85be7d1b0f15b5665b4903018815f50e4aa7f383e343191882c0e10d123fcb7a)
+```python
+     1	import sys, os, time
+     2	import numpy as np
+     3	import onnxruntime as ort
+     4	from PIL import Image, ImageOps
+     5	
+     6	CLASSES = ['person','bicycle','car','motorbike','aeroplane','bus','train','truck',
+     7	'boat','traffic light','fire hydrant','stop sign','parking meter','bench','bird',
+     8	'cat','dog','horse','sheep','cow','elephant','bear','zebra','giraffe','backpack',
+     9	'umbrella','handbag','tie','suitcase','frisbee','skis','snowboard','sports ball',
+    10	'kite','baseball bat','baseball glove','skateboard','surfboard','tennis racket',
+    11	'bottle','wine glass','cup','fork','knife','spoon','bowl','banana','apple',
+    12	'sandwich','orange','broccoli','carrot','hot dog','pizza','donut','cake','chair',
+    13	'couch','potted plant','bed','dining table','toilet','tv','laptop','mouse','remote',
+    14	'keyboard','cell phone','microwave','oven','toaster','sink','refrigerator','book',
+    15	'clock','vase','scissors','teddy bear','hair dryer','toothbrush']
+    16	
+    17	MODEL = '/data/data/com.termux/files/home/robot/yolo11m.onnx'
+    18	CONF  = 0.35
+    19	IOU   = 0.45
+    20	
+    21	_session = None
+    22	
+    23	def get_session():
+    24	    global _session
+    25	    if _session is None:
+    26	        _session = ort.InferenceSession(MODEL)
+    27	    return _session
+    28	
+    29	def iou(a, b):
+    30	    ax1,ay1,ax2,ay2 = a
+    31	    bx1,by1,bx2,by2 = b
+    32	    ix1,iy1 = max(ax1,bx1), max(ay1,by1)
+    33	    ix2,iy2 = min(ax2,bx2), min(ay2,by2)
+    34	    inter = max(0,ix2-ix1)*max(0,iy2-iy1)
+    35	    ua = (ax2-ax1)*(ay2-ay1)+(bx2-bx1)*(by2-by1)-inter
+    36	    return inter/ua if ua>0 else 0
+    37	
+    38	def nms(boxes, confs, iou_thresh=0.45):
+    39	    order = sorted(range(len(confs)), key=lambda i: -confs[i])
+    40	    keep = []
+    41	    while order:
+    42	        i = order.pop(0)
+    43	        keep.append(i)
+    44	        order = [j for j in order if iou(boxes[i], boxes[j]) < iou_thresh]
+    45	    return keep
+    46	
+    47	def detect_scene(image_path):
+    48	    """
+    49	    Detect all objects in the scene.
+    50	    Returns list of (label, confidence, position, distance)
+    51	    """
+    52	    session = get_session()
+    53	    img = Image.open(image_path).convert('RGB')
+    54	    img = ImageOps.exif_transpose(img)
+    55	    img = img.resize((640, 640))
+    56	    arr = np.array(img).astype(np.float32) / 255.0
+    57	    arr = arr.transpose(2, 0, 1)[np.newaxis]
+    58	
+    59	    out = session.run(None, {session.get_inputs()[0].name: arr})[0][0].T
+    60	
+    61	    by_class = {}
+    62	    for pred in out:
+    63	        scores = pred[4:]
+    64	        cls = int(np.argmax(scores))
+    65	        conf = float(scores[cls])
+    66	        if conf > CONF:
+    67	            cx,cy,w,h = float(pred[0]),float(pred[1]),float(pred[2]),float(pred[3])
+    68	            box = (cx-w/2, cy-h/2, cx+w/2, cy+h/2)
+    69	            if cls not in by_class:
+    70	                by_class[cls] = []
+    71	            by_class[cls].append((box, conf, cx, cy, w, h))
+    72	
+    73	    results = []
+    74	    for cls, items in by_class.items():
+    75	        boxes = [i[0] for i in items]
+    76	        confs = [i[1] for i in items]
+    77	        keep = nms(boxes, confs, IOU)
+    78	        best = items[keep[0]]
+    79	        cx, cy, w, h = best[2], best[3], best[4], best[5]
+    80	        conf = best[1]
+    81	        area = (w*h)/(640*640)
+    82	        pos = 'left' if cx < 213 else 'right' if cx > 427 else 'center'
+    83	        dist = 'very close' if area>0.3 else 'close' if area>0.1 else 'medium' if area>0.03 else 'far'
+    84	        results.append((CLASSES[cls], round(conf,2), pos, dist, round(cx), round(cy), round(w), round(h)))
+    85	
+    86	    results.sort(key=lambda x: -x[1])
+    87	    return results
+    88	
+    89	def detect_person(image_path):
+    90	    """
+    91	    Legacy function — returns (found, confidence, position)
+    92	    for backwards compatibility with existing code.
+    93	    """
+    94	    results = detect_scene(image_path)
+    95	    for r in results:
+    96	        label, conf, pos, dist = r[0], r[1], r[2], r[3]
+    97	        if label == 'person':
+    98	            return True, conf, pos
+    99	    return False, 0.0, 'none'
+   100	
+   101	def scene_to_text(results, coords=False):
+   102	    """
+   103	    Convert detection results to a natural language sentence.
+   104	    coords=True adds pixel coordinates for stereo vision.
+   105	    """
+   106	    if not results:
+   107	        return "empty room, nothing detected"
+   108	    if coords:
+   109	        parts = [f"{r[0]} x={r[4]} y={r[5]} w={r[6]} h={r[7]} {r[2]} {r[3]}" for r in results]
+   110	    else:
+   111	        parts = [f"{r[0]} {r[2]}" for r in results]
+   112	    return ', '.join(parts)
+   113	
+   114	def person_direction(results):
+   115	    """
+   116	    Return direction to move toward detected person.
+   117	    Returns 'LEFT', 'RIGHT', 'FORWARD', or None
+   118	    """
+   119	    for r in results:
+   120	        label, conf, pos, dist = r[0], r[1], r[2], r[3]
+   121	        if label == 'person':
+   122	            if pos == 'left':   return 'LEFT'
+   123	            if pos == 'right':  return 'RIGHT'
+   124	            if pos == 'center': return 'FORWARD'
+   125	    return None
+   126	
+   127	if __name__ == '__main__':
+   128	    path = sys.argv[1] if len(sys.argv) > 1 else 'test_photos/scene_test.jpg'
+   129	    t0 = time.time()
+   130	    results = detect_scene(path)
+   131	    elapsed = round(time.time()-t0, 3)
+   132	    print(f'Detected in {elapsed}s (640x640 frame):')
+   133	    print(f'  {"object":<15} {"conf":<5} {"pos":<8} {"dist":<12} {"cx":>5} {"cy":>5} {"w":>5} {"h":>5}')
+   134	    print('  ' + '-'*60)
+   135	    for r in results:
+   136	        print(f'  {r[0]:<15} {r[1]:<5} {r[2]:<8} {r[3]:<12} {r[4]:>5} {r[5]:>5} {r[6]:>5} {r[7]:>5}')
+   137	    print(f'\nScene: "{scene_to_text(results)}"')
+   138	    print(f'Coords: "{scene_to_text(results, coords=True)}"')
+   139	    direction = person_direction(results)
+   140	    if direction:
+   141	        print(f"Person direction: {direction}")
+   142	    else:
+   143	        print("No person detected")```
+### /termux-home/ladder/ladder.py lines 109-195 and 256-285 (sha c7e6d3c9...; allowed_cpus imported from jevlike = os.sched_getaffinity)
+```python
+class CoresLost(Exception):
+    """Android moved Termux off the top-app cpuset mid-block; the block's data is discarded and redone."""
+
+
+def check_cores(when):
+    if not set(range(4, 8)) <= allowed_cpus():
+        raise CoresLost(f"cores {CORES} not all allowed {when} (allowed {sorted(allowed_cpus())})")
+
+
+def wait_cores(label):
+    """Pauses until cores 4-7 are allowed again (Termux back in the foreground), rechecking every 10 s."""
+    began = time.monotonic()
+    while not set(range(4, 8)) <= allowed_cpus():
+        print(f"  [{label}] paused: cores {CORES} not allowed (allowed {sorted(allowed_cpus())}); bring Termux to the "
+              f"foreground. {time.monotonic() - began:.0f} s", flush=True)
+        time.sleep(10)
+
+
+DROP_CMD = "su -c 'sync; echo 3 > /proc/sys/vm/drop_caches'"
+
+
+def cached_mib():
+    return next(int(l.split()[1]) // 1024 for l in open("/proc/meminfo") if l.startswith("Cached:"))
+
+
+def evict(files):
+    for f in files:
+        fd = os.open(f, os.O_RDONLY)
+        try:
+            os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)  # read-only files: every page is clean
+        finally:
+            os.close(fd)
+
+
+DROP_REQUEST, DROP_DONE = HERE / ".drop_request", HERE / ".drop_done"
+HANDSHAKE_S = 60
+
+
+def drop_handshake(name):
+    """Unattended cache drop: create .drop_request; a native-Termux watcher drops the page cache as root and
+    writes 'ok' or 'failed' to .drop_done. Returns that answer, or None after HANDSHAKE_S seconds."""
+    DROP_DONE.unlink(missing_ok=True)
+    DROP_REQUEST.touch()
+    print(f"\n[{name}] cold load next: handshake, waiting up to {HANDSHAKE_S} s for {DROP_DONE}", flush=True)
+    deadline, answer = time.monotonic() + HANDSHAKE_S, None
+    try:
+        while time.monotonic() < deadline:
+            if DROP_DONE.exists() and (text := DROP_DONE.read_text().strip()):  # empty: still being written
+                answer = text
+                break
+            time.sleep(0.5)
+    finally:
+        DROP_REQUEST.unlink(missing_ok=True)
+        DROP_DONE.unlink(missing_ok=True)
+    return answer
+
+
+def make_cold(name, files):
+    """Drop the page cache from native Termux (Magisk su does not work in proot) and check /proc/meminfo that
+    it happened; otherwise evict only this model's weight files. LADDER_COLD_HANDSHAKE=1 asks through files
+    (unattended runs); otherwise the human is prompted on the terminal."""
+    before = cached_mib()
+    if os.environ.get("LADDER_COLD_HANDSHAKE") == "1":
+        answer = drop_handshake(name)
+        after = cached_mib()
+        if answer == "ok" and after < 0.5 * before:
+            return {"mode": "full-cold (page cache dropped by the handshake watcher with drop_caches)",
+                    "cached_mib_before": before, "cached_mib_after": after}
+        why = (f"handshake timed out after {HANDSHAKE_S} s" if answer is None else
+               f"handshake answered {answer!r}" if answer != "ok" else
+               f"handshake answered 'ok' but page cache did not drop ({before} -> {after} MiB)")
+    elif not sys.stdin.isatty():
+        why = "no terminal to prompt on"
+    else:
+        print(f"\n[{name}] COLD LOAD NEXT. In native Termux (not proot) run:\n    {DROP_CMD}\n"
+              "then press Enter here. Type s + Enter to skip (weights-cold fallback).", flush=True)
+        answer = input("> ").strip().lower()
+        after = cached_mib()
+        if answer != "s" and after < 0.5 * before:
+            return {"mode": "full-cold (page cache dropped by the human with drop_caches)",
+                    "cached_mib_before": before, "cached_mib_after": after}
+        why = "skipped by the human" if answer == "s" else f"Enter pressed but page cache did not drop ({before} -> {after} MiB)"
+    evict(files)
+    return {"mode": "weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)",
+            "fallback_reason": why, "cached_mib_before": before}
+
+
+THERMAL_MAX_AGE_S = 30  # the root logger writes every ~5 s; an older last line means it stopped
+GATE_MC = 4000         # a block starts only when z9 <= idle reading + 4 degC (+2 cost ~6 min of waiting per block)
+
+
+def read_thermal(path):
+    """Last line of the root thermal log: '2026-09-25T21:51:27Z z9=36000 z10=36000 z11=37000' (millidegrees)."""
+    last = Path(path).read_text().strip().splitlines()[-1].split()
+    stamp = datetime.strptime(last[0], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    age = (datetime.now(timezone.utc) - stamp).total_seconds()
+    if age > THERMAL_MAX_AGE_S:
+        raise SystemExit(f"thermal log {path} last line is {age:.0f} s old: the logger is not running")
+    z = dict(kv.split("=") for kv in last[1:])
+    return {"at": last[0], **{k: int(z[k]) for k in ("z9", "z10", "z11")}}
+
+
+def thermal_gate(path, idle, label):
+    """Waits until z9 <= idle + GATE_MC (cooler than idle is fine); returns the reading the block starts at."""
+    began = time.monotonic()
+    while (t := read_thermal(path))["z9"] > idle["z9"] + GATE_MC:
+        print(f"  [{label}] waiting: z9 {t['z9'] / 1000:.1f} degC, need <= {(idle['z9'] + GATE_MC) / 1000:.1f} "
+              f"(idle {idle['z9'] / 1000:.1f} + {GATE_MC / 1000:.0f}), {time.monotonic() - began:.0f} s", flush=True)
+        time.sleep(10)
+    t["waited_s"] = round(time.monotonic() - began)
+    return t
+
+
+def fmt_thermal(t):
+    return " ".join(f"{k} {t[k] / 1000:.1f}" for k in ("z9", "z10", "z11")) + f" degC at {t['at']}"
+
+
+```
+### /termux-home/ladder/oneshot.sh (sha db1f3156...8e8)
+```bash
+#!/data/data/com.termux/files/usr/bin/bash
+# One-shot s1o speed run, v2. Start from NATIVE Termux (prompt "~ $"):
+#   bash ~/ladder/oneshot.sh                  (fresh run)
+#   bash ~/ladder/oneshot.sh --resume <dir>   (continue a run)
+# Thermal logger, checks, screen kept on, 5 min idle, the run inside Debian,
+# and root cache drops on request (file handshake with the runner).
+H=/data/data/com.termux/files/home
+L=$H/ladder
+CONSOLE=$L/oneshot_console_$(date -u +%Y%m%dT%H%M%SZ).log
+say() { echo "[oneshot] $*" | tee -a "$CONSOLE"; }
+RUN_SCRIPT=${RUN_SCRIPT:-run_s1o_speed.sh}  # e.g. RUN_SCRIPT=run_conversation.sh bash ~/ladder/oneshot.sh
+
+if [ -d /termux-home ]; then echo "Run this from native Termux (~ \$), not from Debian."; exit 1; fi
+su -c id >/dev/null 2>&1 || { echo "No root: su failed. Check Magisk."; exit 1; }
+[ -f "$L/$RUN_SCRIPT" ] || { echo "Missing $L/$RUN_SCRIPT"; exit 1; }
+if pgrep -fa 'claude|agy|node' >/dev/null; then
+  echo "An agent is still running:"; pgrep -fa 'claude|agy|node'; echo "Quit it, then rerun."; exit 1
+fi
+
+termux-wake-lock
+# keep the screen on (Android moves Termux off the big cores when it is not in front)
+OLD_TIMEOUT=$(su -c 'settings get system screen_off_timeout')
+su -c 'settings put system screen_off_timeout 2147483647'
+rm -f "$L/.stop_thermal" "$L/.drop_request" "$L/.drop_done" "$L/.drop_done.tmp"
+
+su -c "while [ ! -f $L/.stop_thermal ]; do echo \"\$(date -u +%Y-%m-%dT%H:%M:%SZ) z9=\$(cat /sys/class/thermal/thermal_zone9/temp) z10=\$(cat /sys/class/thermal/thermal_zone10/temp) z11=\$(cat /sys/class/thermal/thermal_zone11/temp)\" >> $L/thermal.log; sleep 5; done" &
+
+# cache-drop watcher: runner creates .drop_request, we drop and write .drop_done
+( while [ ! -f "$L/.stop_thermal" ]; do
+    if [ -f "$L/.drop_request" ] && [ ! -f "$L/.drop_done" ]; then
+      if su -c 'sync; echo 3 > /proc/sys/vm/drop_caches'; then r=ok; else r=failed; fi
+      echo $r > "$L/.drop_done.tmp" && mv "$L/.drop_done.tmp" "$L/.drop_done"; say "cache drop: $r"
+    fi
+    sleep 1
+  done ) &
+
+cleanup() {
+  touch "$L/.stop_thermal"
+  su -c "settings put system screen_off_timeout ${OLD_TIMEOUT:-60000}"
+  termux-wake-unlock
+  say "stopped logger and watcher; screen timeout restored to ${OLD_TIMEOUT}"
+}
+trap cleanup EXIT
+
+sleep 6
+say "thermal: $(tail -1 "$L/thermal.log")"
+say "idling 5 minutes; keep Termux in front"
+sleep 300
+say "thermal after idle: $(tail -1 "$L/thermal.log")"
+
+proot-distro login debian --bind "$H:/termux-home" -- \
+  env PYTHONUNBUFFERED=1 LADDER_COLD_HANDSHAKE=1 "/termux-home/ladder/$RUN_SCRIPT" "$@" 2>&1 | tee -a "$CONSOLE"
+say "done; console log: $CONSOLE"
+```
+### main.py lines 29-32
+```python
+def take_photo(path):
+    os.system(f'termux-camera-photo {path} 2>/dev/null')
+    time.sleep(0.5)
+    return os.path.exists(path) and os.path.getsize(path) > 1000
+```
+- Deployed yolo11m.onnx metadata: ultralytics 8.4.33, args {'batch':1,'half':False,'dynamic':False,'simplify':True,'opset':None,'nms':False}, end2end False, opset 20, producer pytorch 2.11.0. Exports: new venv /termux-home/yolo_bench/venv (ultralytics 8.4.33, torch 2.14.0, onnx 1.23.0, onnxruntime 1.30.0 for quantize_dynamic), opset=20 set explicitly; yolo26 exported with end2end=False.
+
+## CHECK OUTPUT (actual)
+Deployed model sha256 before and after exports: b6e24c02abc0f1a69e20b7fe6157b6a327d3d033c9d1a2441add9fe45d452649 (unchanged).
+Export verification (all [1,3,S,S] -> [1,84,2100|8400], opset 20, end2end False, version 8.4.33). models/SHA256SUMS:
+6bfff56c151b111c10c8a6be11bce780328d16b6ad614616825347112654436b  yolo11m_320.onnx
+ca7ed8deba30e8fa5b9bffef31c6fcac39aa87e3086d40276be32f179329826b  yolo11m_640.onnx
+229c50a78195fa0be4ab90e15503f06d43e6a05f9dd4ae0bf308a0efcd8a10db  yolo11m_deployed_int8dyn.onnx
+df711c36d7cbf00f4222ccacd162144cf5f67d6a8fb3d3532f15d68bc31c4762  yolo11n_320.onnx
+202f5b7eef8aca94d6be9d0ac539f3117301b61fe1f45f79a640ad42d9e6b1c0  yolo11n_640.onnx
+9eab5ebc83d1254e0049abf2a939ef12db696b7e0ef74af7ec8b70cec993f863  yolo11s_320.onnx
+dc9fe7c50e66ef272db1318f282d6e6dc4ba6adaa0103a2197a87300fbb9dcb5  yolo11s_640.onnx
+7c5574028347a829c5f03175a69298270bedff7e9e91881e2c688e4ab84a8c26  yolo26m_320.onnx
+45e372c673c03f288fb1c5e1e406b01b28bf507a69c062f255a3387e6f9f8210  yolo26m_640.onnx
+ee3685c0df01129e9aafe2c12335d7676854a201dd709db972ecd7bdc61b3d6e  yolo26n_320.onnx
+0f3bc42a3ea39e96dc0757b28df8a64e145321edd4f80be03df0c22b603e9187  yolo26n_640.onnx
+e563945ae5396412c1e359811c7c787ea9ae59dce13f61a13f6697be0f29ed57  yolo26s_320.onnx
+87347f226fd9bab775da9ed38ce8b748258bde39ccffd62dfca12caa94a9a68f  yolo26s_640.onnx
+Stock vs deployed yolo11m: 245 vs 245 initializers, 20133752 params each, sorted per-tensor |w| sums max rel diff 0.0; raw outputs on frame_06/frame_14: max abs diff 0.00122 / 0.00061 (outputs up to ~640).
+Live capture (capture_frames.py, native python, robot's call): 20 calls, call_s 2.15-3.39 s, 3/20 produced a 0-byte file; all 20 frames black -> moved aside; frames/ = bench_photos copies (4080x3072, EXIF orientation 6, same as live).
+
+Step-5 check: `python3 yolo_speed.py --out <scratch>/check --warmup 5 --timed 2` (no thermal log, no handshake -> weights-cold fallback; agent resident, timings NOT valid). Cores guard fired 4 times (Termux backgrounded; allowed [0-5]); each time the config was discarded and redone. Final:
+median / P95 over the timed frames; dets/frame = mean [min-max]
+config                               pre ms       infer ms    post ms       total ms  load s  RSS MiB      dets/frame   thermal z9 start->end degC; load state
+yolo11n_320                     190.8/191.9      29.9/33.1    6.9/7.0    227.6/231.9    0.08      187      2.00 [2-2]   n/a; weights-cold
+yolo11n_640                     208.7/211.4    118.1/124.4  28.3/28.5    355.1/358.6    0.06      238      2.00 [2-2]   n/a; weights-cold
+yolo11s_320                     187.8/189.5      79.0/79.7    7.1/7.2    273.9/276.2    0.11      228      2.00 [1-3]   n/a; weights-cold
+yolo11s_640                     209.9/213.6    281.4/281.9  28.2/28.5    519.5/524.1    0.10      325      2.50 [2-3]   n/a; weights-cold
+yolo11m_320                     188.2/192.1    204.7/211.0    7.1/7.2    400.0/410.2    0.19      299      1.50 [1-2]   n/a; weights-cold
+yolo11m_640                     214.9/217.5    682.1/685.0  30.1/30.1    927.1/927.4    0.19      472      2.50 [2-3]   n/a; weights-cold
+yolo26n_320                     201.2/203.7      31.4/36.0    7.0/7.0    239.6/241.6    0.07      188      1.50 [1-2]   n/a; weights-cold
+yolo26n_640                     215.0/217.2      90.1/90.2  28.7/29.1    333.8/335.5    0.07      240      2.00 [1-3]   n/a; weights-cold
+yolo26s_320                     200.0/201.2      68.3/75.2    7.0/7.0    275.3/281.0    0.11      230      1.50 [1-2]   n/a; weights-cold
+yolo26s_640                     210.7/213.8    372.6/373.8  28.4/28.6    611.7/616.2    0.12      331      3.00 [3-3]   n/a; weights-cold
+yolo26m_320                     190.8/190.9    200.4/201.7    7.2/7.4    398.5/399.6    0.18      300      2.50 [2-3]   n/a; weights-cold
+yolo26m_640                     215.2/216.8    683.5/692.7  28.4/28.4    927.0/934.7    0.17      482      3.00 [2-4]   n/a; weights-cold
+deployed_yolo11m_640            211.5/214.2    688.7/707.8  29.1/29.4    929.4/946.1    0.20      472      2.50 [2-3]   n/a; weights-cold
+deployed_yolo11m_640_int8dyn    217.3/218.4  1801.3/1813.5  29.1/29.1  2047.7/2058.8    0.19      436      2.50 [2-3]   n/a; weights-cold
+
+Timed frames = frame_06, frame_07 (class ids, per config):
+yolo11n_320                    1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 2, [0, 62]), ('frame_07.jpg', 2, [0, 57])]
+yolo11n_640                    1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 2, [0, 62]), ('frame_07.jpg', 2, [0, 59])]
+yolo11s_320                    1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 1, [0]), ('frame_07.jpg', 3, [0, 59, 57])]
+yolo11s_640                    1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 3, [0, 62, 58]), ('frame_07.jpg', 2, [0, 59])]
+yolo11m_320                    1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 1, [0]), ('frame_07.jpg', 2, [59, 0])]
+yolo11m_640                    1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 3, [0, 56, 62]), ('frame_07.jpg', 2, [59, 0])]
+yolo26n_320                    1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 1, [0]), ('frame_07.jpg', 2, [0, 57])]
+yolo26n_640                    1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 1, [0]), ('frame_07.jpg', 3, [0, 59, 57])]
+yolo26s_320                    1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 1, [0]), ('frame_07.jpg', 2, [57, 0])]
+yolo26s_640                    1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 3, [0, 45, 58]), ('frame_07.jpg', 3, [0, 59, 57])]
+yolo26m_320                    1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 3, [0, 62, 58]), ('frame_07.jpg', 2, [0, 57])]
+yolo26m_640                    1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 4, [0, 45, 58, 62]), ('frame_07.jpg', 2, [59, 0])]
+deployed_yolo11m_640           1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 3, [0, 56, 62]), ('frame_07.jpg', 2, [59, 0])]
+deployed_yolo11m_640_int8dyn   1.25.1 ['CPUExecutionProvider'] [('frame_06.jpg', 2, [0, 62]), ('frame_07.jpg', 3, [59, 0, 73])]
+Worker deployed_yolo11m_640 dets == detect_person.detect_scene() on the same frames:
+ frame_06: worker [[0,0.93,center,close],[56,0.42,right,far],[62,0.42,left,medium]]  detect_scene: person 0.93 center close, chair 0.42 right far, tv 0.42 left medium
+ frame_07: worker [[59,0.85,center,very close],[0,0.57,center,close]]               detect_scene: bed 0.85 center very close, person 0.57 center close
+
+## KNOWN LIMITATIONS the Coder states (evaluate, do not just accept)
+- oneshot.sh runs the script inside proot Debian; the robot runs natively. The worker is the native Termux interpreter but runs under proot's ptrace, so absolute ms may differ from the robot; ranking is the purpose.
+- Peak RSS = worker VmHWM (python+numpy+PIL+ORT+model), not model-only.
+- Post for 320 configs scales the 640 position constants (213/427) to imgsz/3.
+
+## REQUEST
+Review correctness and fitness for the task: fidelity to the robot's runtime/preprocess/post; cold-start, thermal gate, cores guard, --resume and redo logic; the report's statistics and fields vs the task; export fidelity; any safety/rule violation (motors, robot code, deployed model, deletions). Cite file:line. End with a final verdict line: APPROVE, APPROVE WITH NOTES, or CHANGES REQUIRED, and list required changes.
+
+## ROUND-2 CHECKS (actual)
+.gitignore: `git check-ignore benchmark/yolo_speed/yolo_speed.py` -> not ignored; git status shows `?? benchmark/yolo_speed/` and ` M .gitignore`.
+Resume validation (no configs executed; the one selected config was already complete):
+ T1 resume onto round-1 output whose manifest has the older script hash -> "--resume: inputs differ from run_20260928T105804Z.json: ['yolo_speed_sha256']"
+ T2 resume dir without any manifest -> passes, writes manifest, prints report row
+ T3 resume again against its own manifest -> passes
+ T4 add a manifest with a changed frame_03 hash -> "--resume: inputs differ from run_00000000T000000Z.json: ['frames']"
+
+warning: Codex could not find bubblewrap on PATH. Install bubblewrap with your OS package manager. See the sandbox prerequisites: https://developers.openai.com/codex/concepts/sandboxing#prerequisites. Codex will use the bundled bubblewrap in the meantime.
+hook: SessionStart
+hook: SessionStart Completed
+hook: UserPromptSubmit
+hook: UserPromptSubmit Completed
+codex
+I’ll review the full candidate against the task and the repository workflow, then check the Round 2 fixes and report any remaining correctness issues with file and line references. I won’t edit files or run the timed benchmark.
+exec
+/bin/bash -lc 'cat docs/WORKFLOW.md' in /data/data/com.termux/files/home/robot
+ succeeded in 0ms:
+# WORKFLOW — Pixel Robot roles and commit gate
+
+This is the canonical collaboration workflow. It is procedural, not a Git hook or
+an enforced sandbox unless a later decision says a specific mechanism was actually
+implemented and tested. Start with `HANDOFF.md`, then this file, then the role file;
+read the applicable STATUS file for current facts and `DECISION_INDEX.md` to find
+relevant history. Read the full entries in `DECISIONS.md` before relying on them,
+and read its last entry directly before numbering a new one.
+`AGENTS.md` is the common Codex/Claude/AGY entry point; `CLAUDE.md` and `GEMINI.md`
+are minimal pointers. Prototype and app instructions remain separate.
+
+## Roles and allocation
+
+Roles are independent of providers and models. Record the actual assignment at
+handoff; do not silently substitute the selected reviewer/model. If one provider
+fills multiple roles, use separate role sessions. The coder never reviews its own
+work in the same conversation.
+
+| Role | Assignment |
+|---|---|
+| Local AI: online-app planning and technical orchestration with the human | Online project thread |
+| Coder/data retriever: actual phone repo, exact evidence, approved changes and checks | Per task, in the EXECUTION PROFILE |
+| Reviewer: fresh independent candidate review | Per task, in the EXECUTION PROFILE |
+| Data Engineer: training datasets and their generators, via pull requests ([DATA_ENGINEER.md](DATA_ENGINEER.md)) | Per task, in the EXECUTION PROFILE |
+| Doc Keeper: canonical status and append-only decisions | Online project thread; the on-phone documentation executor is assigned per task |
+
+No role has a standing model. The human assigns platform and model when a task
+starts, and Local AI writes them into that task's EXECUTION PROFILE. Platforms
+the human reports as available: Claude Code CLI, Codex CLI and AGY CLI on the
+phone, Jules (Google AI Pro: 100 tasks per rolling 24 h, 15 concurrent) and
+Google Colab for training. No exact allowance or reset date is assumed.
+
+Local AI sets objectives, prepares bounded tasks and exact phone commands, requests
+source/output from the executor, evaluates evidence and reviews, and helps the
+human decide whether to commit. It does not assume phone access or unpushed state.
+Coder/data retriever implements and verifies in the actual repository. Reviewer
+examines actual candidate changes and surrounding code, not merely the coder's
+summary. Doc Keeper owns `STATUS.md`/`APP_STATUS.md` and `DECISIONS.md`; all other
+roles send targeted evidence-backed DOC DIFFs.
+
+On the human's instruction, Local AI may author complete role and workflow
+files (such as this file, `HANDOFF.md`, or a role file). Doc Keeper verifies
+each file's recorded base SHA-256 against `main` before replacing it, then
+commits. `STATUS.md`, `APP_STATUS.md` and `DECISIONS.md` remain single-writer:
+Local AI still sends DOC DIFFs for them.
+
+## Execution profile
+
+Before Local AI asks the human to open or invoke any phone agent, it must display
+the complete profile below and include it in the exact agent prompt and transition
+evidence, not only in conversational commentary:
+
+```text
+EXECUTION PROFILE
+ROLE:
+PLATFORM:
+MODEL:
+EFFORT:
+PONYTAIL:
+WHY:
+FALLBACK:
+```
+
+`ROLE` names the exact assignment: Coder, Reviewer, Doc Keeper / documentation
+executor, data retriever, or another exact role. `PLATFORM` names the exact surface,
+such as Codex CLI, Claude Code CLI, or AGY/Antigravity CLI. `MODEL` gives the exact
+selectable identifier or label, never only "best model". `EFFORT` gives the exact
+separately selected reasoning effort when the platform exposes one; otherwise use
+`N/A` or `platform-controlled`. A word such as `High` inside an AGY model identifier
+or label is part of that model name unless AGY separately exposes an effort control.
+`PONYTAIL` is exactly `lite`, `full`, `ultra`, or `off`.
+
+If actual models or controls are unknown, Local AI obtains current model-list
+evidence before assigning the task. `WHY` is one short line. `FALLBACK` states the
+exact replacement platform, model, separately exposed effort, and Ponytail mode.
+Platform, model, effort, and Ponytail selection never change the role, its
+permissions, or the project authorization gates.
+
+### Ponytail
+
+Verified phone-tool evidence: Ponytail 4.9.0 is installed for Codex CLI, Claude
+Code CLI, and AGY/Antigravity CLI; the shared configuration currently specifies
+`defaultMode: lite`; and Claude's Ponytail plugin is enabled. Codex Ponytail hook
+trust has not been evidenced as completed and must not be described as trusted.
+AGY imported Ponytail's six skills and six commands but no lifecycle hooks, so AGY
+must not be assumed to activate it automatically; prompts state the intended mode
+explicitly whenever Ponytail is required. Installation did not modify this
+repository.
+
+- `lite` — ordinary bounded implementation, especially existing or safety-relevant
+  Pixel Robot code.
+- `full` — deliberate simplification, dependency selection, refactoring, or removal
+  of unnecessary abstractions.
+- `ultra` — only for explicitly human-approved work that is either a disposable
+  experiment or aggressive cleanup. Never use it for safety logic, hardware
+  control, authentication, destructive operations, data migration, canonical
+  documentation, or independent review.
+- `off` — independent correctness/safety review, Doc Keeper work, non-coding
+  planning/research, and hardware execution/calibration.
+
+If Codex or Claude automatically starts Ponytail in a Reviewer session, the Reviewer
+profile and prompt explicitly switch it `off` before review. An optional Ponytail
+over-engineering review may follow the mandatory independent correctness review but
+cannot replace it. Ponytail must never simplify away validation, error handling,
+security, hardware calibration, required tests or checks, or anything explicitly
+required by the task.
+
+`AGENTS.md`, project safety rules, verification requirements, the mandatory
+independent review, and the human commit and push gates always override Ponytail.
+
+## Code-change and commit gate
+
+For every code change: (1) Local AI and human define the task; (2) Coder implements
+and verifies; (3) Coder automatically invokes the designated independent Reviewer,
+without human relay; (4) request includes task, base commit, full candidate diff
+including new files, surrounding context and actual checks; (5) freeze edits while
+reviewing; (6) Reviewer does not edit, stage, commit, push, run motors, or launch
+another reviewer; (7) retain diagnostics separately and return the final review
+verbatim, untruncated and separate from Coder commentary; (8) stop for the human's
+explicit commit decision after Local AI discussion; (9) any code change after review
+requires new review; (10) commit only approved files and push only with separate
+authorization; (11) send DOC DIFFs to Doc Keeper.
+
+“Automatically” means no manual relay between applications. It never hides review
+findings, failure, costs/limits, or permission errors. Never use blanket permission
+bypasses. Reviewer approval is not authorization to commit.
+
+## Phone sessions
+
+From native Termux:
+```bash
+proot-distro login debian --bind /data/data/com.termux/files/home:/termux-home
+```
+Inside Debian, choose one alternative session:
+```bash
+cd /termux-home/robot
+codex
+```
+```bash
+cd /termux-home/robot
+/root/.local/bin/agy
+```
+```bash
+cd /termux-home/robot
+claude
+```
+These are alternatives, not a sequence inside one prompt. Use separate terminals
+or exit the current agent first. Native Termux's repository and
+`/termux-home/robot` are the same bind-mounted files.
+
+User-provided environment evidence: official `@openai/codex` 0.153.4 via npm (0.157.0 observed 2026-09-25) with
+Node 20.19.2/npm 9.2.0, launcher `/usr/local/bin/codex`; AGY at
+`/root/.local/bin/agy`, version 1.1.27 (1.2.10 reported by the Coder 2026-09-25); Claude previously ran in Debian. AGY
+started successfully on this Pixel, so it is not categorically unsupported.
+
+## AGY headless reviewer
+
+Installed model evidence: `agy models` lists
+`gemini-3.1-pro-high  Gemini 3.1 Pro (High)`. The authorized smoke call:
+```bash
+agy -p 'Reply exactly: REVIEW_SMOKE_PASS. Do not inspect files, run commands, call tools, or make changes.' \
+  --model gemini-3.1-pro-high --output-format json --sandbox --print-timeout 2m
+```
+returned `{"status":"SUCCESS","response":"REVIEW_SMOKE_PASS\n"}`.
+The concrete invocation pattern, when a task assigns an AGY reviewer (use the
+exact model id from that task's EXECUTION PROFILE):
+```bash
+agy -p "$REVIEW_REQUEST" --model "$AGY_MODEL" \
+  --output-format json --sandbox --print-timeout 10m
+```
+`$REVIEW_REQUEST` contains the frozen task, base, complete diff including new
+files, source context, check output, no-mutation rules, and a final-review request.
+Preserve stdout as the complete JSON review and stderr as separate diagnostics. It
+is a direct Coder action, not an executable helper.
+
+Official [AGY headless](https://antigravity.google/docs/cli/headless/) documentation
+says headless workspace reads and writes are auto-allowed by default. A prompt
+alone is therefore not an enforced read-only boundary. `--sandbox` was smoke-tested,
+but sandboxed workspace paths remain writable when permissions allow. Never use
+`--dangerously-skip-permissions`.
+
+A true read-only reviewer needs a dedicated AGY configuration or OS account, not
+the shared Doc Keeper configuration. Its `settings.json` must use strict,
+sandboxed permissions and deny mutation tools:
+```json
+{"enableTerminalSandbox":true,"toolPermission":"strict","permissions":{"deny":["write_file(*)","command(*)","mcp(*)","execute_url(*)"]}}
+```
+Official permission precedence is deny before ask before allow. The current shared
+AGY settings have only a chosen model and trusted workspace, so this dedicated
+deny policy is not provisioned or tested; do not add it globally because it would
+block Doc Keeper. Until a separate setup is tested, review an isolated copy of the
+exact frozen candidate to protect the live worktree. Isolation is not an enforced
+read-only sandbox. Authentication, quota, model, or permission failures mean
+incomplete review, never a pass. Sources: [permissions](https://antigravity.google/docs/cli/permissions/)
+and [sandbox](https://antigravity.google/docs/cli/sandbox/).
+
+## GitHub access verified
+
+GitHub CLI authentication in Debian completed as `abdelhamidzoghlamii-ui`.
+The phone executor successfully pushed commit `053d5a5` to `origin/main` at
+`https://github.com/abdelhamidzoghlamii-ui/Pixel-robot.git`.
+
+Coder and Doc Keeper sessions using this same Debian account can make local Git
+commits and push authorized commits to GitHub, subject to their tool permissions
+and valid credentials. Other accounts or environments do not inherit this access
+automatically. A Git commit is local; a push publishes it to GitHub.
+
+Local AI should ask the phone executor to perform authorized Git operations and
+return the commit hash, push output, and final Git status. The online planning
+thread does not gain phone access or visibility into unpushed work from this login.
+Authentication establishes capability, not blanket authorization: Coder still
+needs independent review and the human's commit decision; Doc Keeper commits
+approved documentation; pushes require separate human authorization. Reviewer
+remains read-only. If credentials fail, report the failure without exposing tokens.
+
+## Data Engineer and fine-tuning track
+
+The Data Engineer works in its own clone of this repository (for example a
+cloud coding agent) and only through pull requests; it never pushes to `main`.
+Its rules are in `DATA_ENGINEER.md`. Each Data Engineer PR gets two independent
+reviews in fresh sessions, Ponytail `off`, by the reviewers assigned for that
+task; where possible they come from model families other than the Data
+Engineer's. The human merges after Local AI evaluates both reviews with the
+human.
+
+Test-set custody: any held-out or independent test set used to pick a model is
+kept outside this repository until scoring is finished, because a Data Engineer
+agent can read the whole repository. Only its SHA-256, row count and custody location are
+recorded in docs beforehand.
+
+Fine-tuning runs in Google Colab. Each run records: notebook or script source
+and its SHA-256, Colab GPU type, base model id and revision, dataset SHA-256,
+seeds, hyperparameters, training and validation curves, and the SHA-256 of the
+output weights. Weights reach the phone by explicit download and are
+re-hashed there before any benchmark.
+
+## Timed benchmarks on the phone
+
+Timings are only valid with no agent resident. The Coder prepares a run script
+and exits; the human starts it from **native** Termux with `oneshot.sh`
+(archived in `benchmark/strategic_selector/ladder/`), which checks that no
+Claude/AGY/Codex process runs, logs CPU thermals through Magisk `su`, idles
+5 minutes, runs the script inside Debian, and answers each cold-load
+page-cache-drop request (root is only reachable from native Termux, not proot).
+Runners gate each block on temperature, refuse or redo blocks when Android
+moves Termux off cores 4–7 (keep the screen on, Termux in front), and support
+`--resume`. Accuracy results are deterministic and may be taken with an agent
+resident; timings may not. Every run is archived per `benchmark/INDEX.md`.
+
+exec
+/bin/bash -lc 'cat docs/REVIEWER.md' in /data/data/com.termux/files/home/robot
+ succeeded in 0ms:
+# REVIEWER — independent candidate review role
+
+Read `HANDOFF.md`, `WORKFLOW.md`, the applicable STATUS file and
+`DECISION_INDEX.md`, relevant full entries in `DECISIONS.md`, and the applicable
+coding instructions. You are a fresh independent session, not the Coder continuing
+its conversation.
+
+Review the frozen task, base, complete candidate diff including new files, relevant
+surrounding source, and actual verification output. Do not accept a summary instead.
+Report bugs, regressions, safety problems, missing verification, and uncertainties
+with file and line references.
+
+Do not edit, stage, commit, push, run motors, launch another reviewer, or approve a
+commit. Return the complete final review. A pass is only a review finding, never
+commit permission. Follow the AGY safety limitation in `WORKFLOW.md`.
+
+exec
+/bin/bash -lc 'cat docs/HANDOFF.md' in /data/data/com.termux/files/home/robot
+ succeeded in 0ms:
+# HANDOFF — Pixel Robot
+
+Entry point for an offline robot project: a Pixel phone provides perception and
+reasoning, and an ESP32 controls four mecanum wheels. The native Android app and
+the Termux prototype have separate runtime constraints.
+
+This file is a stateless index. Current state, pending work, role allocations,
+commands, and historical recovery evidence belong in the documents below.
+
+## Canonical reading order
+
+Canonical documentation and role instructions live in this repository's `docs/`.
+Root [AGENTS.md](../AGENTS.md), [CLAUDE.md](../CLAUDE.md), and
+[GEMINI.md](../GEMINI.md) provide session discovery pointers.
+
+1. Read [WORKFLOW.md](WORKFLOW.md) for the shared process, actual role allocation,
+   GitHub access, independent review, and human commit/push gates.
+2. Read your role document:
+
+   | Role | Instructions |
+   |---|---|
+   | Local AI — planning and technical orchestration | [LOCAL_AI.md](LOCAL_AI.md) |
+   | Coder / data retriever — phone execution and evidence | [CODER.md](CODER.md) |
+   | Reviewer — fresh independent candidate review | [REVIEWER.md](REVIEWER.md) |
+   | Doc Keeper — canonical status and append-only decisions | [DOC_KEEPER.md](DOC_KEEPER.md) |
+   | Data Engineer — training datasets via pull requests | [DATA_ENGINEER.md](DATA_ENGINEER.md) |
+
+3. Read [STATUS.md](STATUS.md) for prototype state and pending work, or
+   [APP_STATUS.md](APP_STATUS.md) for app state and pending work. Use the short
+   [decision index](DECISION_INDEX.md) to locate relevant numbered entries;
+   [DECISIONS.md](DECISIONS.md) holds their full text and provenance. Dated
+   prototype measurements and the last hardware test are in
+   [PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
+4. Before implementation, read the applicable [prototype instructions](CLAUDE.md)
+   or [Android-app instructions](APP_CLAUDE.md), and [LICENSES.md](LICENSES.md)
+   when dependencies are involved. Keep the two runtime scopes separate.
+5. Use [COMMANDS.md](COMMANDS.md) for phone operating, calibration, and Git
+   inspection, and [OPERATIONS_HISTORY.md](OPERATIONS_HISTORY.md) for dated
+   recovery and agent-environment evidence. Use
+   [FILES.md](FILES.md) for the dependency map and
+   [BENCHMARK_PLAN.md](BENCHMARK_PLAN.md) for benchmarking the existing navigation
+   path. For the separate, research-only high-level selector, read
+   [benchmark/strategic_selector/README.md](../benchmark/strategic_selector/README.md)
+   and its [run index](../benchmark/strategic_selector/RUN_INDEX.md).
+
+Read current source and state rather than relying on a prior session. Report
+contradictions without silently choosing a side. If the online thread cannot read
+the phone repository, request exact source/output through the executor.
+
+## Gates and documentation discipline
+
+Follow the independent-review and human commit gate in [WORKFLOW.md](WORKFLOW.md).
+A reviewer pass never authorizes a commit; push requires separate authorization.
+Keep hardware work subject to the human-controlled restrictions in
+[COMMANDS.md](COMMANDS.md) and the applicable runtime instructions.
+
+Only Doc Keeper writes canonical status and the decision log. Other roles send
+targeted evidence-backed DOC DIFFs as defined in [DOC_KEEPER.md](DOC_KEEPER.md).
+Existing decisions remain verbatim. Read the last entry in
+[DECISIONS.md](DECISIONS.md) directly before choosing the next free number.
+
+## Starting a role session
+
+Name the role (Local AI, Coder, Reviewer, or Doc Keeper) in the opening message.
+Read the shared workflow, that role's instructions, the applicable current STATUS,
+and the decision index in the order above. Open full decisions relevant to the
+task. The role file and WORKFLOW define the task-specific gates; do not rely on a
+starter prompt copied from an older session.
+
+exec
+/bin/bash -lc 'cat docs/CLAUDE.md' in /data/data/com.termux/files/home/robot
+ succeeded in 0ms:
+# CLAUDE.md
+
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+## 5. Context Discipline
+
+**Context is a budget. Spend it on reasoning, not on re-reading.**
+
+- Never re-read a full file already open in this session. Reference what
+  you already have. If you need one function, quote that function - not
+  the file.
+- Summarize benchmark results as a single row, not raw logs.
+  Good: `E2B Q4_K_M | 4 threads | 11-12 tok/s | thermal=PENDING`
+  Bad: pasting 15 lines of per-cycle output.
+- Don't paste full stack traces. Extract only the failing line and the
+  exception type. The other 20 frames are noise.
+  Good: `stereo_depth.py:627 ZeroDivisionError - height_px was 0`
+  Bad: the entire traceback.
+- Terminal output: paste the result, not the scrollback. Server boot logs,
+  model metadata dumps, and `cmake` output are almost never the signal.
+- When a command produces >20 lines, pipe it: `| tail -5`, `| grep ERROR`,
+  or write a summary block at the end of the script.
+
+---
+
+## Project-Specific Constraints
+
+These values are **benchmarked on this hardware**. Do not change them without
+re-running the corresponding benchmark and recording the result in DECISIONS.md.
+
+**llama.cpp server flags** (`server_manager.py`):
+```
+--threads 4 --threads-batch 4    # optimal for Tensor G2; more threads = slower
+--parallel 1                     # no slot splitting
+--swa-full                       # fixes Gemma 4 SWA prompt-cache invalidation
+--ctx-size 2048
+```
+
+**Accuracy target and historical context:**
+```
+Voice command parsing:  ≥93%
+```
+
+The earlier ≥90% LLM-navigation target described the model-in-loop design.
+DECISIONS #104 decided to remove the LLM from the low-level navigation loop;
+the code rework is still pending (STATUS Architecture). Do not treat that
+historical target as a current model-selection gate.
+
+**Vision** (`detect_person.py`):
+```
+MODEL = yolo11m.onnx
+CONF  = 0.35
+IOU   = 0.45
+Input = 640x640
+```
+
+Anything marked `UNCALIBRATED` or `PENDING` in STATUS.md is not yet trustworthy —
+treat those values as placeholders, not as benchmarked constants.
+
+
+## Workflow and commit gate
+
+Before code work read `AGENTS.md`, `docs/WORKFLOW.md`, and the assigned role file.
+As Coder, obtain the independent review automatically, preserve it verbatim, and
+wait for the human's explicit commit decision. A reviewer pass is not commit
+permission; push needs separate authorization. This does not alter this file's
+prototype-Python scope.
+
+exec
+/bin/bash -lc 'cat docs/DECISION_INDEX.md' in /data/data/com.termux/files/home/robot
+ succeeded in 0ms:
+# Decision index — current orientation
+
+This is a short reading guide, not another decision log. The numbered entries in
+[DECISIONS.md](DECISIONS.md) remain the authority and retain their original text.
+Read [STATUS.md](STATUS.md) or [APP_STATUS.md](APP_STATUS.md) for what is currently
+implemented. Before appending a decision, read the last number in DECISIONS.md
+itself. An entry labelled *decided* here may still be unimplemented.
+
+| Area | Current orientation | Evidence |
+|---|---|---|
+| Prototype navigation | Python rules and sensors own low-level movement; Gemma was removed from the navigation loop. No hardware validation yet. | #104, #111, #88; STATUS Architecture |
+| Strategic selector | **Research only, not wired.** Lead candidate: Gemma letter-scoring (1.5 s on b2351 Q4_0); Laya/Von zero-shot near chance, continuing only via fine-tuning. One resident Gemma for talk + selection under evaluation. | #109, #112, #113, #116; [index](../benchmark/INDEX.md) |
+| Motor safety | Firmware watchdog is 1000 ms; the `nav_stuck` safety-move override was fixed in Python; LLM failure paths now select STOP. Hardware validation remains separate. | #47, #88, #108; STATUS Pending |
+| Firmware and wiring | Corrected `mode2_auto.ino` and corner map are committed; what is flashed on the physical board is unconfirmed. | #43, #89; STATUS Architecture |
+| Person stop | Coarse detector area bucket was chosen to replace uncalibrated centimetres, but is not implemented. | #78–#80; STATUS Pending |
+| Thermal control | VIRTUAL-SKIN-CPU-GPU governs HAL CPU throttling; the live `main.py` pause still reads BIG at >80 °C. The replacement threshold is not decided. | #74–#75, #90–#93; STATUS Thermal/Pending |
+| Model vision | Deployed image requests were effectively text-only; later projector experiments did not yield usable on-device LLM vision. YOLO remains perception. | #96, #105; STATUS Vision |
+| Android app | Root-free USB and sustained inference spikes passed; the native app itself has no code yet. Prototype measurements do not transfer automatically. | #67–#69; APP_STATUS |
+| Licensing | [LICENSES.md](LICENSES.md) owns the app allowlist. Its derived copy in APP_CLAUDE.md is intentional. | #66 |
+| Collaboration | Independent Coder/Reviewer/human commit gate and per-task execution profiles are defined in [WORKFLOW.md](WORKFLOW.md). Push needs separate authorization. | #86–#87 |
+| Strategic selector harness v3 | s1o dropped on speed; laya_en and von11 proceed; hardware timings provisional. | #112 |
+| Data Engineer role | Selector moves to a fine-tuning track; new Data Engineer role created to generate the dataset. | #113 |
+| LLM runtime | Robot runs b1609 rebuilt with ARM dotprod (~3x prompt speed); default model Gemma E2B Q4_0 with `--cache-ram 0` and a voice warm-up. | #114, #115 |
+| Selector direction | Gemma letter-scoring leads (1.55 s, 77%); one resident Gemma for talk + selection under evaluation, not decided. | #116 |
+| Language | English-only speech input and replies are acceptable; English-only components are eligible. | #117 |
+
+## Corrections worth knowing before citing an older entry
+
+| Earlier record | Later correction or change |
+|---|---|
+| #33 front/rear motor wording, then #40 left/right mapping | #43 corrects the left-side corner assignment; #89 identifies the corrected committed firmware. |
+| #52's avoidance escalation | #59 changes the counter logic; #62 limits Gemma consultation to once per blockage episode. The planned LLM-free nav direction is #104 and remains unimplemented. |
+| #81 open `nav_stuck` safety defect | #88 records the code fix; #108 records the later STOP fallback for LLM failures. Do not treat #81 as an open code defect. |
+| #23 keeps `nav_sim.py` | #118 deleted it (commit `78b1cc5`). |
+| #84 says seven orphaned scripts were deleted | #85 verifies they remain tracked and explicitly defers deletion. |
+| #77 records a built b2233 binary | #107 says its binary was replaced by b2351; the old source commit is still recoverable. |
+| #95's negative `strings` check for Qwen support | #107 / STATUS report a successful Qwen3.5 text load on b2351; #105 separately records unsuccessful vision tests. |
+| #99's proposed model-in-loop work order | #100–#102 tested output and rule defects; #104 changes the intended architecture. #109 is separate strategic research. |
+
+For any claim outside these selected topics, search the numbered log and inspect
+the later entries that cite it. This index makes no claim to classify all decisions.
+
+exec
+/bin/bash -lc 'cat docs/STATUS.md' in /data/data/com.termux/files/home/robot
+ succeeded in 0ms:
+# STATUS
+
+Snapshot of the running system. Values below are read from the code as it exists
+today — not from benchmark recommendations. Pending deltas are listed explicitly.
+
+## Architecture
+
+**Brain:** Pixel 7 (rooted, Termux, Android 17). **Body:** ESP32 NodeMCU + 2× MX1508
+driving 4 mecanum motors. Phone ↔ ESP32 over USB serial.
+
+**Currently flashed:** UNCONFIRMED on hardware. A `mode2_auto.ino` matching
+the corrected spec (DECISIONS #89 — BAUD 115200, INVERT indices 2,3,
+WATCHDOG_MS 1000, HAS_ULTRASONIC 1) is committed at
+firmware/mode2_auto/mode2_auto.ino (commit 9a90d7e), verified field-by-field
+against the file itself. Whether this exact file is what's running on the
+board is not yet confirmed.
+
+**Entry point:** `run_mission.py` runs autonomous. `main.py.__main__` only runs a
+single test cycle against a photo with no motors attached; it does not run missions.
+
+**Development tools** (not part of the robot path): `nav_test.py` (nav rule harness,
+no hardware), `log_run.py` (ultrasonic motion logger, needs root), `identify_it1.py`
+(IT1 fit, numpy only), `build_bench.py` (A/B latency bench vs whatever server is on
+8080), `capture_bench.py` (guided photo capture via the same `termux-camera-photo`
+path `main.py` uses), `focal_calibrate.py` (FOCAL_PX derivation), `bench_photos/` +
+`labels.csv` (38 labelled captures: 15 room-signature, 14 person, 5 empty, 4
+blocked), `FILES.md` (dependency map), `BENCHMARK_PLAN.md` (replacement-benchmark
+design, not implemented), ~/json_mechanism_test.py (bounded read-only diagnostic,
+13 synthetic text-only scenes, five output mechanisms, per-model profile — gemma
+port 8080 / qwen port 8081, correct chat wrapper and stop tokens per family;
+writes ~/json_mechanism_results_<model>.json; no camera, no motors, no repo
+writes).
+
+`~/llama.cpp-upstream` built and SWA-verified b2233 (commit 4d917609) in
+DECISIONS #77, then was rebuilt in place to b2351-790cf51a. The b2233 binary
+is gone, but source commit 4d917609 remains reachable for a rebuild
+(DECISIONS #107). `~/llama.cpp` (b1609) is the documented deployed server.
+The 1609-vs-2233 comparison remains open, not cancelled (DECISIONS #77, #107).
+`~/robot` is a Git repository. The earlier `fe14be2` snapshot is historical;
+it does not identify the current checkout.
+
+**Public repo:** github.com/abdelhamidzoghlamii-ui/Pixel-robot.
+Canonical documentation and role instructions are in `/docs` relative to the
+repository root. Root `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` are session
+discovery pointers. `STATUS.md` remains canonical for prototype config values.
+`RECOVERY.md` was removed; [HANDOFF.md](HANDOFF.md) is the entry point to recovery
+information, with procedures in [COMMANDS.md](COMMANDS.md#9-housekeeping-and-recovery)
+and historical provenance in [OPERATIONS_HISTORY.md](OPERATIONS_HISTORY.md).
+
+Read `git rev-parse HEAD` and `git status --short --branch` from the repository
+to determine the current revision and local state; do not maintain a "current
+commit" literal here. The `af66fab` sync was historical (2026-09-05).
+Remote-tracking refs reflect the last locally known remote state.
+
+`.gitignore` excludes model weights (`.onnx`/`.gguf`/`.bin`), `bench_photos/`,
+and run artifacts; those stay on the phone only. `test_photos/` remains tracked
+from earlier commits.
+
+**Per-cycle flow** (`main.py: Robot.run_cycle`):
+```
+camera photo → YOLO detect_scene → navigate_rules (pure Python, instant) → execute move
+```
+
+| Layer | Handles | Cost |
+|---|---|---|
+| YOLO (yolo11m.onnx) | object/person detection, position, coarse distance | every cycle |
+| Python `navigate_rules` | obstacle stop, person approach, room signature logging | every cycle, 0ms |
+| Gemma 4 E2B (Q4_0, default since 2026-09-26) | voice→intent only, outside navigation | on demand |
+| Whisper.cpp (base) | 5s voice capture → text | on demand |
+| Gemma `PARSE_SYS` | voice text → JSON action array | on demand |
+| `termux-tts-speak` | speech output | on demand |
+
+DECISIONS #109 opens a separate, unimplemented high-level mission-script
+selector. It is still not wired to the robot. After #112–#116 the lead
+candidate is Gemma scoring the offered options by letter probability; Laya and
+Von continue only on the fine-tuning track (#113). A single resident Gemma for
+both conversation and selection is under evaluation, not decided (#116).
+The current repo describes a mecanum prototype; the phone-mounted RC car with
+2D LiDAR is a proposed redesign.
+
+## Known-good config (as coded)
+
+**Navigation** (`main.py`)
+```
+OBSTACLE_DIST     25 cm     hard stop threshold
+PERSON_STOP_DIST  80 cm     stop when person this close
+STEREO_BASELINE   5.0 cm    strafe distance for depth   (UNVERIFIED)
+MOTOR_SPEED       130       FORWARD/BACK
+rotation speed    120       hardcoded literal in Robot.move(), not a constant
+strafe speed      100       hardcoded literal in Robot.move(), not a constant
+CYCLE_MOVE_TIME   1.5 s
+thermal pause     >80 °C    reads thermal_zone9 (BIG cores), sleeps 5s
+```
+
+**Vision** (`detect_person.py`)
+```
+yolo11m.onnx · CONF 0.35 · IOU 0.45 · 640×640 input
+position: cx<213 left, cx>427 right, else center
+coarse distance by box area: >0.3 very close, >0.1 close, >0.03 medium, else far
+```
+
+`yolo11m.onnx` is fine-tuned, not stock — trained on the owner's own photos
+(human-stated 2026-09-11; training set held on the owner's laptop, not in
+this repository or independently verified from this session). See DECISIONS
+#97.
+
+**Stereo depth** (`stereo_depth.py`)
+```
+FOCAL_PX    500 px    UNCALIBRATED — placeholder, comment says "calibrate later"
+FRAME_SIZE  640 px
+disparity < 2px → rejected as unreliable, falls back to single-photo estimate
+object match requires vertical delta < 80px
+REAL_HEIGHTS: person 170, refrigerator 180, chair 90, couch 85, dining table 75,
+              tv 60, bed 50, toilet 40, potted plant 40, bottle 25, vase 25,
+              cup 10, laptop 3   (cm)
+```
+
+**LLM server** (`server_manager.py`)
+```
+--threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --ctx-size 2048
+setup_q4     Gemma 4 E2B Q4_0    2.8GB  ~12 gen tok/s  ← robot default (since 2026-09-26)
+setup_e4b    Gemma 4 E4B Q4_K_M  5.0GB  ~5.4 gen tok/s ← kept, not recommended (#115)
+(setup_qwen3b / setup_qwen1b and the Qwen2.5 files were removed 2026-09-26.
+Qwen3.5 2B and 4B GGUFs at ~/models/qwen35/ are eval-only, not wired into
+server_manager; Qwen3.5-0.8B was deleted. See DECISIONS #106, #115.
+#104's navigation removal was implemented in #111.)
+```
+
+Current llama.cpp build: commit e1a1abb7, version 1609, **rebuilt 2026-09-26
+with `GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16`** at `~/llama.cpp-b1609-dotprod`
+(commit 341bde6 points `server_manager.py` there; build commands and evidence in
+`benchmark/llama_dotprod_rebuild/`). The original build had no dotprod
+(0 `sdot` instructions vs 1045); the rebuild reads prompts ~3× faster and
+generates ~+32% faster, with identical voice parses (DECISIONS #114). The
+original tree is kept untouched as rollback. Original build details:
+(Clang 21.1.8, Android aarch64). Shared-library build — `bin/llama-server` is a ~5.9 KB launcher, real
+code in the `.so` files. Rollback of the original is the whole `build/` tree
+(`build-b1609.tar.gz`, verified) or a rebuild of commit e1a1abb7, NOT a
+single-binary copy (DECISIONS #73).
+
+A third build, ~/llama.cpp-upstream rebuilt 2026-09-13 to b2351-790cf51a,
+loads Qwen3.5-0.8B-Q4_K_M with architecture accepted and "modalities: text"
+— MEASURED. At that text-load test, no mmproj was downloaded or passed;
+later vision tests in #105 found no usable on-device LLM vision. Note: `strings`
+on the rebuilt binary returns no qwen35 match despite the successful load —
+the `strings` check used in #95 is not a reliable negative; an actual load
+attempt is ground truth. b2351 has dotprod; with it, Gemma E2B Q4_0 scored
+options in 1.55 s median on the ladder (DECISIONS #116). Its flash-attention
+path segfaulted on this phone; the robot does not use b2351.
+
+Benchmarked on build 1609, 15 cycles, realistic robot prompt shape (fixed system
+prefix + varying scene): 11.5 tok/s median (11.1-11.9), prompt eval 1091 ms median,
+free RAM ~3.1 GB, zone9 97-101 °C. Prefix cache reuse confirmed on the live prompt
+shape — 109 tokens on the first call, 18-22 thereafter. EVIDENCE CONFLICT: the
+2026-09-26 rebuild report measured the original non-dotprod build at 6.5 gen
+tok/s (200-token reply), not 11.5; the conditions of the earlier figure are not
+recorded, so neither old figure is canonical. Current dotprod-build figures are
+in DECISIONS #114 and #115.
+
+Archived controlled conversation rates (cold vs cached block aggregate token-weighted gen tok/s for replies >=10 tokens): E2B Q4_0 12.10–12.36, E2B Q4_K_M 10.59–11.72, E4B 5.41–5.48, Qwen3.5 4B Q4_K_M 5.39–5.52, Qwen3.5 2B Q4_K_M 10.36–11.83. Sources: `benchmark/llm_objective_setting/conversation/conversation_20260926T185957Z.stdout.txt` (rates), `benchmark/llm_objective_setting/conversation/conversation_20260926T185957Z/run_20260926T185957Z.json`, and `benchmark/llm_objective_setting/conversation/conv_speed.py` (run model GGUF paths, `server_manager` binary/flags, ctx 2048, cores 4–7). No controlled dotprod chat speed result exists for the other menu entries in this archive. Note: Standalone chat uses ctx 4096 for some models, so these rates do not exactly describe its chat performance.
+
+## Thermal governance
+
+VIRTUAL-SKIN-CPU-GPU is the reported HAL CPU-throttling signal (first trip
+37.0 °C); BIG/zone9 is not its HAL governor (DECISIONS #90). The live
+`main.py` pause still reads BIG above 80 °C; a correct sensor and threshold
+have not been selected or verified in a real mission. The dated device
+thresholds, formula, zone map, throttle checks, and evidence limitations are
+preserved in [PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
+
+## Memory
+
+Reported 2026-09-11: Gemma-4-E2B Q4_K_M left approximately 0.5 GB practical
+headroom after loading, without simultaneous full perception or dialogue.
+This is a dated measurement, not a current co-residency test; see
+[PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md) and
+DECISIONS #94.
+
+2026-09-26 (dotprod build, Gemma E2B Q4_0): peak server RSS ~4.3 GB in the
+conversation benchmark. Without `--cache-ram 0`, one unique-question
+conversation run grew ~1.9 MiB/turn (then dropped 82 MiB, cause unrecorded;
+VmSwap not recorded); with it ~0.1 MiB/turn. Robot-shaped voice prompts did not
+grow either way. Qwen3.5-4B without the flag grew until Android killed it.
+`--cache-ram 0` is now passed (DECISIONS #115). Co-residency of a resident
+Gemma with YOLO and the drive loop is untested.
+
+Standalone chat uses ctx 4096 for Gemma E2B Q4_0/Q4_K_M and Qwen3.5 2B Q4_K_M; ctx 2048 for all other menu models. No controlled peak memory result at ctx 4096; archived conversation peaks used ctx 2048.
+
+## Model vision
+
+The as-coded image request was confirmed to run as text only (DECISIONS #96).
+Later b2351 projector tests did not produce usable on-device LLM vision
+(DECISIONS #105). YOLO remains the perception path. The original live-call
+observations and follow-up are retained in
+[PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
+
+## Working now
+
+- LLM server stable; prompt-cache fix landed (`--swa-full`) — repeat-prefix calls
+  reuse the cached system prompt instead of reprocessing it.
+- YOLO scene detection, position + coarse distance.
+- Voice pipeline end to end: record → Whisper → Gemma JSON parse → TTS.
+  `main.warm_up()` (called from `main.py` and `run_mission.py`) waits for the
+  server and sends one discarded parse; measured cold start: server ready 19 s,
+  warm-up 45.5 s, then five parses in 7.5–12.7 s under the 40 s timeout
+  (DECISIONS #115).
+- Manual selector playground `robot-jevlike`
+  (`benchmark/strategic_selector/manual/jevlike/`): runs one input through any
+  installed selector model side by side. Research only, not a benchmark.
+- **Standalone chat** (`robot-chat`): Menu filters against installed models (Gemma E2B Q4_0/Q4_K_M/Q8_0, Gemma E4B Q4_K_M, Qwen3.5 2B Q4_K_M, Qwen3.5 4B Q4_K_M/Q5_K_M/Q6_K, Mistral 7B Q4_K_M). None of the menu entries other than the robot's deployed model (Gemma E2B Q4_0) are deployed to the robot loop. Image chat is unavailable in this interface.
+- Benchmark archive index: `benchmark/INDEX.md` lists every archive folder,
+  its key result and status.
+- Root restored on Android 17; real SoC temps readable (zone9 BIG / 10 MID /
+  11 LITTLE / 12 GPU / 14 TPU). The battery zone number is unconfirmed.
+- **Mode 1 teleop — ESP32 standalone** (`mode1_simple.ino`, tracked and retained; commit 9a90d7e, DECISIONS #89 —
+  no removal planned): softAP "MecanumBot"
+  → web UI at http://192.168.4.1. Mecanum mixing, live HC-SR04 readout, forward
+  blocked under 25cm, 600ms no-command stop failsafe. Phone and AI not required —
+  ESP32 standalone.
+- **Mode 1 teleop — from the Pixel** (`teleop.py`): Pixel hotspot + web UI, driven
+  from a second phone's browser. Diagonals, speed slider, live HC-SR04 readout,
+  forward blocked under 25 cm. Requires root; collides with the LLM server on 8080.
+- **Serial link live end to end**: Pixel → CP2102 → ESP32 → MX1508 → wheels, and
+  HC-SR04 → `DIST:` → `motors.py`. First commanded motion from the phone achieved
+  this session.
+- **Distance sensor live.** `HAS_ULTRASONIC 1`; `DIST:` flowing and verified against
+  hand movement. Root cause of the initial `DIST:0` readings was sensor VCC wired to
+  GND instead of the ESP32 5V pin — the trigger pulse was coupling through an
+  unpowered sensor. Both obstacle branches (`main.py` `<15` and `<OBSTACLE_DIST`)
+  are now live.
+- Benchmarks: voice parsing 93% (schema caveat below). The current integrated
+  `main.py` navigation path remains unbenchmarked; see Pending and
+  `BENCHMARK_PLAN.md`. Separately, the offline synthetic strategic-selector v2
+  archive records Laya's development-selected `filtered_text` at 9/11
+  acceptable held-out cases, median 3028.8 ms and 4/11 option-order flips.
+  Von's development-selected `two_stage_text` scored 8/11, median 4797.9 ms
+  and 9/11 flips. A post hoc Von `filtered_text` follow-up also scored 8/11,
+  median 2053.8 ms and 9/11 flips; only its stdout was saved. The models saw
+  disjoint generated variants, so these are not controlled head-to-head
+  accuracy results. Raw original-run JSON, stdout, manifests, the executed v2
+  source, v1 history and explicit evidence gaps are archived under
+  `benchmark/strategic_selector/`.
+  A separate offline objective-setting benchmark of on-device GGUF models
+  (Gemma-4-E2B/E4B, Qwen3.5-2B) ran on build 1609; results, caveats and
+  incomplete portions are archived with their run artifacts at
+  `benchmark/llm_objective_setting/` (see DECISIONS #110). It scores a proposed
+  dynamic-map prompt, not the deployed enum, its conversation/Q&A buckets are
+  ungraded, and two rubric defects were found after the fact. It is a baseline
+  for the LLM's retained conversation/objective-setting role under #109, not
+  evidence about navigation.
+- Strategic-selector evidence: a 2026-09-23 phone audit confirmed four archived
+  runs and benchmark sources published on origin/main; publication does not
+  establish model accuracy or robot hardware validity (see
+  [RUN_INDEX.md](../benchmark/strategic_selector/RUN_INDEX.md)).
+
+## Pending / untested
+
+- **Dual-rate nav merged as a rewrite. Rule-level safety branches and the current
+  `run_cycle()` path are regression-tested; everything else is untested.**
+  `navigate_rules` escalation ladder verified against synthetic
+  distances via `nav_test.py`: thresholds exact at the `<15` / `<25` / `>=25`
+  boundaries, no oscillation, `nav_stuck` fires on exactly one cycle per episode,
+  60s timeout reached. NOT tested: the person branches
+  (`estimate_distance_single`), and the whole loop with motors live —
+  `run_mission.py` has only ever been run with `--dry`. The 93% figure still does
+  not transfer (#55). The #104 removal is covered by `run_cycle_safety_test.py`
+  in both avoidance directions with fake external operations; no hardware
+  validation was performed (DECISIONS #111).
+- **Rotation is uncalibrated.** Nobody knows how many degrees one `LEFT`/`RIGHT` at
+  speed 120 for `CYCLE_MOVE_TIME` produces, so the ladder's "4 steps one way, then
+  sweep past centre" is a guess about coverage, not a measured 90°/180°. The
+  ultrasonic cannot measure angle — needs a protractor or overhead video.
+- **Forward motion uncalibrated.** `MOTOR_SPEED` 130 → cm/s unknown; tooling written
+  (`log_run.py`, `identify_it1.py`) and validated on synthetic data, but no run
+  against a wall has been taken. K_I will also drift as the pack sags from 8.2V
+  toward cutoff — unmeasured.
+- **Corrected `mode2_auto.ino` now exists and is version-controlled** —
+  firmware/mode2_auto/mode2_auto.ino, commit 9a90d7e, matches #42/#43/#45/#47
+  exactly (verified). Not yet confirmed against the physical board — that
+  requires a direct hardware check, not a file read.
+- **`BACK_R` diagonal drove one wheel instead of two.** Observed before the
+  corner-map correction (#49); not re-tested since.
+- **Mecanum vx-sign flip unverified under current wiring.** Last confirmed live
+  on a recovered pre-#43 artifact (DECISIONS #83); strafe and diagonals have not
+  been re-tested since the corner-map correction and a left-motor lead swap.
+  This directly underpins the escalation ladder's opening strafes (#61), which
+  assume strafe holds heading — if the sign convention no longer matches the
+  physical wiring, "strafe" could produce rotation or drift instead of lateral
+  movement. Re-verify forward/strafe/rotate/diagonals under the corrected map
+  before trusting the ladder on hardware.
+- **Gemma is no longer consulted during `nav_stuck`.** `run_cycle()` executes
+  the move from `navigate_rules()` directly; `nav_stuck` and `asked_gemma` are
+  still set by the unchanged rules but have no consultation consumer.
+  `run_cycle_safety_test.py` checks both avoidance directions and no outbound
+  LLM request with fake external operations. This is regression coverage, not
+  hardware validation. See DECISIONS #81, #88, and #111.
+- **Dead and orphaned code mapped** (`FILES.md`). Superseded: `detect_scene.py`,
+  `llm.py`, `voice.py`, `ch340_test.py`, `thermal_benchmark.py`,
+  `thermal_benchmark2.py`, `quality_benchmark.py`. Orphans never wired in:
+  `get_temp.py`, `thermal_guard.py`, `server_manager.py` (nothing starts the
+  server programmatically). `mission_test.py` predates the current `Robot` API
+  and is probably broken.
+- **Orphaned-file deletion deferred (DECISIONS #85).** `detect_scene.py`,
+  `llm.py`, `voice.py`, `ch340_test.py`, `thermal_benchmark.py`,
+  `thermal_benchmark2.py`, and `quality_benchmark.py` remain tracked and present.
+  DECISIONS #84's stated `git rm` did not occur in the checked repository; retain
+  all seven until an explicit future removal task. `get_temp.py`/`thermal_guard.py` (#75) and `mission_test.py` remain
+  deliberately kept; `nav_sim.py` was deleted (#118). 420 MB of unused ONNX models remains untouched.
+- **`get_temp()` pause threshold >80 °C is far below the operating band.**
+  Measured 97-101 °C sustained under inference, 31-38 °C idle; the kernel's own
+  passive trip for zone9 is 100 °C, so the chip runs in equilibrium at its designed
+  throttle point. The >80 °C pause would fire on nearly every check.
+  `thermal_guard.py`'s 82/86 are dead code — nothing imports it and `main.py` uses
+  an inline `get_temp`. A replacement needs the correct thermal signal and a
+  threshold validated against a real mission trace; neither is selected.
+  See DECISIONS #74, #75, #90.
+- **Battery thermal zone number unconfirmed.** STATUS previously implied zone
+  22; a later enumeration reported zone 25. Neither is canonical until a
+  direct thermal_zoneN/type read confirms it.
+- **Two JSON schemas in circulation.** `main.py: PARSE_SYS` emits
+  `{"type": ..., "name": ..., "room": ...}`; the benchmark scripts used
+  `{"action": ..., "target": ...}`. Not reconciled.
+- **FOCAL_PX uncalibrated; PERSON_STOP_DIST unreachable as coded.** Overshoot
+  +55% to +1000% across 12 measured photos, minimum estimate 164 cm against an
+  80 cm threshold, so the person-stop branch never fires. People are handled by
+  the 25 cm ultrasonic branch as generic obstacles. Person-stop is to move to the
+  area bucket (#79) — decided, not implemented. See DECISIONS #78, #79, #80.
+- **QAT/MTP evaluation gated, not started.** The earlier QAT Q4_0 E2B proposal
+  required a valid nav benchmark for an LLM model swap. After #104, that is a
+  historical model-in-loop gate, not a gate for the intended Python navigation
+  path. Any future voice or selector model swap needs its own evaluation criteria.
+  wNa8o8 mobile format (the only path to the ~1 GB claim)
+  needs llama.cpp load-support confirmed before download. MTP needs a full QAT
+  chain incl. a matching QAT drafter. See DECISIONS #71, #72.
+- Not yet built/wired: Piper TTS, Whisper VAD, room classifier, memory system,
+  face recognition.
+- Candidate speed and quality work, none measured (DECISIONS #117):
+  grammar-constrained JSON output for voice parsing; per-step timing of YOLO and
+  Whisper (never measured); Moonshine (English-only, compute scales with audio
+  length) against Whisper on the same recordings; a Vulkan GPU feasibility test
+  in native Termux; YOLO26 as an NMS-free replacement, which would need
+  retraining on the owner's photos; LFM2.5 and SmolLM3-3B as conversation
+  candidates, both needing a newer llama.cpp than b1609.
+- The proposed strategic selector is not wired to the robot. Apartment
+  localization from 2D LiDAR, semantic room map, camera–LiDAR object/range
+  association, named-person verification, eligible-script gates, safe
+  interruption, and model/sensor co-residency need separate validation.
+  YOLO `person` detection does not establish Chiara's identity; Laya/Von
+  confidence is not a braking guarantee. Script duration and whether an
+  additional car-mounted accelerometer helps remain undetermined. The
+  current ultrasonic sensor and phone sensors have not been integrated
+  into this proposed selector.
+- Objective-setting benchmark: the rubric fixes were applied and five models
+  rerun on the dotprod build 2026-09-26 (think-off for Qwen3.5); buckets A and
+  B were blind-graded by Local AI (DECISIONS #115, archive
+  `benchmark/llm_objective_setting/`). Qwen3.5 think-on results remain invalid
+  (42% truncated) and must not be quoted. Still open: all models invent sensor
+  readings they do not have (battery, why it stopped, vision range), lack
+  self-knowledge (wheels, why it stops), sometimes reply in the wrong language,
+  and occasionally leak `</start_of_turn>` into replies. A robot fact sheet,
+  live sensor values and an English-only reply rule in the system prompt
+  (English-only is acceptable, DECISIONS #117), plus stripping template
+  tokens, are the planned fixes; not implemented.
+- b2351 flash-attention segfaults on this phone; not investigated. The robot
+  stays on the dotprod b1609 build.
+- Repo root cleaned 2026-09-27 (#118, commit `78b1cc5`): untracked scratch
+  files deleted; #105 vision files archived in `benchmark/qwen_vision/` (edited
+  harness not re-reviewed, result files unlocated) and the #108 verification
+  output in `benchmark/failclosed_108/`.
+- benchmark/llm_objective_setting/ was published with the docs/WORKFLOW.md
+  independent review WAIVED by human decision; the waiver is recorded in its
+  README.
+
+## Work priorities
+
+Preserved from the 2026-09-05 handoff; these are pending tasks, not new test results
+or permission to execute hardware work.
+
+1. Keep `nav_test.py` and the #81 `run_cycle()` regression passing before the
+   first motors-live autonomous run. The code defect is fixed, but no hardware
+   validation has been performed (DECISIONS #88).
+2. Implement the person-stop area-bucket decision (#79). Choose 'very close' versus
+   'close' against `bench_photos/`; the choice remains pending.
+3. Build the replacement navigation benchmark described in
+   [BENCHMARK_PLAN.md](BENCHMARK_PLAN.md): real photos → real `detect_scene()` →
+   real `navigate_rules()`, with distance injected. The proposed scores are token
+   validity and sub-25 cm forward violations; they do not establish navigation
+   accuracy or cover the `run_cycle` override. See #104 and the historical
+   QAT/MTP model-swap gate above.
+4. Take forward-motion calibration with the robot; use
+   [COMMANDS.md §6](COMMANDS.md#6-nav-rules--calibration).
+5. Take rotation calibration with the robot; method remains pending, as recorded
+   above and in COMMANDS.md §6.
+6. After the safety fix, perform the first motors-live autonomous run under human
+   control, with wheels on a stand. Capture the mission thermal trace to validate
+   the sensor and a proposed pause threshold (#75, #90).
+
+Mode 2 video/audio teleop remains parked indefinitely for thermal cost (#58).
+This does not park the serial-command firmware named `mode2_auto.ino`.
+
+## Last hardware test
+
+Bench power-up, first four-motor PWM spin, and HC-SR04 readings were reported.
+The ESP32 driving motors from buck power remains unverified after an earlier
+brownout; capacitors, solid ground return, and current-wiring direction tests
+remain pending. Full measured values and as-built limitations are preserved in
+[PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
+
+exec
+/bin/bash -lc 'cat docs/COMMANDS.md' in /data/data/com.termux/files/home/robot
+ succeeded in 0ms:
+# COMMANDS — Pixel 7 AI stack
+
+Quick reference for everything that runs on the phone. All paths assume `~/robot`.
+
+**Legend:** ✅ verified in a live session · ⚠️ exists but not exercised recently — confirm before relying on it
+
+Run `ls ~/robot/*.py | xargs -n1 basename` to confirm what's actually present.
+
+---
+
+## 0. Read this first — two things that will bite you
+
+### Motor control requires root
+
+`/dev/bus/usb` is not readable by Termux's app UID, so **anything that touches
+the ESP32 must run under `su`**, and `LD_LIBRARY_PATH` must be set explicitly
+because root does not inherit Termux's environment.
+
+```bash
+su -c "LD_LIBRARY_PATH=/data/data/com.termux/files/usr/lib \
+  /data/data/com.termux/files/usr/bin/python \
+  /data/data/com.termux/files/home/robot/<script>.py"
+```
+
+Note the interpreter is `.../usr/bin/python`, not `python3`, in the root form.
+
+Without root: `usb.core.NoBackendError: No backend available`.
+Without `LD_LIBRARY_PATH`: the same error, from a different cause.
+
+Applies to `motors.py`, `teleop.py`, `run_mission.py`, `log_run.py`,
+`dist_raw.py`, `cp2102_test.py` — **not** to the LLM server, benchmarks, vision
+scripts, `nav_test.py`, or `identify_it1.py`.
+
+> `su -c` does not change directory. Scripts that write output files (notably
+> `log_run.py`) drop them in whatever the current directory is, so `cd ~/robot`
+> first.
+
+### Port 8080 is contested
+
+The llama.cpp server and `teleop.py` both bind 8080. **They cannot run at the
+same time.**
+
+| Process | Port | Notes |
+|---|---|---|
+| llama-server | 8080 | `127.0.0.1:8080/health` |
+| `teleop.py` | 8080 | binds `0.0.0.0` — collides |
+
+Autonomous mode is unaffected — `run_mission.py` is a *client* of the server, it
+binds nothing. If both are ever needed at once, change `PORT` in `teleop.py`.
+
+A leftover `teleop.py` holding 8080 makes `server_manager.py` report
+`failed to load in 60s`, which looks nothing like a port problem. **Check first:**
+
+```bash
+python3 -c "
+import socket
+s = socket.socket()
+try: s.bind(('0.0.0.0', 8080)); print('8080 FREE')
+except OSError as e: print('8080 IN USE:', e)
+finally: s.close()"
+```
+
+If it's in use, find the holder and kill it **by PID** — see §8.
+
+---
+
+## 1. Server control — start this first for autonomous mode
+
+The LLM server must be running before `run_mission.py`. The nav loop
+consults Gemma on triggers; without the server those calls fail. (See §4 for `chat.py`/`robot-chat`: Loading a chat model calls `pkill` on the b1609 dotprod binary, killing the robot LLM server from `server_manager.py`. If another server still occupies port 8080, chat refuses to start. Do not launch chat during a robot mission.)
+Always run `setup_q4` before a mission; it stops any leftover chat server and loads the robot model. Quit any open `robot-chat` session before `setup_q4` or a mission; an open session may reuse or kill the robot server on its next message.
+
+| Command | What it does |
+|---|---|
+| `python3 server_manager.py setup_q4` ✅ | **Robot default.** Gemma 4 E2B Q4_0, 2.8 GB, ~12 tok/s.* |
+| `python3 server_manager.py setup_e4b` ⚠️ | Gemma 4 E4B Q4_K_M, 5.0 GB, ~5.4 tok/s.* Not used by chat.py (chat starts its own server); too slow for the control loop. |
+| `python3 server_manager.py stop` ✅ | Kills all llama-server processes. |
+
+*Note: Speeds are token-weighted generation rates over 27 prompts per block (cold vs cached, >=10 gen tokens). Sources: `benchmark/llm_objective_setting/conversation/conversation_20260926T185957Z.stdout.txt` (rates), its `run_20260926T185957Z.json`, and `conv_speed.py` (configuration: b1609 dotprod, ctx 2048). Cores 4-7 were pinned for the benchmark; `server_manager.py` does not pin cores, so rates are not guaranteed.*
+
+> Note: `kill` is not a valid subcommand — prints "Unknown setup". Use `stop`.
+
+All setups launch with the benchmarked flags:
+`--threads 4 --threads-batch 4 --parallel 1 --swa-full --ctx-size 2048`
+
+**Standard startup:**
+```bash
+cd ~/robot
+python3 server_manager.py setup_q4
+curl -s http://127.0.0.1:8080/health && echo " — server up"
+```
+
+> ⚠️ **`server_manager.py` hides the real error.** It reports only
+> `failed to load in 60s`. A port collision, a missing model, and a bad binary
+> all look identical. To see the actual cause, run the server by hand:
+> ```bash
+> ~/llama.cpp/build/bin/llama-server -m ~/models/gemma-4-e2b-it-q4_k_m.gguf \
+>   --threads 4 --threads-batch 4 --parallel 1 --swa-full --ctx-size 2048 \
+>   --port 8080 2>&1 | tail -25
+> ```
+> A port collision shows as `couldn't bind HTTP server socket`.
+
+> ⚠️ `~/models/gemma-4-e4b-it-q3_k_m.gguf` is **0 bytes** — a failed download.
+> Harmless unless something tries to load it. Q3 was rejected anyway (#3).
+
+---
+
+## 2. Running the robot
+
+| Command | Root? | What it does |
+|---|---|---|
+| `run_mission.py "<mission>"` | yes | **Autonomous entry point.** `--dry` runs the full loop with no motor commands and needs no root. |
+| `teleop.py` ✅ | yes | **Mode 1 teleop.** Pixel hotspot + web UI; drive from a second phone's browser. Diagonals, speed slider, live HC-SR04 readout. Needs neither the server nor the AI stack. |
+| `motors.py` ✅ | yes | Serial self-test: connect, PING, distance, forward 1 s, rotate left 0.5 s. |
+| `dist_raw.py` ✅ | yes | Dumps raw serial lines for 5 s. Use to see `DIST:` exactly as the firmware sends it. |
+| `cp2102_test.py` ✅ | yes | Raw transport test: claims the interface, drains idle output, PINGs, expects `ALIVE`. Use when `motors.py` won't connect. |
+| `detect_person.py` ⚠️ | no | YOLO detection module. Run directly to test vision alone. |
+| `stereo_depth.py` ⚠️ | no | Stereo depth via mecanum strafe as baseline. `FOCAL_PX` uncalibrated. |
+| `nav_sim.py` ⚠️ | no | Standalone older simulation (Qwen 2.5 3B, own thermal limits). Not the live path. |
+
+> **`main.py` does not run missions.** Its `__main__` builds `Robot()` with no
+> motors, runs one cycle against `test_photos/scene_test.jpg` if present, prints,
+> and exits. Use `run_mission.py`.
+
+**Autonomous — dry run** ✅ *(verified: 24 cycles, camera → YOLO → rules → Gemma)*
+```bash
+cd ~/robot
+python3 run_mission.py --dry "explore and map the rooms"
+```
+In `--dry`, `self.motors` is None, so `get_distance()` returns the 999 sentinel
+and **every obstacle branch is unreachable**. A dry run does not test the safety
+ladder — use `nav_test.py` (§6) for that.
+
+**Autonomous — motors live** ⚠️ *NEVER RUN. Wheels on a stand for the first attempt.*
+```bash
+cd ~/robot
+su -c "LD_LIBRARY_PATH=/data/data/com.termux/files/usr/lib \
+  /data/data/com.termux/files/usr/bin/python \
+  /data/data/com.termux/files/home/robot/run_mission.py 'explore and map the rooms'"
+```
+
+**Teleop startup:**
+```bash
+python3 server_manager.py stop        # port 8080 collision
+su -c "LD_LIBRARY_PATH=/data/data/com.termux/files/usr/lib \
+  /data/data/com.termux/files/usr/bin/python \
+  /data/data/com.termux/files/home/robot/teleop.py"
+```
+It prints every interface it's listening on. Open the **hotspot** address on the
+driving phone — the one on `ap_br_wlan2`, not `wlan0`.
+
+> Android reassigns the hotspot subnet on restart (seen: `10.98.246.229`, then
+> `10.98.123.14`). The control server binds `0.0.0.0` so it always works, but the
+> camera URL inside `teleop.py` is hardcoded. Find the current address with:
+> ```bash
+> su -c "/system/bin/ip -4 addr" | grep -A2 ap_br
+> ```
+
+### Reading the nav log
+
+`run_cycle` prints one block per cycle. `[NAV]` is the Python rule decision;
+`[GEMMA]` only appears when a trigger fires. Safety moves bypass Gemma entirely
+unless the robot is stuck, so seeing `[NAV] LEFT` with no `[GEMMA]` line is
+correct, not a missing call.
+
+Blocked-path escalation, in order: 2 strafes → 4 rotations one way → flip side
+(Gemma consulted once here) → 6 rotations back through centre → restart. After
+60 s of continuous blockage it returns `STOP`, which ends the mission. **The
+robot never reverses to avoid an obstacle** — the sensor faces forward, so BACK
+would drive blind.
+
+---
+
+## 3. Serial / hardware link
+
+**Board is CP2102 (`10c4:ea60`) — not CH340.** The original `motors.py` transport
+was a CH340 vendor-register sequence and could never have worked with this board.
+Rewritten; backup at `motors.py.ch340.bak`.
+
+| Fact | Value |
+|---|---|
+| VID:PID | `10c4:ea60` (Silicon Labs CP2102) |
+| Endpoints | `0x01` OUT, `0x81` IN |
+| Baud | 115200, set explicitly via CP210x `SET_BAUDRATE` (0x1E) |
+| Init | `IFC_ENABLE` (0x00) → `SET_BAUDRATE` (0x1E) → `LINE_CTL` 8N1 (0x03) |
+| DTR/RTS | **left untouched** — asserting them resets the ESP32 |
+| `claim_interface` | **mandatory** — without it every bulk read times out silently |
+
+**Is the board there?**
+```bash
+su -c "LD_LIBRARY_PATH=/data/data/com.termux/files/usr/lib lsusb"
+# want: ID 10c4:ea60
+```
+Only `1d6b:...` entries means nothing is attached — check the cable first. A
+charge-only cable powers the ESP32 (LED lights) but carries no data, which looks
+exactly like a dead board.
+
+**`Errno 16 Resource busy`** on connect = a previous process still holds the
+interface. `motors.py` registers `disconnect()` via `atexit`, so this should
+self-clear; if it doesn't, unplug and replug the ESP32.
+
+**`NoBackendError`** = not running under root, or `LD_LIBRARY_PATH` unset. See §0.
+
+### Serial protocol (firmware `mode2_auto.ino`, tracked and retained; commit 9a90d7e)
+
+```
+in :  FORWARD:<spd>  BACK:<spd>  LEFT:<spd>  RIGHT:<spd>      (LEFT/RIGHT = strafe)
+      ROTATE_L:<spd> ROTATE_R:<spd>
+      FWD_L:<spd> FWD_R:<spd> BACK_L:<spd> BACK_R:<spd>       (diagonals)
+      STOP  SERVO:<deg>  PING
+out:  READY (boot)  ALIVE (PING reply)  DIST:<cm>   (-1 = no echo, i.e. clear)
+```
+
+> ⚠️ **Naming inverts between layers.** In the firmware `LEFT`/`RIGHT` are
+> strafes. In `main.py: Robot.move()` they are *rotations*, and strafing is
+> `STRAFE_LEFT`/`STRAFE_RIGHT`. `navigate_rules` must emit the `move()`
+> vocabulary, not the wire vocabulary.
+
+> A diagonal drives **two wheels, not four**. That is correct, not a fault.
+
+**`DIST:` sanitising.** The firmware sends `-1` for no echo within ~4 m.
+`Robot.get_distance()` maps `-1` → 400 (clear to sensor max) and any reading
+older than 1.0 s → 999 (unusable, treated as clear). Without this, `-1 < 15` is
+true and an open corridor triggers avoidance on every cycle.
+
+**Watchdog:** the ESP32 stops all motors after 1000 ms with no serial line.
+`motors.py`'s duration helpers re-send the command every 200 ms via `_hold()`, so
+longer moves are not cut short (verified: a 3.0 s forward runs 3.1 s,
+continuous). Any new code that issues a move and then waits must use those
+helpers or re-send itself.
+
+**Motion speeds** are three separate values, and only one is a named constant:
+
+| Move | Speed | Where |
+|---|---|---|
+| FORWARD / BACK | 130 | `MOTOR_SPEED` in `main.py` |
+| rotations | 120 | hardcoded literal in `Robot.move()` |
+| strafes | 100 | hardcoded literal in `Robot.move()` |
+
+---
+
+## 4. Chat mode ⚠️
+
+`robot-chat` — Native Termux interactive chat with the local model (runs `~/robot/robot-chat` via `~/bin/robot-chat` symlink, which executes `chat.py`).
+`python3 chat.py` — Python interactive chat.
+Both entry points use the same script and start their own server on port 8080.
+
+**Server details:** Uses the b1609 dotprod binary, 4 generation/batch threads, parallel 1, SWA full, cache RAM 0, and CPU affinity 4–7 when Android allows those cores. The diagnostic log is `~/robot-chat-server.log`. The header and per-reply status show `MemAvailable` from `/proc/meminfo` in GiB (still displays RAM when thermal reads fail). See STATUS.md for model-specific ctx sizes.
+
+In-chat commands (apply to both):
+
+| Command | What it does |
+|---|---|
+| `/switch` | Success changes model and clears history. Blank/invalid choice cancels without leaving chat. Startup failure exits chat; the previous chat server has normally already been stopped. |
+| `/photo` | Image chat is unavailable in this interface; command explains this |
+| `/camera` | Image chat is unavailable in this interface; command explains this |
+| `/clear` | Clear conversation history |
+| `/history` | Show the conversation so far |
+| `/temp` | Show SoC temperatures |
+| `/kill` | Kills the b1609 dotprod server (including the robot's server). The next chat message relaunches the chat model automatically. |
+| `/quit` | Exit (leaves the chat's llama-server process running). To stop the chat server, use `/kill` before `/quit`. The exit hint `pkill -f llama-server` stops all servers, including the robot's. |
+
+---
+
+## 5. Benchmarks ⚠️
+
+| Command | What it measures |
+|---|---|
+| `python3 json_benchmark.py` | Voice-command → JSON parsing accuracy. |
+| `python3 nav_logic_test.py` | Old dual-rate nav logic. **Its 93% does not describe the live code** — see below. |
+| `python3 benchmark_nav.py` | Navigation decisions through the LLM prompt path. |
+| `python3 benchmark_compare.py` | A/B comparison harness (used for the LoRA tests). |
+| `python3 full_benchmark.py` | Nav + voice + thermal in one run, with summary. |
+| `python3 system_benchmark.py` | 10 inference cycles: tok/s, RAM before/after, throttle count. |
+| `python3 swa_benchmark.py` | 8-cycle simulation — proves the prompt-cache fix. |
+| `python3 thermal_real.py` | Sustained-load thermal sweep at 0/1/2 s rest. Needs root. |
+
+> **`nav_logic_test.py`'s 93% does not transfer to `main.py`.** It matched the
+> literal string `'obstacle'` in synthetic scene text — a label YOLO cannot emit
+> — and ran with no distance sensor. The live rules take obstacles from
+> `get_distance()`. `main.py`'s nav logic is a rewrite against real inputs and is
+> **unbenchmarked**. Use `nav_test.py` (§6) to exercise it.
+
+> **`json_benchmark.py` schema mismatch stands.** `main.py: PARSE_SYS` emits
+> `{"type", "name", "room"}`; the benchmark scripts used `{"action", "target"}`.
+
+**Quick speed check (no script):**
+```bash
+curl -s http://127.0.0.1:8080/completion \
+  -d '{"prompt":"<start_of_turn>user\nHi<end_of_turn>\n<start_of_turn>model\n","n_predict":40}' \
+  | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'{d[\"timings\"][\"predicted_per_second\"]:.1f} tok/s')"
+```
+
+---
+
+## 6. Nav rules & calibration
+
+### `nav_test.py` ✅ — no hardware, no root, no server
+
+Calls `navigate_rules` directly with synthetic distances. This is the **only**
+way to exercise the obstacle branches: in `run_mission.py --dry` distance is
+pinned at 999, so every safety path is dead code.
+
+```bash
+cd ~/robot && python3 nav_test.py
+```
+
+Three blocks: single-shot distance → move; a 16-cycle persistent blockage; and
+blocked-then-cleared. Expected behaviour — thresholds exact at `<15` / `<25` /
+`>=25`, `stuck=True` on exactly **one** cycle per episode, no LEFT/RIGHT
+alternation. Repeated `stuck=True` or alternating rotations is the oscillation
+bug this harness was written to catch.
+
+### Forward-motion calibration
+
+Forward motion is modelled as **IT1 with dead time** — velocity responds to a PWM
+step as PT1 (drivetrain inertia), position is its integral:
+
+```
+G(s) = K_I / (s*(T1*s + 1)) * e^(-Tt*s)
+x(t) = K*[(t-Tt) - T1*(1 - exp(-(t-Tt)/T1))]   for t >= Tt
+```
+
+Feedforward only — there is no odometry, so the loop cannot be closed during
+normal operation.
+
+**Step 1 — log a run** (⚠️ written and syntax-checked, never run against hardware):
+
+Robot square-on to a flat, wide wall 2–3 m back, clear floor. The HC-SR04 beam is
+a ~15° cone, so at 2 m it spans ~50 cm — nothing else may be inside it. Any yaw
+during the run corrupts the measurement, since travel is computed as `d0 - d`.
+
+```bash
+cd ~/robot
+su -c "LD_LIBRARY_PATH=/data/data/com.termux/files/usr/lib \
+  /data/data/com.termux/files/usr/bin/python \
+  /data/data/com.termux/files/home/robot/log_run.py 130 run130.csv"
+```
+Drives forward, stops at 30 cm, writes `time_s,travel_cm`. It dedupes on
+`dist_at`, so the CSV holds true sensor sample times rather than Python loop
+timing.
+
+**Step 2 — fit it** ✅ *(fitter validated on synthetic data: recovered
+42.06 / 0.1788 / 0.0953 against true 42 / 0.18 / 0.09)*
+
+```bash
+cd ~/robot && python3 identify_it1.py run130.csv 130
+```
+Prints T1, Tt, steady-state cm/s, K_I in (cm/s)/duty, the residual range, and a
+table of commanded duration per target distance.
+
+**Self-test the fitter** (regenerates the synthetic run and fits it):
+```bash
+cd ~/robot && python3 -c "
+import numpy as np, sys
+sys.path.insert(0, '.')
+from identify_it1 import step_response
+t = np.arange(0, 2.0, 1/240)
+x = step_response(t, 42.0, 0.18, 0.09) + np.random.default_rng(1).normal(0, 0.3, t.size)
+np.savetxt('synth_test.csv', np.column_stack([t, x]), delimiter=',', fmt='%.4f')
+print('synthetic run written')" && python3 identify_it1.py synth_test.csv 130
+```
+The `K_I` line is meaningless on synthetic data — it has no duty. Ignore it here.
+
+**Sampling rate.** `DIST_EVERY_MS` 200 gives ~5 Hz, which fits K_I but **not**
+T1/Tt: the whole transient is 2–3 samples and Tt's quantisation error exceeds Tt
+itself. For the transient, reflash with `DIST_EVERY_MS = 50` and
+`ECHO_TIMEOUT = 12000`. `log_run.py` warns when the interval is too coarse.
+
+> ⚠️ **`ECHO_TIMEOUT = 12000` is a CALIBRATION BUILD ONLY. Restore 25000 before
+> driving.** At 12000 µs the sensor's max range is ~2 m, so `DIST:-1` means
+> "≥2 m" while `get_distance()` maps it to 400 cm — asserting 4 m of clearance on
+> 2 m of evidence. Not hazardous at the 25 cm threshold, but it feeds a false
+> number to `GEMMA_SYS`.
+
+**Sweep duties** 100 / 130 / 160 / 200 for the gain curve; there is a stiction
+floor at low duty, so it will not extrapolate to zero. K_I also drifts as the
+pack sags from 8.2 V toward cutoff — unmeasured.
+
+### Rotation calibration — no method yet
+
+The ultrasonic cannot measure angle, so `log_run.py` does not apply. Needs a
+protractor or overhead video. Rotation is also IT1 (angular velocity is PT1,
+angle is its integral), so `identify_it1.py` fits it unchanged once `(t, angle)`
+pairs exist — the units simply become deg and deg/s.
+
+**This matters for safety**: the escalation ladder's "4 rotations one way, then
+sweep past centre" assumes a rotation step is somewhere near 90°/4. Nobody has
+measured it. The coverage claim is a guess until this is done.
+
+---
+
+## 7. Thermal & system ⚠️
+
+| Command | What it does |
+|---|---|
+| `python3 get_temp.py` | BIG / MID / LITTLE / GPU / TPU / battery temps + CPU hotspot. Needs root. |
+| `python3 thermal_guard.py` | Orphaned module; its warn 82 °C / critical 86 °C values are not live runtime thresholds (Decision #75). |
+| `su -c "cat /sys/class/thermal/thermal_zone9/temp"` | Raw BIG-core temp, millidegrees. zone9 = BIG, 10 = MID, 11 = LITTLE, 12 = GPU, 14 = TPU; the battery zone number is unconfirmed (STATUS Pending). |
+| `free -h \| grep -E "Mem\|Swap"` | RAM and swap. Models are large and swap kills speed. |
+| `termux-battery-status` | Battery temp/level (no root needed). |
+
+**Sample the BIG core over a minute (diagnostic, not the HAL thermal governor; see DECISIONS #90):**
+```bash
+su -c 'i=0; while [ $i -lt 12 ]; do cat /sys/class/thermal/thermal_zone9/temp; sleep 5; i=$((i+1)); done'
+```
+> Use the `while` form. `su -c "for i in $(seq 1 12); ..."` fails — the outer
+> shell expands `$(seq)` before `su` sees it and Android's `sh` rejects it.
+>
+> Historical idle readings of 52–67 °C do not establish the loaded ceiling.
+
+> ⚠️ **Thermal configuration remains unresolved.** Only `main.py`'s
+> `run_mission` pause above **80 °C** is currently live. `thermal_guard.py` is
+> orphaned; its **82/86 °C** values are not competing live thresholds (#75).
+>
+> Existing measurements are historical observations from different workloads:
+> the 24-cycle dry run peaked at 67 °C with YOLO and occasional Gemma calls;
+> #74 records 97–101 °C under sustained llama.cpp inference and 31–38 °C idle,
+> superseding the older unsourced 79–82 °C sustained-inference claim.
+> These observations do not establish the correct runtime threshold.
+>
+> **Do not select or change a thermal threshold until the planned definitive
+> benchmark exercising the real `run_cycle` has been completed and reviewed.**
+> Use its per-cycle temperature evidence; retain the existing hardware
+> restrictions and human approval gates.
+
+---
+
+## 8. Process management
+
+> ⚠️ **`pkill -f <pattern>` kills your own shell.** In Termux the pattern
+> routinely matches the invoking `su -c` command line, so you get
+> `Terminated` / `Killed` and no information about whether the target died.
+> This bit twice in one session.
+
+Find the PID, then kill it by number:
+```bash
+su -c "ps -A | grep -E 'python|llama'"
+su -c "kill <PID>"
+```
+Then confirm with the port check in §0 — do not trust the kill itself.
+
+### Host tooling (Termux aliases, not in repo)
+
+  ~/kill.py    — `kill` alias. SIGKILL llama-server via `pgrep -x` (exact name).
+                 MUST use -x, not -f: `pgrep -f llama-server` self-matches our
+                 own monitoring shells and reports phantom servers.
+  ~/prep.py    — `prep` alias. Frees RAM by killing a hardcoded list of nine
+                 user-facing apps. No discovery, no system services.
+  ~/ramfree.py — off/on. Currently restored to "on" (nothing disabled/
+                 restricted). Do not use "off" — see DECISIONS #94: discovery-
+                 based process management on this device has rebooted the phone.
+
+> Note: server_manager.py's internal kill_servers() calls pkill -f
+> llama-server — the same -f risk warned about above. Known, accepted
+> exception: used knowingly and has worked in practice (DECISIONS #103). Does
+> not override the warning for other -f uses.
+
+---
+
+## 9. Housekeeping and recovery
+
+```bash
+ls -lh ~/models/*.gguf | awk '{print $5, $9}'
+ls ~/robot/*.py | xargs -n1 basename
+df -h /data | tail -1
+git -C ~/llama.cpp rev-parse --short HEAD
+git -C ~/robot rev-parse HEAD
+git -C ~/robot status --short --branch
+```
+
+Git commit and push operations follow [WORKFLOW.md](WORKFLOW.md): stage only the
+approved files, obtain the required independent review and human commit decision
+for code, and request separate push authorization. Remote-tracking refs are local
+records, not proof that the remote has not changed.
+
+Historical backup evidence and recovery caveats are in
+[OPERATIONS_HISTORY.md](OPERATIONS_HISTORY.md). Verify an archive before using it.
+
+---
+
+## 10. Firmware
+
+Compiling requires the laptop — the ESP32 toolchain has no Android build, so
+Termux cannot produce a `.bin`. A native flasher app on the Pixel saves nothing,
+since the compile still happens on the laptop. **OTA would remove the cable
+entirely and has not been set up.**
+
+Before flashing: **switch off the motor battery rail.** GPIO pins float during
+reset and can twitch a motor. The ESP32 runs on USB, so it flashes fine with the
+motor supply off. Signal wires may stay connected — none of the motor pins
+(16/17/18/19/21/22/23/25) are strapping pins. What *does* break flashing is
+having buck 5 V on VIN while USB is also connected.
+
+Verify a flash in the Arduino serial monitor at **115200**: press EN, expect the
+ROM bootloader banner then `READY`; send `PING` with line ending set to Newline,
+expect `ALIVE`. If the banner appears but `READY` does not, the sketch is not the
+one you think you flashed.
+
+**Current firmware constants** (`mode2_auto.ino`, tracked and retained; commit 9a90d7e):
+```
+BAUD            115200
+WATCHDOG_MS     1000        paired with motors.py's 200ms keepalive
+MAX_SPEED       200         speeds above this are silently clamped
+HAS_ULTRASONIC  1           TRIG P27, ECHO P26 via 1k/2k divider
+DIST_EVERY_MS   200         50 for calibration builds only
+ECHO_TIMEOUT    25000 µs    ~4m. 12000 for calibration builds only
+corner map      RR=0 FR=1 FL=2 RL=3, INVERT indices 2 and 3 true
+```
+
+Sensor VCC must come from the ESP32 **5 V/VIN** pin. Wired to GND instead, the
+sensor is unpowered and the trigger pulse couples through it, producing a
+constant `DIST:0` — which looks like a working sensor reading zero, not a wiring
+fault.
+
+---
+
+## Typical session — autonomous
+
+The live step below is gated on the safety fix and verification in
+[STATUS.md](STATUS.md#work-priorities). It requires human control and wheels on a
+stand for the first attempt; this example is not authorization to run motors.
+
+```bash
+cd ~/robot
+python3 -c "
+import socket
+s = socket.socket()
+try: s.bind(('0.0.0.0', 8080)); print('8080 FREE')
+except OSError as e: print('8080 IN USE:', e)
+finally: s.close()"
+python3 server_manager.py setup_q4          # start server (port 8080)
+curl -s http://127.0.0.1:8080/health        # confirm it's up
+python3 nav_test.py                         # safety rules still sane?
+python3 run_mission.py --dry "explore"      # dry run — no motors
+# wheels on a stand for the first live run
+su -c "LD_LIBRARY_PATH=/data/data/com.termux/files/usr/lib \
+  /data/data/com.termux/files/usr/bin/python \
+  /data/data/com.termux/files/home/robot/run_mission.py 'explore'"
+python3 server_manager.py stop
+```
+
+## Typical session — Mode 1 teleop
+
+```bash
+python3 server_manager.py stop              # port 8080 collision
+# hotspot on, ESP32 on phone USB, motor rail on
+su -c "LD_LIBRARY_PATH=/data/data/com.termux/files/usr/lib \
+  /data/data/com.termux/files/usr/bin/python \
+  /data/data/com.termux/files/home/robot/teleop.py"
+# open the printed ap_br_wlan2 address on the driving phone
+```
+
+## Typical session — calibration
+
+```bash
+cd ~/robot
+python3 server_manager.py stop              # free the CPU and the port
+# robot square-on to a wall, 2-3m back, clear floor
+su -c "LD_LIBRARY_PATH=/data/data/com.termux/files/usr/lib \
+  /data/data/com.termux/files/usr/bin/python \
+  /data/data/com.termux/files/home/robot/log_run.py 130 run130.csv"
+python3 identify_it1.py run130.csv 130
+# sanity-check: if K says 40 cm/s, a 2s run should have covered ~80cm
+```
+
+
+## 11. Agent role sessions
+
+Use [WORKFLOW.md §Phone sessions](WORKFLOW.md#phone-sessions) for the current
+Termux/Debian launch commands, role selection, and reviewer limitations. Earlier
+agent environment evidence is in [OPERATIONS_HISTORY.md](OPERATIONS_HISTORY.md).
+
+### Terminal evidence and editing practice
+
+Preserved from the old handoff: when the human executes phone commands, send one
+instruction at a time and wait for its output. Return exact requested terminal
+evidence, not a paraphrase. Display rendering can join lines; a syntax check may
+distinguish a display problem from a real syntax error, but does not prove runtime
+correctness. Do not paste raw Python into a shell. Use the agent's supported patch
+tool for edits; for manual multiline shell input, a correctly quoted heredoc keeps
+content from being interpreted as commands. No editor choice grants write authority.
+
+Verify before trusting a backup. Mark unsupported facts UNKNOWN. In particular,
+the invalid 93% navigation result tested an interface that did not exist.
+
+## 12. llama.cpp server API & multi-model notes (2026-09-13)
+
+**grammar_triggers request format** — this build's /completion takes an
+integer type (TOKEN=0, WORD=1, PATTERN=2, PATTERN_FULL=3) plus value; token
+is required only when type=TOKEN. Older published examples using
+{"word": ..., "at_start": ...} are rejected here with "key 'type' not
+found". VERIFIED against this device's tools/server/server-common.h.
+
+**Qwen3.5 uses ChatML**, not Gemma's <start_of_turn>/<end_of_turn>:
+<|im_start|>role\ncontent<|im_end|>. A harness passing Gemma's stop token
+to a Qwen server will never stop early and will run every call to
+n_predict.
+
+**Thinking-mode note** — Qwen3.5 small variants produced a long "Thinking
+Process:" block under llama-cli but not via /completion on the same
+model/build. main.py uses /completion, so this appears not to affect
+the robot path. INFERRED (llama-cli chat-template handling), not isolated
+— flagged so a future session doesn't re-derive it.
+
+exec
+/bin/bash -lc 'ls -l benchmark/yolo_speed /termux-home/yolo_bench 2>&1' in /data/data/com.termux/files/home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc "rg -n 'YOLO|yolo|benchmark|capture' docs/DECISION_INDEX.md | tail -25" in /data/data/com.termux/files/home/robot
+exec
+/bin/bash -lc 'git status --short --branch' in /data/data/com.termux/files/home/robot
+ exited 182 in 0ms:
+ succeeded in 110ms:
+## main...origin/main
+ M .gitignore
+?? benchmark/llm_objective_setting/conversation/conv_speed_mtp.py
+?? benchmark/llm_objective_setting/conversation/run_conv_mtp.sh
+?? benchmark/yolo_speed/
+
+exec
+/bin/bash -lc 'cat docs/DECISION_INDEX.md' in /data/data/com.termux/files/home/robot
+ succeeded in 0ms:
+# Decision index — current orientation
+
+This is a short reading guide, not another decision log. The numbered entries in
+[DECISIONS.md](DECISIONS.md) remain the authority and retain their original text.
+Read [STATUS.md](STATUS.md) or [APP_STATUS.md](APP_STATUS.md) for what is currently
+implemented. Before appending a decision, read the last number in DECISIONS.md
+itself. An entry labelled *decided* here may still be unimplemented.
+
+| Area | Current orientation | Evidence |
+|---|---|---|
+| Prototype navigation | Python rules and sensors own low-level movement; Gemma was removed from the navigation loop. No hardware validation yet. | #104, #111, #88; STATUS Architecture |
+| Strategic selector | **Research only, not wired.** Lead candidate: Gemma letter-scoring (1.5 s on b2351 Q4_0); Laya/Von zero-shot near chance, continuing only via fine-tuning. One resident Gemma for talk + selection under evaluation. | #109, #112, #113, #116; [index](../benchmark/INDEX.md) |
+| Motor safety | Firmware watchdog is 1000 ms; the `nav_stuck` safety-move override was fixed in Python; LLM failure paths now select STOP. Hardware validation remains separate. | #47, #88, #108; STATUS Pending |
+| Firmware and wiring | Corrected `mode2_auto.ino` and corner map are committed; what is flashed on the physical board is unconfirmed. | #43, #89; STATUS Architecture |
+| Person stop | Coarse detector area bucket was chosen to replace uncalibrated centimetres, but is not implemented. | #78–#80; STATUS Pending |
+| Thermal control | VIRTUAL-SKIN-CPU-GPU governs HAL CPU throttling; the live `main.py` pause still reads BIG at >80 °C. The replacement threshold is not decided. | #74–#75, #90–#93; STATUS Thermal/Pending |
+| Model vision | Deployed image requests were effectively text-only; later projector experiments did not yield usable on-device LLM vision. YOLO remains perception. | #96, #105; STATUS Vision |
+| Android app | Root-free USB and sustained inference spikes passed; the native app itself has no code yet. Prototype measurements do not transfer automatically. | #67–#69; APP_STATUS |
+| Licensing | [LICENSES.md](LICENSES.md) owns the app allowlist. Its derived copy in APP_CLAUDE.md is intentional. | #66 |
+| Collaboration | Independent Coder/Reviewer/human commit gate and per-task execution profiles are defined in [WORKFLOW.md](WORKFLOW.md). Push needs separate authorization. | #86–#87 |
+| Strategic selector harness v3 | s1o dropped on speed; laya_en and von11 proceed; hardware timings provisional. | #112 |
+| Data Engineer role | Selector moves to a fine-tuning track; new Data Engineer role created to generate the dataset. | #113 |
+| LLM runtime | Robot runs b1609 rebuilt with ARM dotprod (~3x prompt speed); default model Gemma E2B Q4_0 with `--cache-ram 0` and a voice warm-up. | #114, #115 |
+| Selector direction | Gemma letter-scoring leads (1.55 s, 77%); one resident Gemma for talk + selection under evaluation, not decided. | #116 |
+| Language | English-only speech input and replies are acceptable; English-only components are eligible. | #117 |
+
+## Corrections worth knowing before citing an older entry
+
+| Earlier record | Later correction or change |
+|---|---|
+| #33 front/rear motor wording, then #40 left/right mapping | #43 corrects the left-side corner assignment; #89 identifies the corrected committed firmware. |
+| #52's avoidance escalation | #59 changes the counter logic; #62 limits Gemma consultation to once per blockage episode. The planned LLM-free nav direction is #104 and remains unimplemented. |
+| #81 open `nav_stuck` safety defect | #88 records the code fix; #108 records the later STOP fallback for LLM failures. Do not treat #81 as an open code defect. |
+| #23 keeps `nav_sim.py` | #118 deleted it (commit `78b1cc5`). |
+| #84 says seven orphaned scripts were deleted | #85 verifies they remain tracked and explicitly defers deletion. |
+| #77 records a built b2233 binary | #107 says its binary was replaced by b2351; the old source commit is still recoverable. |
+| #95's negative `strings` check for Qwen support | #107 / STATUS report a successful Qwen3.5 text load on b2351; #105 separately records unsuccessful vision tests. |
+| #99's proposed model-in-loop work order | #100–#102 tested output and rule defects; #104 changes the intended architecture. #109 is separate strategic research. |
+
+For any claim outside these selected topics, search the numbered log and inspect
+the later entries that cite it. This index makes no claim to classify all decisions.
+
+codex
+The Round 2 fixes address the ignore rule and add input hashes to resume checks. I’m checking whether resume can still reuse completed rows without trustworthy provenance, and whether the timing loop matches the deployed detector closely enough for the model ranking.
+exec
+/bin/bash -lc 'git check-ignore -v benchmark/yolo_speed/yolo_speed.py; git diff -- .gitignore' in /data/data/com.termux/files/home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc "nl -ba benchmark/yolo_speed/yolo_speed.py | sed -n '1,245p'" in /data/data/com.termux/files/home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc 'nl -ba benchmark/yolo_speed/run_yolo_speed.sh' in /data/data/com.termux/files/home/robot
+ exited 182 in 0ms:
+codex
+**Finding — resume can trust completed results with no input provenance.** [yolo_speed.py](/data/data/com.termux/files/home/robot/benchmark/yolo_speed/yolo_speed.py:176) loads completed blocks, but the hash check only examines `run_*.json` files if they exist. Round 2 check T2 confirms that a directory with completed results and no manifest passes `--resume` and reports those results as comparable. The check also does not establish that every completed config appears in a prior manifest. This leaves the input hash requirement incomplete. The code rewrites `blocks.jsonl` before performing the manifest check, so a rejected resume can alter the existing artifact.
+
+**Required change:** Validate manifest coverage and hashes for every completed block before rewriting or skipping any block; reject a resume whose completed results lack that provenance.
+
+The rest of the candidate fits the speed task. The worker uses the robot’s native Python and observed ONNX Runtime 1.25.1 CPU provider, default session settings, image preparation, confidence threshold, and NMS. The exports and two-frame detection checks support the stated model format; the report retains per-frame counts in `blocks.jsonl` and summarizes the requested timing fields. The thermal gate, cold process per config, and core-loss retry follow the supplied ladder behavior. The `.gitignore` fix makes the benchmark scripts trackable. I found no motor call, robot-code edit, deployed-model change, or deletion of the covered captures. Absolute timings remain subject to the stated proot overhead.
+
+**Verdict: CHANGES REQUIRED** — close the resume provenance gap and obtain a fresh review of that change.
+tokens used
+44,352

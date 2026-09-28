@@ -1,0 +1,5 @@
+**Verdict: REQUEST CHANGES**
+
+1. **MAJOR — C scoring can fail for every config after a malformed reply.** [conv_speed_mtp.py:154](/termux-home/robot/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py:154) records grading failures as `C_grade_error`, but `score_c.py` only skips rows with an `error` field. For example, a C1 reply with `"room":["x"]` is caught by `c_results()`, then causes `aggregate.grade()` to raise `TypeError` when [run_conv_mtp.sh:26](/termux-home/robot/benchmark/llm_objective_setting/conversation/run_conv_mtp.sh:26) invokes `score_c.py`. The script continues, but `c_scores.txt` contains a failure message instead of the requested C scores for all five configs.
+
+The smoke logs show both drafters loading and reporting acceptance, and the final C9 toy run completed. Neither establishes that scoring survives a malformed C reply.

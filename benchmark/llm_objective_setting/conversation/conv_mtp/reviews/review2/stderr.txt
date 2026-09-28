@@ -1,0 +1,3201 @@
+OpenAI Codex v0.157.1
+--------
+workdir: /termux-home/robot
+model: gpt-6-sol
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: medium
+reasoning summaries: none
+session id: 01a0e6f8-fed0-7831-af72-9d069fadc00a
+--------
+user
+ROLE: Reviewer (independent, fresh session). PONYTAIL: off — do a correctness/safety review, not an over-engineering review.
+PLATFORM: Codex CLI codex exec, read-only sandbox. MODEL: gpt-6-sol. EFFORT: medium.
+Rules: do NOT edit, stage, commit or push anything; do not run motors, main.py, llama-server or any model; do not launch another reviewer. Read files only (you may run read-only commands such as cat, grep, git diff, python3 -m py_compile).
+
+Repository: /termux-home/robot (Pixel Robot). Base commit: main 825152b75fff (working tree otherwise clean). Read AGENTS.md, docs/WORKFLOW.md, docs/REVIEWER.md for your role.
+
+TASK given to the Coder (verbatim summary):
+Prepare a SHORT unattended speed run testing MTP speculative decoding (--spec-type draft-mtp) and Qwen3.5-4B Q4_0 on the robot build ~/llama.cpp-b1609-dotprod (upstream tag b10194).
+1. Download (SHA-256 checked vs HF LFS): unsloth/Qwen3.5-4B-MTP-GGUF Qwen3.5-4B-Q4_0.gguf -> ~/models/qwen35/mtp/Qwen3.5-4B-Q4_0-MTP.gguf; unsloth/gemma-4-E2B-it-GGUF MTP/mtp-gemma-4-E2B-it-Q8_0.gguf -> ~/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf.
+2. Smoke tests: server_manager.py flags + --cache-ram 0, (i) Qwen MTP --spec-type draft-mtp --spec-draft-n-max 3, (ii) Gemma E2B Q4_0 --model-draft <drafter> --spec-type draft-mtp --spec-draft-n-max 3; show MTP/draft loaded and draft acceptance. If (ii) fails on the robot build, fall back to ~/llama.cpp-upstream for both Gemma rows.
+3. Write conv_speed_mtp.py next to conversation/conv_speed.py (do NOT edit archived conv_speed.py or bench.py). Reuse their prompt wrappers, cold handshake, thermal gate, cpuset guard, cores 4-7, ctx 2048, --cache-ram 0. Changes: temperature 0 for every prompt; prompts restricted to A5 A6 B1 B2 B6 B7 C1 C6 C7 C8 C9 C10 C11; cold block only; Qwen think OFF. Configs in order: 1 gemma_e2b_q40 (MTP off), 2 gemma_e2b_q40_mtp (drafter, n-max 3), 3 qwen35_4b_q4km (MTP off, existing file), 4 qwen35_4b_q40mtp (MTP off, new file), 5 qwen35_4b_q40mtp_on (MTP on, n-max 3). Report per config: ttft, prompt tok/s, gen tok/s (token-weighted, >=10 tokens), peak MiB, draft acceptance, thermal start/end, and for rows 2 and 5 how many of 13 replies are byte-identical to rows 1 and 4. Score C replies with conversation/score_c.py (report only). Write run_conv_mtp.sh for ~/ladder/oneshot.sh.
+4. Toy run on 2 prompts per config (no timing claims; agent resident).
+RULES: no motors; do not edit main.py, server_manager.py or robot code.
+
+CANDIDATE (new, untracked files; full diff below):
+- benchmark/llm_objective_setting/conversation/conv_speed_mtp.py
+- benchmark/llm_objective_setting/conversation/run_conv_mtp.sh (a byte-identical copy, SHA-256 4db32d39…d5817, is at /termux-home/ladder/run_conv_mtp.sh because oneshot.sh requires $L/$RUN_SCRIPT)
+
+SURROUNDING CONTEXT to read yourself:
+- benchmark/llm_objective_setting/conversation/conv_speed.py (archived runner imported as cs; identical to /termux-home/ladder/conv_speed.py, SHA 9b721d86…)
+- benchmark/llm_objective_setting/bench.py (prompts, format_prompt, parse_and_grade_c, strip_think)
+- benchmark/llm_objective_setting/conversation/score_c.py and benchmark/llm_objective_setting/aggregate.py
+- /termux-home/ladder/ladder.py (live module imported at runtime; make_cold, thermal_gate, check_cores, wait_cores)
+- /termux-home/ladder/oneshot.sh (SHA-256 db1f3156…8dbdc8e8, the launcher) and run_conversation.sh (previous run script)
+- server_manager.py (robot flags; it now itself passes --cache-ram 0; conv_speed.server_cmd builds its own argv from sm constants, adding --cache-ram 0 once)
+
+CODER DECISIONS to check:
+- Smoke (ii) succeeded on the robot build (no assert), so the upstream fallback was not used; all configs use server_manager.LLAMA_SERVER. The only warning was "Gemma4Assistant requires ctx_other to be set (this warning is normal during memory fitting)" / "[spec] failed to measure draft model memory", then the drafter loaded and acceptance was reported.
+- Draft acceptance = sum(draft_n_accepted)/sum(draft_n) from the final streamed event's timings (fields verified present in smoke/toy output; absent -> None for MTP-off configs).
+- Byte-identical compares the full streamed reply text per prompt_id.
+- c_results.json writes C rows in bench.py result format (run_index 1, graded by bench.parse_and_grade_c, source_sha256 = bench.SOURCE_SHA256) so score_c.py can read it.
+- A5 uses conv_speed's behavior (final user turn only, no history), unchanged from the archived run.
+- --ids option restricts to a subset of the 13 for the toy run only.
+
+ROUND 2. This is a fresh session; a previous independent round returned this verdict verbatim:
+---
+**Verdict: REQUEST CHANGES**
+
+1. **MAJOR — Paired replies receive different prompts.** [conv_speed_mtp.py](/termux-home/robot/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py:62) regenerates prompts for each config, while `bench.format_prompt()` inserts a random nonce. At temperature 0, an MTP-on reply can differ from its MTP-off twin because the prompt bytes differ. The reported byte-identical count therefore cannot isolate MTP’s effect. Reuse each prompt’s exact bytes across its pair.
+
+2. **MAJOR — Resume can silently accept an incomplete prompt set.** [conv_speed_mtp.py](/termux-home/robot/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py:166) treats any completed block in the output directory as done without checking its prompt IDs against the current `--ids`. Resuming a two-prompt toy directory with the default 13 IDs skips those blocks and produces a report from two replies per config.
+
+3. **MAJOR — An interrupted write can double-count a block on resume.** [conv_speed_mtp.py](/termux-home/robot/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py:194) flushes turns before writing the completion record. If the unattended run stops between those writes, resume reruns the block, and `cs.load_done()` combines both sets of turns under one completion record. Rates, acceptance, scoring, and the identical-reply denominator can then be wrong.
+
+The supplied smoke logs show both drafters loading and reporting acceptance; the two-prompt toy run completed. Neither check covers these three cases.
+---
+Coder's changes in response (all three accepted): (1) prompts() seeds `random` (random.seed(0)) before cs.prompts(), so each family's nonces are deterministic and a pair gets byte-identical prompts; nonces still differ between prompts, and each block is a fresh server with --cache-ram 0 and cache_prompt false. (2) On --resume, a completed block whose prompt ids differ from --ids is refused (SystemExit). (3) On --resume, turns.jsonl is renamed to turns.jsonl.before_resume_<stamp> and rewritten with only the turns of blocks that have a blocks.jsonl record, so an interrupted block's orphan turns are not merged with its redo. Verify these fixes and review the whole candidate again, not only the delta.
+
+CHECK OUTPUT:
+Downloads: Qwen3.5-4B-Q4_0-MTP.gguf 2669209920 bytes sha256 14e6ef39302330c63c2c1a1ab548c7f6f1b7e36b3150ca8b42cab7193b0c3669 (= HF LFS oid); mtp-gemma-4-E2B-it-Q8_0.gguf 97817664 bytes sha256 9eba819938efccfd6044f8af84e3bbfddc639a2bcf32ebc36420e6a649191919 (= HF LFS oid).
+Smoke evidence: /termux-home/ladder/conv_mtp_prep/smoke.py (run against an earlier draft), /termux-home/ladder/conv_mtp_prep/smoke_qwen_mtp.log, /termux-home/ladder/conv_mtp_prep/smoke_gemma_mtp_robot.log.
+Model-free checks on the fixed code: prompts() twice per family is equal; 13 prompts in IDS order; 13 distinct prompt prefixes; temperature 0 everywhere; a 2-id subset equals the matching rows of the full set -> "prompt checks ok". Resume of the 2-prompt toy dir with default ids -> refused: "--resume: gemma_e2b_q40's completed block has prompts ['A6', 'C1'], not [...13 ids...]". Orphan test: copy of toy dir with qwen35_4b_q40mtp_on's block record removed (its 2 turns orphaned), --resume --models gemma_e2b_q40 -> turns.jsonl 10 -> 8 lines, backup turns.jsonl.before_resume_* 10 lines, 0 orphan rows left.
+Toy run on the fixed code: /termux-home/ladder/conv_mtp_prep/toy2/ (stdout /termux-home/ladder/conv_mtp_prep/toy2.stdout.txt), --ids A6,C1, exit 0:
+[gemma_e2b_q40] cold: 2 turns
+[gemma_e2b_q40_mtp] cold: 2 turns
+[qwen35_4b_q4km] cold: 2 turns
+[qwen35_4b_q40mtp] cold: 2 turns
+[qwen35_4b_q40mtp_on] cold: 2 turns
+MTP SPEED REPORT  (server_manager flags + --cache-ram 0, cores 4-7, cold block, temperature 0)
+ttft = client time to first streamed token, median; prompt tok/s median; gen tok/s token-weighted (>= 10 tokens);
+accept = accepted / drafted tokens; same = replies byte-identical to the MTP-off twin
+
+model                 load s  ttft s prompt t/s  gen t/s peak MiB trunc  accept    same   thermal start -> end (z9 z10 z11 degC); load state
+gemma_e2b_q40            5.5    2.34       70.1    13.68     3394     0     n/a       -   n/a -> n/a; weights-cold
+gemma_e2b_q40_mtp        7.6    2.36       71.3    23.06     4533     0   56.4%     2/2   n/a -> n/a; weights-cold
+qwen35_4b_q4km           6.9    4.92       31.4     6.56     5281     0     n/a       -   n/a -> n/a; weights-cold
+qwen35_4b_q40mtp         6.2    4.45       34.6     7.57     5028     0     n/a       -   n/a -> n/a; weights-cold
+qwen35_4b_q40mtp_on      7.0    4.66       33.0     9.52     4978     0   66.7%     2/2   n/a -> n/a; weights-cold
+
+score_c.py on toy2/c_results.json: C1 exact 1/1 for all 5 configs, all regimes.
+(Round-1 toy run on the earlier code: /termux-home/ladder/conv_mtp_prep/toy/.)
+
+DELTA SINCE ROUND 1 (diff of the two candidate diffs):
+3c3
+< index 0000000..df24106
+---
+> index 0000000..533dcfb
+6c6
+< @@ -0,0 +1,206 @@
+---
+> @@ -0,0 +1,218 @@
+22a23
+> +import random
+69c70,73
+< +    """conv_speed's prompts (bench.py wrappers, stop tokens, nonce), restricted to ids, at temperature 0."""
+---
+> +    """conv_speed's prompts (bench.py wrappers, stop tokens, nonce), restricted to ids, at temperature 0. The nonce
+> +    generator is seeded so an MTP-on config and its MTP-off twin get byte-identical prompts (the nonces still differ
+> +    between prompts; every block starts a fresh server with --cache-ram 0 and cache_prompt false)."""
+> +    random.seed(0)
+172a177
+> +    stamp = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
+173a179,185
+> +        for (m, _), (_, rows) in done.items():
+> +            if sorted(r["prompt_id"] for r in rows) != sorted(ids):
+> +                raise SystemExit(f"--resume: {m}'s completed block has prompts {[r['prompt_id'] for r in rows]}, not {ids}")
+> +        turns = a.out / "turns.jsonl"
+> +        if turns.exists():  # drop turns of a block interrupted before its blocks.jsonl record; keep the old file
+> +            turns.rename(a.out / f"turns.jsonl.before_resume_{stamp}")
+> +            turns.write_text("".join(json.dumps(r) + "\n" for _, rows in done.values() for r in rows))
+176c188
+< +    (a.out / f"run_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.json").write_text(json.dumps({
+---
+> +    (a.out / f"run_{stamp}.json").write_text(json.dumps({
+
+
+FULL CANDIDATE DIFF:
+diff --git a/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py b/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py
+new file mode 100644
+index 0000000..533dcfb
+--- /dev/null
++++ b/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py
+@@ -0,0 +1,218 @@
++#!/usr/bin/env python3
++"""MTP speculative-decoding speed runner. Research only: offline, no motors, no main.py.
++
++Usage: conv_speed_mtp.py --out DIR [--models a,b] [--ids A6,C1] [--resume] [--thermal-log PATH]
++
++conv_speed.py's cold block (thermal gate, page-cache drop through the handshake, cores 4-7, cpuset guard, redo on
++lost cores, --resume) with these changes: temperature 0 for every prompt, only the 13 prompts in IDS, no cached
++block, and per config extra server flags (MTP drafting). Qwen think is OFF as before.
++Draft acceptance = sum(draft_n_accepted) / sum(draft_n) from the server's final timings. For each MTP-on config the
++report counts replies byte-identical to its MTP-off twin (PAIRS). C-bucket replies are also written in bench.py's
++result format to DIR/c_results.json for score_c.py.
++Writes DIR/blocks.jsonl, DIR/turns.jsonl, DIR/report.txt, DIR/c_results.json.
++"""
++import argparse
++import hashlib
++import json
++import random
++import statistics
++import subprocess
++import time
++from datetime import datetime, timezone
++from pathlib import Path
++
++import conv_speed as cs  # the archived runner: its prompts, server flags, streaming turn, stop, VmHWM, resume
++from conv_speed import bench, ladder, sm
++
++M = cs.M
++GEMMA_DRAFT = M + "mtp/mtp-gemma-4-E2B-it-Q8_0.gguf"
++MTP = ["--spec-type", "draft-mtp", "--spec-draft-n-max", "3"]
++CONFIGS = {  # config -> (gguf, prompt family, think, extra flags)
++    "gemma_e2b_q40": (M + "gemma-4-E2B-it-Q4_0.gguf", "gemma", None, []),
++    "gemma_e2b_q40_mtp": (M + "gemma-4-E2B-it-Q4_0.gguf", "gemma", None, ["--model-draft", GEMMA_DRAFT, *MTP]),
++    "qwen35_4b_q4km": (M + "qwen35/Qwen3.5-4B-Q4_K_M.gguf", "chatml", "OFF", []),
++    "qwen35_4b_q40mtp": (M + "qwen35/mtp/Qwen3.5-4B-Q4_0-MTP.gguf", "chatml", "OFF", []),
++    "qwen35_4b_q40mtp_on": (M + "qwen35/mtp/Qwen3.5-4B-Q4_0-MTP.gguf", "chatml", "OFF", MTP),
++}
++PAIRS = {"gemma_e2b_q40_mtp": "gemma_e2b_q40", "qwen35_4b_q40mtp_on": "qwen35_4b_q40mtp"}  # MTP on -> MTP off
++IDS = "A5 A6 B1 B2 B6 B7 C1 C6 C7 C8 C9 C10 C11".split()
++BY_ID = {p["id"]: p for p in bench.PROMPTS_A + bench.PROMPTS_B + bench.PROMPTS_C}
++
++
++def server_cmd(name):
++    """conv_speed.server_cmd (server_manager.py's binary and flags plus --cache-ram 0) with this config's flags."""
++    gguf, _, _, extra = CONFIGS[name]
++    return cs.server_cmd(gguf) + extra
++
++
++def start(name, log, timeout=180):
++    """conv_speed.start with server_cmd(name): cores 4-7; returns (process, seconds from spawn to /health ok)."""
++    if cs.healthy(cs.PORT):
++        raise SystemExit(f"port {cs.PORT} is already serving; stop that server first")
++    began = time.perf_counter()
++    proc = subprocess.Popen(["taskset", "-c", ladder.CORES, *server_cmd(name)], stdout=log, stderr=subprocess.STDOUT,
++                            start_new_session=True)
++    while not cs.healthy(cs.PORT):
++        if proc.poll() is not None or time.perf_counter() - began > timeout:
++            cs.stop(proc)
++            raise RuntimeError(f"llama-server did not become healthy (exit {proc.poll()}); see the server log")
++        time.sleep(0.1)
++    return proc, time.perf_counter() - began
++
++
++def prompts(family, think, ids):
++    """conv_speed's prompts (bench.py wrappers, stop tokens, nonce), restricted to ids, at temperature 0. The nonce
++    generator is seeded so an MTP-on config and its MTP-off twin get byte-identical prompts (the nonces still differ
++    between prompts; every block starts a fresh server with --cache-ram 0 and cache_prompt false)."""
++    random.seed(0)
++    return [(pid, dict(body, temperature=0)) for pid, body in cs.prompts(family, think) if pid in ids]
++
++
++def run_block(name, ids, out, thermal):
++    """conv_speed.run_block's cold block for one config."""
++    gguf, family, think, extra = CONFIGS[name]
++    files = [gguf] + [GEMMA_DRAFT] * ("--model-draft" in extra)
++    ladder.check_cores("before cold")
++    therm = {}
++    if thermal:
++        therm["start"] = ladder.thermal_gate(thermal[0], thermal[1], f"{name} cold")
++        print(f"  [{name}] thermal start: {ladder.fmt_thermal(therm['start'])} (waited {therm['start']['waited_s']} s)",
++              flush=True)
++    load_state = ladder.make_cold(name, files)
++    ladder.check_cores("before starting cold")
++    with open(out / "logs" / f"{name}.cold.server.log", "w") as log:
++        proc, load_s = start(name, log)
++        rows = []
++        try:
++            for pid_, body in prompts(family, think, ids):
++                ttft, tm, stop_type, text = cs.turn(body)
++                rows.append({"model": name, "block": "cold", "prompt_id": pid_, "ttft_s": ttft, "stop_type": stop_type,
++                             "prompt_n": tm.get("prompt_n"), "prompt_ms": tm.get("prompt_ms"),
++                             "prompt_tok_s": tm.get("prompt_per_second"), "predicted_n": tm.get("predicted_n"),
++                             "predicted_ms": tm.get("predicted_ms"), "gen_tok_s": tm.get("predicted_per_second"),
++                             "draft_n": tm.get("draft_n"), "draft_n_accepted": tm.get("draft_n_accepted"),
++                             "timings": tm, "reply": text})
++                ladder.check_cores("during cold")
++            peak = cs.vm_hwm_mib(proc.pid)
++        finally:
++            cs.stop(proc)
++    if thermal:
++        therm["end"] = ladder.read_thermal(thermal[0])
++        print(f"  [{name}] thermal end:   {ladder.fmt_thermal(therm['end'])}", flush=True)
++    ladder.check_cores("after cold")
++    return {"model": name, "block": "cold", "load_s": load_s, "load_state": load_state, "peak_rss_mib": peak,
++            "thermal": therm or None}, rows
++
++
++def acceptance(rows):
++    drafted = sum(r["draft_n"] or 0 for r in rows)
++    return sum(r["draft_n_accepted"] or 0 for r in rows) / drafted if drafted else None
++
++
++def report(done, models):
++    f = lambda v, spec: format(v, spec) if v is not None else "n/a"
++    t = lambda b, k: ladder.fmt_thermal(b["thermal"][k]).split(" degC")[0] if b.get("thermal") else "n/a"
++    L = ["MTP SPEED REPORT  (server_manager flags + --cache-ram 0, cores 4-7, cold block, temperature 0)",
++         "ttft = client time to first streamed token, median; prompt tok/s median; gen tok/s token-weighted (>= 10 tokens);",
++         "accept = accepted / drafted tokens; same = replies byte-identical to the MTP-off twin", ""]
++    L.append(f"{'model':<21}{'load s':>7}{'ttft s':>8}{'prompt t/s':>11}{'gen t/s':>9}{'peak MiB':>9}{'trunc':>6}{'accept':>8}"
++             f"{'same':>8}   thermal start -> end (z9 z10 z11 degC); load state")
++    for name in models:
++        if (name, "cold") not in done:
++            L.append(f"{name:<21}  not run")
++            continue
++        meta, rows = done[(name, "cold")]
++        s = cs.summary(meta, rows)
++        same = "-"
++        if name in PAIRS and (PAIRS[name], "cold") in done:
++            off = {r["prompt_id"]: r["reply"] for r in done[(PAIRS[name], "cold")][1]}
++            same = f"{sum(off.get(r['prompt_id']) == r['reply'] for r in rows)}/{len(rows)}"
++        L.append(f"{name:<21}{f(s['load_s'], '.1f'):>7}{f(s['ttft_s'], '.2f'):>8}{f(s['prompt_tok_s'], '.1f'):>11}"
++                 f"{f(s['gen_tok_s'], '.2f'):>9}{s['peak_rss_mib']:>9}{s['truncated']:>6}{f(acceptance(rows), '.1%'):>8}"
++                 f"{same:>8}   {t(meta, 'start')} -> {t(meta, 'end')}; {meta['load_state']['mode'].split(' (')[0]}")
++    return "\n".join(L)
++
++
++def c_results(done):
++    """C-bucket rows in bench.py's result format (run_index 1), graded by bench.parse_and_grade_c, for score_c.py."""
++    out = []
++    for (name, _), (_, rows) in done.items():
++        for r in rows:
++            p = BY_ID[r["prompt_id"]]
++            if r["prompt_id"][0] != "C":
++                continue
++            clean = bench.strip_think(r["reply"])
++            parse_ok, exact, crit, viol = bench.parse_and_grade_c(clean, p["expected"])
++            out.append({"config": name, "bucket": "C", "prompt_id": p["id"], "lang": p["lang"], "run_index": 1,
++                        "source_sha256": bench.SOURCE_SHA256, "reply_raw": r["reply"], "reply_clean": clean,
++                        "truncated": r["stop_type"] == "limit", "C_parse_ok": parse_ok, "C_exact": exact,
++                        "C_critical_failure": crit, "C_reject_violation": viol})
++    return out
++
++
++def main():
++    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
++    ap.add_argument("--out", type=Path, required=True)
++    ap.add_argument("--models", default=",".join(CONFIGS))
++    ap.add_argument("--ids", default=",".join(IDS), help="prompt ids (a subset of IDS, for toy runs)")
++    ap.add_argument("--resume", action="store_true")
++    ap.add_argument("--thermal-log", default=None)
++    a = ap.parse_args()
++    models, ids = a.models.split(","), a.ids.split(",")
++    if set(models) - set(CONFIGS):
++        raise SystemExit(f"unknown models {sorted(set(models) - set(CONFIGS))}")
++    if set(ids) - set(IDS):
++        raise SystemExit(f"ids outside the 13 {sorted(set(ids) - set(IDS))}")
++    if a.resume and not a.out.is_dir():
++        raise SystemExit(f"--resume: {a.out} does not exist")
++    a.out.mkdir(parents=True, exist_ok=a.resume)
++    (a.out / "logs").mkdir(exist_ok=True)
++    done = cs.load_done(a.out) if a.resume else {}
++    stamp = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
++    if a.resume:
++        for (m, _), (_, rows) in done.items():
++            if sorted(r["prompt_id"] for r in rows) != sorted(ids):
++                raise SystemExit(f"--resume: {m}'s completed block has prompts {[r['prompt_id'] for r in rows]}, not {ids}")
++        turns = a.out / "turns.jsonl"
++        if turns.exists():  # drop turns of a block interrupted before its blocks.jsonl record; keep the old file
++            turns.rename(a.out / f"turns.jsonl.before_resume_{stamp}")
++            turns.write_text("".join(json.dumps(r) + "\n" for _, rows in done.values() for r in rows))
++        print("resume: keeping " + (", ".join(m for m, _ in done) or "nothing"), flush=True)
++    sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
++    (a.out / f"run_{stamp}.json").write_text(json.dumps({
++        "conv_speed_mtp_sha256": sha(__file__), "conv_speed_sha256": sha(cs.__file__), "bench_sha256": bench.SOURCE_SHA256,
++        "ladder_sha256": sha(ladder.__file__), "ids": ids,
++        "llama_server": sm.LLAMA_SERVER, "libggml_cpu_sha256": sha(Path(sm.LLAMA_SERVER).parent / "libggml-cpu.so"),
++        "server_cmds": {m: server_cmd(m) for m in models}}, indent=1) + "\n")
++    ladder.wait_cores("start")
++    thermal = None
++    if a.thermal_log:
++        idle = ladder.read_thermal(a.thermal_log)
++        print(f"thermal idle reading (gate z9 <= idle + {ladder.GATE_MC / 1000:.0f} degC): {ladder.fmt_thermal(idle)}", flush=True)
++        thermal = (a.thermal_log, idle)
++    with open(a.out / "turns.jsonl", "a") as tlog, open(a.out / "blocks.jsonl", "a") as blog:
++        for name in models:
++            if (name, "cold") in done:
++                print(f"[{name}] cold: already completed, skipped (--resume)", flush=True)
++                continue
++            print(f"[{name}] cold: {len(ids)} turns", flush=True)
++            while True:
++                ladder.wait_cores(f"{name} cold")
++                try:
++                    meta, rows = run_block(name, ids, a.out, thermal)
++                    break
++                except ladder.CoresLost as e:
++                    print(f"  [{name} cold] {e}: discarding this block's data and redoing it", flush=True)
++            tlog.writelines(json.dumps(r) + "\n" for r in rows)
++            tlog.flush()
++            blog.write(json.dumps(meta) + "\n")
++            blog.flush()
++            done[(name, "cold")] = (meta, rows)
++    (a.out / "c_results.json").write_text(json.dumps(c_results(done), indent=1) + "\n")
++    text = report(done, models)
++    (a.out / "report.txt").write_text(text + "\n")
++    print(text)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/benchmark/llm_objective_setting/conversation/run_conv_mtp.sh b/benchmark/llm_objective_setting/conversation/run_conv_mtp.sh
+new file mode 100755
+index 0000000..44d03e4
+--- /dev/null
++++ b/benchmark/llm_objective_setting/conversation/run_conv_mtp.sh
+@@ -0,0 +1,26 @@
++#!/bin/bash
++# MTP speculative decoding and Qwen3.5-4B Q4_0 speed on the robot's llama.cpp (server_manager.py's binary and flags
++# plus --cache-ram 0). Research only: offline, no motors, no main.py. Five configs, one cold block each over 13 of the
++# DECISIONS #110 prompts at temperature 0: gemma_e2b_q40, gemma_e2b_q40_mtp (drafter), qwen35_4b_q4km,
++# qwen35_4b_q40mtp (MTP off), qwen35_4b_q40mtp_on. Every block waits until z9 <= idle + 4 degC; losing cores 4-7
++# pauses the run and redoes the block; cold loads drop the page cache through the handshake (LADDER_COLD_HANDSHAKE=1).
++# Afterwards score_c.py grades the C replies (report only) into OUT_DIR/c_scores.txt.
++#
++# Usage: run_conv_mtp.sh [OUT_DIR]          new run
++#        run_conv_mtp.sh --resume OUT_DIR   keep OUT_DIR's completed blocks, run the rest
++# Unattended, from native Termux:  RUN_SCRIPT=run_conv_mtp.sh bash ~/ladder/oneshot.sh [--resume OUT_DIR]
++set -euo pipefail
++C=/termux-home/robot/benchmark/llm_objective_setting/conversation
++cd /termux-home/ladder
++RESUME=()
++if [ "${1:-}" = --resume ]; then
++  OUT=${2:?usage: run_conv_mtp.sh --resume OUT_DIR}
++  RESUME=(--resume)
++else
++  OUT=${1:-/termux-home/ladder/conv_mtp_$(date -u +%Y%m%dT%H%M%SZ)}
++fi
++python3 "$C/conv_speed_mtp.py" --out "$OUT" "${RESUME[@]}" \
++  --thermal-log /termux-home/ladder/thermal.log \
++  > >(tee -a "$OUT.stdout.txt") 2> >(tee -a "$OUT.stderr.txt" >&2)
++python3 "$C/score_c.py" "$OUT/c_results.json" > "$OUT/c_scores.txt"
++cat "$OUT/c_scores.txt"
+
+
+Please return a final review with: verdict (APPROVE / APPROVE WITH NOTES / REQUEST CHANGES), numbered findings with severity (BLOCKER/MAJOR/MINOR/NOTE), file:line, and a concrete failure scenario for each.
+
+warning: Codex could not find bubblewrap on PATH. Install bubblewrap with your OS package manager. See the sandbox prerequisites: https://developers.openai.com/codex/concepts/sandboxing#prerequisites. Codex will use the bundled bubblewrap in the meantime.
+hook: SessionStart
+hook: SessionStart Completed
+hook: UserPromptSubmit
+hook: UserPromptSubmit Completed
+codex
+I’ll read the repository’s review instructions and the live runner dependencies, then check the candidate’s resume and reporting paths against concrete failure cases. This will be read-only.
+exec
+/bin/bash -lc 'git status --short && nl -ba benchmark/llm_objective_setting/conversation/conv_speed_mtp.py && nl -ba benchmark/llm_objective_setting/conversation/run_conv_mtp.sh' in /termux-home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc 'nl -ba benchmark/llm_objective_setting/conversation/conv_speed.py' in /termux-home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc 'cat AGENTS.md docs/HANDOFF.md docs/WORKFLOW.md docs/REVIEWER.md' in /termux-home/robot
+ succeeded in 0ms:
+# Pixel Robot session entry point
+
+Read `docs/HANDOFF.md`, `docs/WORKFLOW.md`, then your role file before acting.
+Use `docs/LOCAL_AI.md`, `docs/CODER.md`, `docs/REVIEWER.md`, or
+`docs/DOC_KEEPER.md` as applicable. For prototype code also read
+`docs/CLAUDE.md`; for the Android app read `docs/APP_CLAUDE.md`. Do not commit
+or push outside the human gate in `docs/WORKFLOW.md`.
+# HANDOFF — Pixel Robot
+
+Entry point for an offline robot project: a Pixel phone provides perception and
+reasoning, and an ESP32 controls four mecanum wheels. The native Android app and
+the Termux prototype have separate runtime constraints.
+
+This file is a stateless index. Current state, pending work, role allocations,
+commands, and historical recovery evidence belong in the documents below.
+
+## Canonical reading order
+
+Canonical documentation and role instructions live in this repository's `docs/`.
+Root [AGENTS.md](../AGENTS.md), [CLAUDE.md](../CLAUDE.md), and
+[GEMINI.md](../GEMINI.md) provide session discovery pointers.
+
+1. Read [WORKFLOW.md](WORKFLOW.md) for the shared process, actual role allocation,
+   GitHub access, independent review, and human commit/push gates.
+2. Read your role document:
+
+   | Role | Instructions |
+   |---|---|
+   | Local AI — planning and technical orchestration | [LOCAL_AI.md](LOCAL_AI.md) |
+   | Coder / data retriever — phone execution and evidence | [CODER.md](CODER.md) |
+   | Reviewer — fresh independent candidate review | [REVIEWER.md](REVIEWER.md) |
+   | Doc Keeper — canonical status and append-only decisions | [DOC_KEEPER.md](DOC_KEEPER.md) |
+   | Data Engineer — training datasets via pull requests | [DATA_ENGINEER.md](DATA_ENGINEER.md) |
+
+3. Read [STATUS.md](STATUS.md) for prototype state and pending work, or
+   [APP_STATUS.md](APP_STATUS.md) for app state and pending work. Use the short
+   [decision index](DECISION_INDEX.md) to locate relevant numbered entries;
+   [DECISIONS.md](DECISIONS.md) holds their full text and provenance. Dated
+   prototype measurements and the last hardware test are in
+   [PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
+4. Before implementation, read the applicable [prototype instructions](CLAUDE.md)
+   or [Android-app instructions](APP_CLAUDE.md), and [LICENSES.md](LICENSES.md)
+   when dependencies are involved. Keep the two runtime scopes separate.
+5. Use [COMMANDS.md](COMMANDS.md) for phone operating, calibration, and Git
+   inspection, and [OPERATIONS_HISTORY.md](OPERATIONS_HISTORY.md) for dated
+   recovery and agent-environment evidence. Use
+   [FILES.md](FILES.md) for the dependency map and
+   [BENCHMARK_PLAN.md](BENCHMARK_PLAN.md) for benchmarking the existing navigation
+   path. For the separate, research-only high-level selector, read
+   [benchmark/strategic_selector/README.md](../benchmark/strategic_selector/README.md)
+   and its [run index](../benchmark/strategic_selector/RUN_INDEX.md).
+
+Read current source and state rather than relying on a prior session. Report
+contradictions without silently choosing a side. If the online thread cannot read
+the phone repository, request exact source/output through the executor.
+
+## Gates and documentation discipline
+
+Follow the independent-review and human commit gate in [WORKFLOW.md](WORKFLOW.md).
+A reviewer pass never authorizes a commit; push requires separate authorization.
+Keep hardware work subject to the human-controlled restrictions in
+[COMMANDS.md](COMMANDS.md) and the applicable runtime instructions.
+
+Only Doc Keeper writes canonical status and the decision log. Other roles send
+targeted evidence-backed DOC DIFFs as defined in [DOC_KEEPER.md](DOC_KEEPER.md).
+Existing decisions remain verbatim. Read the last entry in
+[DECISIONS.md](DECISIONS.md) directly before choosing the next free number.
+
+## Starting a role session
+
+Name the role (Local AI, Coder, Reviewer, or Doc Keeper) in the opening message.
+Read the shared workflow, that role's instructions, the applicable current STATUS,
+and the decision index in the order above. Open full decisions relevant to the
+task. The role file and WORKFLOW define the task-specific gates; do not rely on a
+starter prompt copied from an older session.
+# WORKFLOW — Pixel Robot roles and commit gate
+
+This is the canonical collaboration workflow. It is procedural, not a Git hook or
+an enforced sandbox unless a later decision says a specific mechanism was actually
+implemented and tested. Start with `HANDOFF.md`, then this file, then the role file;
+read the applicable STATUS file for current facts and `DECISION_INDEX.md` to find
+relevant history. Read the full entries in `DECISIONS.md` before relying on them,
+and read its last entry directly before numbering a new one.
+`AGENTS.md` is the common Codex/Claude/AGY entry point; `CLAUDE.md` and `GEMINI.md`
+are minimal pointers. Prototype and app instructions remain separate.
+
+## Roles and allocation
+
+Roles are independent of providers and models. Record the actual assignment at
+handoff; do not silently substitute the selected reviewer/model. If one provider
+fills multiple roles, use separate role sessions. The coder never reviews its own
+work in the same conversation.
+
+| Role | Assignment |
+|---|---|
+| Local AI: online-app planning and technical orchestration with the human | Online project thread |
+| Coder/data retriever: actual phone repo, exact evidence, approved changes and checks | Per task, in the EXECUTION PROFILE |
+| Reviewer: fresh independent candidate review | Per task, in the EXECUTION PROFILE |
+| Data Engineer: training datasets and their generators, via pull requests ([DATA_ENGINEER.md](DATA_ENGINEER.md)) | Per task, in the EXECUTION PROFILE |
+| Doc Keeper: canonical status and append-only decisions | Online project thread; the on-phone documentation executor is assigned per task |
+
+No role has a standing model. The human assigns platform and model when a task
+starts, and Local AI writes them into that task's EXECUTION PROFILE. Platforms
+the human reports as available: Claude Code CLI, Codex CLI and AGY CLI on the
+phone, Jules (Google AI Pro: 100 tasks per rolling 24 h, 15 concurrent) and
+Google Colab for training. No exact allowance or reset date is assumed.
+
+Local AI sets objectives, prepares bounded tasks and exact phone commands, requests
+source/output from the executor, evaluates evidence and reviews, and helps the
+human decide whether to commit. It does not assume phone access or unpushed state.
+Coder/data retriever implements and verifies in the actual repository. Reviewer
+examines actual candidate changes and surrounding code, not merely the coder's
+summary. Doc Keeper owns `STATUS.md`/`APP_STATUS.md` and `DECISIONS.md`; all other
+roles send targeted evidence-backed DOC DIFFs.
+
+On the human's instruction, Local AI may author complete role and workflow
+files (such as this file, `HANDOFF.md`, or a role file). Doc Keeper verifies
+each file's recorded base SHA-256 against `main` before replacing it, then
+commits. `STATUS.md`, `APP_STATUS.md` and `DECISIONS.md` remain single-writer:
+Local AI still sends DOC DIFFs for them.
+
+## Execution profile
+
+Before Local AI asks the human to open or invoke any phone agent, it must display
+the complete profile below and include it in the exact agent prompt and transition
+evidence, not only in conversational commentary:
+
+```text
+EXECUTION PROFILE
+ROLE:
+PLATFORM:
+MODEL:
+EFFORT:
+PONYTAIL:
+WHY:
+FALLBACK:
+```
+
+`ROLE` names the exact assignment: Coder, Reviewer, Doc Keeper / documentation
+executor, data retriever, or another exact role. `PLATFORM` names the exact surface,
+such as Codex CLI, Claude Code CLI, or AGY/Antigravity CLI. `MODEL` gives the exact
+selectable identifier or label, never only "best model". `EFFORT` gives the exact
+separately selected reasoning effort when the platform exposes one; otherwise use
+`N/A` or `platform-controlled`. A word such as `High` inside an AGY model identifier
+or label is part of that model name unless AGY separately exposes an effort control.
+`PONYTAIL` is exactly `lite`, `full`, `ultra`, or `off`.
+
+If actual models or controls are unknown, Local AI obtains current model-list
+evidence before assigning the task. `WHY` is one short line. `FALLBACK` states the
+exact replacement platform, model, separately exposed effort, and Ponytail mode.
+Platform, model, effort, and Ponytail selection never change the role, its
+permissions, or the project authorization gates.
+
+### Ponytail
+
+Verified phone-tool evidence: Ponytail 4.9.0 is installed for Codex CLI, Claude
+Code CLI, and AGY/Antigravity CLI; the shared configuration currently specifies
+`defaultMode: lite`; and Claude's Ponytail plugin is enabled. Codex Ponytail hook
+trust has not been evidenced as completed and must not be described as trusted.
+AGY imported Ponytail's six skills and six commands but no lifecycle hooks, so AGY
+must not be assumed to activate it automatically; prompts state the intended mode
+explicitly whenever Ponytail is required. Installation did not modify this
+repository.
+
+- `lite` — ordinary bounded implementation, especially existing or safety-relevant
+  Pixel Robot code.
+- `full` — deliberate simplification, dependency selection, refactoring, or removal
+  of unnecessary abstractions.
+- `ultra` — only for explicitly human-approved work that is either a disposable
+  experiment or aggressive cleanup. Never use it for safety logic, hardware
+  control, authentication, destructive operations, data migration, canonical
+  documentation, or independent review.
+- `off` — independent correctness/safety review, Doc Keeper work, non-coding
+  planning/research, and hardware execution/calibration.
+
+If Codex or Claude automatically starts Ponytail in a Reviewer session, the Reviewer
+profile and prompt explicitly switch it `off` before review. An optional Ponytail
+over-engineering review may follow the mandatory independent correctness review but
+cannot replace it. Ponytail must never simplify away validation, error handling,
+security, hardware calibration, required tests or checks, or anything explicitly
+required by the task.
+
+`AGENTS.md`, project safety rules, verification requirements, the mandatory
+independent review, and the human commit and push gates always override Ponytail.
+
+## Code-change and commit gate
+
+For every code change: (1) Local AI and human define the task; (2) Coder implements
+and verifies; (3) Coder automatically invokes the designated independent Reviewer,
+without human relay; (4) request includes task, base commit, full candidate diff
+including new files, surrounding context and actual checks; (5) freeze edits while
+reviewing; (6) Reviewer does not edit, stage, commit, push, run motors, or launch
+another reviewer; (7) retain diagnostics separately and return the final review
+verbatim, untruncated and separate from Coder commentary; (8) stop for the human's
+explicit commit decision after Local AI discussion; (9) any code change after review
+requires new review; (10) commit only approved files and push only with separate
+authorization; (11) send DOC DIFFs to Doc Keeper.
+
+“Automatically” means no manual relay between applications. It never hides review
+findings, failure, costs/limits, or permission errors. Never use blanket permission
+bypasses. Reviewer approval is not authorization to commit.
+
+## Phone sessions
+
+From native Termux:
+```bash
+proot-distro login debian --bind /data/data/com.termux/files/home:/termux-home
+```
+Inside Debian, choose one alternative session:
+```bash
+cd /termux-home/robot
+codex
+```
+```bash
+cd /termux-home/robot
+/root/.local/bin/agy
+```
+```bash
+cd /termux-home/robot
+claude
+```
+These are alternatives, not a sequence inside one prompt. Use separate terminals
+or exit the current agent first. Native Termux's repository and
+`/termux-home/robot` are the same bind-mounted files.
+
+User-provided environment evidence: official `@openai/codex` 0.153.4 via npm (0.157.0 observed 2026-09-25) with
+Node 20.19.2/npm 9.2.0, launcher `/usr/local/bin/codex`; AGY at
+`/root/.local/bin/agy`, version 1.1.27 (1.2.10 reported by the Coder 2026-09-25); Claude previously ran in Debian. AGY
+started successfully on this Pixel, so it is not categorically unsupported.
+
+## AGY headless reviewer
+
+Installed model evidence: `agy models` lists
+`gemini-3.1-pro-high  Gemini 3.1 Pro (High)`. The authorized smoke call:
+```bash
+agy -p 'Reply exactly: REVIEW_SMOKE_PASS. Do not inspect files, run commands, call tools, or make changes.' \
+  --model gemini-3.1-pro-high --output-format json --sandbox --print-timeout 2m
+```
+returned `{"status":"SUCCESS","response":"REVIEW_SMOKE_PASS\n"}`.
+The concrete invocation pattern, when a task assigns an AGY reviewer (use the
+exact model id from that task's EXECUTION PROFILE):
+```bash
+agy -p "$REVIEW_REQUEST" --model "$AGY_MODEL" \
+  --output-format json --sandbox --print-timeout 10m
+```
+`$REVIEW_REQUEST` contains the frozen task, base, complete diff including new
+files, source context, check output, no-mutation rules, and a final-review request.
+Preserve stdout as the complete JSON review and stderr as separate diagnostics. It
+is a direct Coder action, not an executable helper.
+
+Official [AGY headless](https://antigravity.google/docs/cli/headless/) documentation
+says headless workspace reads and writes are auto-allowed by default. A prompt
+alone is therefore not an enforced read-only boundary. `--sandbox` was smoke-tested,
+but sandboxed workspace paths remain writable when permissions allow. Never use
+`--dangerously-skip-permissions`.
+
+A true read-only reviewer needs a dedicated AGY configuration or OS account, not
+the shared Doc Keeper configuration. Its `settings.json` must use strict,
+sandboxed permissions and deny mutation tools:
+```json
+{"enableTerminalSandbox":true,"toolPermission":"strict","permissions":{"deny":["write_file(*)","command(*)","mcp(*)","execute_url(*)"]}}
+```
+Official permission precedence is deny before ask before allow. The current shared
+AGY settings have only a chosen model and trusted workspace, so this dedicated
+deny policy is not provisioned or tested; do not add it globally because it would
+block Doc Keeper. Until a separate setup is tested, review an isolated copy of the
+exact frozen candidate to protect the live worktree. Isolation is not an enforced
+read-only sandbox. Authentication, quota, model, or permission failures mean
+incomplete review, never a pass. Sources: [permissions](https://antigravity.google/docs/cli/permissions/)
+and [sandbox](https://antigravity.google/docs/cli/sandbox/).
+
+## GitHub access verified
+
+GitHub CLI authentication in Debian completed as `abdelhamidzoghlamii-ui`.
+The phone executor successfully pushed commit `053d5a5` to `origin/main` at
+`https://github.com/abdelhamidzoghlamii-ui/Pixel-robot.git`.
+
+Coder and Doc Keeper sessions using this same Debian account can make local Git
+commits and push authorized commits to GitHub, subject to their tool permissions
+and valid credentials. Other accounts or environments do not inherit this access
+automatically. A Git commit is local; a push publishes it to GitHub.
+
+Local AI should ask the phone executor to perform authorized Git operations and
+return the commit hash, push output, and final Git status. The online planning
+thread does not gain phone access or visibility into unpushed work from this login.
+Authentication establishes capability, not blanket authorization: Coder still
+needs independent review and the human's commit decision; Doc Keeper commits
+approved documentation; pushes require separate human authorization. Reviewer
+remains read-only. If credentials fail, report the failure without exposing tokens.
+
+## Data Engineer and fine-tuning track
+
+The Data Engineer works in its own clone of this repository (for example a
+cloud coding agent) and only through pull requests; it never pushes to `main`.
+Its rules are in `DATA_ENGINEER.md`. Each Data Engineer PR gets two independent
+reviews in fresh sessions, Ponytail `off`, by the reviewers assigned for that
+task; where possible they come from model families other than the Data
+Engineer's. The human merges after Local AI evaluates both reviews with the
+human.
+
+Test-set custody: any held-out or independent test set used to pick a model is
+kept outside this repository until scoring is finished, because a Data Engineer
+agent can read the whole repository. Only its SHA-256, row count and custody location are
+recorded in docs beforehand.
+
+Fine-tuning runs in Google Colab. Each run records: notebook or script source
+and its SHA-256, Colab GPU type, base model id and revision, dataset SHA-256,
+seeds, hyperparameters, training and validation curves, and the SHA-256 of the
+output weights. Weights reach the phone by explicit download and are
+re-hashed there before any benchmark.
+
+## Timed benchmarks on the phone
+
+Timings are only valid with no agent resident. The Coder prepares a run script
+and exits; the human starts it from **native** Termux with `oneshot.sh`
+(archived in `benchmark/strategic_selector/ladder/`), which checks that no
+Claude/AGY/Codex process runs, logs CPU thermals through Magisk `su`, idles
+5 minutes, runs the script inside Debian, and answers each cold-load
+page-cache-drop request (root is only reachable from native Termux, not proot).
+Runners gate each block on temperature, refuse or redo blocks when Android
+moves Termux off cores 4–7 (keep the screen on, Termux in front), and support
+`--resume`. Accuracy results are deterministic and may be taken with an agent
+resident; timings may not. Every run is archived per `benchmark/INDEX.md`.
+# REVIEWER — independent candidate review role
+
+Read `HANDOFF.md`, `WORKFLOW.md`, the applicable STATUS file and
+`DECISION_INDEX.md`, relevant full entries in `DECISIONS.md`, and the applicable
+coding instructions. You are a fresh independent session, not the Coder continuing
+its conversation.
+
+Review the frozen task, base, complete candidate diff including new files, relevant
+surrounding source, and actual verification output. Do not accept a summary instead.
+Report bugs, regressions, safety problems, missing verification, and uncertainties
+with file and line references.
+
+Do not edit, stage, commit, push, run motors, launch another reviewer, or approve a
+commit. Return the complete final review. A pass is only a review finding, never
+commit permission. Follow the AGY safety limitation in `WORKFLOW.md`.
+
+exec
+/bin/bash -lc 'cat benchmark/llm_objective_setting/conversation/conv_speed.py' in /termux-home/robot
+exec
+/bin/bash -lc 'cat benchmark/llm_objective_setting/conversation/conv_speed_mtp.py' in /termux-home/robot
+ exited 182 in 0ms:
+ exited 182 in 0ms:
+exec
+/bin/bash -lc 'cat docs/STATUS.md docs/DECISION_INDEX.md docs/CLAUDE.md' in /termux-home/robot
+ succeeded in 0ms:
+# STATUS
+
+Snapshot of the running system. Values below are read from the code as it exists
+today — not from benchmark recommendations. Pending deltas are listed explicitly.
+
+## Architecture
+
+**Brain:** Pixel 7 (rooted, Termux, Android 17). **Body:** ESP32 NodeMCU + 2× MX1508
+driving 4 mecanum motors. Phone ↔ ESP32 over USB serial.
+
+**Currently flashed:** UNCONFIRMED on hardware. A `mode2_auto.ino` matching
+the corrected spec (DECISIONS #89 — BAUD 115200, INVERT indices 2,3,
+WATCHDOG_MS 1000, HAS_ULTRASONIC 1) is committed at
+firmware/mode2_auto/mode2_auto.ino (commit 9a90d7e), verified field-by-field
+against the file itself. Whether this exact file is what's running on the
+board is not yet confirmed.
+
+**Entry point:** `run_mission.py` runs autonomous. `main.py.__main__` only runs a
+single test cycle against a photo with no motors attached; it does not run missions.
+
+**Development tools** (not part of the robot path): `nav_test.py` (nav rule harness,
+no hardware), `log_run.py` (ultrasonic motion logger, needs root), `identify_it1.py`
+(IT1 fit, numpy only), `build_bench.py` (A/B latency bench vs whatever server is on
+8080), `capture_bench.py` (guided photo capture via the same `termux-camera-photo`
+path `main.py` uses), `focal_calibrate.py` (FOCAL_PX derivation), `bench_photos/` +
+`labels.csv` (38 labelled captures: 15 room-signature, 14 person, 5 empty, 4
+blocked), `FILES.md` (dependency map), `BENCHMARK_PLAN.md` (replacement-benchmark
+design, not implemented), ~/json_mechanism_test.py (bounded read-only diagnostic,
+13 synthetic text-only scenes, five output mechanisms, per-model profile — gemma
+port 8080 / qwen port 8081, correct chat wrapper and stop tokens per family;
+writes ~/json_mechanism_results_<model>.json; no camera, no motors, no repo
+writes).
+
+`~/llama.cpp-upstream` built and SWA-verified b2233 (commit 4d917609) in
+DECISIONS #77, then was rebuilt in place to b2351-790cf51a. The b2233 binary
+is gone, but source commit 4d917609 remains reachable for a rebuild
+(DECISIONS #107). `~/llama.cpp` (b1609) is the documented deployed server.
+The 1609-vs-2233 comparison remains open, not cancelled (DECISIONS #77, #107).
+`~/robot` is a Git repository. The earlier `fe14be2` snapshot is historical;
+it does not identify the current checkout.
+
+**Public repo:** github.com/abdelhamidzoghlamii-ui/Pixel-robot.
+Canonical documentation and role instructions are in `/docs` relative to the
+repository root. Root `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` are session
+discovery pointers. `STATUS.md` remains canonical for prototype config values.
+`RECOVERY.md` was removed; [HANDOFF.md](HANDOFF.md) is the entry point to recovery
+information, with procedures in [COMMANDS.md](COMMANDS.md#9-housekeeping-and-recovery)
+and historical provenance in [OPERATIONS_HISTORY.md](OPERATIONS_HISTORY.md).
+
+Read `git rev-parse HEAD` and `git status --short --branch` from the repository
+to determine the current revision and local state; do not maintain a "current
+commit" literal here. The `af66fab` sync was historical (2026-09-05).
+Remote-tracking refs reflect the last locally known remote state.
+
+`.gitignore` excludes model weights (`.onnx`/`.gguf`/`.bin`), `bench_photos/`,
+and run artifacts; those stay on the phone only. `test_photos/` remains tracked
+from earlier commits.
+
+**Per-cycle flow** (`main.py: Robot.run_cycle`):
+```
+camera photo → YOLO detect_scene → navigate_rules (pure Python, instant) → execute move
+```
+
+| Layer | Handles | Cost |
+|---|---|---|
+| YOLO (yolo11m.onnx) | object/person detection, position, coarse distance | every cycle |
+| Python `navigate_rules` | obstacle stop, person approach, room signature logging | every cycle, 0ms |
+| Gemma 4 E2B (Q4_0, default since 2026-09-26) | voice→intent only, outside navigation | on demand |
+| Whisper.cpp (base) | 5s voice capture → text | on demand |
+| Gemma `PARSE_SYS` | voice text → JSON action array | on demand |
+| `termux-tts-speak` | speech output | on demand |
+
+DECISIONS #109 opens a separate, unimplemented high-level mission-script
+selector. It is still not wired to the robot. After #112–#116 the lead
+candidate is Gemma scoring the offered options by letter probability; Laya and
+Von continue only on the fine-tuning track (#113). A single resident Gemma for
+both conversation and selection is under evaluation, not decided (#116).
+The current repo describes a mecanum prototype; the phone-mounted RC car with
+2D LiDAR is a proposed redesign.
+
+## Known-good config (as coded)
+
+**Navigation** (`main.py`)
+```
+OBSTACLE_DIST     25 cm     hard stop threshold
+PERSON_STOP_DIST  80 cm     stop when person this close
+STEREO_BASELINE   5.0 cm    strafe distance for depth   (UNVERIFIED)
+MOTOR_SPEED       130       FORWARD/BACK
+rotation speed    120       hardcoded literal in Robot.move(), not a constant
+strafe speed      100       hardcoded literal in Robot.move(), not a constant
+CYCLE_MOVE_TIME   1.5 s
+thermal pause     >80 °C    reads thermal_zone9 (BIG cores), sleeps 5s
+```
+
+**Vision** (`detect_person.py`)
+```
+yolo11m.onnx · CONF 0.35 · IOU 0.45 · 640×640 input
+position: cx<213 left, cx>427 right, else center
+coarse distance by box area: >0.3 very close, >0.1 close, >0.03 medium, else far
+```
+
+`yolo11m.onnx` is fine-tuned, not stock — trained on the owner's own photos
+(human-stated 2026-09-11; training set held on the owner's laptop, not in
+this repository or independently verified from this session). See DECISIONS
+#97.
+
+**Stereo depth** (`stereo_depth.py`)
+```
+FOCAL_PX    500 px    UNCALIBRATED — placeholder, comment says "calibrate later"
+FRAME_SIZE  640 px
+disparity < 2px → rejected as unreliable, falls back to single-photo estimate
+object match requires vertical delta < 80px
+REAL_HEIGHTS: person 170, refrigerator 180, chair 90, couch 85, dining table 75,
+              tv 60, bed 50, toilet 40, potted plant 40, bottle 25, vase 25,
+              cup 10, laptop 3   (cm)
+```
+
+**LLM server** (`server_manager.py`)
+```
+--threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --ctx-size 2048
+setup_q4     Gemma 4 E2B Q4_0    2.8GB  ~12 gen tok/s  ← robot default (since 2026-09-26)
+setup_e4b    Gemma 4 E4B Q4_K_M  5.0GB  ~5.4 gen tok/s ← kept, not recommended (#115)
+(setup_qwen3b / setup_qwen1b and the Qwen2.5 files were removed 2026-09-26.
+Qwen3.5 2B and 4B GGUFs at ~/models/qwen35/ are eval-only, not wired into
+server_manager; Qwen3.5-0.8B was deleted. See DECISIONS #106, #115.
+#104's navigation removal was implemented in #111.)
+```
+
+Current llama.cpp build: commit e1a1abb7, version 1609, **rebuilt 2026-09-26
+with `GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16`** at `~/llama.cpp-b1609-dotprod`
+(commit 341bde6 points `server_manager.py` there; build commands and evidence in
+`benchmark/llama_dotprod_rebuild/`). The original build had no dotprod
+(0 `sdot` instructions vs 1045); the rebuild reads prompts ~3× faster and
+generates ~+32% faster, with identical voice parses (DECISIONS #114). The
+original tree is kept untouched as rollback. Original build details:
+(Clang 21.1.8, Android aarch64). Shared-library build — `bin/llama-server` is a ~5.9 KB launcher, real
+code in the `.so` files. Rollback of the original is the whole `build/` tree
+(`build-b1609.tar.gz`, verified) or a rebuild of commit e1a1abb7, NOT a
+single-binary copy (DECISIONS #73).
+
+A third build, ~/llama.cpp-upstream rebuilt 2026-09-13 to b2351-790cf51a,
+loads Qwen3.5-0.8B-Q4_K_M with architecture accepted and "modalities: text"
+— MEASURED. At that text-load test, no mmproj was downloaded or passed;
+later vision tests in #105 found no usable on-device LLM vision. Note: `strings`
+on the rebuilt binary returns no qwen35 match despite the successful load —
+the `strings` check used in #95 is not a reliable negative; an actual load
+attempt is ground truth. b2351 has dotprod; with it, Gemma E2B Q4_0 scored
+options in 1.55 s median on the ladder (DECISIONS #116). Its flash-attention
+path segfaulted on this phone; the robot does not use b2351.
+
+Benchmarked on build 1609, 15 cycles, realistic robot prompt shape (fixed system
+prefix + varying scene): 11.5 tok/s median (11.1-11.9), prompt eval 1091 ms median,
+free RAM ~3.1 GB, zone9 97-101 °C. Prefix cache reuse confirmed on the live prompt
+shape — 109 tokens on the first call, 18-22 thereafter. EVIDENCE CONFLICT: the
+2026-09-26 rebuild report measured the original non-dotprod build at 6.5 gen
+tok/s (200-token reply), not 11.5; the conditions of the earlier figure are not
+recorded, so neither old figure is canonical. Current dotprod-build figures are
+in DECISIONS #114 and #115.
+
+Archived controlled conversation rates (cold vs cached block aggregate token-weighted gen tok/s for replies >=10 tokens): E2B Q4_0 12.10–12.36, E2B Q4_K_M 10.59–11.72, E4B 5.41–5.48, Qwen3.5 4B Q4_K_M 5.39–5.52, Qwen3.5 2B Q4_K_M 10.36–11.83. Sources: `benchmark/llm_objective_setting/conversation/conversation_20260926T185957Z.stdout.txt` (rates), `benchmark/llm_objective_setting/conversation/conversation_20260926T185957Z/run_20260926T185957Z.json`, and `benchmark/llm_objective_setting/conversation/conv_speed.py` (run model GGUF paths, `server_manager` binary/flags, ctx 2048, cores 4–7). No controlled dotprod chat speed result exists for the other menu entries in this archive. Note: Standalone chat uses ctx 4096 for some models, so these rates do not exactly describe its chat performance.
+
+## Thermal governance
+
+VIRTUAL-SKIN-CPU-GPU is the reported HAL CPU-throttling signal (first trip
+37.0 °C); BIG/zone9 is not its HAL governor (DECISIONS #90). The live
+`main.py` pause still reads BIG above 80 °C; a correct sensor and threshold
+have not been selected or verified in a real mission. The dated device
+thresholds, formula, zone map, throttle checks, and evidence limitations are
+preserved in [PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
+
+## Memory
+
+Reported 2026-09-11: Gemma-4-E2B Q4_K_M left approximately 0.5 GB practical
+headroom after loading, without simultaneous full perception or dialogue.
+This is a dated measurement, not a current co-residency test; see
+[PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md) and
+DECISIONS #94.
+
+2026-09-26 (dotprod build, Gemma E2B Q4_0): peak server RSS ~4.3 GB in the
+conversation benchmark. Without `--cache-ram 0`, one unique-question
+conversation run grew ~1.9 MiB/turn (then dropped 82 MiB, cause unrecorded;
+VmSwap not recorded); with it ~0.1 MiB/turn. Robot-shaped voice prompts did not
+grow either way. Qwen3.5-4B without the flag grew until Android killed it.
+`--cache-ram 0` is now passed (DECISIONS #115). Co-residency of a resident
+Gemma with YOLO and the drive loop is untested.
+
+Standalone chat uses ctx 4096 for Gemma E2B Q4_0/Q4_K_M and Qwen3.5 2B Q4_K_M; ctx 2048 for all other menu models. No controlled peak memory result at ctx 4096; archived conversation peaks used ctx 2048.
+
+## Model vision
+
+The as-coded image request was confirmed to run as text only (DECISIONS #96).
+Later b2351 projector tests did not produce usable on-device LLM vision
+(DECISIONS #105). YOLO remains the perception path. The original live-call
+observations and follow-up are retained in
+[PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
+
+## Working now
+
+- LLM server stable; prompt-cache fix landed (`--swa-full`) — repeat-prefix calls
+  reuse the cached system prompt instead of reprocessing it.
+- YOLO scene detection, position + coarse distance.
+- Voice pipeline end to end: record → Whisper → Gemma JSON parse → TTS.
+  `main.warm_up()` (called from `main.py` and `run_mission.py`) waits for the
+  server and sends one discarded parse; measured cold start: server ready 19 s,
+  warm-up 45.5 s, then five parses in 7.5–12.7 s under the 40 s timeout
+  (DECISIONS #115).
+- Manual selector playground `robot-jevlike`
+  (`benchmark/strategic_selector/manual/jevlike/`): runs one input through any
+  installed selector model side by side. Research only, not a benchmark.
+- **Standalone chat** (`robot-chat`): Menu filters against installed models (Gemma E2B Q4_0/Q4_K_M/Q8_0, Gemma E4B Q4_K_M, Qwen3.5 2B Q4_K_M, Qwen3.5 4B Q4_K_M/Q5_K_M/Q6_K, Mistral 7B Q4_K_M). None of the menu entries other than the robot's deployed model (Gemma E2B Q4_0) are deployed to the robot loop. Image chat is unavailable in this interface.
+- Benchmark archive index: `benchmark/INDEX.md` lists every archive folder,
+  its key result and status.
+- Root restored on Android 17; real SoC temps readable (zone9 BIG / 10 MID /
+  11 LITTLE / 12 GPU / 14 TPU). The battery zone number is unconfirmed.
+- **Mode 1 teleop — ESP32 standalone** (`mode1_simple.ino`, tracked and retained; commit 9a90d7e, DECISIONS #89 —
+  no removal planned): softAP "MecanumBot"
+  → web UI at http://192.168.4.1. Mecanum mixing, live HC-SR04 readout, forward
+  blocked under 25cm, 600ms no-command stop failsafe. Phone and AI not required —
+  ESP32 standalone.
+- **Mode 1 teleop — from the Pixel** (`teleop.py`): Pixel hotspot + web UI, driven
+  from a second phone's browser. Diagonals, speed slider, live HC-SR04 readout,
+  forward blocked under 25 cm. Requires root; collides with the LLM server on 8080.
+- **Serial link live end to end**: Pixel → CP2102 → ESP32 → MX1508 → wheels, and
+  HC-SR04 → `DIST:` → `motors.py`. First commanded motion from the phone achieved
+  this session.
+- **Distance sensor live.** `HAS_ULTRASONIC 1`; `DIST:` flowing and verified against
+  hand movement. Root cause of the initial `DIST:0` readings was sensor VCC wired to
+  GND instead of the ESP32 5V pin — the trigger pulse was coupling through an
+  unpowered sensor. Both obstacle branches (`main.py` `<15` and `<OBSTACLE_DIST`)
+  are now live.
+- Benchmarks: voice parsing 93% (schema caveat below). The current integrated
+  `main.py` navigation path remains unbenchmarked; see Pending and
+  `BENCHMARK_PLAN.md`. Separately, the offline synthetic strategic-selector v2
+  archive records Laya's development-selected `filtered_text` at 9/11
+  acceptable held-out cases, median 3028.8 ms and 4/11 option-order flips.
+  Von's development-selected `two_stage_text` scored 8/11, median 4797.9 ms
+  and 9/11 flips. A post hoc Von `filtered_text` follow-up also scored 8/11,
+  median 2053.8 ms and 9/11 flips; only its stdout was saved. The models saw
+  disjoint generated variants, so these are not controlled head-to-head
+  accuracy results. Raw original-run JSON, stdout, manifests, the executed v2
+  source, v1 history and explicit evidence gaps are archived under
+  `benchmark/strategic_selector/`.
+  A separate offline objective-setting benchmark of on-device GGUF models
+  (Gemma-4-E2B/E4B, Qwen3.5-2B) ran on build 1609; results, caveats and
+  incomplete portions are archived with their run artifacts at
+  `benchmark/llm_objective_setting/` (see DECISIONS #110). It scores a proposed
+  dynamic-map prompt, not the deployed enum, its conversation/Q&A buckets are
+  ungraded, and two rubric defects were found after the fact. It is a baseline
+  for the LLM's retained conversation/objective-setting role under #109, not
+  evidence about navigation.
+- Strategic-selector evidence: a 2026-09-23 phone audit confirmed four archived
+  runs and benchmark sources published on origin/main; publication does not
+  establish model accuracy or robot hardware validity (see
+  [RUN_INDEX.md](../benchmark/strategic_selector/RUN_INDEX.md)).
+
+## Pending / untested
+
+- **Dual-rate nav merged as a rewrite. Rule-level safety branches and the current
+  `run_cycle()` path are regression-tested; everything else is untested.**
+  `navigate_rules` escalation ladder verified against synthetic
+  distances via `nav_test.py`: thresholds exact at the `<15` / `<25` / `>=25`
+  boundaries, no oscillation, `nav_stuck` fires on exactly one cycle per episode,
+  60s timeout reached. NOT tested: the person branches
+  (`estimate_distance_single`), and the whole loop with motors live —
+  `run_mission.py` has only ever been run with `--dry`. The 93% figure still does
+  not transfer (#55). The #104 removal is covered by `run_cycle_safety_test.py`
+  in both avoidance directions with fake external operations; no hardware
+  validation was performed (DECISIONS #111).
+- **Rotation is uncalibrated.** Nobody knows how many degrees one `LEFT`/`RIGHT` at
+  speed 120 for `CYCLE_MOVE_TIME` produces, so the ladder's "4 steps one way, then
+  sweep past centre" is a guess about coverage, not a measured 90°/180°. The
+  ultrasonic cannot measure angle — needs a protractor or overhead video.
+- **Forward motion uncalibrated.** `MOTOR_SPEED` 130 → cm/s unknown; tooling written
+  (`log_run.py`, `identify_it1.py`) and validated on synthetic data, but no run
+  against a wall has been taken. K_I will also drift as the pack sags from 8.2V
+  toward cutoff — unmeasured.
+- **Corrected `mode2_auto.ino` now exists and is version-controlled** —
+  firmware/mode2_auto/mode2_auto.ino, commit 9a90d7e, matches #42/#43/#45/#47
+  exactly (verified). Not yet confirmed against the physical board — that
+  requires a direct hardware check, not a file read.
+- **`BACK_R` diagonal drove one wheel instead of two.** Observed before the
+  corner-map correction (#49); not re-tested since.
+- **Mecanum vx-sign flip unverified under current wiring.** Last confirmed live
+  on a recovered pre-#43 artifact (DECISIONS #83); strafe and diagonals have not
+  been re-tested since the corner-map correction and a left-motor lead swap.
+  This directly underpins the escalation ladder's opening strafes (#61), which
+  assume strafe holds heading — if the sign convention no longer matches the
+  physical wiring, "strafe" could produce rotation or drift instead of lateral
+  movement. Re-verify forward/strafe/rotate/diagonals under the corrected map
+  before trusting the ladder on hardware.
+- **Gemma is no longer consulted during `nav_stuck`.** `run_cycle()` executes
+  the move from `navigate_rules()` directly; `nav_stuck` and `asked_gemma` are
+  still set by the unchanged rules but have no consultation consumer.
+  `run_cycle_safety_test.py` checks both avoidance directions and no outbound
+  LLM request with fake external operations. This is regression coverage, not
+  hardware validation. See DECISIONS #81, #88, and #111.
+- **Dead and orphaned code mapped** (`FILES.md`). Superseded: `detect_scene.py`,
+  `llm.py`, `voice.py`, `ch340_test.py`, `thermal_benchmark.py`,
+  `thermal_benchmark2.py`, `quality_benchmark.py`. Orphans never wired in:
+  `get_temp.py`, `thermal_guard.py`, `server_manager.py` (nothing starts the
+  server programmatically). `mission_test.py` predates the current `Robot` API
+  and is probably broken.
+- **Orphaned-file deletion deferred (DECISIONS #85).** `detect_scene.py`,
+  `llm.py`, `voice.py`, `ch340_test.py`, `thermal_benchmark.py`,
+  `thermal_benchmark2.py`, and `quality_benchmark.py` remain tracked and present.
+  DECISIONS #84's stated `git rm` did not occur in the checked repository; retain
+  all seven until an explicit future removal task. `get_temp.py`/`thermal_guard.py` (#75) and `mission_test.py` remain
+  deliberately kept; `nav_sim.py` was deleted (#118). 420 MB of unused ONNX models remains untouched.
+- **`get_temp()` pause threshold >80 °C is far below the operating band.**
+  Measured 97-101 °C sustained under inference, 31-38 °C idle; the kernel's own
+  passive trip for zone9 is 100 °C, so the chip runs in equilibrium at its designed
+  throttle point. The >80 °C pause would fire on nearly every check.
+  `thermal_guard.py`'s 82/86 are dead code — nothing imports it and `main.py` uses
+  an inline `get_temp`. A replacement needs the correct thermal signal and a
+  threshold validated against a real mission trace; neither is selected.
+  See DECISIONS #74, #75, #90.
+- **Battery thermal zone number unconfirmed.** STATUS previously implied zone
+  22; a later enumeration reported zone 25. Neither is canonical until a
+  direct thermal_zoneN/type read confirms it.
+- **Two JSON schemas in circulation.** `main.py: PARSE_SYS` emits
+  `{"type": ..., "name": ..., "room": ...}`; the benchmark scripts used
+  `{"action": ..., "target": ...}`. Not reconciled.
+- **FOCAL_PX uncalibrated; PERSON_STOP_DIST unreachable as coded.** Overshoot
+  +55% to +1000% across 12 measured photos, minimum estimate 164 cm against an
+  80 cm threshold, so the person-stop branch never fires. People are handled by
+  the 25 cm ultrasonic branch as generic obstacles. Person-stop is to move to the
+  area bucket (#79) — decided, not implemented. See DECISIONS #78, #79, #80.
+- **QAT/MTP evaluation gated, not started.** The earlier QAT Q4_0 E2B proposal
+  required a valid nav benchmark for an LLM model swap. After #104, that is a
+  historical model-in-loop gate, not a gate for the intended Python navigation
+  path. Any future voice or selector model swap needs its own evaluation criteria.
+  wNa8o8 mobile format (the only path to the ~1 GB claim)
+  needs llama.cpp load-support confirmed before download. MTP needs a full QAT
+  chain incl. a matching QAT drafter. See DECISIONS #71, #72.
+- Not yet built/wired: Piper TTS, Whisper VAD, room classifier, memory system,
+  face recognition.
+- Candidate speed and quality work, none measured (DECISIONS #117):
+  grammar-constrained JSON output for voice parsing; per-step timing of YOLO and
+  Whisper (never measured); Moonshine (English-only, compute scales with audio
+  length) against Whisper on the same recordings; a Vulkan GPU feasibility test
+  in native Termux; YOLO26 as an NMS-free replacement, which would need
+  retraining on the owner's photos; LFM2.5 and SmolLM3-3B as conversation
+  candidates, both needing a newer llama.cpp than b1609.
+- The proposed strategic selector is not wired to the robot. Apartment
+  localization from 2D LiDAR, semantic room map, camera–LiDAR object/range
+  association, named-person verification, eligible-script gates, safe
+  interruption, and model/sensor co-residency need separate validation.
+  YOLO `person` detection does not establish Chiara's identity; Laya/Von
+  confidence is not a braking guarantee. Script duration and whether an
+  additional car-mounted accelerometer helps remain undetermined. The
+  current ultrasonic sensor and phone sensors have not been integrated
+  into this proposed selector.
+- Objective-setting benchmark: the rubric fixes were applied and five models
+  rerun on the dotprod build 2026-09-26 (think-off for Qwen3.5); buckets A and
+  B were blind-graded by Local AI (DECISIONS #115, archive
+  `benchmark/llm_objective_setting/`). Qwen3.5 think-on results remain invalid
+  (42% truncated) and must not be quoted. Still open: all models invent sensor
+  readings they do not have (battery, why it stopped, vision range), lack
+  self-knowledge (wheels, why it stops), sometimes reply in the wrong language,
+  and occasionally leak `</start_of_turn>` into replies. A robot fact sheet,
+  live sensor values and an English-only reply rule in the system prompt
+  (English-only is acceptable, DECISIONS #117), plus stripping template
+  tokens, are the planned fixes; not implemented.
+- b2351 flash-attention segfaults on this phone; not investigated. The robot
+  stays on the dotprod b1609 build.
+- Repo root cleaned 2026-09-27 (#118, commit `78b1cc5`): untracked scratch
+  files deleted; #105 vision files archived in `benchmark/qwen_vision/` (edited
+  harness not re-reviewed, result files unlocated) and the #108 verification
+  output in `benchmark/failclosed_108/`.
+- benchmark/llm_objective_setting/ was published with the docs/WORKFLOW.md
+  independent review WAIVED by human decision; the waiver is recorded in its
+  README.
+
+## Work priorities
+
+Preserved from the 2026-09-05 handoff; these are pending tasks, not new test results
+or permission to execute hardware work.
+
+1. Keep `nav_test.py` and the #81 `run_cycle()` regression passing before the
+   first motors-live autonomous run. The code defect is fixed, but no hardware
+   validation has been performed (DECISIONS #88).
+2. Implement the person-stop area-bucket decision (#79). Choose 'very close' versus
+   'close' against `bench_photos/`; the choice remains pending.
+3. Build the replacement navigation benchmark described in
+   [BENCHMARK_PLAN.md](BENCHMARK_PLAN.md): real photos → real `detect_scene()` →
+   real `navigate_rules()`, with distance injected. The proposed scores are token
+   validity and sub-25 cm forward violations; they do not establish navigation
+   accuracy or cover the `run_cycle` override. See #104 and the historical
+   QAT/MTP model-swap gate above.
+4. Take forward-motion calibration with the robot; use
+   [COMMANDS.md §6](COMMANDS.md#6-nav-rules--calibration).
+5. Take rotation calibration with the robot; method remains pending, as recorded
+   above and in COMMANDS.md §6.
+6. After the safety fix, perform the first motors-live autonomous run under human
+   control, with wheels on a stand. Capture the mission thermal trace to validate
+   the sensor and a proposed pause threshold (#75, #90).
+
+Mode 2 video/audio teleop remains parked indefinitely for thermal cost (#58).
+This does not park the serial-command firmware named `mode2_auto.ino`.
+
+## Last hardware test
+
+Bench power-up, first four-motor PWM spin, and HC-SR04 readings were reported.
+The ESP32 driving motors from buck power remains unverified after an earlier
+brownout; capacitors, solid ground return, and current-wiring direction tests
+remain pending. Full measured values and as-built limitations are preserved in
+[PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
+# Decision index — current orientation
+
+This is a short reading guide, not another decision log. The numbered entries in
+[DECISIONS.md](DECISIONS.md) remain the authority and retain their original text.
+Read [STATUS.md](STATUS.md) or [APP_STATUS.md](APP_STATUS.md) for what is currently
+implemented. Before appending a decision, read the last number in DECISIONS.md
+itself. An entry labelled *decided* here may still be unimplemented.
+
+| Area | Current orientation | Evidence |
+|---|---|---|
+| Prototype navigation | Python rules and sensors own low-level movement; Gemma was removed from the navigation loop. No hardware validation yet. | #104, #111, #88; STATUS Architecture |
+| Strategic selector | **Research only, not wired.** Lead candidate: Gemma letter-scoring (1.5 s on b2351 Q4_0); Laya/Von zero-shot near chance, continuing only via fine-tuning. One resident Gemma for talk + selection under evaluation. | #109, #112, #113, #116; [index](../benchmark/INDEX.md) |
+| Motor safety | Firmware watchdog is 1000 ms; the `nav_stuck` safety-move override was fixed in Python; LLM failure paths now select STOP. Hardware validation remains separate. | #47, #88, #108; STATUS Pending |
+| Firmware and wiring | Corrected `mode2_auto.ino` and corner map are committed; what is flashed on the physical board is unconfirmed. | #43, #89; STATUS Architecture |
+| Person stop | Coarse detector area bucket was chosen to replace uncalibrated centimetres, but is not implemented. | #78–#80; STATUS Pending |
+| Thermal control | VIRTUAL-SKIN-CPU-GPU governs HAL CPU throttling; the live `main.py` pause still reads BIG at >80 °C. The replacement threshold is not decided. | #74–#75, #90–#93; STATUS Thermal/Pending |
+| Model vision | Deployed image requests were effectively text-only; later projector experiments did not yield usable on-device LLM vision. YOLO remains perception. | #96, #105; STATUS Vision |
+| Android app | Root-free USB and sustained inference spikes passed; the native app itself has no code yet. Prototype measurements do not transfer automatically. | #67–#69; APP_STATUS |
+| Licensing | [LICENSES.md](LICENSES.md) owns the app allowlist. Its derived copy in APP_CLAUDE.md is intentional. | #66 |
+| Collaboration | Independent Coder/Reviewer/human commit gate and per-task execution profiles are defined in [WORKFLOW.md](WORKFLOW.md). Push needs separate authorization. | #86–#87 |
+| Strategic selector harness v3 | s1o dropped on speed; laya_en and von11 proceed; hardware timings provisional. | #112 |
+| Data Engineer role | Selector moves to a fine-tuning track; new Data Engineer role created to generate the dataset. | #113 |
+| LLM runtime | Robot runs b1609 rebuilt with ARM dotprod (~3x prompt speed); default model Gemma E2B Q4_0 with `--cache-ram 0` and a voice warm-up. | #114, #115 |
+| Selector direction | Gemma letter-scoring leads (1.55 s, 77%); one resident Gemma for talk + selection under evaluation, not decided. | #116 |
+| Language | English-only speech input and replies are acceptable; English-only components are eligible. | #117 |
+
+## Corrections worth knowing before citing an older entry
+
+| Earlier record | Later correction or change |
+|---|---|
+| #33 front/rear motor wording, then #40 left/right mapping | #43 corrects the left-side corner assignment; #89 identifies the corrected committed firmware. |
+| #52's avoidance escalation | #59 changes the counter logic; #62 limits Gemma consultation to once per blockage episode. The planned LLM-free nav direction is #104 and remains unimplemented. |
+| #81 open `nav_stuck` safety defect | #88 records the code fix; #108 records the later STOP fallback for LLM failures. Do not treat #81 as an open code defect. |
+| #23 keeps `nav_sim.py` | #118 deleted it (commit `78b1cc5`). |
+| #84 says seven orphaned scripts were deleted | #85 verifies they remain tracked and explicitly defers deletion. |
+| #77 records a built b2233 binary | #107 says its binary was replaced by b2351; the old source commit is still recoverable. |
+| #95's negative `strings` check for Qwen support | #107 / STATUS report a successful Qwen3.5 text load on b2351; #105 separately records unsuccessful vision tests. |
+| #99's proposed model-in-loop work order | #100–#102 tested output and rule defects; #104 changes the intended architecture. #109 is separate strategic research. |
+
+For any claim outside these selected topics, search the numbered log and inspect
+the later entries that cite it. This index makes no claim to classify all decisions.
+# CLAUDE.md
+
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+## 5. Context Discipline
+
+**Context is a budget. Spend it on reasoning, not on re-reading.**
+
+- Never re-read a full file already open in this session. Reference what
+  you already have. If you need one function, quote that function - not
+  the file.
+- Summarize benchmark results as a single row, not raw logs.
+  Good: `E2B Q4_K_M | 4 threads | 11-12 tok/s | thermal=PENDING`
+  Bad: pasting 15 lines of per-cycle output.
+- Don't paste full stack traces. Extract only the failing line and the
+  exception type. The other 20 frames are noise.
+  Good: `stereo_depth.py:627 ZeroDivisionError - height_px was 0`
+  Bad: the entire traceback.
+- Terminal output: paste the result, not the scrollback. Server boot logs,
+  model metadata dumps, and `cmake` output are almost never the signal.
+- When a command produces >20 lines, pipe it: `| tail -5`, `| grep ERROR`,
+  or write a summary block at the end of the script.
+
+---
+
+## Project-Specific Constraints
+
+These values are **benchmarked on this hardware**. Do not change them without
+re-running the corresponding benchmark and recording the result in DECISIONS.md.
+
+**llama.cpp server flags** (`server_manager.py`):
+```
+--threads 4 --threads-batch 4    # optimal for Tensor G2; more threads = slower
+--parallel 1                     # no slot splitting
+--swa-full                       # fixes Gemma 4 SWA prompt-cache invalidation
+--ctx-size 2048
+```
+
+**Accuracy target and historical context:**
+```
+Voice command parsing:  ≥93%
+```
+
+The earlier ≥90% LLM-navigation target described the model-in-loop design.
+DECISIONS #104 decided to remove the LLM from the low-level navigation loop;
+the code rework is still pending (STATUS Architecture). Do not treat that
+historical target as a current model-selection gate.
+
+**Vision** (`detect_person.py`):
+```
+MODEL = yolo11m.onnx
+CONF  = 0.35
+IOU   = 0.45
+Input = 640x640
+```
+
+Anything marked `UNCALIBRATED` or `PENDING` in STATUS.md is not yet trustworthy —
+treat those values as placeholders, not as benchmarked constants.
+
+
+## Workflow and commit gate
+
+Before code work read `AGENTS.md`, `docs/WORKFLOW.md`, and the assigned role file.
+As Coder, obtain the independent review automatically, preserve it verbatim, and
+wait for the human's explicit commit decision. A reviewer pass is not commit
+permission; push needs separate authorization. This does not alter this file's
+prototype-Python scope.
+
+exec
+/bin/bash -lc pwd in /termux-home/robot
+ succeeded in 0ms:
+/termux-home/robot
+
+exec
+/bin/bash -lc 'ls -l benchmark/llm_objective_setting/conversation' in /termux-home/robot
+ succeeded in 0ms:
+total 677
+drwxr-xr-x. 2 root root   3452 Sep 28 07:42 __pycache__
+-rw-r--r--. 1 root root   2471 Sep 26 16:20 conv_quality.py
+-rw-r--r--. 1 root root  12998 Sep 26 18:22 conv_speed.py
+-rw-r--r--. 1 root root  11852 Sep 28 07:42 conv_speed_mtp.py
+drwxr-xr-x. 3 root root   3452 Sep 26 22:12 conversation_20260926T185957Z
+-rw-r--r--. 1 root root      0 Sep 26 18:59 conversation_20260926T185957Z.stderr.txt
+-rw-r--r--. 1 root root   6929 Sep 26 19:40 conversation_20260926T185957Z.stdout.txt
+-rw-rw----. 1 root root   1266 Sep 26 18:42 conversation_blind_key.tsv
+-rw-rw----. 1 root root  12812 Sep 26 18:42 conversation_blind_sheet.md
+drwxr-xr-x. 2 root root   3452 Sep 26 22:12 conversation_quality
+-rw-r--r--. 1 root root      0 Sep 26 16:34 conversation_quality.stderr.txt
+-rw-r--r--. 1 root root   5662 Sep 26 17:28 conversation_quality.stdout.txt
+-rw-r--r--. 1 root root 568881 Sep 26 18:42 conversation_quality_combined.json
+drwxr-xr-x. 2 root root   3452 Sep 26 22:12 conversation_quality_qwen35_4b
+drwxr-xr-x. 2 root root   3452 Sep 26 22:12 conversation_quality_qwen35_4b.killed_by_lmk_1734
+-rw-r--r--. 1 root root      0 Sep 26 17:30 conversation_quality_qwen35_4b.killed_by_lmk_1734.stderr.txt
+-rw-r--r--. 1 root root    176 Sep 26 17:30 conversation_quality_qwen35_4b.killed_by_lmk_1734.stdout.txt
+-rw-r--r--. 1 root root      0 Sep 26 18:23 conversation_quality_qwen35_4b.stderr.txt
+-rw-r--r--. 1 root root    208 Sep 26 18:41 conversation_quality_qwen35_4b.stdout.txt
+-rw-r--r--. 1 root root   3809 Sep 26 18:42 conversation_quality_scores.txt
+-rw-rw----. 1 root root   1909 Sep 26 20:32 local_ai_blind_scores.tsv
+-rw-r--r--. 1 root root   3427 Sep 26 16:21 make_blind_sheet.py
+drwxr-xr-x. 6 root root   3452 Sep 26 22:12 prep
+-rwxr-xr-x. 1 root root   1486 Sep 28 07:32 run_conv_mtp.sh
+-rwxr-xr-x. 1 root root   1411 Sep 26 18:23 run_conversation.sh
+-rw-r--r--. 1 root root   2702 Sep 26 16:21 score_c.py
+
+exec
+/bin/bash -lc 'ls -l /termux-home/ladder' in /termux-home/robot
+ succeeded in 0ms:
+total 2497
+drwxr-xr-x. 2 root root    3452 Sep 27 22:21 __pycache__
+drwx------. 2 root root    3452 Sep 25 21:55 cases
+drwxr-xr-x. 4 root root    3452 Sep 28 07:42 conv_mtp_prep
+-rw-r--r--. 1 root root    2471 Sep 26 16:20 conv_quality.py
+-rw-r--r--. 1 root root   12998 Sep 26 18:22 conv_speed.py
+drwxr-xr-x. 3 root root    3452 Sep 26 19:40 conversation_20260926T185957Z
+-rw-r--r--. 1 root root       0 Sep 26 18:59 conversation_20260926T185957Z.stderr.txt
+-rw-r--r--. 1 root root    6929 Sep 26 19:40 conversation_20260926T185957Z.stdout.txt
+drwxr-xr-x. 2 root root    3452 Sep 26 17:28 conversation_quality
+-rw-r--r--. 1 root root       0 Sep 26 16:34 conversation_quality.stderr.txt
+-rw-r--r--. 1 root root    5662 Sep 26 17:28 conversation_quality.stdout.txt
+-rw-r--r--. 1 root root  568881 Sep 26 18:42 conversation_quality_combined.json
+drwxr-xr-x. 2 root root    3452 Sep 26 18:41 conversation_quality_qwen35_4b
+drwxr-xr-x. 2 root root    3452 Sep 26 17:30 conversation_quality_qwen35_4b.killed_by_lmk_1734
+-rw-r--r--. 1 root root       0 Sep 26 17:30 conversation_quality_qwen35_4b.killed_by_lmk_1734.stderr.txt
+-rw-r--r--. 1 root root     176 Sep 26 17:30 conversation_quality_qwen35_4b.killed_by_lmk_1734.stdout.txt
+-rw-r--r--. 1 root root       0 Sep 26 18:23 conversation_quality_qwen35_4b.stderr.txt
+-rw-r--r--. 1 root root     208 Sep 26 18:41 conversation_quality_qwen35_4b.stdout.txt
+-rw-r--r--. 1 root root    3809 Sep 26 18:42 conversation_quality_scores.txt
+-rw-r--r--. 1 root root   44673 Sep 27 22:21 ladder.py
+-rw-r--r--. 1 root root    9000 Sep 25 21:08 ladder_worker.py
+-rw-r--r--. 1 root root    3427 Sep 26 16:21 make_blind_sheet.py
+drwxr-xr-x. 5 root root    3452 Sep 25 21:09 old_runs
+-rw-------. 1 root root    2627 Sep 26 16:20 oneshot.sh
+-rw-------. 1 root root   12455 Sep 26 06:10 oneshot_console_20260926T045141Z.log
+-rw-------. 1 root root   58739 Sep 26 08:39 oneshot_console_20260926T065115Z.log
+-rw-------. 1 root root    7519 Sep 26 19:40 oneshot_console_20260926T185449Z.log
+-rw-------. 1 root root    3994 Sep 27 22:46 oneshot_console_20260927T223753Z.log
+drwxr-xr-x. 3 root root    3452 Sep 26 00:08 real_run
+-rwxr-xr-x. 1 root root    1486 Sep 28 07:32 run_conv_mtp.sh
+-rwxr-xr-x. 1 root root    1411 Sep 26 18:23 run_conversation.sh
+-rwxr-xr-x. 1 root root    1121 Sep 27 22:21 run_s1o_dp_q40.sh
+-rwxr-xr-x. 1 root root    1852 Sep 26 06:27 run_s1o_speed.sh
+drwxr-xr-x. 3 root root    3452 Sep 27 22:46 s1o_dp_q40_20260927T224301Z
+-rw-r--r--. 1 root root       0 Sep 27 22:43 s1o_dp_q40_20260927T224301Z.stderr.txt
+-rw-r--r--. 1 root root    3529 Sep 27 22:46 s1o_dp_q40_20260927T224301Z.stdout.txt
+drwxr-xr-x. 3 root root    3452 Sep 26 04:44 s1o_speed_20260926T044457Z
+-rw-r--r--. 1 root root       0 Sep 26 04:44 s1o_speed_20260926T044457Z.stderr.txt
+-rw-r--r--. 1 root root     462 Sep 26 04:44 s1o_speed_20260926T044457Z.stdout.txt
+drwxr-xr-x. 3 root root    3452 Sep 26 08:39 s1o_speed_20260926T045648Z
+-rw-r--r--. 1 root root     123 Sep 26 06:10 s1o_speed_20260926T045648Z.stderr.txt
+-rw-r--r--. 1 root root   70307 Sep 26 08:39 s1o_speed_20260926T045648Z.stdout.txt
+-rw-r--r--. 1 root root    2702 Sep 26 16:21 score_c.py
+drwxr-xr-x. 3 root root    3452 Sep 25 21:25 smoke_run
+-rw-r--r--. 1 root root       0 Sep 25 21:17 smoke_run.stderr.txt
+-rw-r--r--. 1 root root   16612 Sep 25 21:25 smoke_run.stdout.txt
+-rw-r--r--. 1 root root    9728 Sep 26 06:27 test_ladder.py
+-rw-r--r--. 1 root root 1580700 Sep 28 07:45 thermal.log
+-rw-r--r--. 1 root root    1736 Sep 25 20:33 toy_cases.jsonl
+drwxr-xr-x. 3 root root    3452 Sep 25 21:12 toy_run
+-rw-r--r--. 1 root root    7743 Sep 25 21:12 toy_run.pty.txt
+
+exec
+/bin/bash -lc 'git status --short' in /termux-home/robot
+ succeeded in 64ms:
+?? benchmark/llm_objective_setting/conversation/conv_speed_mtp.py
+?? benchmark/llm_objective_setting/conversation/run_conv_mtp.sh
+
+exec
+/bin/bash -lc "sed -n '1,270p' benchmark/llm_objective_setting/conversation/run_conv_mtp.sh" in /termux-home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc "sed -n '1,320p' benchmark/llm_objective_setting/conversation/conv_speed.py" in /termux-home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc "sed -n '1,260p' benchmark/llm_objective_setting/conversation/conv_speed_mtp.py" in /termux-home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc "python3 -c 'from pathlib import Path; print(Path(\"benchmark/llm_objective_setting/conversation/conv_speed.py\").read_text()[:5000])'" in /termux-home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc 'cat server_manager.py' in /termux-home/robot
+ succeeded in 0ms:
+import os
+import time
+import urllib.request
+
+HOME = "/data/data/com.termux/files/home"
+LLAMA_SERVER = HOME + "/llama.cpp-b1609-dotprod/build/bin/llama-server"
+
+# Optimal config (benchmarked on Pixel 7 Tensor G2):
+# --threads 4 --threads-batch 4 → ~12 tok/s for E2B Q4_0 (dotprod build, cores 4-7, 2026-09-26)
+# --parallel 1                  → no slot splitting
+# --swa-full                    → full-size SWA cache, so the fixed prompt prefix is reused
+# --cache-ram 0                 → no host-RAM prompt cache; it grew server memory per turn on
+#                                 prompts without a shared prefix (benchmark/llm_objective_setting)
+THREADS = "4"
+BATCH_THREADS = "4"
+
+def kill_servers():
+    os.system("pkill -f llama-server 2>/dev/null")
+    time.sleep(2)
+    print("[SERVER] All servers stopped")
+
+def wait_for_server(port=8080, timeout=60):
+    for i in range(timeout):
+        time.sleep(1)
+        try:
+            r = urllib.request.urlopen(
+                "http://127.0.0.1:" + str(port) + "/health", timeout=2)
+            if r.status == 200:
+                print("[SERVER] Ready after " + str(i+1) + "s")
+                return True
+        except:
+            pass
+    print("[SERVER] ERROR: failed to load in " + str(timeout) + "s")
+    return False
+
+def start_server(model_path, port=8080, ctx=2048, extra_args=""):
+    kill_servers()
+    cmd = (
+        LLAMA_SERVER +
+        " -m " + model_path +
+        " --port " + str(port) +
+        " --ctx-size " + str(ctx) +
+        " --threads " + THREADS +
+        " --threads-batch " + BATCH_THREADS +
+        " --parallel 1" +
+        " --swa-full" +
+        " --cache-ram 0" +
+        " --host 127.0.0.1 " +
+        extra_args +
+        " 2>/dev/null &"
+    )
+    os.system(cmd)
+    print("[SERVER] Starting: " + model_path.split("/")[-1])
+    print("[SERVER] Waiting...")
+    return wait_for_server(port)
+
+def start_setup(setup_name):
+    print("\n" + "="*50)
+    print("  Starting: " + setup_name)
+    print("="*50)
+
+    # ── MAIN ROBOT MODEL ──────────────────────────────
+    if setup_name == "setup_q4":
+        # E2B Q4_0 — default robot model
+        # Speed: ~12 tok/s (dotprod build) | Size: 2.8GB
+        return start_server(
+            HOME + "/models/gemma-4-E2B-it-Q4_0.gguf",
+            port=8080, ctx=2048
+        )
+
+    # ── QUALITY MODE ──────────────────────────────────
+    elif setup_name == "setup_e4b":
+        # E4B Q4_K_M — smarter but slower
+        # Speed: ~5.4 tok/s (dotprod build) | Size: 5.0GB
+        return start_server(
+            HOME + "/models/gemma-4-e4b-it-q4_k_m.gguf",
+            port=8080, ctx=2048
+        )
+
+    # ── STOP ─────────────────────────────────────────
+    elif setup_name == "stop":
+        kill_servers()
+        return True
+
+    else:
+        print("[SERVER] Unknown setup: " + setup_name)
+        print("[SERVER] Available: setup_q4, setup_e4b, stop")
+        return False
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) < 2:
+        print("Usage: python3 server_manager.py [setup_q4|setup_e4b|stop]")
+        sys.exit(1)
+    start_setup(sys.argv[1])
+
+exec
+/bin/bash -lc 'head -40 benchmark/llm_objective_setting/conversation/conv_speed.py' in /termux-home/robot
+ succeeded in 0ms:
+#!/usr/bin/env python3
+"""Conversation speed runner. Research only: offline, no motors, no main.py.
+
+Usage: conv_speed.py --out DIR [--models a,b] [--resume] [--thermal-log PATH]
+
+Per model, two blocks, one server each, llama-server pinned to cores 4-7 with server_manager.py's binary and flags:
+  cold    thermal gate, page-cache drop (ladder.make_cold: LADDER_COLD_HANDSHAKE=1 or a terminal prompt, else the
+          weights are evicted), start the server, time spawn -> /health ok, then one pass over the #110 prompts.
+  cached  thermal gate, start again with the weights in page cache, time the load, same pass.
+Each turn streams /completion: time to first token is the first streamed content (client clock), prompt and
+generation tok/s come from the server's timings. Peak RSS is the server's VmHWM. Blocks are gated, guarded and
+resumed like ladder.py: losing cores 4-7 discards and redoes the block; --resume keeps completed blocks.
+Writes DIR/blocks.jsonl, DIR/turns.jsonl, DIR/report.txt.
+"""
+import argparse
+import hashlib
+import json
+import os
+import signal
+import statistics
+import subprocess
+import sys
+import time
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.insert(0, "/termux-home/ladder")
+sys.path.insert(0, "/termux-home/robot")
+sys.path.insert(0, "/termux-home/robot/benchmark/llm_objective_setting")
+import ladder  # noqa: E402  thermal gate, core guard, cold handshake
+import server_manager as sm  # noqa: E402  the robot's binary and flags
+import bench  # noqa: E402  the #110 prompts, wrappers and sampling
+
+M = "/data/data/com.termux/files/home/models/"
+MODELS = {  # config -> (gguf, prompt family, think)
+    "gemma_e2b_q4km": (M + "gemma-4-e2b-it-q4_k_m.gguf", "gemma", None),
+    "gemma_e2b_q40": (M + "gemma-4-E2B-it-Q4_0.gguf", "gemma", None),
+    "gemma_e4b_q4km": (M + "gemma-4-e4b-it-q4_k_m.gguf", "gemma", None),
+    "qwen35_4b": (M + "qwen35/Qwen3.5-4B-Q4_K_M.gguf", "chatml", "OFF"),
+
+codex
+The read-only command boundary is rejecting whole-file reads of the benchmark scripts, but small reads work. I’ll inspect the relevant functions in smaller sections and verify the reported fixes from source.
+exec
+/bin/bash -lc 'tail -180 benchmark/llm_objective_setting/conversation/conv_speed.py' in /termux-home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc 'tail -100 benchmark/llm_objective_setting/conversation/conv_speed_mtp.py' in /termux-home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc 'head -130 benchmark/llm_objective_setting/conversation/conv_speed_mtp.py' in /termux-home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc 'head -140 benchmark/llm_objective_setting/conversation/conv_speed.py' in /termux-home/robot
+ succeeded in 0ms:
+#!/usr/bin/env python3
+"""Conversation speed runner. Research only: offline, no motors, no main.py.
+
+Usage: conv_speed.py --out DIR [--models a,b] [--resume] [--thermal-log PATH]
+
+Per model, two blocks, one server each, llama-server pinned to cores 4-7 with server_manager.py's binary and flags:
+  cold    thermal gate, page-cache drop (ladder.make_cold: LADDER_COLD_HANDSHAKE=1 or a terminal prompt, else the
+          weights are evicted), start the server, time spawn -> /health ok, then one pass over the #110 prompts.
+  cached  thermal gate, start again with the weights in page cache, time the load, same pass.
+Each turn streams /completion: time to first token is the first streamed content (client clock), prompt and
+generation tok/s come from the server's timings. Peak RSS is the server's VmHWM. Blocks are gated, guarded and
+resumed like ladder.py: losing cores 4-7 discards and redoes the block; --resume keeps completed blocks.
+Writes DIR/blocks.jsonl, DIR/turns.jsonl, DIR/report.txt.
+"""
+import argparse
+import hashlib
+import json
+import os
+import signal
+import statistics
+import subprocess
+import sys
+import time
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.insert(0, "/termux-home/ladder")
+sys.path.insert(0, "/termux-home/robot")
+sys.path.insert(0, "/termux-home/robot/benchmark/llm_objective_setting")
+import ladder  # noqa: E402  thermal gate, core guard, cold handshake
+import server_manager as sm  # noqa: E402  the robot's binary and flags
+import bench  # noqa: E402  the #110 prompts, wrappers and sampling
+
+M = "/data/data/com.termux/files/home/models/"
+MODELS = {  # config -> (gguf, prompt family, think)
+    "gemma_e2b_q4km": (M + "gemma-4-e2b-it-q4_k_m.gguf", "gemma", None),
+    "gemma_e2b_q40": (M + "gemma-4-E2B-it-Q4_0.gguf", "gemma", None),
+    "gemma_e4b_q4km": (M + "gemma-4-e4b-it-q4_k_m.gguf", "gemma", None),
+    "qwen35_4b": (M + "qwen35/Qwen3.5-4B-Q4_K_M.gguf", "chatml", "OFF"),
+    "qwen35_2b": (M + "qwen35/Qwen3.5-2B-Q4_K_M.gguf", "chatml", "OFF"),
+}
+PORT = 8080
+
+
+def server_cmd(gguf, port=PORT):
+    """server_manager.start_server's command line, as an argv list (no shell, no pkill), plus --cache-ram 0.
+    DEVIATION (human decision 2026-09-26): with server_manager's flags alone the server's host prompt cache grew
+    ~104 MiB anonymous memory per request on Qwen3.5-4B until Android killed it (~25 turns, Termux too); with
+    --cache-ram 0 it stayed flat over 20 turns. server_manager.py's comment claims this flag but never passes it."""
+    return [sm.LLAMA_SERVER, "-m", gguf, "--port", str(port), "--ctx-size", "2048", "--threads", sm.THREADS,
+            "--threads-batch", sm.BATCH_THREADS, "--parallel", "1", "--swa-full", "--host", "127.0.0.1",
+            "--cache-ram", "0"]
+
+
+def healthy(port):
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as r:
+            return r.status == 200
+    except OSError:
+        return False
+
+
+def start(gguf, log, port=PORT, timeout=180):
+    """Starts the server on cores 4-7; returns (process, load seconds from spawn to /health ok)."""
+    if healthy(port):
+        raise SystemExit(f"port {port} is already serving; stop that server first")
+    began = time.perf_counter()
+    proc = subprocess.Popen(["taskset", "-c", ladder.CORES, *server_cmd(gguf, port)], stdout=log, stderr=subprocess.STDOUT,
+                            start_new_session=True)
+    while not healthy(port):
+        if proc.poll() is not None or time.perf_counter() - began > timeout:
+            stop(proc)
+            raise RuntimeError(f"llama-server did not become healthy (exit {proc.poll()})")
+        time.sleep(0.1)
+    return proc, time.perf_counter() - began
+
+
+def stop(proc):
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+        proc.wait(timeout=30)
+    except (ProcessLookupError, subprocess.TimeoutExpired):
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.wait()
+
+
+def vm_hwm_mib(pid):
+    return next(int(l.split()[1]) // 1024 for l in open(f"/proc/{pid}/status") if l.startswith("VmHWM:"))
+
+
+def prompts(family, think):
+    """The #110 A, B and C prompts, one pass, with bench.py's wrappers, stop tokens and temperatures."""
+    out = []
+    for bucket, ps, sys_msg, temp in (("A", bench.PROMPTS_A, bench.SYS_CHAT, 0.1), ("B", bench.PROMPTS_B, bench.SYS_CHAT, 0.1),
+                                      ("C", bench.PROMPTS_C, bench.SYS_PARSE, 0.05)):
+        for p in ps:
+            text = [{"user": t["user"]} for t in p["text"]] if p.get("multi") else p["text"]  # A5: final turn, no history
+            prompt, stop_tokens = bench.format_prompt(sys_msg, text, family, think)  # random nonce: no prefix reuse
+            out.append((p["id"], {"prompt": prompt, "stop": stop_tokens, "temperature": temp, "n_predict": 512,
+                                  "cache_prompt": False, "stream": True}))
+    return out
+
+
+def turn(body, port=PORT):
+    """One streamed completion: (seconds to first streamed content, final timings, stop_type, text)."""
+    req = urllib.request.Request(f"http://127.0.0.1:{port}/completion", json.dumps(body).encode(),
+                                 {"Content-Type": "application/json"})
+    began, first, text, final = time.perf_counter(), None, [], None
+    with urllib.request.urlopen(req, timeout=600) as r:
+        for line in r:
+            if not line.startswith(b"data: "):
+                continue
+            ev = json.loads(line[6:])
+            if ev.get("content"):
+                first = first or time.perf_counter() - began
+                text.append(ev["content"])
+            if ev.get("stop"):
+                final = ev
+    if final is None:
+        raise RuntimeError("stream ended without a final event")
+    return first, final.get("timings", {}), final.get("stop_type"), "".join(text)
+
+
+def run_block(name, block, out, thermal):
+    gguf, family, think = MODELS[name]
+    ladder.check_cores("before " + block)
+    therm = {}
+    if thermal:
+        therm["start"] = ladder.thermal_gate(thermal[0], thermal[1], f"{name} {block}")
+        print(f"  [{name} {block}] thermal start: {ladder.fmt_thermal(therm['start'])} (waited {therm['start']['waited_s']} s)",
+              flush=True)
+    load_state = ladder.make_cold(name, [gguf]) if block == "cold" else {"mode": "cached"}
+    ladder.check_cores("before starting " + block)
+    with open(out / "logs" / f"{name}.{block}.server.log", "w") as log:
+        proc, load_s = start(gguf, log)
+        rows = []
+        try:
+            for pid_, body in prompts(family, think):
+                ttft, tm, stop_type, text = turn(body)
+
+exec
+/bin/bash -lc 'head -40 benchmark/llm_objective_setting/conversation/run_conv_mtp.sh' in /termux-home/robot
+ succeeded in 0ms:
+#!/bin/bash
+# MTP speculative decoding and Qwen3.5-4B Q4_0 speed on the robot's llama.cpp (server_manager.py's binary and flags
+# plus --cache-ram 0). Research only: offline, no motors, no main.py. Five configs, one cold block each over 13 of the
+# DECISIONS #110 prompts at temperature 0: gemma_e2b_q40, gemma_e2b_q40_mtp (drafter), qwen35_4b_q4km,
+# qwen35_4b_q40mtp (MTP off), qwen35_4b_q40mtp_on. Every block waits until z9 <= idle + 4 degC; losing cores 4-7
+# pauses the run and redoes the block; cold loads drop the page cache through the handshake (LADDER_COLD_HANDSHAKE=1).
+# Afterwards score_c.py grades the C replies (report only) into OUT_DIR/c_scores.txt.
+#
+# Usage: run_conv_mtp.sh [OUT_DIR]          new run
+#        run_conv_mtp.sh --resume OUT_DIR   keep OUT_DIR's completed blocks, run the rest
+# Unattended, from native Termux:  RUN_SCRIPT=run_conv_mtp.sh bash ~/ladder/oneshot.sh [--resume OUT_DIR]
+set -euo pipefail
+C=/termux-home/robot/benchmark/llm_objective_setting/conversation
+cd /termux-home/ladder
+RESUME=()
+if [ "${1:-}" = --resume ]; then
+  OUT=${2:?usage: run_conv_mtp.sh --resume OUT_DIR}
+  RESUME=(--resume)
+else
+  OUT=${1:-/termux-home/ladder/conv_mtp_$(date -u +%Y%m%dT%H%M%SZ)}
+fi
+python3 "$C/conv_speed_mtp.py" --out "$OUT" "${RESUME[@]}" \
+  --thermal-log /termux-home/ladder/thermal.log \
+  > >(tee -a "$OUT.stdout.txt") 2> >(tee -a "$OUT.stderr.txt" >&2)
+python3 "$C/score_c.py" "$OUT/c_results.json" > "$OUT/c_scores.txt"
+cat "$OUT/c_scores.txt"
+
+exec
+/bin/bash -lc "sed -n '191,240p' benchmark/llm_objective_setting/conversation/conv_speed_mtp.py" in /termux-home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc "sed -n '260,330p' benchmark/llm_objective_setting/conversation/conv_speed.py" in /termux-home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc 'head -100 benchmark/llm_objective_setting/conversation/conv_speed_mtp.py' in /termux-home/robot
+ succeeded in 0ms:
+#!/usr/bin/env python3
+"""MTP speculative-decoding speed runner. Research only: offline, no motors, no main.py.
+
+Usage: conv_speed_mtp.py --out DIR [--models a,b] [--ids A6,C1] [--resume] [--thermal-log PATH]
+
+conv_speed.py's cold block (thermal gate, page-cache drop through the handshake, cores 4-7, cpuset guard, redo on
+lost cores, --resume) with these changes: temperature 0 for every prompt, only the 13 prompts in IDS, no cached
+block, and per config extra server flags (MTP drafting). Qwen think is OFF as before.
+Draft acceptance = sum(draft_n_accepted) / sum(draft_n) from the server's final timings. For each MTP-on config the
+report counts replies byte-identical to its MTP-off twin (PAIRS). C-bucket replies are also written in bench.py's
+result format to DIR/c_results.json for score_c.py.
+Writes DIR/blocks.jsonl, DIR/turns.jsonl, DIR/report.txt, DIR/c_results.json.
+"""
+import argparse
+import hashlib
+import json
+import random
+import statistics
+import subprocess
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+import conv_speed as cs  # the archived runner: its prompts, server flags, streaming turn, stop, VmHWM, resume
+from conv_speed import bench, ladder, sm
+
+M = cs.M
+GEMMA_DRAFT = M + "mtp/mtp-gemma-4-E2B-it-Q8_0.gguf"
+MTP = ["--spec-type", "draft-mtp", "--spec-draft-n-max", "3"]
+CONFIGS = {  # config -> (gguf, prompt family, think, extra flags)
+    "gemma_e2b_q40": (M + "gemma-4-E2B-it-Q4_0.gguf", "gemma", None, []),
+    "gemma_e2b_q40_mtp": (M + "gemma-4-E2B-it-Q4_0.gguf", "gemma", None, ["--model-draft", GEMMA_DRAFT, *MTP]),
+    "qwen35_4b_q4km": (M + "qwen35/Qwen3.5-4B-Q4_K_M.gguf", "chatml", "OFF", []),
+    "qwen35_4b_q40mtp": (M + "qwen35/mtp/Qwen3.5-4B-Q4_0-MTP.gguf", "chatml", "OFF", []),
+    "qwen35_4b_q40mtp_on": (M + "qwen35/mtp/Qwen3.5-4B-Q4_0-MTP.gguf", "chatml", "OFF", MTP),
+}
+PAIRS = {"gemma_e2b_q40_mtp": "gemma_e2b_q40", "qwen35_4b_q40mtp_on": "qwen35_4b_q40mtp"}  # MTP on -> MTP off
+IDS = "A5 A6 B1 B2 B6 B7 C1 C6 C7 C8 C9 C10 C11".split()
+BY_ID = {p["id"]: p for p in bench.PROMPTS_A + bench.PROMPTS_B + bench.PROMPTS_C}
+
+
+def server_cmd(name):
+    """conv_speed.server_cmd (server_manager.py's binary and flags plus --cache-ram 0) with this config's flags."""
+    gguf, _, _, extra = CONFIGS[name]
+    return cs.server_cmd(gguf) + extra
+
+
+def start(name, log, timeout=180):
+    """conv_speed.start with server_cmd(name): cores 4-7; returns (process, seconds from spawn to /health ok)."""
+    if cs.healthy(cs.PORT):
+        raise SystemExit(f"port {cs.PORT} is already serving; stop that server first")
+    began = time.perf_counter()
+    proc = subprocess.Popen(["taskset", "-c", ladder.CORES, *server_cmd(name)], stdout=log, stderr=subprocess.STDOUT,
+                            start_new_session=True)
+    while not cs.healthy(cs.PORT):
+        if proc.poll() is not None or time.perf_counter() - began > timeout:
+            cs.stop(proc)
+            raise RuntimeError(f"llama-server did not become healthy (exit {proc.poll()}); see the server log")
+        time.sleep(0.1)
+    return proc, time.perf_counter() - began
+
+
+def prompts(family, think, ids):
+    """conv_speed's prompts (bench.py wrappers, stop tokens, nonce), restricted to ids, at temperature 0. The nonce
+    generator is seeded so an MTP-on config and its MTP-off twin get byte-identical prompts (the nonces still differ
+    between prompts; every block starts a fresh server with --cache-ram 0 and cache_prompt false)."""
+    random.seed(0)
+    return [(pid, dict(body, temperature=0)) for pid, body in cs.prompts(family, think) if pid in ids]
+
+
+def run_block(name, ids, out, thermal):
+    """conv_speed.run_block's cold block for one config."""
+    gguf, family, think, extra = CONFIGS[name]
+    files = [gguf] + [GEMMA_DRAFT] * ("--model-draft" in extra)
+    ladder.check_cores("before cold")
+    therm = {}
+    if thermal:
+        therm["start"] = ladder.thermal_gate(thermal[0], thermal[1], f"{name} cold")
+        print(f"  [{name}] thermal start: {ladder.fmt_thermal(therm['start'])} (waited {therm['start']['waited_s']} s)",
+              flush=True)
+    load_state = ladder.make_cold(name, files)
+    ladder.check_cores("before starting cold")
+    with open(out / "logs" / f"{name}.cold.server.log", "w") as log:
+        proc, load_s = start(name, log)
+        rows = []
+        try:
+            for pid_, body in prompts(family, think, ids):
+                ttft, tm, stop_type, text = cs.turn(body)
+                rows.append({"model": name, "block": "cold", "prompt_id": pid_, "ttft_s": ttft, "stop_type": stop_type,
+                             "prompt_n": tm.get("prompt_n"), "prompt_ms": tm.get("prompt_ms"),
+                             "prompt_tok_s": tm.get("prompt_per_second"), "predicted_n": tm.get("predicted_n"),
+                             "predicted_ms": tm.get("predicted_ms"), "gen_tok_s": tm.get("predicted_per_second"),
+                             "draft_n": tm.get("draft_n"), "draft_n_accepted": tm.get("draft_n_accepted"),
+                             "timings": tm, "reply": text})
+                ladder.check_cores("during cold")
+            peak = cs.vm_hwm_mib(proc.pid)
+        finally:
+            cs.stop(proc)
+    if thermal:
+        therm["end"] = ladder.read_thermal(thermal[0])
+
+exec
+/bin/bash -lc "sed -n '140,260p' benchmark/llm_objective_setting/conversation/conv_speed.py" in /termux-home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc "sed -n '101,190p' benchmark/llm_objective_setting/conversation/conv_speed_mtp.py" in /termux-home/robot
+ exited 182 in 0ms:
+exec
+/bin/bash -lc "rg -n -A 75 '"'^def summary|''^def load_done'"' benchmark/llm_objective_setting/conversation/conv_speed.py" in /termux-home/robot
+exec
+/bin/bash -lc "rg -n -A 55 '"'^def acceptance|''^def report|''^def c_results'"' benchmark/llm_objective_setting/conversation/conv_speed_mtp.py" in /termux-home/robot
+ succeeded in 0ms:
+107:def acceptance(rows):
+108-    drafted = sum(r["draft_n"] or 0 for r in rows)
+109-    return sum(r["draft_n_accepted"] or 0 for r in rows) / drafted if drafted else None
+110-
+111-
+112:def report(done, models):
+113-    f = lambda v, spec: format(v, spec) if v is not None else "n/a"
+114-    t = lambda b, k: ladder.fmt_thermal(b["thermal"][k]).split(" degC")[0] if b.get("thermal") else "n/a"
+115-    L = ["MTP SPEED REPORT  (server_manager flags + --cache-ram 0, cores 4-7, cold block, temperature 0)",
+116-         "ttft = client time to first streamed token, median; prompt tok/s median; gen tok/s token-weighted (>= 10 tokens);",
+117-         "accept = accepted / drafted tokens; same = replies byte-identical to the MTP-off twin", ""]
+118-    L.append(f"{'model':<21}{'load s':>7}{'ttft s':>8}{'prompt t/s':>11}{'gen t/s':>9}{'peak MiB':>9}{'trunc':>6}{'accept':>8}"
+119-             f"{'same':>8}   thermal start -> end (z9 z10 z11 degC); load state")
+120-    for name in models:
+121-        if (name, "cold") not in done:
+122-            L.append(f"{name:<21}  not run")
+123-            continue
+124-        meta, rows = done[(name, "cold")]
+125-        s = cs.summary(meta, rows)
+126-        same = "-"
+127-        if name in PAIRS and (PAIRS[name], "cold") in done:
+128-            off = {r["prompt_id"]: r["reply"] for r in done[(PAIRS[name], "cold")][1]}
+129-            same = f"{sum(off.get(r['prompt_id']) == r['reply'] for r in rows)}/{len(rows)}"
+130-        L.append(f"{name:<21}{f(s['load_s'], '.1f'):>7}{f(s['ttft_s'], '.2f'):>8}{f(s['prompt_tok_s'], '.1f'):>11}"
+131-                 f"{f(s['gen_tok_s'], '.2f'):>9}{s['peak_rss_mib']:>9}{s['truncated']:>6}{f(acceptance(rows), '.1%'):>8}"
+132-                 f"{same:>8}   {t(meta, 'start')} -> {t(meta, 'end')}; {meta['load_state']['mode'].split(' (')[0]}")
+133-    return "\n".join(L)
+134-
+135-
+136:def c_results(done):
+137-    """C-bucket rows in bench.py's result format (run_index 1), graded by bench.parse_and_grade_c, for score_c.py."""
+138-    out = []
+139-    for (name, _), (_, rows) in done.items():
+140-        for r in rows:
+141-            p = BY_ID[r["prompt_id"]]
+142-            if r["prompt_id"][0] != "C":
+143-                continue
+144-            clean = bench.strip_think(r["reply"])
+145-            parse_ok, exact, crit, viol = bench.parse_and_grade_c(clean, p["expected"])
+146-            out.append({"config": name, "bucket": "C", "prompt_id": p["id"], "lang": p["lang"], "run_index": 1,
+147-                        "source_sha256": bench.SOURCE_SHA256, "reply_raw": r["reply"], "reply_clean": clean,
+148-                        "truncated": r["stop_type"] == "limit", "C_parse_ok": parse_ok, "C_exact": exact,
+149-                        "C_critical_failure": crit, "C_reject_violation": viol})
+150-    return out
+151-
+152-
+153-def main():
+154-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+155-    ap.add_argument("--out", type=Path, required=True)
+156-    ap.add_argument("--models", default=",".join(CONFIGS))
+157-    ap.add_argument("--ids", default=",".join(IDS), help="prompt ids (a subset of IDS, for toy runs)")
+158-    ap.add_argument("--resume", action="store_true")
+159-    ap.add_argument("--thermal-log", default=None)
+160-    a = ap.parse_args()
+161-    models, ids = a.models.split(","), a.ids.split(",")
+162-    if set(models) - set(CONFIGS):
+163-        raise SystemExit(f"unknown models {sorted(set(models) - set(CONFIGS))}")
+164-    if set(ids) - set(IDS):
+165-        raise SystemExit(f"ids outside the 13 {sorted(set(ids) - set(IDS))}")
+166-    if a.resume and not a.out.is_dir():
+167-        raise SystemExit(f"--resume: {a.out} does not exist")
+168-    a.out.mkdir(parents=True, exist_ok=a.resume)
+169-    (a.out / "logs").mkdir(exist_ok=True)
+170-    done = cs.load_done(a.out) if a.resume else {}
+171-    stamp = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
+172-    if a.resume:
+173-        for (m, _), (_, rows) in done.items():
+174-            if sorted(r["prompt_id"] for r in rows) != sorted(ids):
+175-                raise SystemExit(f"--resume: {m}'s completed block has prompts {[r['prompt_id'] for r in rows]}, not {ids}")
+176-        turns = a.out / "turns.jsonl"
+177-        if turns.exists():  # drop turns of a block interrupted before its blocks.jsonl record; keep the old file
+178-            turns.rename(a.out / f"turns.jsonl.before_resume_{stamp}")
+179-            turns.write_text("".join(json.dumps(r) + "\n" for _, rows in done.values() for r in rows))
+180-        print("resume: keeping " + (", ".join(m for m, _ in done) or "nothing"), flush=True)
+181-    sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
+182-    (a.out / f"run_{stamp}.json").write_text(json.dumps({
+183-        "conv_speed_mtp_sha256": sha(__file__), "conv_speed_sha256": sha(cs.__file__), "bench_sha256": bench.SOURCE_SHA256,
+184-        "ladder_sha256": sha(ladder.__file__), "ids": ids,
+185-        "llama_server": sm.LLAMA_SERVER, "libggml_cpu_sha256": sha(Path(sm.LLAMA_SERVER).parent / "libggml-cpu.so"),
+186-        "server_cmds": {m: server_cmd(m) for m in models}}, indent=1) + "\n")
+187-    ladder.wait_cores("start")
+188-    thermal = None
+189-    if a.thermal_log:
+190-        idle = ladder.read_thermal(a.thermal_log)
+191-        print(f"thermal idle reading (gate z9 <= idle + {ladder.GATE_MC / 1000:.0f} degC): {ladder.fmt_thermal(idle)}", flush=True)
+
+ succeeded in 0ms:
+158:def summary(meta, rows):
+159-    """Per block: medians over turns; generation tok/s is token-weighted over turns with >= 10 generated tokens."""
+160-    gen = [r for r in rows if (r["predicted_n"] or 0) >= 10]
+161-    ms = sum(r["predicted_ms"] for r in gen)
+162-    med = lambda k: statistics.median([r[k] for r in rows if r[k] is not None]) if rows else None
+163-    return {"load_s": meta["load_s"], "ttft_s": med("ttft_s"), "prompt_tok_s": med("prompt_tok_s"),
+164-            "gen_tok_s": sum(r["predicted_n"] for r in gen) / ms * 1000 if ms else None,
+165-            "peak_rss_mib": meta["peak_rss_mib"], "turns": len(rows), "truncated": sum(r["stop_type"] == "limit" for r in rows)}
+166-
+167-
+168-def report(done, models):
+169-    f = lambda v, spec: format(v, spec) if v is not None else "n/a"
+170-    t = lambda b, k: ladder.fmt_thermal(b["thermal"][k]).split(" degC")[0] if b.get("thermal") else "n/a"
+171-    L = ["CONVERSATION SPEED REPORT  (server_manager flags, cores 4-7, one pass over the 27 #110 prompts per block)",
+172-         "ttft = client time to first streamed token; prompt tok/s median; gen tok/s token-weighted (>= 10 tokens)", ""]
+173-    L.append(f"{'model':<16}{'block':<8}{'load s':>8}{'ttft s':>8}{'prompt t/s':>11}{'gen t/s':>9}{'peak MiB':>9}{'trunc':>6}"
+174-             "   thermal start -> end (z9 z10 z11 degC); load state")
+175-    for name in models:
+176-        for block in ("cold", "cached"):
+177-            if (name, block) not in done:
+178-                L.append(f"{name:<16}{block:<8}  not run")
+179-                continue
+180-            meta, rows = done[(name, block)]
+181-            s = summary(meta, rows)
+182-            L.append(f"{name:<16}{block:<8}{f(s['load_s'], '.1f'):>8}{f(s['ttft_s'], '.2f'):>8}{f(s['prompt_tok_s'], '.1f'):>11}"
+183-                     f"{f(s['gen_tok_s'], '.2f'):>9}{s['peak_rss_mib']:>9}{s['truncated']:>6}   {t(meta, 'start')} -> "
+184-                     f"{t(meta, 'end')}; {meta['load_state']['mode'].split(' (')[0]}")
+185-    return "\n".join(L)
+186-
+187-
+188:def load_done(out):
+189-    """Blocks that completed with valid data: listed in blocks.jsonl (written only after the block passed)."""
+190-    turns = {}
+191-    for line in (out / "turns.jsonl").read_text().splitlines() if (out / "turns.jsonl").exists() else []:
+192-        r = json.loads(line)
+193-        turns.setdefault((r["model"], r["block"]), []).append(r)
+194-    metas = [json.loads(l) for l in (out / "blocks.jsonl").read_text().splitlines()] if (out / "blocks.jsonl").exists() else []
+195-    return {(m["model"], m["block"]): (m, turns.get((m["model"], m["block"]), [])) for m in metas}
+196-
+197-
+198-def main():
+199-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+200-    ap.add_argument("--out", type=Path, required=True)
+201-    ap.add_argument("--models", default=",".join(MODELS))
+202-    ap.add_argument("--resume", action="store_true")
+203-    ap.add_argument("--thermal-log", default=None)
+204-    a = ap.parse_args()
+205-    models = a.models.split(",")
+206-    if set(models) - set(MODELS):
+207-        raise SystemExit(f"unknown models {sorted(set(models) - set(MODELS))}")
+208-    if a.resume and not a.out.is_dir():
+209-        raise SystemExit(f"--resume: {a.out} does not exist")
+210-    a.out.mkdir(parents=True, exist_ok=a.resume)
+211-    (a.out / "logs").mkdir(exist_ok=True)
+212-    done = load_done(a.out) if a.resume else {}
+213-    if a.resume:
+214-        print("resume: keeping " + (", ".join(f"{m} {b}" for m, b in done) or "nothing"), flush=True)
+215-    sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
+216-    bin_dir = Path(sm.LLAMA_SERVER).parent
+217-    (a.out / f"run_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.json").write_text(json.dumps({
+218-        "conv_speed_sha256": sha(__file__), "bench_sha256": bench.SOURCE_SHA256, "ladder_sha256": sha(ladder.__file__),
+219-        "llama_server": sm.LLAMA_SERVER, "libggml_cpu_sha256": sha(bin_dir / "libggml-cpu.so"),
+220-        "server_cmd": server_cmd("<gguf>"), "models": {m: MODELS[m] for m in models}}, indent=1) + "\n")
+221-    ladder.wait_cores("start")
+222-    thermal = None
+223-    if a.thermal_log:
+224-        idle = ladder.read_thermal(a.thermal_log)
+225-        print(f"thermal idle reading (gate z9 <= idle + {ladder.GATE_MC / 1000:.0f} degC): {ladder.fmt_thermal(idle)}", flush=True)
+226-        thermal = (a.thermal_log, idle)
+227-    with open(a.out / "turns.jsonl", "a") as tlog, open(a.out / "blocks.jsonl", "a") as blog:
+228-        for name in models:
+229-            for block in ("cold", "cached"):
+230-                if (name, block) in done:
+231-                    print(f"[{name}] {block}: already completed, skipped (--resume)", flush=True)
+232-                    continue
+233-                print(f"[{name}] {block}: {len(prompts(*MODELS[name][1:]))} turns", flush=True)
+234-                while True:
+235-                    ladder.wait_cores(f"{name} {block}")
+236-                    try:
+237-                        meta, rows = run_block(name, block, a.out, thermal)
+238-                        break
+239-                    except ladder.CoresLost as e:
+240-                        print(f"  [{name} {block}] {e}: discarding this block's data and redoing it", flush=True)
+241-                tlog.writelines(json.dumps(r) + "\n" for r in rows)
+242-                tlog.flush()
+243-                blog.write(json.dumps(meta) + "\n")
+244-                blog.flush()
+245-                done[(name, block)] = (meta, rows)
+246-    text = report(done, models)
+247-    (a.out / "report.txt").write_text(text + "\n")
+248-    print(text)
+249-
+250-
+251-if __name__ == "__main__":
+252-    main()
+
+exec
+/bin/bash -lc "rg -n -A 80 '"'^def main'"' benchmark/llm_objective_setting/conversation/score_c.py" in /termux-home/robot
+ succeeded in 0ms:
+19:def main(path):
+20-    rows = [r for r in json.load(open(path)) if r.get("bucket") == "C"]
+21-    shas = Counter(r.get("source_sha256") for r in rows)
+22-    print(f"{path}\nbench.py source_sha256 in rows: {dict(shas)}\n")
+23-    print(f"{'model':<16}{'regime':<10}{'run-1 exact':>12}{'all-run exact':>15}{'parse':>8}{'crit':>6}{'reject viol':>12}"
+24-          f"{'cross-ling r1':>14}{'errors':>8}{'trunc':>7}")
+25-    fails = {}
+26-    for model in sorted({r["config"] for r in rows}):
+27-        mr = [r for r in rows if r["config"] == model]
+28-        ok = [r for r in mr if "error" not in r]
+29-        errors, trunc = len(mr) - len(ok), sum(bool(r.get("truncated")) for r in ok)
+30-        regimes = {"harness": [dict(parse_ok=r["C_parse_ok"], exact=r["C_exact"], critical=r["C_critical_failure"],
+31-                                    reject_violation=r["C_reject_violation"]) for r in ok],
+32-                   "strict": [aggregate.grade(r["reply_raw"], r["prompt_id"]) for r in ok],
+33-                   "lenient": [aggregate.grade(r["reply_raw"], r["prompt_id"], lenient=True) for r in ok]}
+34-        for name, g in regimes.items():
+35-            r1 = [x for x, r in zip(g, ok) if r["run_index"] == 1]
+36-            cross = [x for x, r in zip(g, ok) if r["run_index"] == 1 and r["prompt_id"] in CROSS]
+37-            frac = lambda xs: f"{sum(x['exact'] for x in xs)}/{len(xs)}"
+38-            print(f"{model:<16}{name:<10}{frac(r1):>12}{frac(g):>15}{sum(x['parse_ok'] for x in g):>8}"
+39-                  f"{sum(x['critical'] for x in g):>6}{sum(x['reject_violation'] for x in g):>12}{frac(cross):>14}{errors:>8}{trunc:>7}")
+40-            if name == "harness":
+41-                fails[model] = [(r["prompt_id"], r["run_index"], r["reply_clean"].strip()[:90]) for x, r in zip(g, ok) if not x["exact"]]
+42-    print("\nHarness-grader misses (prompt, run, reply):")
+43-    for model, fs in fails.items():
+44-        print(f"  {model}: {len(fs)}")
+45-        for pid, run, reply in fs:
+46-            print(f"    {pid} run {run}: {reply!r}")
+47-
+48-
+49-if __name__ == "__main__":
+50-    main(sys.argv[1])
+
+exec
+/bin/bash -lc "rg -n -A 45 '"'^def format_prompt|''^def parse_and_grade_c|''^def strip_think'"' benchmark/llm_objective_setting/bench.py" in /termux-home/robot
+ succeeded in 0ms:
+189:def format_prompt(sys_msg, text, family, think=None):
+190-    nonce = "".join(random.choices("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=12))
+191-    sys_with_nonce = f"[{nonce}] {sys_msg}"
+192-    
+193-    if family == "gemma":
+194-        if isinstance(text, list):
+195-            prompt = f"<start_of_turn>user\n{sys_with_nonce}\n\n"
+196-            for t in text[:-1]:
+197-                prompt += f"{t['user']}<end_of_turn>\n<start_of_turn>model\n{t.get('assistant', '')}<end_of_turn>\n<start_of_turn>user\n"
+198-            prompt += f"{text[-1]['user']}<end_of_turn>\n<start_of_turn>model\n"
+199-        else:
+200-            prompt = f"<start_of_turn>user\n{sys_with_nonce}\n\n{text}<end_of_turn>\n<start_of_turn>model\n"
+201-        return prompt, ["<end_of_turn>"]
+202-        
+203-    elif family == "chatml":
+204-        if isinstance(text, list):
+205-            prompt = f"<|im_start|>system\n{sys_with_nonce}<|im_end|>\n"
+206-            for t in text[:-1]:
+207-                prompt += f"<|im_start|>user\n{t['user']}<|im_end|>\n<|im_start|>assistant\n{t.get('assistant', '')}<|im_end|>\n"
+208-            prompt += f"<|im_start|>user\n{text[-1]['user']}<|im_end|>\n<|im_start|>assistant\n"
+209-        else:
+210-            prompt = f"<|im_start|>system\n{sys_with_nonce}<|im_end|>\n<|im_start|>user\n{text}<|im_end|>\n<|im_start|>assistant\n"
+211-        
+212-        if think == "OFF":
+213-            prompt += "<think>\n\n</think>\n\n"
+214-            
+215-        return prompt, ["<|im_end|>", "<|endoftext|>"]
+216-
+217:def strip_think(text):
+218-    return re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL).strip()
+219-
+220-def extract_json(text):
+221-    text = re.sub(r"```(?:json)?", "", text)
+222-    best = None
+223-    i = 0
+224-    while i < len(text):
+225-        if text[i] == "[":
+226-            depth = 0
+227-            in_str = False
+228-            esc = False
+229-            start = i
+230-            for j in range(i, len(text)):
+231-                c = text[j]
+232-                if in_str:
+233-                    if esc:
+234-                        esc = False
+235-                    elif c == "\\":
+236-                        esc = True
+237-                    elif c == '"':
+238-                        in_str = False
+239-                    continue
+240-                if c == '"':
+241-                    in_str = True
+242-                elif c == "[":
+243-                    depth += 1
+244-                elif c == "]":
+245-                    depth -= 1
+246-                    if depth == 0:
+247-                        cand = text[start:j+1]
+248-                        try:
+249-                            json.loads(cand)
+250-                            best = cand
+251-                            i = j
+252-                        except Exception:
+253-                            pass
+254-                        break
+255-        i += 1
+256-    return best if best is not None else text
+257-
+258:def parse_and_grade_c(reply_clean, expected):
+259-    try:
+260-        reply_json = json.loads(extract_json(reply_clean))
+261-        if not isinstance(reply_json, list):
+262-            return False, False, False, False # parse_ok, exact, critical_failure, reject_violation
+263-    except:
+264-        return False, False, False, False
+265-
+266-    # GUARD: a parseable array may contain non-dict elements (e.g. ["bedroom"]).
+267-    # Filter to dicts before any .get(); wrong-shape is a FORMATTING failure
+268-    # (exact=False) not a room-hallucination hazard (crit stays as scanned).
+269-    malformed = any(not isinstance(a, dict) for a in reply_json)
+270-    acts = [a for a in reply_json if isinstance(a, dict)]
+271-
+272-    crit_fail = False
+273-    for act in acts:
+274-        if act.get("type") == "navigate_to" and act.get("room") not in MAP_ROOMS:
+275-            crit_fail = True
+276-
+277-    reject_violation = False
+278-    if expected == "REJECT":
+279-        refused = is_refusal(acts, malformed)
+280-        reject_violation = not refused  # every parsed non-refusal, as aggregate.py grades it
+281-        return True, refused, crit_fail, reject_violation
+282-
+283-    if not acts:
+284-        return True, False, crit_fail, reject_violation # parsed, no usable dict actions
+285-
+286-    match = False
+287-    for act in acts:
+288-        if expected["type"] == "navigate_to":
+289-            if act.get("type") == "navigate_to" and act.get("room") == expected["room"]:
+290-                match = True
+291-        elif expected["type"] == "find_object":
+292-            if act.get("type") == "find_object" and act.get("object", "").lower() == expected["object"].lower() and act.get("room") == expected["room"]:
+293-                match = True
+294-        elif expected["type"] == "patrol":
+295-            if act.get("type") == "patrol" and (act.get("rooms") == [] or set(act.get("rooms") or []) == MAP_ROOMS):
+296-                match = True
+297-        elif expected["type"] == "come_back":
+298-            if act.get("type") == "come_back":
+299-                match = True
+300-        elif expected["type"] == "find_person":
+301-            if act.get("type") == "find_person" and act.get("name", "").lower() == expected["name"].lower():
+302-                if "message" in expected and expected["message"] == "NONEMPTY":
+303-                    if bool(act.get("message")):
+
+exec
+/bin/bash -lc "rg -n -A 85 '"'^def main'"' benchmark/llm_objective_setting/conversation/conv_speed_mtp.py" in /termux-home/robot
+ succeeded in 0ms:
+153:def main():
+154-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+155-    ap.add_argument("--out", type=Path, required=True)
+156-    ap.add_argument("--models", default=",".join(CONFIGS))
+157-    ap.add_argument("--ids", default=",".join(IDS), help="prompt ids (a subset of IDS, for toy runs)")
+158-    ap.add_argument("--resume", action="store_true")
+159-    ap.add_argument("--thermal-log", default=None)
+160-    a = ap.parse_args()
+161-    models, ids = a.models.split(","), a.ids.split(",")
+162-    if set(models) - set(CONFIGS):
+163-        raise SystemExit(f"unknown models {sorted(set(models) - set(CONFIGS))}")
+164-    if set(ids) - set(IDS):
+165-        raise SystemExit(f"ids outside the 13 {sorted(set(ids) - set(IDS))}")
+166-    if a.resume and not a.out.is_dir():
+167-        raise SystemExit(f"--resume: {a.out} does not exist")
+168-    a.out.mkdir(parents=True, exist_ok=a.resume)
+169-    (a.out / "logs").mkdir(exist_ok=True)
+170-    done = cs.load_done(a.out) if a.resume else {}
+171-    stamp = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
+172-    if a.resume:
+173-        for (m, _), (_, rows) in done.items():
+174-            if sorted(r["prompt_id"] for r in rows) != sorted(ids):
+175-                raise SystemExit(f"--resume: {m}'s completed block has prompts {[r['prompt_id'] for r in rows]}, not {ids}")
+176-        turns = a.out / "turns.jsonl"
+177-        if turns.exists():  # drop turns of a block interrupted before its blocks.jsonl record; keep the old file
+178-            turns.rename(a.out / f"turns.jsonl.before_resume_{stamp}")
+179-            turns.write_text("".join(json.dumps(r) + "\n" for _, rows in done.values() for r in rows))
+180-        print("resume: keeping " + (", ".join(m for m, _ in done) or "nothing"), flush=True)
+181-    sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
+182-    (a.out / f"run_{stamp}.json").write_text(json.dumps({
+183-        "conv_speed_mtp_sha256": sha(__file__), "conv_speed_sha256": sha(cs.__file__), "bench_sha256": bench.SOURCE_SHA256,
+184-        "ladder_sha256": sha(ladder.__file__), "ids": ids,
+185-        "llama_server": sm.LLAMA_SERVER, "libggml_cpu_sha256": sha(Path(sm.LLAMA_SERVER).parent / "libggml-cpu.so"),
+186-        "server_cmds": {m: server_cmd(m) for m in models}}, indent=1) + "\n")
+187-    ladder.wait_cores("start")
+188-    thermal = None
+189-    if a.thermal_log:
+190-        idle = ladder.read_thermal(a.thermal_log)
+191-        print(f"thermal idle reading (gate z9 <= idle + {ladder.GATE_MC / 1000:.0f} degC): {ladder.fmt_thermal(idle)}", flush=True)
+192-        thermal = (a.thermal_log, idle)
+193-    with open(a.out / "turns.jsonl", "a") as tlog, open(a.out / "blocks.jsonl", "a") as blog:
+194-        for name in models:
+195-            if (name, "cold") in done:
+196-                print(f"[{name}] cold: already completed, skipped (--resume)", flush=True)
+197-                continue
+198-            print(f"[{name}] cold: {len(ids)} turns", flush=True)
+199-            while True:
+200-                ladder.wait_cores(f"{name} cold")
+201-                try:
+202-                    meta, rows = run_block(name, ids, a.out, thermal)
+203-                    break
+204-                except ladder.CoresLost as e:
+205-                    print(f"  [{name} cold] {e}: discarding this block's data and redoing it", flush=True)
+206-            tlog.writelines(json.dumps(r) + "\n" for r in rows)
+207-            tlog.flush()
+208-            blog.write(json.dumps(meta) + "\n")
+209-            blog.flush()
+210-            done[(name, "cold")] = (meta, rows)
+211-    (a.out / "c_results.json").write_text(json.dumps(c_results(done), indent=1) + "\n")
+212-    text = report(done, models)
+213-    (a.out / "report.txt").write_text(text + "\n")
+214-    print(text)
+215-
+216-
+217-if __name__ == "__main__":
+218-    main()
+
+exec
+/bin/bash -lc "rg -n 'Qwen3.5|MTP|Gemma' docs/DECISIONS.md" in /termux-home/robot
+ succeeded in 0ms:
+13:1. **Gemma 4 E2B Q4_K_M as the robot default** — 11-12 tok/s vs E4B's 7.2 tok/s
+15:2. **Gemma 4 E4B kept as an opt-in quality mode, not the default** — measured 9.9s
+23:6. **`--swa-full` instead of `--cache-ram 0`** — Gemma 4's sliding-window attention
+30:8. **mmproj file deleted** — Gemma 4 has native vision; the separate multimodal
+33:   *worse* than the base model (voice 80% vs 83%, nav 31% vs 38%); base Gemma 4 was
+61:19. **Dual-rate split: Python for deterministic rules, Gemma for strategy only** —
+62:    benchmarking Gemma on rules it should never see scored 55%; moving person /
+63:    obstacle / room-arrival decisions into Python and leaving Gemma only the
+65:20. **Gemma is called on triggers, not every cycle** — interval, person seen, goal
+74:    the Gemma pipeline and is kept for thermal/loop experiments, not merged into
+79:24. **Whisper.cpp `ggml-base.bin` retained over Gemma 4's native audio input** —
+80:    Gemma audio landed in llama.cpp but needs the deleted mmproj re-downloaded
+85:26. **JSON action array as the command contract** — `PARSE_SYS` constrains Gemma to
+217:    so `run_cycle` hands the strategy call to Gemma. This is a rewrite, not a port
+219:53. **Gemma may not override a Python safety move** — `run_cycle` previously
+222:    only while distance was pinned at 999. Safety moves now bypass the Gemma call
+239:    Ctrl+C during a Gemma call returned a default move and the loop continued. Fixed
+261:    other) and set `nav_stuck` every cycle, calling Gemma at ~5s per cycle. Found by
+272:    varies widely once Gemma calls land. The two opening strafes are a DELIBERATE
+278:62. **Gemma is consulted once per blockage episode, at the side-flip, guarded by
+279:    `asked_gemma`** — supersedes #52's per-avoidance escalation: Gemma is consulted
+336:68. **Blocker A2 passes: Gemma sustained throughput inside a real app process** —
+337:    Gemma 4 E2B Q4_K_M sustains 7.4-7.6 tok/s for 10 minutes in an unrooted app
+340:    absence of a `--swa-full` equivalent: PocketPal exposes no such flag, so Gemma's
+370:71. **Gemma 4 QAT confirmed real and official, but the "~1 GB E2B" footprint claim
+372:    card and ai.google.dev/gemma/docs/core: official Gemma 4 QAT collection exists
+383:72. **MTP speculative decoding requires a QAT drafter at the same precision as the
+385:    checkpoint matching the target's precision. MTP cannot pair with the current
+387:    the conclusion) behind #4/#10's bandwidth argument only insofar as MTP shares
+498:81. **Gemma can still override a safety move at the one moment it matters
+502:    the guard admits the Gemma call; the parse loop then overwrites `move` with
+509:    must re-check the move after the Gemma block, and must be verified against
+592:    `nav_stuck` Gemma consultation** — `run_cycle()` now saves the exact move
+593:    returned by `navigate_rules()` and restores it after Gemma processing whenever
+594:    the existing `safety_move` condition was true. Gemma remains consulted once at
+667:95. **Neither build supports Qwen3.5-VL. The Qwen path needs a third build.**
+670:    confirmed present at `~/llama.cpp-upstream`. Qwen3.5 released ~Aug 2026,
+671:    after 4d917609. Qwen3.5-VL also requires a separate mmproj. Reported RAM
+705:    recorded: YOLO→text every cycle (already implemented and correct); Gemma
+706:    consulted only on triggers (already implemented); Gemma should emit JSON
+719:     (2026-09-13), deployed Gemma-4 E2B q4_k_m via /completion, 13 synthetic
+776:     scenes nav-decision accuracy capped at 46.2% (Gemma-4-E2B, Qwen3.5-2B) and
+777:     69.2% (Qwen3.5-4B) — wrong on the safety scenes (chair<80cm, person
+785:     a) Gemma-4-E2B: mmproj sourced and wired; SIGSEGV during image-embedding
+789:     b) Qwen3.5-2B: VL projector sourced; server requires >=1024 image tokens for
+800:106. **Qwen3.5 vs Gemma nav-decision accuracy; capacity moves the ceiling, not
+802:     grammar methods. Best-method correct%: Gemma-4-E2B 46.2%, Qwen3.5-2B 46.2%,
+803:     Qwen3.5-4B-Q4 69.2% (method D, GBNF + original wording). Corrects an inference
+809:     finding is Gemma-specific, not model-portable. Qwen-4B load: ~1.82 GB
+854:     nothing, Qwen3.5 thinking mode is unusable, and the grading rubric has two
+867:     Gemma-4-E2B and Gemma-4-E4B are IDENTICAL at 84.6% exact, 83.3%
+879:     Shared Gemma failure modes: "Go to Chiara's room" (C7) resolves to a map room
+885:     Qwen3.5-2B with thinking ON is UNUSABLE and its quality numbers are INVALID:
+887:     204 s, one turn timed out. Qwen3.5-4B-think-on was NOT run; it is inferred
+890:     Qwen3.5-2B-think-off (SINGLE smoke run, 13 turns) scores differently under
+910:     structural problem for either Gemma (E4B returned [] in all three runs, E2B a
+920:     Also broken: the `think_chars` metric is meaningless for Qwen3.5 (~19 chars
+947:111. **#104 implemented: Gemma removed from the low-level navigation path.**
+950:     no longer computes Gemma triggers or calls the model; the move returned by
+986:     24 dev cases): s1o (zero-shot Gemma 4 E2B letter scoring) was 24/24 acceptable,
+1031:115. **Robot default model becomes Gemma 4 E2B Q4_0; server and voice fixes; model
+1033:     rubric fixed, five models, Qwen3.5 think-off): exact command parses Qwen3.5-4B
+1034:     36/39 with 0 reject violations, Gemma E2B 33/39 with 3 (Q4_0 identical to
+1035:     Q4_K_M), E4B 32/39, Qwen3.5-2B 17/39. Local AI blind-graded the conversation and
+1036:     Q&A answers (70, scored before the key was opened): E2B Q4_0 41/70, Qwen3.5-4B
+1037:     41, E2B Q4_K_M 39, Qwen3.5-2B 36, E4B 34. Speed, first token / generation: E2B
+1038:     Q4_0 3.7 s / 12.2 tok/s; Qwen3.5-4B ~6.5 s / 5.4; E4B ~8.3 s / 5.4. The human set
+1039:     speed as the deciding factor for now: E2B Q4_0 is the robot default; Qwen3.5-4B
+1046:     1.5B and 3B, Qwen3.5-0.8B, the empty E4B Q3 file, Von 1.2, laya-micro's graphs.
+1049:     Kept: E2B Q4_0 and Q4_K_M, E4B, Qwen3.5-2B and 4B, laya_en, laya_multi, Von 1.1
+1050:     with its NLI head, both Gemma LoRAs, builds b2351 and the original b1609. All
+1057:116. **Selector ladder: only Gemma letter-scoring understands the task; one resident
+1058:     Gemma under evaluation.** A 60-case, five-level ladder (each case in both option
+1060:     reproducible: s1o (Gemma E2B letter scoring) 77% correct and 96% on the
+1065:     b2351 Q4_K_M 2.05 s; b2351 Gemma E2B Q4_0 1.55 s median, 2.84 s P95, same
+1066:     accuracy; Qwen3.5-2B 1.27 s but 68% and 20/60 order flips; Qwen3.5-0.8B 44%,
+1067:     chance. The human proposed one resident Gemma for conversation, objective
+1069:     and Gemma reading only language; not decided. Open: RAM next to YOLO and the
+
+exec
+/bin/bash -lc "rg -n -A 90 '"'^def make_cold|''^def thermal_gate|''^def check_cores|''^def wait_cores'"' /termux-home/ladder/ladder.py" in /termux-home/robot
+ succeeded in 0ms:
+113:def check_cores(when):
+114-    if not set(range(4, 8)) <= allowed_cpus():
+115-        raise CoresLost(f"cores {CORES} not all allowed {when} (allowed {sorted(allowed_cpus())})")
+116-
+117-
+118:def wait_cores(label):
+119-    """Pauses until cores 4-7 are allowed again (Termux back in the foreground), rechecking every 10 s."""
+120-    began = time.monotonic()
+121-    while not set(range(4, 8)) <= allowed_cpus():
+122-        print(f"  [{label}] paused: cores {CORES} not allowed (allowed {sorted(allowed_cpus())}); bring Termux to the "
+123-              f"foreground. {time.monotonic() - began:.0f} s", flush=True)
+124-        time.sleep(10)
+125-
+126-
+127-DROP_CMD = "su -c 'sync; echo 3 > /proc/sys/vm/drop_caches'"
+128-
+129-
+130-def cached_mib():
+131-    return next(int(l.split()[1]) // 1024 for l in open("/proc/meminfo") if l.startswith("Cached:"))
+132-
+133-
+134-def evict(files):
+135-    for f in files:
+136-        fd = os.open(f, os.O_RDONLY)
+137-        try:
+138-            os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)  # read-only files: every page is clean
+139-        finally:
+140-            os.close(fd)
+141-
+142-
+143-DROP_REQUEST, DROP_DONE = HERE / ".drop_request", HERE / ".drop_done"
+144-HANDSHAKE_S = 60
+145-
+146-
+147-def drop_handshake(name):
+148-    """Unattended cache drop: create .drop_request; a native-Termux watcher drops the page cache as root and
+149-    writes 'ok' or 'failed' to .drop_done. Returns that answer, or None after HANDSHAKE_S seconds."""
+150-    DROP_DONE.unlink(missing_ok=True)
+151-    DROP_REQUEST.touch()
+152-    print(f"\n[{name}] cold load next: handshake, waiting up to {HANDSHAKE_S} s for {DROP_DONE}", flush=True)
+153-    deadline, answer = time.monotonic() + HANDSHAKE_S, None
+154-    try:
+155-        while time.monotonic() < deadline:
+156-            if DROP_DONE.exists() and (text := DROP_DONE.read_text().strip()):  # empty: still being written
+157-                answer = text
+158-                break
+159-            time.sleep(0.5)
+160-    finally:
+161-        DROP_REQUEST.unlink(missing_ok=True)
+162-        DROP_DONE.unlink(missing_ok=True)
+163-    return answer
+164-
+165-
+166:def make_cold(name, files):
+167-    """Drop the page cache from native Termux (Magisk su does not work in proot) and check /proc/meminfo that
+168-    it happened; otherwise evict only this model's weight files. LADDER_COLD_HANDSHAKE=1 asks through files
+169-    (unattended runs); otherwise the human is prompted on the terminal."""
+170-    before = cached_mib()
+171-    if os.environ.get("LADDER_COLD_HANDSHAKE") == "1":
+172-        answer = drop_handshake(name)
+173-        after = cached_mib()
+174-        if answer == "ok" and after < 0.5 * before:
+175-            return {"mode": "full-cold (page cache dropped by the handshake watcher with drop_caches)",
+176-                    "cached_mib_before": before, "cached_mib_after": after}
+177-        why = (f"handshake timed out after {HANDSHAKE_S} s" if answer is None else
+178-               f"handshake answered {answer!r}" if answer != "ok" else
+179-               f"handshake answered 'ok' but page cache did not drop ({before} -> {after} MiB)")
+180-    elif not sys.stdin.isatty():
+181-        why = "no terminal to prompt on"
+182-    else:
+183-        print(f"\n[{name}] COLD LOAD NEXT. In native Termux (not proot) run:\n    {DROP_CMD}\n"
+184-              "then press Enter here. Type s + Enter to skip (weights-cold fallback).", flush=True)
+185-        answer = input("> ").strip().lower()
+186-        after = cached_mib()
+187-        if answer != "s" and after < 0.5 * before:
+188-            return {"mode": "full-cold (page cache dropped by the human with drop_caches)",
+189-                    "cached_mib_before": before, "cached_mib_after": after}
+190-        why = "skipped by the human" if answer == "s" else f"Enter pressed but page cache did not drop ({before} -> {after} MiB)"
+191-    evict(files)
+192-    return {"mode": "weights-cold (posix_fadvise DONTNEED on the weight files; libraries stay cached)",
+193-            "fallback_reason": why, "cached_mib_before": before}
+194-
+195-
+196-class Worker:
+197-    def __init__(self, name, threads, files, logdir, tag):
+198-        adapter, python, hf, _ = MODELS[name]
+199-        env = dict(os.environ, HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", TOKENIZERS_PARALLELISM="false",
+200-                   USE_TF="0", OMP_NUM_THREADS=str(threads), V3_THREADS=str(threads),
+201-                   LADDER_FILES=json.dumps(files), S1O_SERVER_LOG=str(logdir / f"{name}.{tag}.server.log"),
+202-                   **VARIANT_ENV.get(name, {}))
+203-        if hf:
+204-            env.update(HF_HOME=hf, HF_HUB_CACHE=f"{hf}/hub")
+205-        (logdir / f"{name}.{tag}.server.log").unlink(missing_ok=True)  # s1o opens it exclusive-create
+206-        began = time.perf_counter()
+207-        self.proc = subprocess.Popen(["taskset", "-c", CORES, python, str(HERE / "ladder_worker.py"), adapter],
+208-                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, env=env,
+209-                                     stderr=open(logdir / f"{name}.{tag}.stderr.txt", "w"), start_new_session=True)
+210-        try:
+211-            self.ready = self.ask(None)
+212-        except BaseException:
+213-            self.close()
+214-            raise
+215-        self.spawn_to_ready_ms = (time.perf_counter() - began) * 1000
+216-
+217-    def ask(self, req):
+218-        if req is not None:
+219-            self.proc.stdin.write(json.dumps(req) + "\n")
+220-            self.proc.stdin.flush()
+221-        line = self.proc.stdout.readline()
+222-        if not line:
+223-            raise RuntimeError("worker exited; see its stderr log")
+224-        out = json.loads(line)
+225-        if "error" in out:
+226-            raise RuntimeError(out["error"])
+227-        return out
+228-
+229-    def close(self, timeout=30):
+230-        """EOF -> adapter.close(); returns ru_maxrss (MiB) of the largest process in the worker's tree, or None
+231-        if the worker did not exit within timeout seconds (then its whole process group is killed)."""
+232-        maxrss = None
+233-        try:
+234-            self.proc.stdin.close()
+235-            deadline = time.monotonic() + timeout
+236-            while time.monotonic() < deadline:
+237-                pid, _, usage = os.wait4(self.proc.pid, os.WNOHANG)
+238-                if pid:
+239-                    maxrss = round(usage.ru_maxrss / 1024, 1)
+240-                    self.proc.returncode = 0
+241-                    break
+242-                time.sleep(0.2)
+243-            else:
+244-                print(f"worker {self.proc.pid} still running {timeout} s after EOF; killing its process group",
+245-                      file=sys.stderr, flush=True)
+246-        finally:
+247-            try:
+248-                os.killpg(self.proc.pid, signal.SIGKILL)  # backstop: llama-server or anything left
+249-            except ProcessLookupError:
+250-                pass
+251-            if self.proc.returncode is None:
+252-                self.proc.wait()  # reap the killed worker
+253-        return maxrss
+254-
+255-
+256-THERMAL_MAX_AGE_S = 30  # the root logger writes every ~5 s; an older last line means it stopped
+--
+271:def thermal_gate(path, idle, label):
+272-    """Waits until z9 <= idle + GATE_MC (cooler than idle is fine); returns the reading the block starts at."""
+273-    began = time.monotonic()
+274-    while (t := read_thermal(path))["z9"] > idle["z9"] + GATE_MC:
+275-        print(f"  [{label}] waiting: z9 {t['z9'] / 1000:.1f} degC, need <= {(idle['z9'] + GATE_MC) / 1000:.1f} "
+276-              f"(idle {idle['z9'] / 1000:.1f} + {GATE_MC / 1000:.0f}), {time.monotonic() - began:.0f} s", flush=True)
+277-        time.sleep(10)
+278-    t["waited_s"] = round(time.monotonic() - began)
+279-    return t
+280-
+281-
+282-def fmt_thermal(t):
+283-    return " ".join(f"{k} {t[k] / 1000:.1f}" for k in ("z9", "z10", "z11")) + f" degC at {t['at']}"
+284-
+285-
+286-def run_block(name, block, threads, cases, orders, files, out, cold, thermal=None):
+287-    """One block; raises CoresLost if cores 4-7 go away at any point (the caller waits and redoes it).
+288-    Rows are returned, not logged: only complete, valid blocks reach decisions.jsonl."""
+289-    check_cores("before " + block)
+290-    therm = None
+291-    if thermal:  # gate before the cache drop, so the block starts right after the drop
+292-        path, idle = thermal
+293-        therm = {"start": thermal_gate(path, idle, f"{name} {block}")}
+294-        print(f"  [{name} {block}] thermal start: {fmt_thermal(therm['start'])} (waited {therm['start']['waited_s']} s)",
+295-              flush=True)
+296-    load_state = make_cold(name, files) if cold else {"mode": "cached"}
+297-    check_cores("before starting " + block)
+298-    w = Worker(name, threads, files, out / "logs", block)
+299-    rows = []
+300-    try:
+301-        for case in cases:
+302-            for order in orders:
+303-                keys = list(case["options"]) if order == "written" else list(case["options"])[::-1]
+304-                r = w.ask({"state": case["situation"], "instruction": case["instruction"],
+305-                           "options": {k: case["options"][k] for k in keys}})
+306-                top = max(r["dist"].values())
+307-                choice = next(k for k in keys if r["dist"][k] == top)  # ties: first offered, as in v3 run.py
+308-                row = {"model": name, "case_id": case["id"], "level": case["level"], "phrasing": case["phrasing"],
+309-                       "order": order, "block": block, "threads": threads, "options": keys,
+310-                       "choice": choice, "tie": list(r["dist"].values()).count(top) > 1,
+311-                       "correct": choice == case["answer"], "acceptable": choice in case["acceptable"],
+312-                       "distribution": r.pop("dist"), **r}
+313-                rows.append(row)
+314-                check_cores(f"during {block}")
+315-        mem = w.ask({"cmd": "mem"})
+316-    finally:
+317-        maxrss = w.close()
+318-    if thermal:
+319-        therm["end"] = read_thermal(thermal[0])
+320-        print(f"  [{name} {block}] thermal end:   {fmt_thermal(therm['end'])}", flush=True)
+321-    check_cores("after " + block)
+322-    return {"block": block, "threads": threads, "load_state": load_state, "thermal": therm, "phases": w.ready["phases"],
+323-            "file_bytes": w.ready["file_bytes"], "spawn_to_ready_ms": w.spawn_to_ready_ms,
+324-            "timing_note": w.ready["timing_note"], "token_def": w.ready["token_def"], "torch_threads": w.ready["torch_threads"],
+325-            "rss_mib": mem["rss_mib"], "peak_mib": mem["peak_mib"], "wait4_maxrss_mib": maxrss, "rows": rows}
+326-
+327-
+328-# ---------------------------------------------------------------- statistics
+329-
+330-def median(xs):
+331-    return statistics.median(xs) if xs else None
+332-
+333-
+334-def p95(xs):
+335-    return statistics.quantiles(xs, n=100, method="inclusive")[94] if len(xs) >= 2 else (xs[0] if xs else None)
+336-
+337-
+338-def fit(xs, ys):
+339-    """Least squares ms = fixed + per_token * tokens. None when the tokens have no spread."""
+340-    if len(set(xs)) < 2:
+341-        return None
+342-    slope, intercept = statistics.linear_regression(xs, ys)
+343-    r2 = statistics.correlation(xs, ys) ** 2 if len(set(ys)) > 1 else 0.0
+344-    return {"fixed_ms": intercept, "per_token_ms": slope, "r2": r2, "n": len(xs), "tokens_min": min(xs),
+345-            "tokens_max": max(xs)}
+346-
+347-
+348-def rate(rows, key):
+349-    return (sum(r[key] for r in rows), len(rows))
+350-
+351-
+352-def analyse(name, blocks, cases):
+353-    main = next(b for b in blocks if b["block"] == "main")
+354-    rows = main["rows"]
+355-    by = lambda field: {v: {"correct": rate([r for r in rows if r[field] == v], "correct"),
+356-                            "acceptable": rate([r for r in rows if r[field] == v], "acceptable")}
+357-                        for v in sorted({r[field] for r in rows})}
+358-    written = {r["case_id"]: r["choice"] for r in rows if r["order"] == "written"}
+359-    reverse = {r["case_id"]: r["choice"] for r in rows if r["order"] == "reversed"}
+360-    ms = [r["total_ms"] for r in rows]
+361-    levels = sorted({r["level"] for r in rows})
+
+exec
+/bin/bash -lc "rg -n -A 25 '"'^def main|''^def parse_and_grade_c|''^PROMPTS_C|''^PROMPTS_A'"' benchmark/llm_objective_setting/bench.py" in /termux-home/robot
+ succeeded in 0ms:
+55:PROMPTS_A = [
+56-    {"id": "A1", "lang": "en", "text": "Hey, you awake?"},
+57-    {"id": "A2", "lang": "de", "text": "Wie geht's dir heute?"},
+58-    {"id": "A3", "lang": "fr", "text": "Tu peux m'expliquer ce que tu fais quand tu te perds ?"},
+59-    {"id": "A4", "lang": "ar", "text": "من أنت وماذا تستطيع أن تفعل؟"},
+60-    {"id": "A5", "lang": "en", "text": [{"user": "I'm looking for something."}, {"user": "It's small and black."}, {"user": "So where should I start?"}], "multi": True},
+61-    {"id": "A6", "lang": "en", "text": "I've had a rough day."},
+62-    {"id": "A7", "lang": "de", "text": "Fahr sofort los und such Chiara."}
+63-]
+64-
+65-PROMPTS_B = [
+66-    {"id": "B1", "lang": "en", "text": "How far can you see?"},
+67-    {"id": "B2", "lang": "en", "text": "Where are my keys?", "trap": True},
+68-    {"id": "B3", "lang": "de", "text": "Warum bleibst du stehen, wenn etwas vor dir ist?"},
+69-    {"id": "B4", "lang": "fr", "text": "Combien de roues as-tu et comment tournes-tu sur place ?"},
+70-    {"id": "B5", "lang": "ar", "text": "هل تستطيع أن ترى في الظلام؟"},
+71-    {"id": "B6", "lang": "en", "text": "What's the battery at?", "trap": True},
+72-    {"id": "B7", "lang": "en", "text": "Explain in one sentence why you stopped."}
+73-]
+74-
+75:PROMPTS_C = [
+76-    {"id": "C1", "lang": "en", "text": "Go to the bedroom", "expected": {"type": "navigate_to", "room": "schlafzimmer"}},
+77-    {"id": "C2", "lang": "fr", "text": "Va au bureau", "expected": {"type": "navigate_to", "room": "bureau"}},
+78-    {"id": "C3", "lang": "en", "text": "Go to the office", "expected": {"type": "navigate_to", "room": "bureau"}},
+79-    {"id": "C4", "lang": "de", "text": "Geh ins Wohnzimmer", "expected": {"type": "navigate_to", "room": "living_room"}},
+80-    {"id": "C5", "lang": "en", "text": "Go to the balcony", "expected": {"type": "navigate_to", "room": "balkon"}},
+81-    {"id": "C6", "lang": "en", "text": "Go to the garage", "expected": "REJECT"},
+82-    {"id": "C7", "lang": "en", "text": "Go to Chiara's room", "expected": "REJECT"},
+83-    {"id": "C8", "lang": "en", "text": "Don't go to the kitchen", "expected": "REJECT"},
+84-    {"id": "C9", "lang": "en", "text": "Look for my phone in the kitchen", "expected": {"type": "find_object", "object": "phone", "room": "kitchen"}},
+85-    {"id": "C10", "lang": "en", "text": "Patrol everywhere", "expected": {"type": "patrol", "rooms": []}},
+86-    {"id": "C11", "lang": "en", "text": "Find Abdel", "expected": {"type": "find_person", "name": "Abdel"}},
+87-    {"id": "C12", "lang": "en", "text": "Come back", "expected": {"type": "come_back"}},
+88-    {"id": "C13", "lang": "de", "text": "Sag Chiara, dass das Essen fertig ist", "expected": {"type": "find_person", "name": "Chiara", "message": "NONEMPTY"}}
+89-]
+90-
+91-# --- SYSTEM UTILS ---
+92-def run_su_cmd(cmd):
+93-    try:
+94-        res = subprocess.run(["su", "-c", cmd], capture_output=True, text=True, timeout=5)
+95-        return res.stdout.strip()
+96-    except Exception as e:
+97-        return ""
+98-
+99-def get_zone9_temp():
+100-    val = run_su_cmd("cat /sys/class/thermal/thermal_zone9/temp")
+--
+258:def parse_and_grade_c(reply_clean, expected):
+259-    try:
+260-        reply_json = json.loads(extract_json(reply_clean))
+261-        if not isinstance(reply_json, list):
+262-            return False, False, False, False # parse_ok, exact, critical_failure, reject_violation
+263-    except:
+264-        return False, False, False, False
+265-
+266-    # GUARD: a parseable array may contain non-dict elements (e.g. ["bedroom"]).
+267-    # Filter to dicts before any .get(); wrong-shape is a FORMATTING failure
+268-    # (exact=False) not a room-hallucination hazard (crit stays as scanned).
+269-    malformed = any(not isinstance(a, dict) for a in reply_json)
+270-    acts = [a for a in reply_json if isinstance(a, dict)]
+271-
+272-    crit_fail = False
+273-    for act in acts:
+274-        if act.get("type") == "navigate_to" and act.get("room") not in MAP_ROOMS:
+275-            crit_fail = True
+276-
+277-    reject_violation = False
+278-    if expected == "REJECT":
+279-        refused = is_refusal(acts, malformed)
+280-        reject_violation = not refused  # every parsed non-refusal, as aggregate.py grades it
+281-        return True, refused, crit_fail, reject_violation
+282-
+283-    if not acts:
+
+exec
+/bin/bash -lc 'head -35 /termux-home/ladder/conv_mtp_prep/toy2.stdout.txt' in /termux-home/robot
+ succeeded in 0ms:
+[gemma_e2b_q40] cold: 2 turns
+[gemma_e2b_q40_mtp] cold: 2 turns
+[qwen35_4b_q4km] cold: 2 turns
+[qwen35_4b_q40mtp] cold: 2 turns
+[qwen35_4b_q40mtp_on] cold: 2 turns
+MTP SPEED REPORT  (server_manager flags + --cache-ram 0, cores 4-7, cold block, temperature 0)
+ttft = client time to first streamed token, median; prompt tok/s median; gen tok/s token-weighted (>= 10 tokens);
+accept = accepted / drafted tokens; same = replies byte-identical to the MTP-off twin
+
+model                 load s  ttft s prompt t/s  gen t/s peak MiB trunc  accept    same   thermal start -> end (z9 z10 z11 degC); load state
+gemma_e2b_q40            5.5    2.34       70.1    13.68     3394     0     n/a       -   n/a -> n/a; weights-cold
+gemma_e2b_q40_mtp        7.6    2.36       71.3    23.06     4533     0   56.4%     2/2   n/a -> n/a; weights-cold
+qwen35_4b_q4km           6.9    4.92       31.4     6.56     5281     0     n/a       -   n/a -> n/a; weights-cold
+qwen35_4b_q40mtp         6.2    4.45       34.6     7.57     5028     0     n/a       -   n/a -> n/a; weights-cold
+qwen35_4b_q40mtp_on      7.0    4.66       33.0     9.52     4978     0   66.7%     2/2   n/a -> n/a; weights-cold
+
+exec
+/bin/bash -lc "rg -n -A 65 'RUN_SCRIPT|LADDER_COLD_HANDSHAKE|run_script|run_conv' /termux-home/ladder/oneshot.sh" in /termux-home/robot
+ succeeded in 0ms:
+11:RUN_SCRIPT=${RUN_SCRIPT:-run_s1o_speed.sh}  # e.g. RUN_SCRIPT=run_conversation.sh bash ~/ladder/oneshot.sh
+12-
+13-if [ -d /termux-home ]; then echo "Run this from native Termux (~ \$), not from Debian."; exit 1; fi
+14-su -c id >/dev/null 2>&1 || { echo "No root: su failed. Check Magisk."; exit 1; }
+15:[ -f "$L/$RUN_SCRIPT" ] || { echo "Missing $L/$RUN_SCRIPT"; exit 1; }
+16-if pgrep -fa 'claude|agy|node' >/dev/null; then
+17-  echo "An agent is still running:"; pgrep -fa 'claude|agy|node'; echo "Quit it, then rerun."; exit 1
+18-fi
+19-
+20-termux-wake-lock
+21-# keep the screen on (Android moves Termux off the big cores when it is not in front)
+22-OLD_TIMEOUT=$(su -c 'settings get system screen_off_timeout')
+23-su -c 'settings put system screen_off_timeout 2147483647'
+24-rm -f "$L/.stop_thermal" "$L/.drop_request" "$L/.drop_done" "$L/.drop_done.tmp"
+25-
+26-su -c "while [ ! -f $L/.stop_thermal ]; do echo \"\$(date -u +%Y-%m-%dT%H:%M:%SZ) z9=\$(cat /sys/class/thermal/thermal_zone9/temp) z10=\$(cat /sys/class/thermal/thermal_zone10/temp) z11=\$(cat /sys/class/thermal/thermal_zone11/temp)\" >> $L/thermal.log; sleep 5; done" &
+27-
+28-# cache-drop watcher: runner creates .drop_request, we drop and write .drop_done
+29-( while [ ! -f "$L/.stop_thermal" ]; do
+30-    if [ -f "$L/.drop_request" ] && [ ! -f "$L/.drop_done" ]; then
+31-      if su -c 'sync; echo 3 > /proc/sys/vm/drop_caches'; then r=ok; else r=failed; fi
+32-      echo $r > "$L/.drop_done.tmp" && mv "$L/.drop_done.tmp" "$L/.drop_done"; say "cache drop: $r"
+33-    fi
+34-    sleep 1
+35-  done ) &
+36-
+37-cleanup() {
+38-  touch "$L/.stop_thermal"
+39-  su -c "settings put system screen_off_timeout ${OLD_TIMEOUT:-60000}"
+40-  termux-wake-unlock
+41-  say "stopped logger and watcher; screen timeout restored to ${OLD_TIMEOUT}"
+42-}
+43-trap cleanup EXIT
+44-
+45-sleep 6
+46-say "thermal: $(tail -1 "$L/thermal.log")"
+47-say "idling 5 minutes; keep Termux in front"
+48-sleep 300
+49-say "thermal after idle: $(tail -1 "$L/thermal.log")"
+50-
+51-proot-distro login debian --bind "$H:/termux-home" -- \
+52:  env PYTHONUNBUFFERED=1 LADDER_COLD_HANDSHAKE=1 "/termux-home/ladder/$RUN_SCRIPT" "$@" 2>&1 | tee -a "$CONSOLE"
+53-say "done; console log: $CONSOLE"
+
+exec
+/bin/bash -lc "rg -n -A 25 '"'^def grade'"' benchmark/llm_objective_setting/aggregate.py" in /termux-home/robot
+ succeeded in 0ms:
+100:def grade(raw, prompt_id, lenient=False):
+101-    actions, parsed = parsed_reply(raw, lenient)
+102-    if not parsed:
+103-        return dict(parse_ok=False, exact=False, malformed=False,
+104-                    critical=False, reject_violation=False)
+105-    malformed = any(not isinstance(a, dict) for a in actions)
+106-    acts = [a for a in actions if isinstance(a, dict)]
+107-    critical = any(a.get("type") == "navigate_to" and a.get("room") not in ROOMS
+108-                   for a in acts)
+109-    expected = EXPECTED[prompt_id]
+110-    exact = False
+111-    if expected[0] == "REJECT":
+112-        exact = (not actions or
+113-                 (len(actions) == 1 and not malformed and acts[0].get("type") == "say"))
+114-        reject_violation = parsed and not exact
+115-    elif not malformed:
+116-        reject_violation = False
+117-        for act in acts:
+118-            kind = act.get("type")
+119-            if kind != expected[0]:
+120-                continue
+121-            if kind == "navigate_to":
+122-                exact = act.get("room") == expected[1]
+123-            elif kind == "find_object":
+124-                exact = (isinstance(act.get("object"), str)
+125-                         and act["object"].lower() == expected[1]
+
+exec
+/bin/bash -lc 'sha256sum benchmark/llm_objective_setting/conversation/run_conv_mtp.sh /termux-home/ladder/run_conv_mtp.sh' in /termux-home/robot
+exec
+/bin/bash -lc "rg -n -A 38 '"'^def run_block'"' benchmark/llm_objective_setting/conversation/conv_speed.py" in /termux-home/robot
+ succeeded in 0ms:
+4db32d3909f9d341d28fb8eae20782e6ec6e2066d8a7f27a73474be99b4d5817  benchmark/llm_objective_setting/conversation/run_conv_mtp.sh
+4db32d3909f9d341d28fb8eae20782e6ec6e2066d8a7f27a73474be99b4d5817  /termux-home/ladder/run_conv_mtp.sh
+
+ succeeded in 0ms:
+125:def run_block(name, block, out, thermal):
+126-    gguf, family, think = MODELS[name]
+127-    ladder.check_cores("before " + block)
+128-    therm = {}
+129-    if thermal:
+130-        therm["start"] = ladder.thermal_gate(thermal[0], thermal[1], f"{name} {block}")
+131-        print(f"  [{name} {block}] thermal start: {ladder.fmt_thermal(therm['start'])} (waited {therm['start']['waited_s']} s)",
+132-              flush=True)
+133-    load_state = ladder.make_cold(name, [gguf]) if block == "cold" else {"mode": "cached"}
+134-    ladder.check_cores("before starting " + block)
+135-    with open(out / "logs" / f"{name}.{block}.server.log", "w") as log:
+136-        proc, load_s = start(gguf, log)
+137-        rows = []
+138-        try:
+139-            for pid_, body in prompts(family, think):
+140-                ttft, tm, stop_type, text = turn(body)
+141-                rows.append({"model": name, "block": block, "prompt_id": pid_, "ttft_s": ttft, "stop_type": stop_type,
+142-                             "prompt_n": tm.get("prompt_n"), "prompt_ms": tm.get("prompt_ms"),
+143-                             "prompt_tok_s": tm.get("prompt_per_second"), "predicted_n": tm.get("predicted_n"),
+144-                             "predicted_ms": tm.get("predicted_ms"), "gen_tok_s": tm.get("predicted_per_second"),
+145-                             "reply": text})
+146-                ladder.check_cores(f"during {block}")
+147-            peak = vm_hwm_mib(proc.pid)
+148-        finally:
+149-            stop(proc)
+150-    if thermal:
+151-        therm["end"] = ladder.read_thermal(thermal[0])
+152-        print(f"  [{name} {block}] thermal end:   {ladder.fmt_thermal(therm['end'])}", flush=True)
+153-    ladder.check_cores("after " + block)
+154-    return {"model": name, "block": block, "load_s": load_s, "load_state": load_state, "peak_rss_mib": peak,
+155-            "thermal": therm or None}, rows
+156-
+157-
+158-def summary(meta, rows):
+159-    """Per block: medians over turns; generation tok/s is token-weighted over turns with >= 10 generated tokens."""
+160-    gen = [r for r in rows if (r["predicted_n"] or 0) >= 10]
+161-    ms = sum(r["predicted_ms"] for r in gen)
+162-    med = lambda k: statistics.median([r[k] for r in rows if r[k] is not None]) if rows else None
+163-    return {"load_s": meta["load_s"], "ttft_s": med("ttft_s"), "prompt_tok_s": med("prompt_tok_s"),
+
+exec
+/bin/bash -lc "rg -n -A 28 '"'^def read_thermal'"' /termux-home/ladder/ladder.py" in /termux-home/robot
+ succeeded in 9ms:
+260:def read_thermal(path):
+261-    """Last line of the root thermal log: '2026-09-25T21:51:27Z z9=36000 z10=36000 z11=37000' (millidegrees)."""
+262-    last = Path(path).read_text().strip().splitlines()[-1].split()
+263-    stamp = datetime.strptime(last[0], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+264-    age = (datetime.now(timezone.utc) - stamp).total_seconds()
+265-    if age > THERMAL_MAX_AGE_S:
+266-        raise SystemExit(f"thermal log {path} last line is {age:.0f} s old: the logger is not running")
+267-    z = dict(kv.split("=") for kv in last[1:])
+268-    return {"at": last[0], **{k: int(z[k]) for k in ("z9", "z10", "z11")}}
+269-
+270-
+271-def thermal_gate(path, idle, label):
+272-    """Waits until z9 <= idle + GATE_MC (cooler than idle is fine); returns the reading the block starts at."""
+273-    began = time.monotonic()
+274-    while (t := read_thermal(path))["z9"] > idle["z9"] + GATE_MC:
+275-        print(f"  [{label}] waiting: z9 {t['z9'] / 1000:.1f} degC, need <= {(idle['z9'] + GATE_MC) / 1000:.1f} "
+276-              f"(idle {idle['z9'] / 1000:.1f} + {GATE_MC / 1000:.0f}), {time.monotonic() - began:.0f} s", flush=True)
+277-        time.sleep(10)
+278-    t["waited_s"] = round(time.monotonic() - began)
+279-    return t
+280-
+281-
+282-def fmt_thermal(t):
+283-    return " ".join(f"{k} {t[k] / 1000:.1f}" for k in ("z9", "z10", "z11")) + f" degC at {t['at']}"
+284-
+285-
+286-def run_block(name, block, threads, cases, orders, files, out, cold, thermal=None):
+287-    """One block; raises CoresLost if cores 4-7 go away at any point (the caller waits and redoes it).
+288-    Rows are returned, not logged: only complete, valid blocks reach decisions.jsonl."""
+
+exec
+/bin/bash -lc 'git diff --stat 825152b75fff' in /termux-home/robot
+ succeeded in 36ms:
+codex
+The three round-one fixes are present in the candidate. I found one remaining resume gap: a stop during the JSONL append or the backup rewrite can leave the next resume unable to load completed work. I’m checking the write order and line references before the verdict.
+exec
+/bin/bash -lc "rg -n -A 20 '"'^def prompts|''^def main|''^def run_block'"' benchmark/llm_objective_setting/conversation/conv_speed_mtp.py" in /termux-home/robot
+ succeeded in 0ms:
+63:def prompts(family, think, ids):
+64-    """conv_speed's prompts (bench.py wrappers, stop tokens, nonce), restricted to ids, at temperature 0. The nonce
+65-    generator is seeded so an MTP-on config and its MTP-off twin get byte-identical prompts (the nonces still differ
+66-    between prompts; every block starts a fresh server with --cache-ram 0 and cache_prompt false)."""
+67-    random.seed(0)
+68-    return [(pid, dict(body, temperature=0)) for pid, body in cs.prompts(family, think) if pid in ids]
+69-
+70-
+71:def run_block(name, ids, out, thermal):
+72-    """conv_speed.run_block's cold block for one config."""
+73-    gguf, family, think, extra = CONFIGS[name]
+74-    files = [gguf] + [GEMMA_DRAFT] * ("--model-draft" in extra)
+75-    ladder.check_cores("before cold")
+76-    therm = {}
+77-    if thermal:
+78-        therm["start"] = ladder.thermal_gate(thermal[0], thermal[1], f"{name} cold")
+79-        print(f"  [{name}] thermal start: {ladder.fmt_thermal(therm['start'])} (waited {therm['start']['waited_s']} s)",
+80-              flush=True)
+81-    load_state = ladder.make_cold(name, files)
+82-    ladder.check_cores("before starting cold")
+83-    with open(out / "logs" / f"{name}.cold.server.log", "w") as log:
+84-        proc, load_s = start(name, log)
+85-        rows = []
+86-        try:
+87-            for pid_, body in prompts(family, think, ids):
+88-                ttft, tm, stop_type, text = cs.turn(body)
+89-                rows.append({"model": name, "block": "cold", "prompt_id": pid_, "ttft_s": ttft, "stop_type": stop_type,
+90-                             "prompt_n": tm.get("prompt_n"), "prompt_ms": tm.get("prompt_ms"),
+91-                             "prompt_tok_s": tm.get("prompt_per_second"), "predicted_n": tm.get("predicted_n"),
+--
+153:def main():
+154-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+155-    ap.add_argument("--out", type=Path, required=True)
+156-    ap.add_argument("--models", default=",".join(CONFIGS))
+157-    ap.add_argument("--ids", default=",".join(IDS), help="prompt ids (a subset of IDS, for toy runs)")
+158-    ap.add_argument("--resume", action="store_true")
+159-    ap.add_argument("--thermal-log", default=None)
+160-    a = ap.parse_args()
+161-    models, ids = a.models.split(","), a.ids.split(",")
+162-    if set(models) - set(CONFIGS):
+163-        raise SystemExit(f"unknown models {sorted(set(models) - set(CONFIGS))}")
+164-    if set(ids) - set(IDS):
+165-        raise SystemExit(f"ids outside the 13 {sorted(set(ids) - set(IDS))}")
+166-    if a.resume and not a.out.is_dir():
+167-        raise SystemExit(f"--resume: {a.out} does not exist")
+168-    a.out.mkdir(parents=True, exist_ok=a.resume)
+169-    (a.out / "logs").mkdir(exist_ok=True)
+170-    done = cs.load_done(a.out) if a.resume else {}
+171-    stamp = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
+172-    if a.resume:
+173-        for (m, _), (_, rows) in done.items():
+
+exec
+/bin/bash -lc "rg -n '"'^[0-9]+'"\\.' docs/DECISIONS.md" in /termux-home/robot
+ succeeded in 0ms:
+13:1. **Gemma 4 E2B Q4_K_M as the robot default** — 11-12 tok/s vs E4B's 7.2 tok/s
+15:2. **Gemma 4 E4B kept as an opt-in quality mode, not the default** — measured 9.9s
+17:3. **Q4_K_M over Q3_K_S for E4B** — Q3_K_S measured *slower* (5.8 vs 7.2 tok/s)
+19:4. **4 threads, not 8** — token generation is memory-bandwidth bound on Tensor G2;
+21:5. **`--parallel 1`** — default 4 parallel slots split the KV cache and cut
+23:6. **`--swa-full` instead of `--cache-ram 0`** — Gemma 4's sliding-window attention
+28:7. **`--mlock` rejected** — pinned the model in RAM but measured no speed gain and
+30:8. **mmproj file deleted** — Gemma 4 has native vision; the separate multimodal
+32:9. **Both LoRA adapters rejected (voice and nav)** — fine-tuned adapters scored
+35:10. **OpenCL GPU backend abandoned** — `libOpenCL.so` exists on the device but
+38:11. **KleidiAI / SVE / SME2 path not viable** — Tensor G2 lacks those ARM
+43:12. **yolo11m.onnx as the detection model** — chosen over lighter variants for
+45:13. **CONF 0.35 / IOU 0.45** — detection and NMS thresholds as coded.
+46:14. **Coarse distance from bounding-box area, not a depth model** — area ratio
+49:15. **Position from horizontal thirds of the 640px frame** — cx<213 left,
+51:16. **Single-photo distance via known real-world object heights** — avoids needing
+53:17. **Stereo disparity below 2px is discarded** — below that the triangulation is
+55:18. **FOCAL_PX = 500 is a placeholder, not a measurement** — flagged
+61:19. **Dual-rate split: Python for deterministic rules, Gemma for strategy only** —
+65:20. **Gemma is called on triggers, not every cycle** — interval, person seen, goal
+67:21. **Vision (image payload) sent on a narrower trigger set than text** — images
+70:22. **Room identity inferred from single signature objects** — refrigerator→kitchen,
+73:23. **`nav_sim.py` left as a standalone simulation on Qwen 2.5 3B** — it predates
+79:24. **Whisper.cpp `ggml-base.bin` retained over Gemma 4's native audio input** —
+83:25. **Fixed 5-second capture window** — simple and predictable; VAD-based silence
+85:26. **JSON action array as the command contract** — `PARSE_SYS` constrains Gemma to
+91:27. **Root restored via Magisk `Select and patch a file`, not the old images** —
+97:28. **Only `init_boot` is ever flashed** — smallest recoverable operation; the
+99:29. **BIG-core thermal zone (zone9) is the thermal signal** — battery temperature
+102:30. **Rest between inference calls makes the system *faster*, not slower** —
+108:31. **2× MX1508 chosen over the L298N** — two dual H-bridges cover all four motors,
+110:32. **MX1508 speed control is PWM on the IN pins** — the part has no ENA/ENB;
+112:33. **GPIO map: 16/17/18/19 → front pair, 21/22/23/25 → rear pair.**
+113:34. **2S 18650 pack behind an HW-391 20A BMS** — pack measured 8.2 V with cells
+115:35. **Separate buck converters for logic and sensors** — 5 V rail for the ESP32
+117:36. **Star ground required at final assembly** — a marginal ground return on the
+120:37. **EQV 4WD mecanum kit, 8.2V pack is the intended chassis voltage** — motors
+126:38. **Decoupling caps are mandatory, not optional** — 100µF electrolytic + 0.1µF
+135:39. **Interim bench/drive config until caps arrive** — ESP32 powered from phone USB
+139:40. **Physical driver assignment is LEFT/RIGHT, not front/rear** — supersedes the
+147:41. **The 45cm obstacle threshold has no benchmark source — do not apply** — it is
+155:42. **HC-SR04 ultrasonic fitted and verified** — TRIG on P27 direct (3.3V drive is
+163:43. **Driver #2 channel-to-corner assignment corrected** — supersedes #40's
+173:44. **Board is CP2102 (`10c4:ea60`), not CH340** — endpoints 0x01 OUT / 0x81 IN;
+181:45. **Baud 115200, chosen not inherited** — CP210x sets the rate as an explicit
+184:46. **All USB motor operations require root plus an explicit `LD_LIBRARY_PATH`** —
+191:47. **`WATCHDOG_MS` = 1000, not 5000** — a dropped link must not leave the chassis
+196:48. **Diagonal commands `FWD_L` / `FWD_R` / `BACK_L` / `BACK_R` added** — the
+199:49. **`mode2_auto.ino` corner map corrected to match #43** — RR=0, FR=1, FL=2, RL=3,
+204:50. **`DIST:` emits -1 when no echo returns within ~4 m** — so the host can
+210:51. **`Robot.get_distance()` sanitises the sensor** — -1 maps to 400 (clear to
+214:52. **`navigate_rules` rewritten against live sensor input** — a blocked path
+219:53. **Gemma may not override a Python safety move** — `run_cycle` previously
+224:54. **`OBSTACLE_DIST` stays 25 cm** — coast distance measured as effectively zero
+231:55. **`nav_logic_test.py`'s 93% does not describe `main.py`** — it matched the
+238:56. **Four bare `except:` clauses in `main.py` were swallowing KeyboardInterrupt** —
+241:57. **`llama-server` and `teleop.py` both bind port 8080 and cannot run
+247:58. **Mode 2 (video/audio teleop) parked indefinitely** — MJPEG encoding via IP
+256:59. **Avoidance escalation uses an explicit counter (`blocked_n`), not state
+263:60. **The robot never REVERSES to avoid an obstacle** — with one forward-facing
+269:61. **Escalation ladder: 2 strafes, 4 rotations one way, flip side, 6 rotations back
+278:62. **Gemma is consulted once per blockage episode, at the side-flip, guarded by
+286:63. **`nav_test.py` calls `navigate_rules` directly with synthetic distances** — the
+293:64. **Forward motion is modelled as IT1 with dead time** — velocity responds to a
+304:65. **`DIST_EVERY_MS` 200 is adequate for K_I but not for T1/Tt** — the whole
+318:66. **`LICENSES.md` is canonical for the licence allowlist; `APP_CLAUDE.md` §0.5
+327:67. **Blocker A1 passes: root-free USB Host serial confirmed** — Android 17, unrooted
+336:68. **Blocker A2 passes: Gemma sustained throughput inside a real app process** —
+349:69. **The app requires a foreground service, not merely a wake lock — a liveness
+362:70. **#10's OpenCL rejection is scoped to Termux userspace, not Android GPU access
+370:71. **Gemma 4 QAT confirmed real and official, but the "~1 GB E2B" footprint claim
+383:72. **MTP speculative decoding requires a QAT drafter at the same precision as the
+391:73. **The documented llama.cpp rollback path in COMMANDS.md §9 is broken** —
+407:74. **Loaded BIG-core temperature measured for the first time: 97-101 °C sustained
+420:75. **The "two thermal thresholds in circulation" problem is worse than
+433:76. **#30's rest-improves-throughput finding reproduces in direction but NOT in
+443:77. **llama.cpp current upstream builds clean on-device and #6 still holds; NOT
+460:78. **`FOCAL_PX` cannot be calibrated from the `bench_photos` set, and at
+475:79. **Person-stop moves from computed centimetres to the coarse area bucket** —
+485:80. **`detect_scene()` resizes to 640×640 WITHOUT preserving aspect ratio** — a
+498:81. **Gemma can still override a safety move at the one moment it matters
+514:82. **Claude Code runs on-device via proot-distro Debian, not AVF** — AVF was
+533:83. **Mecanum mixing uses a flipped vx sign relative to the textbook mix —
+551:84. **Orphaned prototype files resolved — some removed, some kept deliberately** —
+568:85. **Defer the #84 orphan-file deletion — the seven named files remain tracked and
+575:86. **Use a provider-independent Coder → independent Reviewer → human commit gate
+580:87. **Use explicit per-task execution profiles and role-scoped Ponytail modes** —
+591:88. **Resolve #81 by restoring the Python-selected safety move after the
+602:89. **A corrected `mode2_auto.ino` is committed at
+613:90. **Skin, not die, is the governing thermal signal — HAL severity layer, not
+626:91. **VIRTUAL-SKIN may be computed locally instead of via dumpsys — as reported
+634:92. **All benchmark runs are taken on BATTERY, in a 50-80% SoC band.**
+643:93. **Short runs can miss throttling entirely.** VIRTUAL-SKIN PollingDelay is
+651:94. **Android app/process management is unavailable on this device. Do not
+667:95. **Neither build supports Qwen3.5-VL. The Qwen path needs a third build.**
+676:96. **Deployed vision is non-functional — confirmed by a live /completion
+687:97. **Deployed yolo11m.onnx is fine-tuned on the owner's own photos, not the
+694:98. **A LoRA fine-tuning attempt (voice/nav) did not improve JSON-format
+704:99. **Loop redesign opened; benchmark deferred behind it.** Human intent
+717:100. **Grammar-constrained output costs no decision accuracy; prompt wording
+738:101. **Output format was never the blocker; parse reliability was already
+746:102. **Three GEMMA_SYS rule defects cap accuracy independently of model or
+763:103. **server_manager.py's kill_servers() uses pkill -f llama-server — a
+772:104. **Local AI removed from the navigation decision loop; retained for human
+783:105. **On-device LLM vision is not viable on this Pixel — dead-end across two
+800:106. **Qwen3.5 vs Gemma nav-decision accuracy; capacity moves the ceiling, not
+813:107. **~/llama.cpp-upstream was rebuilt in place to b2351-790cf51a (git pull +
+824:108. **Nav LLM-failure path now fails closed to STOP.** COMMITTED 888562e and
+838:109. **High-level mission-script selection opened as research** — A
+853:110. **On-device LLM objective-setting benchmark: E4B's extra capacity buys
+947:111. **#104 implemented: Gemma removed from the low-level navigation path.**
+982:112. **Strategic-selector harness v3: zero-shot results and measurement findings.** On
+1002:113. **Selector moves to a fine-tuning track; Data Engineer role created.** Zero-shot
+1018:114. **Robot llama.cpp rebuilt with ARM dotprod; same version.** The robot's b1609
+1031:115. **Robot default model becomes Gemma 4 E2B Q4_0; server and voice fixes; model
+1057:116. **Selector ladder: only Gemma letter-scoring understands the task; one resident
+1077:117. **English-only operation is acceptable.** The human prefers a multilingual robot
+1091:118. **Repo cleanup: `nav_sim.py` deleted, scratch files removed, two archives
+
+exec
+/bin/bash -lc "rg -n -A 65 '"'^110'"\\.|"'^114'"\\.|"'^115'"\\.' docs/DECISIONS.md" in /termux-home/robot
+ succeeded in 0ms:
+853:110. **On-device LLM objective-setting benchmark: E4B's extra capacity buys
+854-     nothing, Qwen3.5 thinking mode is unusable, and the grading rubric has two
+855-     measured defects.** MEASURED on a rooted Pixel 7, Termux, llama-server build
+856-     1609 (e1a1abb7), ctx 4096, n_predict 512, temps 0.1 (conversation/Q&A) and
+857-     0.05 (objective-setting), 3 runs per config unless noted.
+858-
+859-     Scope: this tests the LLM in the role it retains under #109 — conversation
+860-     and objective-setting — not navigation. It scores a PROPOSED dynamic-map
+861-     prompt (PARSE_SYS-D) against a PoC map (kitchen, living_room, schlafzimmer,
+862-     bureau, bathroom, balkon), NOT the deployed hardcoded 5-room enum, so it does
+863-     not describe as-coded behaviour. It predates the revised robot cycle; its
+864-     value is as a baseline and as rubric experience for the next benchmark.
+865-
+866-     Bucket C (13 objective-setting prompts, auto-graded), run-1 headline:
+867-     Gemma-4-E2B and Gemma-4-E4B are IDENTICAL at 84.6% exact, 83.3%
+868-     cross-lingual, 0 critical failures, 1 reject-violation each. E4B runs at
+869-     roughly half the decode speed (4.48 vs 8.34 tok/s weighted) with a 30.6 s
+870-     median time-to-first-token vs 13.4 s. Speed figures are thermally
+871-     contaminated (back-to-back runs on a hot phone): treat the gap as real and
+872-     the absolute seconds as worst-case.
+873-
+874-     Across all three runs, with the find_person rubric defect corrected (below),
+875-     E2B is 32/39 (82.1%) with 3 reject-violations and E4B is 30/39 (76.9%) with
+876-     3 — so the two are NOT identical beyond run 1, and E2B is slightly ahead.
+877-     E4B's extra capacity buys nothing on objective-setting at twice the cost.
+878-
+879-     Shared Gemma failure modes: "Go to Chiara's room" (C7) resolves to a map room
+880-     instead of refusing (E2B 3/3 navigate_to schlafzimmer; E4B 2/3, plus one
+881-     find_person); "Sag Chiara, dass das Essen fertig ist" (C13) emits only `say`,
+882-     never find_person. These are distinct operational failures and should not be
+883-     hidden by one aggregate percentage.
+884-
+885-     Qwen3.5-2B with thinking ON is UNUSABLE and its quality numbers are INVALID:
+886-     42% of turns (34/81) hit the token cap (stop_type=limit), latency reached
+887-     204 s, one turn timed out. Qwen3.5-4B-think-on was NOT run; it is inferred
+888-     worse because 4B is strictly slower — inference, not measurement.
+889-
+890-     Qwen3.5-2B-think-off (SINGLE smoke run, 13 turns) scores differently under
+891-     three parse regimes, because it emits a bare JSON object rather than an
+892-     array: stored harness 4/13 parseable (the extractor also accepts arrays
+893-     nested inside a bare object), strict top-level-array regrade 2/13, lenient
+894-     bare-object regrade 13/13. Under the corrected lenient regrade it reaches
+895-     8/13 (61.5%) exact with 2 reject-violations. Parseability is not competence:
+896-     2 of 13 replies used a non-map room value — C1 emitted the English "bedroom"
+897-     instead of "schlafzimmer", and C8 emitted " balkon" with a leading space.
+898-     Deployed main.py primes a leading "[" which would rescue the bare-object
+899-     shape; the bench deliberately does not.
+900-
+901-     qwen2.5-3b was DROPPED (crashed mid-run; had answered "bedroom" instead of
+902-     the map label). Buckets A (conversation) and B (Q&A) were run but NEVER
+903-     GRADED.
+904-
+905-     Two MEASURED rubric defects, both found in post-hoc review and both to be
+906-     fixed before the next benchmark: (a) the reject_violation rule checks only
+907-     navigate_to and find_object, missing find_person — this is what let E4B's C7
+908-     run 2 pass, and correcting it produces the all-run figures above; (b) the C8
+909-     refusal check credited a patrol action as exact for Qwen. C8 is not a
+910-     structural problem for either Gemma (E4B returned [] in all three runs, E2B a
+911-     single `say`). A third question is left OPEN by human decision: E2B's C8
+912-     run-1 reply echoed the command back ("Don't go to the kitchen") rather than
+913-     clearly refusing. Under the structural single-`say` rule E2B stands at 84.6%
+914-     run 1 / 82.1% all-run; under a semantic rule requiring explicit refusal it
+915-     falls to 76.9% run 1 / 79.5% all-run, and whether the echo also counts as a
+916-     reject-violation is undefined. One ambiguous utterance out of 39 does not
+917-     justify fixing the definition retroactively; the next benchmark must define
+918-     "refusal" before running.
+--
+1018:114. **Robot llama.cpp rebuilt with ARM dotprod; same version.** The robot's b1609
+1019-     build (commit e1a1abb7) had been compiled without ARM dotprod (0 `sdot`
+1020-     instructions in the kernel library). It was rebuilt from the same commit with
+1021-     `GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16` into `~/llama.cpp-b1609-dotprod`
+1022-     (1045 `sdot`), and `server_manager.py` points there (commit 341bde6). Same model
+1023-     and flags, measured: letter-scoring median 6650 → 2478 ms, prompt eval ~10 →
+1024-     31.6 tok/s, generation 6.5 → 8.5 tok/s (Q4_K_M, 200-token reply); 15/15 voice
+1025-     parses identical; 2 of 120 ladder choices changed, both from wrong to right
+1026-     (numeric drift, also seen on b2351). Chosen over moving the robot to b2351 to
+1027-     change one variable and avoid b2351's flash-attention segfault. The original
+1028-     build is kept as rollback. Human decision, 2026-09-26. Evidence:
+1029-     `benchmark/llama_dotprod_rebuild/`. Relates to #73, #77, #107.
+1030-
+1031:115. **Robot default model becomes Gemma 4 E2B Q4_0; server and voice fixes; model
+1032-     cleanup.** Conversation benchmark on the dotprod build (the #110 prompts with its
+1033-     rubric fixed, five models, Qwen3.5 think-off): exact command parses Qwen3.5-4B
+1034-     36/39 with 0 reject violations, Gemma E2B 33/39 with 3 (Q4_0 identical to
+1035-     Q4_K_M), E4B 32/39, Qwen3.5-2B 17/39. Local AI blind-graded the conversation and
+1036-     Q&A answers (70, scored before the key was opened): E2B Q4_0 41/70, Qwen3.5-4B
+1037-     41, E2B Q4_K_M 39, Qwen3.5-2B 36, E4B 34. Speed, first token / generation: E2B
+1038-     Q4_0 3.7 s / 12.2 tok/s; Qwen3.5-4B ~6.5 s / 5.4; E4B ~8.3 s / 5.4. The human set
+1039-     speed as the deciding factor for now: E2B Q4_0 is the robot default; Qwen3.5-4B
+1040-     is a candidate second "careful" configuration, to be judged again after prompt
+1041-     tuning; E4B is kept but not recommended. `server_manager.py` now passes
+1042-     `--cache-ram 0` (server memory grew per turn without it on unique conversation
+1043-     prompts; no measurable cost) and its comment is corrected. Voice:
+1044-     `parse_command()` timeout 40 s and `warm_up()` at the entry points, after a cold
+1045-     first parse measured 39.07 s. Deleted from the phone (10.62 GiB freed): Qwen2.5
+1046-     1.5B and 3B, Qwen3.5-0.8B, the empty E4B Q3 file, Von 1.2, laya-micro's graphs.
+1047-     Dead references removed from `chat.py`, jevlike, `configs/setup_a.py`,
+1048-     `configs/setup_d.py` and `nav_sim.py` (which now raises NameError; superseded).
+1049-     Kept: E2B Q4_0 and Q4_K_M, E4B, Qwen3.5-2B and 4B, laya_en, laya_multi, Von 1.1
+1050-     with its NLI head, both Gemma LoRAs, builds b2351 and the original b1609. All
+1051-     models invented sensor readings, lacked self-knowledge, sometimes answered in
+1052-     the wrong language, and leaked template tokens; prompt work is pending. Human
+1053-     decisions, 2026-09-26. Reviews: Codex gpt-6-sol (effort medium), round 3 APPROVE
+1054-     WITH NOTES. Pushed 6322dc1..41b9de1. Evidence:
+1055-     `benchmark/llm_objective_setting/`. Relates to #106, #110, #114.
+1056-
+1057-116. **Selector ladder: only Gemma letter-scoring understands the task; one resident
+1058-     Gemma under evaluation.** A 60-case, five-level ladder (each case in both option
+1059-     orders; a development bench, not the final exam), seven models, choices fully
+1060-     reproducible: s1o (Gemma E2B letter scoring) 77% correct and 96% on the
+1061-     two-option sanity level; Von NLI 65%; von11 and von12 55%; laya_multi 48%,
+1062-     laya_micro 47%, laya_en 40% (46% on the sanity level, i.e. chance). Most timing
+1063-     blocks in that run were disturbed and are not canonical. Clean unattended s1o
+1064-     speed runs (thermal-gated, true cold loads): original b1609 Q4_K_M 6.65 s median;
+1065-     b2351 Q4_K_M 2.05 s; b2351 Gemma E2B Q4_0 1.55 s median, 2.84 s P95, same
+1066-     accuracy; Qwen3.5-2B 1.27 s but 68% and 20/60 order flips; Qwen3.5-0.8B 44%,
+1067-     chance. The human proposed one resident Gemma for conversation, objective
+1068-     setting and script selection, with Python computing eligibility and distances
+1069-     and Gemma reading only language; not decided. Open: RAM next to YOLO and the
+1070-     drive loop, heat under sustained use, quality under a tuned prompt, and a Python
+1071-     fallback if the server dies. Laya/Von fine-tuning (#113) continues as the
+1072-     alternative. The independent test set (62 cases, SHA-256
+1073-     b76a3c6b291180fb72b97632e4831a0c444595102984fa4a1afe46983e4fe266) stays outside
+1074-     the repository at `/termux-home/selector-testset/`. Evidence:
+1075-     `benchmark/strategic_selector/ladder/`. Relates to #109, #112, #113.
+1076-
+1077-117. **English-only operation is acceptable.** The human prefers a multilingual robot
+1078-     but accepts English-only speech input and spoken replies. Consequences:
+1079-     English-only components are eligible (for example Moonshine speech-to-text and
+1080-     SmolLM3-3B, whose languages exclude Arabic); the system prompt may require
+1081-     English replies, which removes the wrong-language failure seen in #115; future
+1082-     conversation benchmarks may drop the German, French and Arabic prompts. The
+1083-     current Whisper setup still accepts other languages until it is replaced. The
+1084-     same review of an external optimisation brainstorm listed candidate work, none
+1085-     of it measured: grammar-constrained JSON for voice parsing, per-step timing of
+1086-     YOLO and Whisper, Moonshine against Whisper, a Vulkan GPU feasibility test,
+1087-     YOLO26 (retraining needed), and LFM2.5 / SmolLM3-3B as conversation
+1088-     candidates (newer llama.cpp needed). Human decision, 2026-09-27. Relates to
+1089-     #115, #116.
+1090-
+1091-118. **Repo cleanup: `nav_sim.py` deleted, scratch files removed, two archives
+1092-     added.** Supersedes #23. `nav_sim.py` had raised `NameError` since its model
+1093-     entry was removed on 2026-09-26, and restoring it would put an LLM back in
+1094-     navigation, against #104. A full-repo GNU grep found no user outside docs/;
+1095-     it was deleted, with its stale bytecode cache. After a read-only audit of the
+1096-     repo root, nine untracked files with no evidence value were deleted:
+
+codex
+**Verdict: REQUEST CHANGES**
+
+1. **MAJOR — Resume is still vulnerable to interruption.** [conv_speed_mtp.py](/termux-home/robot/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py:170) loads JSONL before recovery, and [lines 178–179](/termux-home/robot/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py:178) rename and rewrite `turns.jsonl` in separate steps. If the process stops after the rename, the next resume sees completed block records with no turns and refuses to continue. A stop midway through a JSONL append can likewise leave a partial line that `load_done()` cannot parse. Make recovery tolerate these interrupted writes.
+
+The three round-one issues are otherwise addressed in source: paired prompts are deterministic, completed blocks are checked against `--ids`, and complete orphan turns are removed on resume. The supplied toy run does not exercise an interruption during a write.
+tokens used
+61,143

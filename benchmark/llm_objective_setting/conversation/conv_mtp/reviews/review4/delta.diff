@@ -1,0 +1,41 @@
+3c3
+< index 0000000..0fa97de
+---
+> index 0000000..8b51133
+6c6
+< @@ -0,0 +1,243 @@
+---
+> @@ -0,0 +1,249 @@
+145c145,146
+< +    """C-bucket rows in bench.py's result format (run_index 1), graded by bench.parse_and_grade_c, for score_c.py."""
+---
+> +    """C-bucket rows in bench.py's result format (run_index 1), graded by bench.parse_and_grade_c, for score_c.py.
+> +    That grader raises on some shapes (e.g. "object": null); such a reply is scored as failed, with the error kept."""
+153,154c154,160
+< +            parse_ok, exact, crit, viol = bench.parse_and_grade_c(clean, p["expected"])
+< +            out.append({"config": name, "bucket": "C", "prompt_id": p["id"], "lang": p["lang"], "run_index": 1,
+---
+> +            err = None
+> +            try:
+> +                parse_ok, exact, crit, viol = bench.parse_and_grade_c(clean, p["expected"])
+> +            except (AttributeError, TypeError) as e:
+> +                parse_ok = exact = crit = viol = False
+> +                err = repr(e)
+> +            out.append({"C_grade_error": err, "config": name, "bucket": "C", "prompt_id": p["id"], "lang": p["lang"], "run_index": 1,
+242d247
+< +    (a.out / "c_results.json").write_text(json.dumps(c_results(done), indent=1) + "\n")
+245a251
+> +    (a.out / "c_results.json").write_text(json.dumps(c_results(done), indent=1) + "\n")
+252c258
+< index 0000000..44d03e4
+---
+> index 0000000..7e71dcc
+255c261
+< @@ -0,0 +1,26 @@
+---
+> @@ -0,0 +1,27 @@
+280c286,287
+< +python3 "$C/score_c.py" "$OUT/c_results.json" > "$OUT/c_scores.txt"
+---
+> +# report only: the archived graders can raise on odd reply shapes; report.txt and c_results.json are already written
+> +python3 "$C/score_c.py" "$OUT/c_results.json" > "$OUT/c_scores.txt" 2>&1 || echo "score_c.py FAILED (exit $?)" >> "$OUT/c_scores.txt"

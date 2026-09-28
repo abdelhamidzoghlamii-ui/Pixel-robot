@@ -1,0 +1,5 @@
+**Verdict: REQUEST CHANGES**
+
+1. **MAJOR — Resume is still vulnerable to interruption.** [conv_speed_mtp.py](/termux-home/robot/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py:170) loads JSONL before recovery, and [lines 178–179](/termux-home/robot/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py:178) rename and rewrite `turns.jsonl` in separate steps. If the process stops after the rename, the next resume sees completed block records with no turns and refuses to continue. A stop midway through a JSONL append can likewise leave a partial line that `load_done()` cannot parse. Make recovery tolerate these interrupted writes.
+
+The three round-one issues are otherwise addressed in source: paired prompts are deterministic, completed blocks are checked against `--ids`, and complete orphan turns are removed on resume. The supplied toy run does not exercise an interruption during a write.

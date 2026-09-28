@@ -1,0 +1,10 @@
+MTP SPEED REPORT  (server_manager flags + --cache-ram 0, cores 4-7, cold block, temperature 0)
+ttft = client time to first streamed token, median; prompt tok/s median; gen tok/s token-weighted (>= 10 tokens);
+accept = accepted / drafted tokens; same = replies byte-identical to the MTP-off twin
+
+model                 load s  ttft s prompt t/s  gen t/s peak MiB trunc  accept    same   thermal start -> end (z9 z10 z11 degC); load state
+gemma_e2b_q40            5.8    3.08       73.0    14.03     3975     0     n/a       -   z9 27.0 z10 28.0 z11 27.0 -> z9 102.0 z10 97.0 z11 95.0; full-cold
+gemma_e2b_q40_mtp        8.0    3.11       73.5    20.54     4584     0   44.5%   13/13   z9 31.0 z10 32.0 z11 32.0 -> z9 102.0 z10 97.0 z11 97.0; full-cold
+qwen35_4b_q4km           6.8    6.68       31.7     7.18     5006     0     n/a       -   z9 31.0 z10 32.0 z11 32.0 -> z9 100.0 z10 100.0 z11 98.0; full-cold
+qwen35_4b_q40mtp         6.0    5.77       36.9     7.72     4965     0     n/a       -   z9 31.0 z10 32.0 z11 32.0 -> z9 81.0 z10 85.0 z11 84.0; full-cold
+qwen35_4b_q40mtp_on     14.2    5.99       35.1     8.60     4953     0   58.1%   13/13   z9 31.0 z10 32.0 z11 32.0 -> z9 80.0 z10 80.0 z11 81.0; full-cold

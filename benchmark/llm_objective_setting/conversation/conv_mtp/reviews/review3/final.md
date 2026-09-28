@@ -1,0 +1,5 @@
+**Verdict: REQUEST CHANGES**
+
+1. **MAJOR — Malformed C replies can prevent the speed report.** [conv_speed_mtp.py](/termux-home/robot/benchmark/llm_objective_setting/conversation/conv_speed_mtp.py:147) calls `bench.parse_and_grade_c()` before writing `report.txt`. For C9, a plausible reply such as `[{"type":"find_object","object":null,"room":"kitchen"}]` raises `AttributeError` at the grader’s `.lower()` call. All five blocks may have completed, but the run then exits without `c_results.json` or `report.txt`; resuming repeats the failure. Handle grading errors as failed scores so report-only scoring cannot discard the benchmark report.
+
+The earlier prompt-pairing and resume findings appear addressed in source. The two-prompt toy run and supplied recovery checks do not cover this C-reply failure.

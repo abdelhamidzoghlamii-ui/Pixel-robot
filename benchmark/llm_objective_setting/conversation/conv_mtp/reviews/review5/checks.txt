@@ -1,0 +1,5 @@
+Round-5 checks: c_results() on synthetic rows (config m: C9 object null, C11 name null, C1 room ["x"], C1 correct, A6; config n: C1 correct, A6)
+-> m C9/C11: error "grader raised AttributeError(...)"; m C1 list room: error "grader raised TypeError('unhashable type: 'list'')"; m C1 correct: C_exact True, no error; n C1: True; A6 rows skipped.
+score_c.py on that file: exit 0, all three regimes printed, m: exact 1/1 with errors 3; n: 1/1 errors 0. (score_c.py excludes error rows from its exact denominators and reports them in its errors column.)
+score_c.py on toy2/c_results.json (5 configs): succeeds. --resume of a copy of toy3 (final code path: load_done, rewrite, report, c_results) -> report printed; both C9 exact True, no error.
+Import order: aggregate is imported after conv_speed (conv_speed inserts /termux-home/robot/benchmark/llm_objective_setting into sys.path); module import verified by the checks above.

@@ -7,7 +7,7 @@ Every archived file below with its SHA-256. Copied files were compared byte for 
 | Archive path | Phone source | Bytes | SHA-256 (phone = archive) |
 |---|---|---:|---|
 | `cases/ladder_cases_v1.jsonl` | `/termux-home/ladder/cases/ladder_cases_v1.jsonl` | 25538 | `41eeafd28e2ce499437f75091e2069bdd89d4e9e0d789f223ff4dd1c9bebb473` |
-| `ladder.py` | `/termux-home/ladder/ladder.py` | 44447 | `c1a4f65df8dc78e0400a1a27d98e6e1766635a5d1185a31a8b8940e3ae39a0f7` |
+| `ladder.py` | `/termux-home/ladder/ladder.py` (re-copied 2026-09-28; was 44447 bytes, `c1a4f65df8dc78e0400a1a27d98e6e1766635a5d1185a31a8b8940e3ae39a0f7`) | 44673 | `c7e6d3c9dde9b52575fa5deeee4a7e1e06560ee7b609520d595532015dd16e4f` |
 | `ladder_worker.py` | `/termux-home/ladder/ladder_worker.py` | 9000 | `f795b354d6b615a681b25066d79b91e58ad8c1f68ae16b516a364bff8473b07e` |
 | `logs/oneshot_console_20260926T045141Z.log` | `/termux-home/ladder/oneshot_console_20260926T045141Z.log` | 12455 | `00413cc2960ef50225ddd095c1144a7ca8f7326750f8ec29d2276f122d3e45d9` |
 | `logs/oneshot_console_20260926T065115Z.log` | `/termux-home/ladder/oneshot_console_20260926T065115Z.log` | 58739 | `cdd485ea0ed5818a378c3d49b87b0187f557da38930bba97add088ad40207d90` |
@@ -378,20 +378,36 @@ Every archived file below with its SHA-256. Copied files were compared byte for 
 | `test_ladder.py` | `/termux-home/ladder/test_ladder.py` | 9728 | `19da97c0fb8726d06d454f1d1044e9577c0fc10ef30bd774c80d60c5f208170f` |
 | `toy_cases.jsonl` | `/termux-home/ladder/toy_cases.jsonl` | 1736 | `2ebe1f9fd4eac5d9329d6fe8af2b2bb7dbccf170239c687191ed6ae9e5ebb7bc` |
 
+## Copied from the phone on 2026-09-28 (11 files)
+
+| Archive path | Phone source | Bytes | SHA-256 (phone = archive) |
+|---|---|---:|---|
+| `logs/oneshot_console_20260927T223753Z.log` | `/termux-home/ladder/oneshot_console_20260927T223753Z.log` | 3994 | `a5342e6484ca5c82f75a6c82ac8265e0094fcfd248fb17b73dd810f4c428dd2d` |
+| `logs/s1o_dp_q40_20260927T224301Z.stderr.txt` | `/termux-home/ladder/s1o_dp_q40_20260927T224301Z.stderr.txt` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `logs/s1o_dp_q40_20260927T224301Z.stdout.txt` | `/termux-home/ladder/s1o_dp_q40_20260927T224301Z.stdout.txt` | 3529 | `9af84a9346b20fbeec0613edcb4526df9afd68b982aa91739637864d6a761fb6` |
+| `run_s1o_dp_q40.sh` | `/termux-home/ladder/run_s1o_dp_q40.sh` | 1121 | `0ed4206b7b90c7308afe6fd6b703a6bd40309a4ffb8811671f0ef0e70885028e` |
+| `runs/s1o_dp_q40_20260927T224301Z/blocks.jsonl` | `/termux-home/ladder/s1o_dp_q40_20260927T224301Z/blocks.jsonl` | 917 | `f10e9023a81de4a11f63a7450769a15a459184d53ab4c97a8317018729df98dd` |
+| `runs/s1o_dp_q40_20260927T224301Z/decisions.jsonl` | `/termux-home/ladder/s1o_dp_q40_20260927T224301Z/decisions.jsonl` | 116236 | `4a2cce90ae8968288a83c2bf8061bfc6f5865373952f106af57d9d5e50568745` |
+| `runs/s1o_dp_q40_20260927T224301Z/logs/s1o_b1609dp_q40.main.server.log` | `/termux-home/ladder/s1o_dp_q40_20260927T224301Z/logs/s1o_b1609dp_q40.main.server.log` | 98792 | `b54c9cf89521093c9452c03c592bcae61173d3e38eb966587473881fbbe460f7` |
+| `runs/s1o_dp_q40_20260927T224301Z/logs/s1o_b1609dp_q40.main.stderr.txt` | `/termux-home/ladder/s1o_dp_q40_20260927T224301Z/logs/s1o_b1609dp_q40.main.stderr.txt` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/s1o_dp_q40_20260927T224301Z/report.txt` | `/termux-home/ladder/s1o_dp_q40_20260927T224301Z/report.txt` | 3032 | `f39ddbfcdbfe52288f3c7fa7ab3c3e93ab55ad9c48482a92d6063e3638a5d8ef` |
+| `runs/s1o_dp_q40_20260927T224301Z/results.json` | `/termux-home/ladder/s1o_dp_q40_20260927T224301Z/results.json` | 5247 | `d27613e11ecab9091c466078ec0a59504409482c6d407aac30ef7cda9aee92e1` |
+| `runs/s1o_dp_q40_20260927T224301Z/run.json` | `/termux-home/ladder/s1o_dp_q40_20260927T224301Z/run.json` | 197 | `0be6a9a034960a47cc8bbb33a64dda4eea7e00e3c7145090c3aac61c0ed4d2d5` |
+
 ## Written for this archive or already in place in the repository (2 files)
 
 | Archive path | Bytes | SHA-256 |
 |---|---:|---|
-| `README.md` | 5353 | `f5c743841c6315fca32b0c77359fa46109d26a977834f28972562e29bf61d5a0` |
-| `RUN_INDEX.md` | 1066 | `a86c05477a2b803b72d272ccfb203bb59c3c57913377562f0c502facafb6418f` |
+| `README.md` | 6540 | `d6a76e47fb21a852057df6c2d0aee6a464b4727eb93be1a208ba0e0da61b8d07` |
+| `RUN_INDEX.md` | 1301 | `84a5b8b095beb3d2f78a33a4dc8bea28838f15d678bf0d9b6163e983b07cfa9a` |
 
 ## sha256sum format
 
 ```sha256sums
-f5c743841c6315fca32b0c77359fa46109d26a977834f28972562e29bf61d5a0  README.md
-a86c05477a2b803b72d272ccfb203bb59c3c57913377562f0c502facafb6418f  RUN_INDEX.md
+d6a76e47fb21a852057df6c2d0aee6a464b4727eb93be1a208ba0e0da61b8d07  README.md
+84a5b8b095beb3d2f78a33a4dc8bea28838f15d678bf0d9b6163e983b07cfa9a  RUN_INDEX.md
 41eeafd28e2ce499437f75091e2069bdd89d4e9e0d789f223ff4dd1c9bebb473  cases/ladder_cases_v1.jsonl
-c1a4f65df8dc78e0400a1a27d98e6e1766635a5d1185a31a8b8940e3ae39a0f7  ladder.py
+c7e6d3c9dde9b52575fa5deeee4a7e1e06560ee7b609520d595532015dd16e4f  ladder.py
 f795b354d6b615a681b25066d79b91e58ad8c1f68ae16b516a364bff8473b07e  ladder_worker.py
 00413cc2960ef50225ddd095c1144a7ca8f7326750f8ec29d2276f122d3e45d9  logs/oneshot_console_20260926T045141Z.log
 cdd485ea0ed5818a378c3d49b87b0187f557da38930bba97add088ad40207d90  logs/oneshot_console_20260926T065115Z.log
@@ -761,4 +777,15 @@ c3041089eb2c2213a84f93ef41441866d8bb24d231b911c1b41df358c3280297  s1o_speed_prep
 2fe34c55b0f2c10e44313df0aee7591ea51ebfd87c4c0fecfc692ad5db5628dc  s1o_speed_prep/v.log
 19da97c0fb8726d06d454f1d1044e9577c0fc10ef30bd774c80d60c5f208170f  test_ladder.py
 2ebe1f9fd4eac5d9329d6fe8af2b2bb7dbccf170239c687191ed6ae9e5ebb7bc  toy_cases.jsonl
+a5342e6484ca5c82f75a6c82ac8265e0094fcfd248fb17b73dd810f4c428dd2d  logs/oneshot_console_20260927T223753Z.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  logs/s1o_dp_q40_20260927T224301Z.stderr.txt
+9af84a9346b20fbeec0613edcb4526df9afd68b982aa91739637864d6a761fb6  logs/s1o_dp_q40_20260927T224301Z.stdout.txt
+0ed4206b7b90c7308afe6fd6b703a6bd40309a4ffb8811671f0ef0e70885028e  run_s1o_dp_q40.sh
+f10e9023a81de4a11f63a7450769a15a459184d53ab4c97a8317018729df98dd  runs/s1o_dp_q40_20260927T224301Z/blocks.jsonl
+4a2cce90ae8968288a83c2bf8061bfc6f5865373952f106af57d9d5e50568745  runs/s1o_dp_q40_20260927T224301Z/decisions.jsonl
+b54c9cf89521093c9452c03c592bcae61173d3e38eb966587473881fbbe460f7  runs/s1o_dp_q40_20260927T224301Z/logs/s1o_b1609dp_q40.main.server.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  runs/s1o_dp_q40_20260927T224301Z/logs/s1o_b1609dp_q40.main.stderr.txt
+f39ddbfcdbfe52288f3c7fa7ab3c3e93ab55ad9c48482a92d6063e3638a5d8ef  runs/s1o_dp_q40_20260927T224301Z/report.txt
+d27613e11ecab9091c466078ec0a59504409482c6d407aac30ef7cda9aee92e1  runs/s1o_dp_q40_20260927T224301Z/results.json
+0be6a9a034960a47cc8bbb33a64dda4eea7e00e3c7145090c3aac61c0ed4d2d5  runs/s1o_dp_q40_20260927T224301Z/run.json
 ```

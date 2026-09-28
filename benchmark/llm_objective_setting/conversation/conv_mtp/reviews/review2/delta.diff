@@ -1,0 +1,31 @@
+3c3
+< index 0000000..df24106
+---
+> index 0000000..533dcfb
+6c6
+< @@ -0,0 +1,206 @@
+---
+> @@ -0,0 +1,218 @@
+22a23
+> +import random
+69c70,73
+< +    """conv_speed's prompts (bench.py wrappers, stop tokens, nonce), restricted to ids, at temperature 0."""
+---
+> +    """conv_speed's prompts (bench.py wrappers, stop tokens, nonce), restricted to ids, at temperature 0. The nonce
+> +    generator is seeded so an MTP-on config and its MTP-off twin get byte-identical prompts (the nonces still differ
+> +    between prompts; every block starts a fresh server with --cache-ram 0 and cache_prompt false)."""
+> +    random.seed(0)
+172a177
+> +    stamp = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
+173a179,185
+> +        for (m, _), (_, rows) in done.items():
+> +            if sorted(r["prompt_id"] for r in rows) != sorted(ids):
+> +                raise SystemExit(f"--resume: {m}'s completed block has prompts {[r['prompt_id'] for r in rows]}, not {ids}")
+> +        turns = a.out / "turns.jsonl"
+> +        if turns.exists():  # drop turns of a block interrupted before its blocks.jsonl record; keep the old file
+> +            turns.rename(a.out / f"turns.jsonl.before_resume_{stamp}")
+> +            turns.write_text("".join(json.dumps(r) + "\n" for _, rows in done.values() for r in rows))
+176c188
+< +    (a.out / f"run_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.json").write_text(json.dumps({
+---
+> +    (a.out / f"run_{stamp}.json").write_text(json.dumps({

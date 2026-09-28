@@ -1,0 +1,48 @@
+thermal idle reading (gate z9 <= idle + 4 degC): z9 31.0 z10 31.0 z11 32.0 degC at 2026-09-27T22:43:00Z
+[s1o_b1609dp_q40] main: cold load, 60 cases x 2 order(s) at 4 threads
+  [s1o_b1609dp_q40 main] thermal start: z9 31.0 z10 31.0 z11 32.0 degC at 2026-09-27T22:43:00Z (waited 0 s)
+
+[s1o_b1609dp_q40] cold load next: handshake, waiting up to 60 s for /data/data/com.termux/files/home/ladder/.drop_done
+  [s1o_b1609dp_q40 main] thermal end:   z9 72.0 z10 73.0 z11 72.0 degC at 2026-09-27T22:46:25Z
+LADDER REPORT  2026-09-27T22:43:01+00:00
+cases /data/data/com.termux/files/home/ladder/cases/ladder_cases_v1.jsonl sha256 41eeafd28e2ce499  n=60  levels [1, 2, 3, 4, 5]
+models s1o_b1609dp_q40  threads [4]  cores 4-7  device RAM 7468 MiB
+timing: perf_counter in the worker; decision = wall time of adapter.decide; post = total - tokenise - forward
+
+== s1o_b1609dp_q40 [OUT (speed)] ==
+accuracy        correct 93/120 (78%)  acceptable 97/120 (81%)  (both orders)
+  by level      L1 24/24 (100%)  L2 16/24 (67%)  L3 15/24 (62%)  L4 18/24 (75%)  L5 20/24 (83%)
+  by phrasing   direct 31/40 (78%)  indirect 32/40 (80%)  narrative 30/40 (75%)
+order flips     6/60  ['L3_01', 'L3_04', 'L3_06', 'L3_10', 'L5_08', 'L5_09']
+decision ms     median 1408  P95 2936  (main block, 4 threads, n=120)
+  split median  tokenise 9.0  forward 1399.3  post 0.1   [tokenise=/tokenize HTTP calls, forward=/completion HTTP call (server prompt eval inside)]
+tokens/s        67   tokens by level L1 70  L2 87  L3 96  L4 88  L5 160   limit 2048, hit 0x
+token count     prompt token ids sent to llama-server (Gemma tokenizer, with BOS); the server evaluates them, then 1 token
+latency fit     ms = -415.8 + 20.267 x tokens   R2 0.95  (n=120, tokens 62-173)
+threads         main block only (no thread blocks)
+                run-to-run non-determinism (main vs t4, same threads): choice differs in 0/0, max prob diff 0.0000
+                other thread counts vs main: choice differs in 0/0, max prob diff 0.0000
+load (s)        phase         cold  cached
+                file_read     2.16     n/a
+                import        0.00     n/a
+                init          3.79     n/a
+                warmup        0.79     n/a
+                total         6.74     n/a
+                spawn_to_ready    7.15     n/a
+                weight files 2710 MiB; cold = full-cold (page cache dropped by the handshake watcher with drop_caches)
+                page cache 3498 -> 829 MiB after the drop
+RAM             peak 3920 MiB (VmHWM, worker + llama-server)   largest single process 3892.1 MiB (wait4)
+HINTS
+  - per-token cost is 100% of predicted latency at level 5 (fit -416 ms + 20.27 ms/token x 160 tokens at level 5, R2 0.95) -> shorter input will help
+  - model forward is 99% of decision time (median tokenise 9.0 / forward 1399.3 / post 0.1 ms; shares 1%/99%/0%) -> only fewer tokens or a faster model will help; glue code is not the bottleneck
+  - choice changed under reversed order in 6/60 cases (10%) -> order bias; average over orders or fix the order
+  - peak RAM 3920 MiB is 52% of device RAM (7468 MiB) -> only one such model can stay resident
+
+== CATEGORY WINNERS ==
+accuracy         s1o_b1609dp_q40 s1o_b1609dp_q40 78%/81%acc
+order stability  s1o_b1609dp_q40 s1o_b1609dp_q40 10% flips
+decision speed   s1o_b1609dp_q40 s1o_b1609dp_q40 1408 ms
+cached load      n/a
+cold load        s1o_b1609dp_q40 s1o_b1609dp_q40 6.7 s
+RAM              s1o_b1609dp_q40 s1o_b1609dp_q40 3920 MiB
+(ties keep the listed model order; accuracy ties break on acceptable)

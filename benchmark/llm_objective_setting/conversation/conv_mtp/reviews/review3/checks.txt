@@ -1,0 +1,11 @@
+Model-free resume-recovery checks on the round-3 code (copies of the toy2 dir; --ids A6,C1 --resume --models gemma_e2b_q40, so no server starts):
+a) blocks.jsonl = 4 complete records + first 60 bytes of the 5th (torn, no newline); turns.jsonl has the 5th block's 2 orphan turns
+   -> "t/blocks.jsonl: dropping torn last line"; "resume: keeping gemma_e2b_q40, gemma_e2b_q40_mtp, qwen35_4b_q4km, qwen35_4b_q40mtp";
+      blocks.jsonl 4 lines, turns.jsonl 8 lines, every line valid JSON; blocks.jsonl.before_resume_* and turns.jsonl.before_resume_* kept.
+b) 4 block records; turns.jsonl with its last 30 bytes cut -> "t/turns.jsonl: dropping torn last line"; turns.jsonl 8 lines.
+c) simulated stop between the two os.replace calls (blocks clean with 4 records, turns still the old 10 lines with orphans) plus a stale
+   turns.jsonl.tmp containing "garbage" -> resume keeps 4 blocks, turns.jsonl 8 lines, no *.tmp left.
+d) --resume of toy2 with default ids -> refused: "--resume: gemma_e2b_q40's completed block has prompts ['A6', 'C1'], not [...13...]".
+e) plain --resume of a complete toy2 copy -> keeps all 5; turns.jsonl 10 lines, sorted content identical to the original.
+Prompt checks from round 2 unchanged (prompts() code unchanged). Toy run toy2 was made with the round-2 code; round 3 changed only the
+--resume path (load_done/read_jsonl/rewrite), which a fresh run does not call; check e) exercised the report on the round-3 code.

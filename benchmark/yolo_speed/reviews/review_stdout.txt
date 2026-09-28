@@ -1,0 +1,11 @@
+## Review findings
+
+1. **The two repo scripts are ignored, so they will be omitted from an ordinary commit.** [`.gitignore`](/termux-home/robot/.gitignore:8) ignores `benchmark/*`, and `git status --short --ignored benchmark/yolo_speed` reports `!! benchmark/yolo_speed/`. Make these files explicitly trackable before the human commit gate; keep the two unrelated untracked files out of this task.
+
+2. **`--resume` can combine measurements from different inputs.** [`yolo_speed.py`](/termux-home/robot/benchmark/yolo_speed/yolo_speed.py:165) accepts completed blocks after checking only warm-up and timed counts. It writes current script, model, and frame hashes to a new manifest without comparing them with the original run. If a frame, model, or script changes between attempts, the final report silently mixes conditions. Reject a resume whose recorded hashes differ.
+
+The supplied checks support the runtime path: all 14 configurations loaded under native Termux Python with ONNX Runtime 1.25.1 and `CPUExecutionProvider`, returned detections, and the deployed worker matched `detect_scene()` on two frames. The reported 2-frame times are checks with an agent resident, not valid benchmark results. The candidate has no apparent motor call or deployed-model write, and the deployed-model hash remained unchanged.
+
+**Review limit:** the sandbox denied reading `detect_person.py`, the ladder files, and the candidate source directly. I verified their reported SHA-256 values, but could assess their contents only from the supplied diff and context. Their full surrounding behavior therefore remains independently unverified.
+
+**VERDICT: CHANGES REQUIRED** — make the two repo scripts trackable and validate input hashes on resume; then obtain a fresh review of the changed candidate.
