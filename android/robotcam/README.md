@@ -186,6 +186,22 @@ and also via `su`, even after the heartbeat line was added in e21c970. The cause
 not known (not investigated further, by decision). The service logs with `Log.i`
 under tag `RobotCam`; `adb logcat -s RobotCam` from a computer is untested.
 
+## Known limitations
+
+- **Overlapping opens on restart.** A mode/rate change or camera error closes the
+  camera and opens it again at once (a restart does not wait for a pending open), so
+  two opens can briefly overlap. Callbacks from the superseded open are rejected by
+  the attempt-generation checks and close their camera; if the overlap makes the new
+  open fail, it goes through the normal error path (files deleted, retry after 2 s).
+  Expect a short gap in frames, not uninterrupted capture: in a storm of 6 starts
+  0.3 s apart on the Pixel 7 the service recovered and then delivered 20/20 good
+  frames. Not changed by owner decision (FINDINGS.md, round 3, finding 2).
+- **No wake lock** (not a permitted permission): capture with the screen off is
+  untested.
+- **RAM use** is not measured.
+- **logcat** returns nothing for `RobotCam` on the Pixel 7, also via `su` (see
+  Diagnostics).
+
 ## Build
 
 CI: `.github/workflows/robotcam.yml` builds the debug APK on pushes to `main` or

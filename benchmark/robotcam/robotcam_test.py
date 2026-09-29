@@ -49,8 +49,10 @@ import time
 from PIL import Image
 
 DEFAULT_DIRS = [os.path.expanduser('~/storage/downloads/robotcam'), '/sdcard/Download/robotcam']
-COMMENT_RE = re.compile(rb'^robotcam session=([0-9a-f]+) frame=(\d+) capture_boot_ms=(\d+) '
-                        rb'capture_wall_ms=(\d+) clock=(sensor|arrival)$')
+# Field lengths are bounded so a malformed comment can never produce a huge number.
+COMMENT_RE = re.compile(rb'^robotcam session=([0-9a-f]{1,32}) frame=(\d{1,12}) '
+                        rb'capture_boot_ms=(\d{1,15}) capture_wall_ms=(\d{1,15}) '
+                        rb'clock=(sensor|arrival)$')
 MIN_AGE = -0.2  # seconds; a younger (future) frame means the clocks disagree
 
 
@@ -81,11 +83,18 @@ def read_frame(d, max_age, session=None):
     m = COMMENT_RE.match(comment) if isinstance(comment, bytes) else None
     if not m:
         return {'status': 'bad', 'error': f'jpeg comment {comment!r:.80}'}
+    try:
+        session_id = m.group(1).decode()
+        frame = int(m.group(2))
+        age_s = boot_now() - int(m.group(3)) / 1000.0
+        clock = m.group(5).decode()
+    except (ValueError, OverflowError) as e:
+        return {'status': 'bad', 'error': f'jpeg comment {type(e).__name__}: {e}'}
     r = {
-        'session': m.group(1).decode(),
-        'frame': int(m.group(2)),
-        'age_s': boot_now() - int(m.group(3)) / 1000.0,
-        'clock': m.group(5).decode(),
+        'session': session_id,
+        'frame': frame,
+        'age_s': age_s,
+        'clock': clock,
         'read_ms': (t1 - t0) * 1000,
         'decode_ms': (t2 - t1) * 1000,
         'size': f'{im.width}x{im.height}',
@@ -108,7 +117,7 @@ def sidecar_diff(d, r):
         with open(os.path.join(d, 'frame.json'), 'rb') as f:
             meta = json.loads(f.read())
         pair = (str(meta['session_id']), int(meta['frame']))
-    except (OSError, ValueError, TypeError, KeyError) as e:
+    except (OSError, ValueError, TypeError, KeyError, OverflowError) as e:
         return f'sidecar unreadable ({type(e).__name__})'
     if pair != (r['session'], r['frame']):
         return f'sidecar {pair[0]}/{pair[1]}'
