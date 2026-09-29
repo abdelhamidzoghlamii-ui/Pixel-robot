@@ -14,17 +14,57 @@ CLASSES = ['person','bicycle','car','motorbike','aeroplane','bus','train','truck
 'keyboard','cell phone','microwave','oven','toaster','sink','refrigerator','book',
 'clock','vase','scissors','teddy bear','hair dryer','toothbrush']
 
-MODEL = '/data/data/com.termux/files/home/robot/yolo11m.onnx'
+MODELS = {320: os.path.join(os.path.dirname(__file__), 'yolo11s_320.onnx'),
+          640: os.path.join(os.path.dirname(__file__), 'yolo11s_640.onnx')}
 CONF  = 0.35
 IOU   = 0.45
 
-_session = None
+class Detector:
+    def __init__(self):
+        self.sessions = {size: ort.InferenceSession(path) for size, path in MODELS.items()}
 
-def get_session():
-    global _session
-    if _session is None:
-        _session = ort.InferenceSession(MODEL)
-    return _session
+    def detect(self, frame, size=320):
+        if size not in self.sessions:
+            raise ValueError('size must be 320 or 640')
+        if not isinstance(frame, Image.Image):
+            with Image.open(frame) as source:
+                frame = ImageOps.exif_transpose(source).convert('RGB')
+        width, height = frame.size
+        img = frame.resize((size, size)).convert('RGB')
+        arr = np.array(img).astype(np.float32) / 255.0
+        arr = arr.transpose(2, 0, 1)[np.newaxis]
+        session = self.sessions[size]
+        out = session.run(None, {session.get_inputs()[0].name: arr})[0][0].T
+        by_class = {}
+        for pred in out:
+            scores = pred[4:]
+            cls = int(np.argmax(scores))
+            conf = float(scores[cls])
+            if conf > CONF:
+                cx, cy, w, h = map(float, pred[:4])
+                box = (cx-w/2, cy-h/2, cx+w/2, cy+h/2)
+                by_class.setdefault(cls, []).append((box, conf))
+        results = []
+        for cls, items in by_class.items():
+            for i in nms([v[0] for v in items], [v[1] for v in items], IOU):
+                box, conf = items[i]
+                x1, y1, x2, y2 = box
+                results.append({'class_name': CLASSES[cls], 'class_id': cls,
+                                'conf': conf,
+                                'box_xyxy': (max(0, min(width, x1*width/size)),
+                                             max(0, min(height, y1*height/size)),
+                                             max(0, min(width, x2*width/size)),
+                                             max(0, min(height, y2*height/size))),
+                                'size_used': size})
+        return sorted(results, key=lambda d: -d['conf'])
+
+_detector = None
+
+def get_detector():
+    global _detector
+    if _detector is None:
+        _detector = Detector()
+    return _detector
 
 def iou(a, b):
     ax1,ay1,ax2,ay2 = a
@@ -44,47 +84,33 @@ def nms(boxes, confs, iou_thresh=0.45):
         order = [j for j in order if iou(boxes[i], boxes[j]) < iou_thresh]
     return keep
 
-def detect_scene(image_path):
+def scene_from_detections(detections, frame_width, frame_height):
+    """Legacy tuple view used by navigation, stereo and text callers."""
+    results = []
+    seen = set()
+    for d in detections:
+        label = d['class_name']
+        if label in seen:
+            continue
+        seen.add(label)
+        x1, y1, x2, y2 = d['box_xyxy']
+        cx, cy, w, h = (x1+x2)/2, (y1+y2)/2, x2-x1, y2-y1
+        area = w*h/(frame_width*frame_height)
+        pos = 'left' if cx < frame_width/3 else 'right' if cx > 2*frame_width/3 else 'center'
+        dist = 'very close' if area>0.3 else 'close' if area>0.1 else 'medium' if area>0.03 else 'far'
+        results.append((label, round(d['conf'], 2), pos, dist,
+                        round(cx*640/frame_width), round(cy*640/frame_height),
+                        round(w*640/frame_width), round(h*640/frame_height)))
+    return results
+
+def detect_scene(image_path, size=640):
     """
     Detect all objects in the scene.
     Returns list of (label, confidence, position, distance)
     """
-    session = get_session()
-    img = Image.open(image_path).convert('RGB')
-    img = ImageOps.exif_transpose(img)
-    img = img.resize((640, 640))
-    arr = np.array(img).astype(np.float32) / 255.0
-    arr = arr.transpose(2, 0, 1)[np.newaxis]
-
-    out = session.run(None, {session.get_inputs()[0].name: arr})[0][0].T
-
-    by_class = {}
-    for pred in out:
-        scores = pred[4:]
-        cls = int(np.argmax(scores))
-        conf = float(scores[cls])
-        if conf > CONF:
-            cx,cy,w,h = float(pred[0]),float(pred[1]),float(pred[2]),float(pred[3])
-            box = (cx-w/2, cy-h/2, cx+w/2, cy+h/2)
-            if cls not in by_class:
-                by_class[cls] = []
-            by_class[cls].append((box, conf, cx, cy, w, h))
-
-    results = []
-    for cls, items in by_class.items():
-        boxes = [i[0] for i in items]
-        confs = [i[1] for i in items]
-        keep = nms(boxes, confs, IOU)
-        best = items[keep[0]]
-        cx, cy, w, h = best[2], best[3], best[4], best[5]
-        conf = best[1]
-        area = (w*h)/(640*640)
-        pos = 'left' if cx < 213 else 'right' if cx > 427 else 'center'
-        dist = 'very close' if area>0.3 else 'close' if area>0.1 else 'medium' if area>0.03 else 'far'
-        results.append((CLASSES[cls], round(conf,2), pos, dist, round(cx), round(cy), round(w), round(h)))
-
-    results.sort(key=lambda x: -x[1])
-    return results
+    with Image.open(image_path) as source:
+        frame = ImageOps.exif_transpose(source).convert('RGB')
+    return scene_from_detections(get_detector().detect(frame, size), *frame.size)
 
 def detect_person(image_path):
     """
@@ -129,7 +155,7 @@ if __name__ == '__main__':
     t0 = time.time()
     results = detect_scene(path)
     elapsed = round(time.time()-t0, 3)
-    print(f'Detected in {elapsed}s (640x640 frame):')
+    print(f'Detected in {elapsed}s (640-space legacy coordinates):')
     print(f'  {"object":<15} {"conf":<5} {"pos":<8} {"dist":<12} {"cx":>5} {"cy":>5} {"w":>5} {"h":>5}')
     print('  ' + '-'*60)
     for r in results:

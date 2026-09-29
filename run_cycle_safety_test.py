@@ -6,9 +6,11 @@ move executed, on every path; a failed capture fails closed to STOP (#108).
 import importlib.util
 from pathlib import Path
 import sys
+import tempfile
 from types import ModuleType, SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
+from PIL import Image
 
 
 def forbidden(*args, **kwargs):
@@ -20,7 +22,8 @@ def load_robot_module():
     dependencies = {}
     for name, attributes in {
         'requests': ('post',),
-        'detect_person': ('detect_scene', 'scene_to_text', 'person_direction'),
+        'detect_person': ('get_detector', 'detect_scene', 'scene_from_detections',
+                          'scene_to_text', 'person_direction'),
         'stereo_depth': ('stereo_scan', 'scene_with_depth',
                          'estimate_distance_single'),
     }.items():
@@ -64,7 +67,7 @@ def isolated_robot(distance, now=100.0):
     R.speak = Mock(side_effect=forbidden)
     R.listen = Mock(side_effect=forbidden)
     motors = FakeMotors(distance=distance, now=now)
-    return R, motors, R.Robot(motors=motors)
+    return R, motors, R.Robot(motors=motors, camera_source='termux_photo')
 
 
 def recording_rules(robot, recorded):
@@ -143,10 +146,98 @@ class RunCycleSafetyTest(unittest.TestCase):
         self.assertEqual(robot.run_cycle(), 'STOP')
 
         R.take_photo.assert_called_once_with(R.PHOTO_A)
-        self.assertEqual(motors.actions, [])
+        self.assertEqual(motors.actions, [('stop', ())])
         self.assertEqual(robot.last_moves, [])
         R.detect_scene.assert_not_called()
         R.requests.post.assert_not_called()
+
+    def test_unusable_robotcam_frames_stop_motors(self):
+        for status in ('missing', 'bad', 'other_session'):
+            with self.subTest(status=status):
+                R, motors, robot = isolated_robot(distance=400)
+                robot.camera_source = 'robotcam'
+                R.read_frame = Mock(return_value={'status': status})
+
+                self.assertEqual(robot.run_cycle(), 'STOP')
+                R.read_frame.assert_called_once_with(session=None)
+                self.assertEqual(motors.actions, [('stop', ())])
+                R.detect_scene.assert_not_called()
+
+    def test_vision_exception_stops_motors(self):
+        R, motors, robot = isolated_robot(distance=400)
+        robot.camera_source = 'robotcam'
+        R.read_frame = Mock(return_value={'status': 'ok', 'session': 'abc', 'frame': 1,
+                                          'image': SimpleNamespace(height=480, size=(640, 480))})
+        R.get_detector = Mock(return_value=SimpleNamespace(
+            detect=Mock(side_effect=Exception('inference failure'))))
+        self.assertEqual(robot.run_cycle(), 'STOP')
+        self.assertEqual(motors.actions, [('stop', ())])
+
+    def test_start_camera_pins_new_frame(self):
+        R, motors, robot = isolated_robot(distance=400)
+        robot.camera_source = 'robotcam'
+        R.get_detector = Mock(return_value=object())
+        R.time = SimpleNamespace(clock_gettime=Mock(return_value=100.0),
+                                 CLOCK_BOOTTIME=7, monotonic=Mock(side_effect=[0, 0, 1]),
+                                 sleep=Mock())
+        R.read_frame = Mock(side_effect=[{'status': 'missing'},
+                                         {'status': 'ok', 'session': 'abc'}])
+        with patch.object(R.subprocess, 'run') as am:
+            robot.start_camera()
+        self.assertEqual(robot.camera_session, 'abc')
+        self.assertIsNotNone(robot.detector)
+        self.assertEqual(R.read_frame.call_count, 2)
+        R.read_frame.assert_called_with(min_capture_boot_s=100.0)
+        self.assertEqual(am.call_args.args[0][0:2], ['am', 'start'])
+        self.assertEqual(am.call_args.kwargs['timeout'], 10)
+
+    def test_robotcam_cycle_uses_pinned_session(self):
+        R, motors, robot = isolated_robot(distance=400)
+        robot.camera_source = 'robotcam'
+        robot.camera_session = 'abc'
+        frame = SimpleNamespace(height=480, size=(640, 480))
+        R.read_frame = Mock(return_value={'status': 'ok', 'session': 'abc',
+                                          'frame': 1, 'image': frame})
+        detector = SimpleNamespace(detect=Mock(return_value=[]))
+        R.get_detector = Mock(return_value=detector)
+        R.scene_from_detections = Mock(return_value=[])
+        self.assertEqual(robot.run_cycle(), 'FORWARD')
+        R.read_frame.assert_called_once_with(session='abc')
+        detector.detect.assert_called_once_with(frame, 320)
+        self.assertEqual(motors.actions, [('forward', (R.MOTOR_SPEED, R.CYCLE_MOVE_TIME))])
+
+    def test_robotcam_repeated_or_older_frame_stops_before_detection(self):
+        for next_frame in (2, 1):
+            with self.subTest(next_frame=next_frame):
+                R, motors, robot = isolated_robot(distance=400)
+                robot.camera_source = 'robotcam'
+                frame = SimpleNamespace(height=480, size=(640, 480))
+                R.read_frame = Mock(side_effect=[
+                    {'status': 'ok', 'session': 'abc', 'frame': 2, 'image': frame},
+                    {'status': 'ok', 'session': 'abc', 'frame': next_frame, 'image': frame}])
+                detector = SimpleNamespace(detect=Mock(return_value=[]))
+                R.get_detector = Mock(return_value=detector)
+                R.scene_from_detections = Mock(return_value=[])
+                self.assertEqual(robot.run_cycle(), 'FORWARD')
+                self.assertEqual(robot.run_cycle(), 'STOP')
+                self.assertEqual(robot.camera_frame, 2)
+                detector.detect.assert_called_once_with(frame, 320)
+                self.assertEqual(motors.actions,
+                                 [('forward', (R.MOTOR_SPEED, R.CYCLE_MOVE_TIME)),
+                                  ('stop', ())])
+
+    def test_termux_photo_rollback_cycle(self):
+        R, motors, robot = isolated_robot(distance=400)
+        with tempfile.TemporaryDirectory() as directory:
+            R.PHOTO_A = str(Path(directory) / 'photo.jpg')
+            Image.new('RGB', (640, 480)).save(R.PHOTO_A)
+            R.take_photo = Mock(return_value=True)
+            detector = SimpleNamespace(detect=Mock(return_value=[]))
+            R.get_detector = Mock(return_value=detector)
+            R.scene_from_detections = Mock(return_value=[])
+            self.assertEqual(robot.run_cycle(), 'FORWARD')
+        R.take_photo.assert_called_once_with(R.PHOTO_A)
+        self.assertEqual(motors.actions, [('forward', (R.MOTOR_SPEED, R.CYCLE_MOVE_TIME))])
 
 
 if __name__ == '__main__':

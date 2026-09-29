@@ -1,9 +1,10 @@
-import sys, os, time, json, threading, requests
+import sys, os, time, json, threading, requests, subprocess
 sys.path.insert(0, '/data/data/com.termux/files/home/robot')
 
-from detect_person import detect_scene, scene_to_text, person_direction
+from detect_person import get_detector, detect_scene, scene_from_detections, scene_to_text, person_direction
+from detector_size_policy import SizePolicy
+from robotcam_reader import read_frame
 from stereo_depth import stereo_scan, scene_with_depth, estimate_distance_single
-from stereo_depth import stereo_scan, scene_with_depth
 
 HOME    = '/data/data/com.termux/files/home'
 PHOTO_A = HOME + '/robot_photo_a.jpg'
@@ -15,6 +16,9 @@ PERSON_STOP_DIST = 80    # cm — stop when person this close
 STEREO_BASELINE  = 5.0   # cm — strafe for depth
 MOTOR_SPEED      = 130   # default motor speed
 CYCLE_MOVE_TIME  = 1.5   # seconds per move
+CAMERA_SOURCE    = 'robotcam'  # 'termux_photo' is the rollback source
+LARGE_FRAME_INTERVAL_S = 5
+PERSON_HEIGHT_FRACTION = 1/3
 
 # ── Thermal ───────────────────────────────────────────
 def get_temp():
@@ -27,9 +31,15 @@ def get_temp():
 
 # ── Camera ────────────────────────────────────────────
 def take_photo(path):
-    os.system(f'termux-camera-photo {path} 2>/dev/null')
+    try: os.remove(path)
+    except FileNotFoundError: pass
+    except OSError: return False
+    try:
+        result = subprocess.run(['termux-camera-photo', path], stderr=subprocess.DEVNULL)
+    except OSError:
+        return False
     time.sleep(0.5)
-    return os.path.exists(path) and os.path.getsize(path) > 1000
+    return result.returncode == 0 and os.path.exists(path) and os.path.getsize(path) > 1000
 
 # ── LLM (Gemma E2B) ───────────────────────────────────
 GEMMA_URL = 'http://127.0.0.1:8080/completion'
@@ -171,8 +181,15 @@ def speak(text):
 
 # ── Main Robot Class ──────────────────────────────────
 class Robot:
-    def __init__(self, motors=None):
+    def __init__(self, motors=None, camera_source=CAMERA_SOURCE):
         self.motors      = motors
+        if camera_source not in ('robotcam', 'termux_photo'):
+            raise ValueError(camera_source)
+        self.camera_source = camera_source
+        self.detector = None
+        self.size_policy = SizePolicy(LARGE_FRAME_INTERVAL_S, PERSON_HEIGHT_FRACTION)
+        self.camera_session = None
+        self.camera_frame = None
         self.cycle       = 0
         self.mission     = None
         self.target      = None   # person name or room
@@ -181,6 +198,32 @@ class Robot:
         self.known_rooms = {}
         self.running     = False
         self.state       = 'idle'  # idle / navigating / searching / found
+
+    def start_camera(self):
+        self.detector = get_detector()  # shared by detect_scene and the robot loop
+        if self.camera_source == 'robotcam':
+            self.camera_session = None
+            self.camera_frame = None
+            started_boot_s = time.clock_gettime(time.CLOCK_BOOTTIME)
+            subprocess.run(['am', 'start', '-n', 'com.pixelrobot.robotcam/.StartActivity',
+                            '--es', 'mode', 'B', '--ei', 'rate', '2'],
+                           check=True, timeout=10, stdin=subprocess.DEVNULL,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            deadline = time.monotonic() + 8
+            while time.monotonic() < deadline:
+                result = read_frame(min_capture_boot_s=started_boot_s)
+                if result['status'] == 'ok':
+                    self.camera_session = result['session']
+                    return
+                time.sleep(0.1)
+            raise RuntimeError('RobotCam did not publish a usable frame')
+
+    def stop_camera(self):
+        if self.camera_source == 'robotcam':
+            subprocess.run(['am', 'broadcast', '-n', 'com.pixelrobot.robotcam/.ControlReceiver',
+                            '-a', 'com.pixelrobot.robotcam.STOP'],
+                           check=True, timeout=5, stdin=subprocess.DEVNULL,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def move(self, cmd, duration=CYCLE_MOVE_TIME):
         print(f'  [MOTOR] {cmd}')
@@ -308,16 +351,45 @@ class Robot:
         distance = self.get_distance()
         print(f'\n── Cycle {self.cycle} | {temp}°C | dist:{distance}cm ──')
 
-        # Vision
+        # Vision: every cycle must have a fresh usable frame before any movement.
         if photo_path:
             path = photo_path
+        elif self.camera_source == 'robotcam':
+            frame_result = read_frame(session=self.camera_session)
+            if frame_result['status'] != 'ok' or (self.camera_frame is not None and
+                    frame_result['frame'] <= self.camera_frame):
+                reason = frame_result['status'] if frame_result['status'] != 'ok' else 'no new'
+                print(f'  [CAM] {reason} frame — stop')
+                if self.motors: self.motors.stop()
+                return 'STOP'
+            self.camera_session = frame_result['session']
+            self.camera_frame = frame_result['frame']
+            frame = frame_result['image']
         else:
             if not take_photo(PHOTO_A):
                 print('  [CAM] Photo failed')
+                if self.motors: self.motors.stop()
                 return 'STOP'
             path = PHOTO_A
 
-        results = detect_scene(path)
+        try:
+            if photo_path:
+                results = detect_scene(path)
+            else:
+                if self.detector is None: self.detector = get_detector()
+                size = self.size_policy.next_size()
+                if self.camera_source == 'termux_photo':
+                    from PIL import Image, ImageOps
+                    with Image.open(path) as source:
+                        frame = ImageOps.exif_transpose(source).convert('RGB')
+                detections = self.detector.detect(frame, size)
+                self.size_policy.observe(detections, frame.height)
+                results = scene_from_detections(detections, *frame.size)
+                print(f'  [YOLO] size={size} person={any(d["class_name"] == "person" for d in detections)}')
+        except Exception as exc:
+            print(f'  [VISION] {exc} — stop')
+            if self.motors: self.motors.stop()
+            return 'STOP'
         scene = scene_to_text(results)
         self.scene_log.append(scene)
         if len(self.scene_log) > 10:
