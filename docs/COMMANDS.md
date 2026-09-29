@@ -66,8 +66,8 @@ If it's in use, find the holder and kill it **by PID** — see §8.
 
 ## 1. Server control — start this first for autonomous mode
 
-The LLM server must be running before `run_mission.py`. The nav loop
-consults Gemma on triggers; without the server those calls fail. (See §4 for `chat.py`/`robot-chat`: Loading a chat model calls `pkill` on the b1609 dotprod binary, killing the robot LLM server from `server_manager.py`. If another server still occupies port 8080, chat refuses to start. Do not launch chat during a robot mission.)
+The LLM server must be running before `run_mission.py` for voice/objective handling;
+the navigation loop uses Python rules (#104, #111). (See §4 for `chat.py`/`robot-chat`: Loading a chat model calls `pkill` on the b1609 dotprod binary, killing the robot LLM server from `server_manager.py`. If another server still occupies port 8080, chat refuses to start. Do not launch chat during a robot mission.)
 Always run `setup_q4` before a mission; it stops any leftover chat server and loads the robot model. Quit any open `robot-chat` session before `setup_q4` or a mission; an open session may reuse or kill the robot server on its next message.
 
 | Command | What it does |
@@ -122,7 +122,7 @@ curl -s http://127.0.0.1:8080/health && echo " — server up"
 > motors, runs one cycle against `test_photos/scene_test.jpg` if present, prints,
 > and exits. Use `run_mission.py`.
 
-**Autonomous — dry run** ✅ *(verified: 24 cycles, camera → YOLO → rules → Gemma)*
+**Autonomous — dry run** ✅ *(historical 24 cycles used camera → YOLO → rules; Gemma is no longer in navigation, #104/#111)*
 ```bash
 cd ~/robot
 python3 run_mission.py --dry "explore and map the rooms"
@@ -130,6 +130,30 @@ python3 run_mission.py --dry "explore and map the rooms"
 In `--dry`, `self.motors` is None, so `get_distance()` returns the 999 sentinel
 and **every obstacle branch is unreachable**. A dry run does not test the safety
 ladder — use `nav_test.py` (§6) for that.
+
+### RobotCam (native Termux)
+
+Termux must be in front when starting the camera service. An empty RobotCam
+folder means the service is stopped.
+
+```bash
+am start -n com.pixelrobot.robotcam/.StartActivity --es mode B --ei rate 2
+am broadcast -n com.pixelrobot.robotcam/.ControlReceiver -a com.pixelrobot.robotcam.STOP
+python ~/robot/benchmark/robotcam/robotcam_test.py --interval 0.5 -n 30
+```
+
+Frames: `/storage/emulated/0/Download/robotcam/frame.jpg`.
+
+To install a CI APK with root (each CI build has a new debug signature, so
+uninstall the previous build first):
+
+```bash
+su -c "cp <apk> /data/local/tmp/robotcam.apk && pm install -r /data/local/tmp/robotcam.apk </dev/null >/data/local/tmp/pm_out.txt 2>&1; cat /data/local/tmp/pm_out.txt"
+```
+
+**Motors-off mission check:** `bash ~/robot/check_robotcam_root_dry.sh` runs
+`su -c run_mission.py --dry` with RobotCam for 30 s, then sends SIGTERM.
+`--dry` never imports motors or opens USB and skips LLM warm-up.
 
 **Autonomous — motors live** ⚠️ *NEVER RUN. Wheels on a stand for the first attempt.*
 ```bash
@@ -391,6 +415,10 @@ measured it. The coverage claim is a guess until this is done.
 ---
 
 ## 7. Thermal & system ⚠️
+
+Root commands that call Android `am`, `pm`, `cmd` or `dumpsys` need
+`</dev/null` and file output (DECISIONS #123). The phone's `su` is unavailable
+inside Debian; run these commands from native Termux.
 
 | Command | What it does |
 |---|---|

@@ -58,12 +58,13 @@ from earlier commits.
 
 **Per-cycle flow** (`main.py: Robot.run_cycle`):
 ```
-camera photo → YOLO detect_scene → navigate_rules (pure Python, instant) → execute move
+RobotCam frame (640×480, 2/s, fail-closed reader) → YOLO yolo11s (320, 640 every 5 s or in person search) → navigate_rules (pure Python, instant) → execute move
 ```
 
 | Layer | Handles | Cost |
 |---|---|---|
-| YOLO (yolo11m.onnx) | object/person detection, position, coarse distance | every cycle |
+| YOLO yolo11s (320/640 policy, both sessions resident; yolo11m kept for rollback) | object/person detection, position, coarse distance | every cycle |
+| RobotCam app (Camera2 foreground service) | 640×480 frames, 2/s; missing/old/repeated frame → STOP | continuous while a mission runs |
 | Python `navigate_rules` | obstacle stop, person approach, room signature logging | every cycle, 0ms |
 | Gemma 4 E2B (Q4_0, default since 2026-09-26) | voice→intent only, outside navigation | on demand |
 | Whisper.cpp (base) | 5s voice capture → text | on demand |
@@ -94,15 +95,15 @@ thermal pause     >80 °C    reads thermal_zone9 (BIG cores), sleeps 5s
 
 **Vision** (`detect_person.py`)
 ```
-yolo11m.onnx · CONF 0.35 · IOU 0.45 · 640×640 input
-position: cx<213 left, cx>427 right, else center
+yolo11s_320.onnx + yolo11s_640.onnx (stock COCO) · CONF 0.35 · IOU 0.45
+SizePolicy: drive = 320 every frame + one 640 every 5 s; person_search = 640 until person box ≥ 1/3 frame height
+legacy detect_scene default 640; legacy tuples in 640 space; detector dicts in source-frame pixels
+position: left/center/right by thirds of frame width
 coarse distance by box area: >0.3 very close, >0.1 close, >0.03 medium, else far
 ```
 
-`yolo11m.onnx` is fine-tuned, not stock — trained on the owner's own photos
-(human-stated 2026-09-11; training set held on the owner's laptop, not in
-this repository or independently verified from this session). See DECISIONS
-#97.
+The detector is stock COCO. The earlier claim that yolo11m.onnx was fine-tuned
+was wrong: no fine-tuned YOLO has ever existed (DECISIONS #121, correcting #97).
 
 **Stereo depth** (`stereo_depth.py`)
 ```
@@ -119,6 +120,7 @@ REAL_HEIGHTS: person 170, refrigerator 180, chair 90, couch 85, dining table 75,
 ```
 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --ctx-size 2048
 setup_q4     Gemma 4 E2B Q4_0    2.8GB  ~12 gen tok/s  ← robot default (since 2026-09-26)
+Gemma E2B Q4_0 on this build: selector letter-scoring 1408 ms median (DECISIONS #119). MTP drafter measured +46% gen speed, +609 MiB, identical output; not deployed (DECISIONS #120). Build names: b1609 = upstream b10194, b2351 = upstream b10936 (#119).
 setup_e4b    Gemma 4 E4B Q4_K_M  5.0GB  ~5.4 gen tok/s ← kept, not recommended (#115)
 (setup_qwen3b / setup_qwen1b and the Qwen2.5 files were removed 2026-09-26.
 Qwen3.5 2B and 4B GGUFs at ~/models/qwen35/ are eval-only, not wired into
@@ -168,6 +170,11 @@ have not been selected or verified in a real mission. The dated device
 thresholds, formula, zone map, throttle checks, and evidence limitations are
 preserved in [PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
 
+Camera paths (3-min blocks, on battery): RobotCam 2.3 W vs
+`termux-camera-photo` 3.3 W over 0.7 W idle; zone9 rise +1.4 °C/min vs
++3.1 °C/min (DECISIONS #122). Continuous YOLO reached 75–102 °C within a
+minute; Gemma conversation reached about 100 °C within a minute (#121, #124).
+
 ## Memory
 
 Reported 2026-09-11: Gemma-4-E2B Q4_K_M left approximately 0.5 GB practical
@@ -186,6 +193,11 @@ Gemma with YOLO and the drive loop is untested.
 
 Standalone chat uses ctx 4096 for Gemma E2B Q4_0/Q4_K_M and Qwen3.5 2B Q4_K_M; ctx 2048 for all other menu models. No controlled peak memory result at ctx 4096; archived conversation peaks used ctx 2048.
 
+Measured components (each alone): Gemma E2B Q4_0 selector peak 3920 MiB;
+Gemma + MTP drafter conversation peak 4584 MiB; Qwen3.5-4B about 5.0 GB;
+yolo11s RSS about 230 MiB (320) / 325 MiB (640); RobotCam app 36–39 MB PSS
+plus camera provider about 270 MB. Co-residency is untested (DECISIONS #124).
+
 ## Model vision
 
 The as-coded image request was confirmed to run as text only (DECISIONS #96).
@@ -199,6 +211,10 @@ observations and follow-up are retained in
 - LLM server stable; prompt-cache fix landed (`--swa-full`) — repeat-prefix calls
   reuse the cached system prompt instead of reprocessing it.
 - YOLO scene detection, position + coarse distance.
+- RobotCam app (`android/robotcam/`, `af57939`) and integration (`9b49ce0`):
+  640×480 at 2/s, fail-closed reader, `termux_photo` rollback. Motors-off checks
+  only (native and `su -c --dry`); no motors-live run yet.
+- Dual-size yolo11s detector with SizePolicy (`9b49ce0`), unit-tested (18 tests).
 - Voice pipeline end to end: record → Whisper → Gemma JSON parse → TTS.
   `main.warm_up()` (called from `main.py` and `run_mission.py`) waits for the
   server and sends one discarded parse; measured cold start: server ready 19 s,
@@ -334,12 +350,12 @@ observations and follow-up are retained in
   chain incl. a matching QAT drafter. See DECISIONS #71, #72.
 - Not yet built/wired: Piper TTS, Whisper VAD, room classifier, memory system,
   face recognition.
-- Candidate speed and quality work, none measured (DECISIONS #117):
-  grammar-constrained JSON output for voice parsing; per-step timing of YOLO and
-  Whisper (never measured); Moonshine (English-only, compute scales with audio
+- Candidate speed and quality work (DECISIONS #117):
+  grammar-constrained JSON output for voice parsing; per-step timing of
+  Whisper (never measured; YOLO measured, #121); Moonshine (English-only, compute scales with audio
   length) against Whisper on the same recordings; a Vulkan GPU feasibility test
-  in native Termux; YOLO26 as an NMS-free replacement, which would need
-  retraining on the owner's photos; LFM2.5 and SmolLM3-3B as conversation
+  in native Termux; YOLO26 (same speed as YOLO11 at equal size; NMS-free mode
+  not worth it, #121); LFM2.5 and SmolLM3-3B as conversation
   candidates, both needing a newer llama.cpp than b1609.
 - The proposed strategic selector is not wired to the robot. Apartment
   localization from 2D LiDAR, semantic room map, camera–LiDAR object/range
@@ -370,6 +386,14 @@ observations and follow-up are retained in
 - benchmark/llm_objective_setting/ was published with the docs/WORKFLOW.md
   independent review WAIVED by human decision; the waiver is recorded in its
   README.
+- Co-residency test (DECISIONS #124) will decide the 320/640 mix versus
+  640-only and selector option 2 versus 3.
+- `oneshot.sh` screen-timeout restore is broken (DECISIONS #123); fix pending.
+- Archive the camera-heat run (`benchmark/camera_heat/` and results) in the repo.
+- RobotCam screen-off capture is untested; frame loss ends a mission
+  (fail-closed, no retry by design).
+- Evaluate RelateAnything speed, RAM and weight licence after co-residency (#124).
+- Gemma fine-tuning restarts from scratch; old LoRA notebooks discarded (#124).
 
 ## Work priorities
 

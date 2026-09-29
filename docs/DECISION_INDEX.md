@@ -36,6 +36,10 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | #77 records a built b2233 binary | #107 says its binary was replaced by b2351; the old source commit is still recoverable. |
 | #95's negative `strings` check for Qwen support | #107 / STATUS report a successful Qwen3.5 text load on b2351; #105 separately records unsuccessful vision tests. |
 | #99's proposed model-in-loop work order | #100–#102 tested output and rule defects; #104 changes the intended architecture. #109 is separate strategic research. |
+| #97 says `yolo11m.onnx` is fine-tuned | #121 corrects it to stock COCO: no fine-tuned YOLO has existed; detector is now yolo11s (commit `9b49ce0`). |
+| #12 chooses yolo11m | #121 switches to stock yolo11s with a 320/640 policy; yolo11m remains for rollback. |
+| #116 says the 1.55 s Q4_0 ladder result is b2351-only | #119 measures 1408 ms on the robot's dotprod build. |
+| Local build names b1609 / b2351 | #119 identifies upstream llama.cpp tags b10194 / b10936. |
 
 For any claim outside these selected topics, search the numbered log and inspect
 the later entries that cite it. This index makes no claim to classify all decisions.

@@ -106,11 +106,13 @@ historical target as a current model-selection gate.
 
 **Vision** (`detect_person.py`):
 ```
-MODEL = yolo11m.onnx
+MODEL = yolo11s_320.onnx + yolo11s_640.onnx (stock COCO; yolo11m.onnx kept for rollback)
 CONF  = 0.35
 IOU   = 0.45
-Input = 640x640
+Input = 320 or 640 per frame (SizePolicy); camera = RobotCam 640x480, 2/s
+Detector dicts: source-frame pixels; legacy tuples: 640 space
 ```
+See DECISIONS #121, #122.
 
 Anything marked `UNCALIBRATED` or `PENDING` in STATUS.md is not yet trustworthy —
 treat those values as placeholders, not as benchmarked constants.

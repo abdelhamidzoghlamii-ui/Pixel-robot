@@ -1108,3 +1108,159 @@ Format: `NN. [area] decision — why`
      robot. Deferred: the b2351 flash-attention segfault, until a newer llama.cpp
      is needed. Human decisions, 2026-09-27. Relates to #23, #85, #104, #105,
      #108, #111.
+
+119. **Gemma E2B Q4_0 letter-scoring on the robot's dotprod build: 1408 ms median,
+     93/120 correct; build names corrected.** An unattended 2026-09-27 ladder run
+     (60 cases × 2 orders, 4 threads, cold loads, thermal gate) used variant
+     `s1o_b1609dp_q40` with the same flags as the b2351 Q4_0 row:
+     `--flash-attn off --cache-ram 0 --ctx-checkpoints 0 --batch-size 512
+     --ubatch-size 512`. It scored 93/120 correct, 97/120 acceptable, with
+     6/60 order flips; median 1408 ms, P95 2936 ms, peak RAM 3920 MiB (52% of
+     device), full-cold load 6.74 s (file read 2.16, init 3.79, warm-up 0.79).
+     Zone9 rose 31 → 72 °C during the block. This resolves #116's b2351-only
+     caveat: Q4_0 is about as fast on the robot build, with one session per
+     build, so a speed advantage is unproven. The robot's default flash-attention
+     setting differs from this run. The build called b1609 is upstream llama.cpp
+     tag **b10194** (e1a1abb7); b2351 is upstream **b10936** (790cf51a).
+     Local `~/llama.cpp-upstream` reports b10935-1. The newest upstream on
+     2026-09-28 was b11224; its log showed no CPU change for Qwen3.5's
+     gated-delta-net layers since b10194. Evidence:
+     `benchmark/strategic_selector/ladder/` (commit `68cc171`). Its README's
+     claim that the dp_q40 `ladder.py` change had no review on record is wrong:
+     Codex returned APPROVE WITH NOTES before the run (review text not archived).
+     Relates to #114 and #116.
+
+120. **MTP speculative decoding: Gemma E2B generation +46% with identical output;
+     Qwen3.5-4B remains the slower optional model.** On 2026-09-28, robot build
+     b10194 with `server_manager` flags plus `--cache-ram 0`, cores 4–7, cold
+     block and temperature 0, 13 English prompts (A5 A6 B1 B2 B6 B7 C1
+     C6–C11) were tested. Non-English and trivial prompts were dropped under
+     #117; these results are not comparable to the archived 27-prompt figures.
+
+     | Config | TTFT s | Gen tok/s | Peak MiB | Accept | Identical |
+     |---|---:|---:|---:|---:|---:|
+     | Gemma E2B Q4_0 | 3.08 | 14.03 | 3975 | – | – |
+     | + MTP drafter (unsloth `mtp-gemma-4-E2B-it-Q8_0`, n-max 3) | 3.11 | 20.54 | 4584 | 44.5% | 13/13 |
+     | Qwen3.5-4B Q4_K_M | 6.68 | 7.18 | 5006 | – | – |
+     | Qwen3.5-4B Q4_0 (unsloth MTP GGUF), MTP off | 5.77 | 7.72 | 4965 | – | – |
+     | Same, MTP on (n-max 3) | 5.99 | 8.60 | 4953 | 58.1% | 13/13 |
+
+     C-bucket exact: Qwen3.5-4B 7/7 in all variants; Gemma 6/7 (known C7
+     miss). Gemma and Qwen Q4_K_M blocks reached about 100 °C, so the Qwen
+     Q4_K_M/Q4_0 comparison is thermally confounded. MTP needs no rebuild:
+     `--spec-type draft-mtp` exists in b10194. It is not deployed; the extra
+     609 MiB depends on co-residency testing. Qwen3.5-4B remains optional for
+     careful conversation (first word about 6 s versus Gemma's 3 s). Evidence:
+     `benchmark/llm_objective_setting/conversation/conv_mtp/` (commit `68cc171`).
+     Relates to #71, #72 and #115.
+
+121. **Detector switched to stock COCO yolo11s: 320 by default, 640 on demand;
+     #97's fine-tuning claim was wrong.** The deployed `yolo11m.onnx` (SHA-256
+     b6e24c02…) is a stock COCO export from the owner's laptop: its hash matches
+     `C:\Users\abdel\yolo11m.onnx`, its metadata says `coco.yaml`, and its
+     outputs match a fresh stock export. The laptop has 203 unlabelled photos
+     (132 owner, 71 Chiara), no labels, runs or `best.pt`; its 25 Colab notebooks
+     contain only Gemma LoRA work (see #124). No fine-tuned YOLO has ever existed.
+     #97 remains as a historical record and is superseded on that claim.
+
+     Phone speed on 2026-09-28 (native Termux ONNX Runtime 1.25.1, 12 MP photos;
+     median total/detection ms): yolo11m@640 908/641, 11s@640 515/263,
+     11m@320 415/205, 11n@640 355/110, 11s@320 273/67, 11n@320 233/32.
+     YOLO26 ran at similar speed for each size. Dynamic int8 took 2081 ms;
+     NMS took 7–35 ms, so YOLO26 NMS-free mode is not worth pursuing. About
+     200 ms per total came from decoding the 12 MP photo. RSS was 187–482 MiB;
+     continuous detection raised zone9 to 75–102 °C within 20–60 s. Evidence:
+     `benchmark/yolo_speed/` (commit `68cc171`).
+
+     Laptop CPU accuracy at confidence 0.35: person found on 98–99% of the 203
+     owner photos for 11n/s/m and 26n/s at 320 and 640; 11s@320, 26s@320 and
+     11m@320/640 missed none versus yolo11m@640. On coco128, person
+     precision/recall/small recall/mAP50: 11s@320 90.1/50.4/16.3/0.656;
+     11s@640 88.9/66.1/33.7/0.751; 11m@640 93.0/67.7/31.4/0.798.
+     At 320, n models found a person in only 7/9 person frames in the archived
+     `benchmark/yolo_speed/frames`. ExDark was skipped because its download was
+     blocked. Laptop reports **(not archived)**: `YOLO_DATASET_REPORT.md`,
+     `yolo_eval\YOLO_EVAL_REPORT.md`, `yolo_eval_mix\YOLO_EVAL_MIX_REPORT.md`.
+
+     Owner decision: stock yolo11s, both sessions resident. `SizePolicy` drive
+     mode uses 320 every frame plus one 640 frame every 5 s; person search uses
+     640 every frame until a person box reaches one-third frame height. Stop
+     logic uses every frame. Legacy `detect_scene` defaults to 640 and retains
+     640-space tuples. `yolo11m.onnx` remains for rollback. Deployed model
+     hashes (weights not in Git): yolo11s_320 9eab5ebc…f863 and yolo11s_640
+     dc9fe7c5…cb5. Commit `9b49ce0` (Codex Coder, three rounds of Claude Code
+     review, final APPROVED). Supersedes #12's model choice; relates to #97,
+     #117.
+
+122. **RobotCam replaces the camera path: frames read in about 3 ms instead of
+     about 3 s; fail-closed at 2 frames/s with lower power.** Termux:API's
+     `termux-camera-photo` reopens the camera per call, waits 0.5 s for preview,
+     always captures 12 MP and has no size option: about 3.05 s per capture,
+     plus a 0.5 s robot sleep. It made empty files on 3/20 preparation calls
+     and 11/113 heat-test calls.
+
+     RobotCam (`android/robotcam/`, merged `af57939`, PR #1, Claude Code on the
+     web, Codex reviews in `android/robotcam/FINDINGS.md`) uses a Camera2
+     foreground service, YUV 640×480 and in-app JPEG quality 85 (2–10 ms
+     encode). Modes A/B (B default), rate 1 or 2; it atomically writes
+     `/storage/emulated/0/Download/robotcam/frame.jpg`. Its reader accepts only
+     `frame.jpg`, taking session, frame and `capture_boot_ms` from the JPEG
+     comment. CLOCK_BOOTTIME age must be −0.2…2 s; frame number must advance
+     each cycle. Missing, old, bad, other-session or repeated frames cause STOP.
+     Retests had zero failed frames; rate 2 read median about 3 ms, decode about
+     10 ms, frame age median 0.38 s; a switch storm survived. Known limitations:
+     overlapping opens on restart require retry; `logcat -s RobotCam` remained
+     empty even through `su`; screen-off capture is untested; exported start and
+     stop components are an owner-accepted risk.
+
+     Three-minute battery blocks on 2026-09-29: idle 0.71 W flat; RobotCam 1/s
+     2.30 W and zone9 +1.4 °C/min; RobotCam 2/s 2.29 W and +0.3 °C/min (started
+     warmer); old path 3.30 W and +3.1 °C/min. RobotCam app PSS 36–39 MB,
+     camera provider about 270 MB (similar to old path). A camera-idle-between-
+     shots mode is not needed now. Scripts: `benchmark/camera_heat/`; results:
+     `/termux-home/ladder/camera_heat_20260929T022511Z_16984/`
+     **(not archived)**.
+
+     Integration in `9b49ce0`: `robotcam_reader.py`, mode B at rate 2 started
+     at mission start and stopped on exit, SIGTERM or SIGHUP (motors stop first),
+     with `camera_source=termux_photo` for rollback. Motors-off live checks in
+     native Termux and via `su -c run_mission.py --dry` passed. Human decisions
+     2026-09-28/29.
+
+123. **Root commands calling Android services need `</dev/null` and file output.**
+     From native Termux, `su -c "pm|am|cmd|dumpsys …"` fails with
+     `Failure calling service …: Failed transaction (2147483646)` or broken
+     pipe when stdio points at the terminal or a pipe. Working form:
+     `su -c "<cmd> </dev/null >/data/local/tmp/out.txt 2>&1; cat /data/local/tmp/out.txt"`.
+     This explains the recurring `oneshot.sh` screen-timeout failure: its
+     `cmd settings` read fails, then the restore feeds the error text to a shell
+     and gets `syntax error: unexpected '('`. The timeout setting may be left
+     unchanged or wrong; fix pending. The phone's `su` is unavailable inside
+     Debian/proot; run root steps in native Termux.
+
+124. **Owner's target architecture and next test; Gemma fine-tuning restarts;
+     RelateAnything planned.** Owner direction 2026-09-28/29, not all decided:
+     Gemma (or Qwen) loads, converses for at most about five turns and sets the
+     objective; System 1 chooses high-level scripts, Python drives, and ESP32
+     is the safety layer. Lead option 3 leaves Gemma resident to select too
+     (1.41 s, 77%, no second load). Backup option 2 has Gemma select first,
+     then unloads it while a small selector loads during the first roughly
+     20 s script; it needs unload-before-load, not-ready → STOP and one shared
+     objective format. Von is a poor swap candidate: import plus load 11.9 s,
+     first decision 8.6 s, about 3.1 GB (Von 1.1 archive). Option 1,
+     fine-tuned live steering, and LLM vision (#105) are parked as later
+     improvements, not dropped; option 1 would reopen #104.
+
+     Heat reference: 13 Gemma conversation turns raised zone9 27 → about
+     100 °C in 56 s; cooldown to idle+4 °C took 1.5–4 min. The next test is
+     co-residency: RobotCam 2/s and yolo11s 320/640 mix versus 640-only, each
+     with and without resident Gemma plus a selector call every 20 s. Record
+     RAM, LMK kills, heat, power, YOLO ms drift, selector ms, Gemma cold/warm
+     load, and one RAM snapshot with MTP. It decides the 320/640 policy and
+     option 2 versus 3.
+
+     Earlier Gemma LoRA notebooks (navigation, voice, Unsloth) have failed
+     training or bad data; fine-tuning restarts from scratch with the new
+     cycle. RelateAnything is a planned future object-relation context source
+     for Gemma and the selector on periodic 640 frames. Its speed, RAM and
+     weight licence are unmeasured; retain the detector's plain dict boxes.

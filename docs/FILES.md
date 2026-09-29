@@ -1,21 +1,24 @@
 # File Inventory
 
-Only four files are imported anywhere: **`main.py`**, **`motors.py`**, **`detect_person.py`**,
-**`stereo_depth.py`**. Everything else is a standalone script (entry point, benchmark, test, or
-diagnostic) that nothing else in the directory imports. "Imported/called by" below means Python
-`import`; scripts you'd run by hand are marked *(entry point)*.
+The live runtime uses `main.py`, `motors.py`, `detect_person.py`,
+`detector_size_policy.py`, `robotcam_reader.py` and `stereo_depth.py`.
+"Imported/called by" below means Python `import`; scripts you'd run by hand
+are marked *(entry point)*.
 
 ## Core runtime (the live stack)
 
 | File | What it does | Imported/called by |
 |---|---|---|
-| `main.py` | `Robot` class: perceive→navigate→LLM→move cycle loop; the robot brain. | `mission_test.py`, `nav_test.py`, `run_mission.py` |
+| `main.py` | `Robot` class: RobotCam→detect→Python navigation→move cycle loop. | `mission_test.py`, `nav_test.py`, `run_mission.py` |
 | `motors.py` | `Motors` class — CP2102 USB-serial link to the motor MCU (drive/strafe/rotate, ultrasonic distance, keepalive thread). | `log_run.py`, `run_mission.py`, `teleop.py` |
-| `detect_person.py` | YOLO11m ONNX inference: `detect_scene`, `scene_to_text`, `person_direction`, cached session, legacy `detect_person` shim. | `main.py`, `mission_test.py`, `stereo_depth.py`, `test_suite.py`, `test_suite_m.py` |
+| `detect_person.py` | YOLO11s ONNX inference at 320/640: `detect_scene`, `scene_to_text`, `person_direction`, cached sessions, legacy `detect_person` shim. | `main.py`, `mission_test.py`, `stereo_depth.py`, `test_suite.py`, `test_suite_m.py` |
 | `stereo_depth.py` | Two-frame stereo + object-height→distance estimation (`stereo_scan`, `scene_with_depth`, `estimate_distance_single`). | `main.py`, `mission_test.py` |
 | `run_mission.py` | Autonomous launcher: wires `Motors`+`Robot`, runs a mission from argv (`--dry` = no motors). | nobody *(entry point)* |
 | `teleop.py` | HTTP server for manual driving — web UI, obstacle-gated forward, camera passthrough. | nobody *(entry point)* |
 | `chat.py` | Interactive terminal chat client for the local llama-server: model menu, server start/kill, camera/vision. | nobody *(entry point)* |
+| `robotcam_reader.py` | RobotCam JPEG-only, fail-closed frame reader. | `main.py` |
+| `detector_size_policy.py` | 320/640 `SizePolicy` for drive and person-search modes. | `main.py` |
+| `android/robotcam/` | RobotCam Camera2 foreground-service app; see its README and FINDINGS. | `run_mission.py` starts/stops it |
 
 ## Calibration tooling (current, Aug 16)
 
@@ -70,6 +73,11 @@ diagnostic) that nothing else in the directory imports. "Imported/called by" bel
 | `test_suite.py` | Fuller version of the same (people×distance×direction×reps + empty shots). | nobody — largely **superseded** by `test_suite_m.py` |
 | `yolo_benchmark.py` | Bench YOLO ONNX inference speed/temp over `test_photos`. | nobody *(benchmark)* |
 | `yolo_scene_test.py` | One-shot YOLO scene detection on a fixed test photo, prints detections. | nobody *(entry point)* — overlaps `diagnose_yolo.py` |
+| `bench_detector_robotcam.py` | Motors-off detector and RobotCam check in native Termux. | nobody *(entry point)* |
+| `check_robotcam_root_dry.sh` | `su -c --dry` mission check with RobotCam. | nobody *(entry point)* |
+| `test_detector_robotcam.py`, `test_run_mission.py` | Detector/RobotCam and mission unit tests. | nobody *(tests)* |
+| `benchmark/robotcam/`, `benchmark/yolo_speed/` | RobotCam test and YOLO benchmark tools. | nobody *(tools)* |
+| `.github/workflows/robotcam.yml` | CI APK build for RobotCam. | GitHub Actions |
 
 ## Other utilities
 
@@ -84,6 +92,9 @@ diagnostic) that nothing else in the directory imports. "Imported/called by" bel
 
 The table above identifies superseded and orphaned scripts; it is not deletion
 authority. DECISIONS #85 retains seven previously proposed removals, and `nav_sim.py` was deleted by #118. Check the current import graph before removing anything.
+
+Model files stay outside Git: deployed `yolo11s_320.onnx` and
+`yolo11s_640.onnx`; `yolo11m.onnx` is kept for rollback (#121).
 
 **Weaker overlap (one of each pair is redundant):**
 - `test_suite.py` vs `test_suite_m.py`
