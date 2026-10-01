@@ -1,3 +1,5 @@
+> **Heat readings in this archive are not trusted** (zone9/10/11 are CPU-core sensors). Speed, RAM and power results remain valid as measured; CPU capping during these runs is unknown. See benchmark/thermal_char/HEAT_EVIDENCE.md.
+
 # Selector ladder benchmark (2026-09-25 to 2026-09-26)
 
 Status: **complete** as a development bench. Research only: offline text cases, no motors.
@@ -77,8 +79,9 @@ the live `c7e6d3c9…`, the version recorded by the 2026-09-28 conversation-MTP 
 Ladder build: round 1 (AGY `gemini-3.1-pro-high`) raised findings including a MAJOR thread-hint
 defect; round 2 **PASS**. s1o speed preparation: first request returned an empty response
 (incomplete), then **APPROVE WITH NOTES**; a later request failed with a network ERROR (incomplete)
-and its re-run was **APPROVE**; final round **APPROVE**. The run results themselves were not reviewed. The 2026-09-28 `ladder.py` change and `run_s1o_dp_q40.sh` have no review on record
-(none found under `/termux-home`).
+and its re-run was **APPROVE**; final round **APPROVE**. The run results themselves were not reviewed. The dp_q40 `ladder.py` change was reviewed before the run: Codex returned
+**APPROVE WITH NOTES** (`docs/DECISIONS.md` #119; the review text is not archived). #119 does not say whether `run_s1o_dp_q40.sh` was part of that review.
+The fixed launcher (DECISIONS #123 screen-timeout form, `codex` in the agent check) is `benchmark/coresidency/oneshot.sh`; `oneshot.sh` here is unchanged.
 
 ## Evidence gaps
 

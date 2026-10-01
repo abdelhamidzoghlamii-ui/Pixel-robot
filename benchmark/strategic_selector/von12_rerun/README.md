@@ -1,3 +1,5 @@
+> **Heat readings in this archive are not trusted** (zone9/10/11 are CPU-core sensors). Speed, RAM and power results remain valid as measured; CPU capping during these runs is unknown. See benchmark/thermal_char/HEAT_EVIDENCE.md.
+
 # Von 1.2 rerun of strategic-selector v2 (2026-09-24)
 
 Status: **complete** (research only; offline synthetic text cases, no motors, no robot integration).

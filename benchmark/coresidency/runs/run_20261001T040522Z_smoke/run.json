@@ -1,0 +1,109 @@
+{
+ "started": "2026-10-01T04:05:23+00:00",
+ "smoke": true,
+ "block_s": 20,
+ "idle": {
+  "at": "2026-10-01T04:05:21Z",
+  "z9": 32000,
+  "z10": 32000,
+  "z11": 32000,
+  "skin": 28.96806
+ },
+ "sha256": {
+  "coresidency.py": "85a6e4cb003bd4f56d501c186a8cbac1b528fb1aa4369380c34be25ad2743626",
+  "robotcam_reader.py": "0026372a8a21e8915bad5abf38452245230363f1410aa292ba14f49501969ce7",
+  "detect_person.py": "0d43ae09844433feb916ee423e2945183a455005b53168e6086363bd897b771a",
+  "detector_size_policy.py": "5af77d5925203e71ed06eec00c3f59eb6ff5beae2163a82378e3339bb2553e57",
+  "server_manager.py": "c0151546dc90036e6a9ddf7d865260e8a35801c82696b2eb2ffcd6eae61842ec",
+  "main.py": "381514c2f9cae3b9291c1f743d831a2e8ba399ed0e1e6d2ca902d5226f560be7",
+  "adapters.py": "b452ab09d3a9772b43771e1d687c0bc013056a09c45aa4a464c07ac2dd0e3fec",
+  "s1/schema.py": "8f4daf2c8dc24d0f05ecd39d634adb536c63efd34bfb3a90ff4dd4a996b7443e",
+  "cases": "41eeafd28e2ce499437f75091e2069bdd89d4e9e0d789f223ff4dd1c9bebb473",
+  "yolo11s_320.onnx": "9eab5ebc83d1254e0049abf2a939ef12db696b7e0ef74af7ec8b70cec993f863",
+  "yolo11s_640.onnx": "dc9fe7c50e66ef272db1318f282d6e6dc4ba6adaa0103a2197a87300fbb9dcb5"
+ },
+ "model_bytes": {
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf": 2841481184,
+  "/data/data/com.termux/files/home/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf": 97817664
+ },
+ "layout": {
+  "cpu_zones": {
+   "BIG": "9",
+   "MID": "10",
+   "LITTLE": "11"
+  },
+  "policies": {
+   "policy0": 1803000,
+   "policy4": 2348000,
+   "policy6": 2850000
+  }
+ },
+ "block_stops": {
+  "status": 4,
+  "battery_c": 45.0,
+  "cpu_fault_c": 110.0,
+  "cpu_consecutive": 3,
+  "skin_wait_s": 60,
+  "sensor_wait_s": 5,
+  "gate_skin_c": 1.5,
+  "gate_z9_mc": 4000,
+  "gate_max_s": 900
+ },
+ "server_cmd": [
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+  "-m",
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+  "--port",
+  "8080",
+  "--ctx-size",
+  "2048",
+  "--threads",
+  "4",
+  "--threads-batch",
+  "4",
+  "--parallel",
+  "1",
+  "--swa-full",
+  "--cache-ram",
+  "0",
+  "--host",
+  "127.0.0.1"
+ ],
+ "mtp_cmd": [
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+  "-m",
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+  "--port",
+  "8080",
+  "--ctx-size",
+  "2048",
+  "--threads",
+  "4",
+  "--threads-batch",
+  "4",
+  "--parallel",
+  "1",
+  "--swa-full",
+  "--cache-ram",
+  "0",
+  "--host",
+  "127.0.0.1",
+  "--model-draft",
+  "/data/data/com.termux/files/home/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf",
+  "--spec-type",
+  "draft-mtp",
+  "--spec-draft-n-max",
+  "3"
+ ],
+ "python": "3.13.13 (main, Apr 10 2026, 16:12:19) [Clang 21.0.0 (https://android.googlesource.com/toolchain/llvm-project 5e96669f0",
+ "cpus_allowed": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7
+ ]
+}

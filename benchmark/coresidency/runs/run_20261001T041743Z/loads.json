@@ -1,0 +1,41 @@
+{
+ "cold_load_s": 5.444,
+ "cold_state": {
+  "mode": "full-cold (page cache dropped by the handshake watcher)",
+  "cached_mib_before": 3724,
+  "cached_mib_after": 1050,
+  "resident_pages_after": 0
+ },
+ "warm_load_s": 3.861,
+ "load_definition": "spawn to first /health status ok (0.05 s poll)",
+ "thermal_start": {
+  "at": "2026-10-01T04:35:44Z",
+  "z9": 35000,
+  "z10": 36000,
+  "z11": 36000,
+  "skin": 32.8457,
+  "status": 0,
+  "waited_s": 455,
+  "warm_start": false
+ },
+ "cmd": [
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+  "-m",
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+  "--port",
+  "8080",
+  "--ctx-size",
+  "2048",
+  "--threads",
+  "4",
+  "--threads-batch",
+  "4",
+  "--parallel",
+  "1",
+  "--swa-full",
+  "--cache-ram",
+  "0",
+  "--host",
+  "127.0.0.1"
+ ]
+}

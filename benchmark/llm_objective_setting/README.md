@@ -1,3 +1,5 @@
+> **Heat readings in this archive are not trusted** (zone9/10/11 are CPU-core sensors). Speed, RAM and power results remain valid as measured; CPU capping during these runs is unknown. See benchmark/thermal_char/HEAT_EVIDENCE.md.
+
 # Pixel 7 on-device LLM conversation and objective-setting archive
 
 Completed phone experiment, retained as a baseline. This tests an on-device LLM in the role it retains under [DECISIONS #109](../../docs/DECISIONS.md): conversation, Q&A and setting a bounded objective outside the low-level navigation loop. It predates the revised robot cycle. Bucket C scores a **PROPOSED** dynamic-map prompt, PARSE_SYS-D, not deployed code. Its value is as a baseline and as rubric experience for the next benchmark; it does not select a model for deployment.

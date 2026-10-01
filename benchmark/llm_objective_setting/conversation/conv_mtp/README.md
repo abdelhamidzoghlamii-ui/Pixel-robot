@@ -1,3 +1,5 @@
+> **Heat readings in this archive are not trusted** (zone9/10/11 are CPU-core sensors). Speed, RAM and power results remain valid as measured; CPU capping during these runs is unknown. See benchmark/thermal_char/HEAT_EVIDENCE.md.
+
 # Conversation speed with MTP speculative decoding (2026-09-28)
 
 Status: **complete** (one unattended timed run). Research only: offline, no motors, no `main.py`.
