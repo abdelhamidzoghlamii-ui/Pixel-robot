@@ -46,6 +46,8 @@ Throttle detection (ground truth, sysfs — HAL cooling-device dump is empty):
   cpufreq hw max:  policy0=1803000  policy4=2348000  policy6=2850000
   Throttling = any cur_state > 0, or scaling_max_freq < cpuinfo_max_freq.
 
+> Heat note (2026-10-01): zone9/10/11 are CPU-core readings, not a heat state; see DECISIONS #126 and `benchmark/thermal_char/HEAT_EVIDENCE.md`.
+
 Reported idle baseline (servers stopped, battery, 36 samples over 3 min):
   skin 26.73-27.94 °C (stable);  BIG 31.0-40.0 °C (swings ~9 °C, meaningless)
   cooling devices 0/36;  cpufreq capped 0/36

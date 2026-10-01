@@ -420,6 +420,8 @@ Root commands that call Android `am`, `pm`, `cmd` or `dumpsys` need
 `</dev/null` and file output (DECISIONS #123). The phone's `su` is unavailable
 inside Debian; run these commands from native Termux.
 
+> Heat note (2026-10-01): zone9/10/11 are CPU-core readings, not a heat state; see DECISIONS #126 and `benchmark/thermal_char/HEAT_EVIDENCE.md`.
+
 | Command | What it does |
 |---|---|
 | `python3 get_temp.py` | BIG / MID / LITTLE / GPU / TPU / battery temps + CPU hotspot. Needs root. |

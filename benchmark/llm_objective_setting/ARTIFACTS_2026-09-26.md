@@ -188,16 +188,18 @@ Every archived file below with its SHA-256. Copied files were compared byte for 
 | Archive path | Bytes | SHA-256 |
 |---|---:|---|
 | `ARTIFACTS.md` | 3585 | `d829ff5c7f9df9af5d9ce3b1b836813197dae6b28bc406d53fb6ed963942e688` |
-| `README.md` | 15019 | `e2861e168a574fd82a7014b6fb589a40fbc06853b4a9a09047d8552469bf2cb7` |
+| `README.md` | 15250 | `f4e7f0c2d002b12c2301fdd182c305731681aec60930391301a4b5ea397f6121` |
 | `RUN_INDEX.md` | 4030 | `cd39ed7ff5f48febea1ddc702ca2e913afdb26d8bb2a909c618174ebf06c672c` |
 | `bench.py` | 27801 | `0792beeed813d94df2a1d9ce7bffe2f5e2a00a564de4a32aaecfa0182b8e6f8f` |
 | `test_bench.py` | 1374 | `123484c38cea33f7a00fdbbcfecbedfb07129ca116a9a8db73a40a2de37543ae` |
+
+README.md re-hashed 2026-10-01 after the heat banner (03ab5b5); previous SHA-256 e2861e168a574fd82a7014b6fb589a40fbc06853b4a9a09047d8552469bf2cb7.
 
 ## sha256sum format
 
 ```sha256sums
 d829ff5c7f9df9af5d9ce3b1b836813197dae6b28bc406d53fb6ed963942e688  ARTIFACTS.md
-e2861e168a574fd82a7014b6fb589a40fbc06853b4a9a09047d8552469bf2cb7  README.md
+f4e7f0c2d002b12c2301fdd182c305731681aec60930391301a4b5ea397f6121  README.md
 cd39ed7ff5f48febea1ddc702ca2e913afdb26d8bb2a909c618174ebf06c672c  RUN_INDEX.md
 0792beeed813d94df2a1d9ce7bffe2f5e2a00a564de4a32aaecfa0182b8e6f8f  bench.py
 4b578dc988a24575da053b2df4a756c99f7ab9053c4f9a3fd4812ac9c4f4b4c6  conversation/conv_quality.py

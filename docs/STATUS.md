@@ -152,7 +152,7 @@ path segfaulted on this phone; the robot does not use b2351.
 
 Benchmarked on build 1609, 15 cycles, realistic robot prompt shape (fixed system
 prefix + varying scene): 11.5 tok/s median (11.1-11.9), prompt eval 1091 ms median,
-free RAM ~3.1 GB, zone9 97-101 °C. Prefix cache reuse confirmed on the live prompt
+free RAM ~3.1 GB, zone9 97-101 °C (CPU-core reading, not a heat state; #126). Prefix cache reuse confirmed on the live prompt
 shape — 109 tokens on the first call, 18-22 thereafter. EVIDENCE CONFLICT: the
 2026-09-26 rebuild report measured the original non-dotprod build at 6.5 gen
 tok/s (200-token reply), not 11.5; the conditions of the earlier figure are not
@@ -171,9 +171,14 @@ thresholds, formula, zone map, throttle checks, and evidence limitations are
 preserved in [PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
 
 Camera paths (3-min blocks, on battery): RobotCam 2.3 W vs
-`termux-camera-photo` 3.3 W over 0.7 W idle; zone9 rise +1.4 °C/min vs
-+3.1 °C/min (DECISIONS #122). Continuous YOLO reached 75–102 °C within a
-minute; Gemma conversation reached about 100 °C within a minute (#121, #124).
+`termux-camera-photo` 3.3 W over 0.7 W idle (DECISIONS #122; its zone9 rise
+rates are not trusted, #126). Measured (#126, room 22 °C): under RobotCam 2/s +
+640 every frame + continuous Gemma, the CPU is first capped within 2 s while the
+skin is about 32 °C; from 6 min the phone holds 3.68–4.24 W; status LIGHT at
+78 s, MODERATE at 10.7 min, SEVERE (skin 45 °C) at 18.3 min. Co-residency
+(#125): mix 4.1–4.3 W, 640-only 5.8–6.3 W. Heat rules decided, not implemented
+(#127); `main.py` still pauses on zone9 > 80 °C. Every heat reading in the repo
+is labelled in `benchmark/thermal_char/HEAT_EVIDENCE.md`.
 
 ## Memory
 
@@ -188,15 +193,16 @@ conversation benchmark. Without `--cache-ram 0`, one unique-question
 conversation run grew ~1.9 MiB/turn (then dropped 82 MiB, cause unrecorded;
 VmSwap not recorded); with it ~0.1 MiB/turn. Robot-shaped voice prompts did not
 grow either way. Qwen3.5-4B without the flag grew until Android killed it.
-`--cache-ram 0` is now passed (DECISIONS #115). Co-residency of a resident
-Gemma with YOLO and the drive loop is untested.
+`--cache-ram 0` is now passed (DECISIONS #115). Resident Gemma with RobotCam
+and yolo11s (motors off) measured: minimum MemAvailable 2523 MiB, no LMK kills
+(#125); with the drive loop it remains untested.
 
 Standalone chat uses ctx 4096 for Gemma E2B Q4_0/Q4_K_M and Qwen3.5 2B Q4_K_M; ctx 2048 for all other menu models. No controlled peak memory result at ctx 4096; archived conversation peaks used ctx 2048.
 
 Measured components (each alone): Gemma E2B Q4_0 selector peak 3920 MiB;
 Gemma + MTP drafter conversation peak 4584 MiB; Qwen3.5-4B about 5.0 GB;
 yolo11s RSS about 230 MiB (320) / 325 MiB (640); RobotCam app 36–39 MB PSS
-plus camera provider about 270 MB. Co-residency is untested (DECISIONS #124).
+plus camera provider about 270 MB. Measured together (#125): llama-server peak PSS 3851 MiB, runner 310 MiB, RobotCam 51 MiB, camera provider 253 MiB, minimum MemAvailable 2523 MiB; with the MTP drafter llama-server PSS 4154 MiB, MemAvailable 2619 MiB.
 
 ## Model vision
 
@@ -322,14 +328,14 @@ observations and follow-up are retained in
   DECISIONS #84's stated `git rm` did not occur in the checked repository; retain
   all seven until an explicit future removal task. `get_temp.py`/`thermal_guard.py` (#75) and `mission_test.py` remain
   deliberately kept; `nav_sim.py` was deleted (#118). 420 MB of unused ONNX models remains untouched.
-- **`get_temp()` pause threshold >80 °C is far below the operating band.**
-  Measured 97-101 °C sustained under inference, 31-38 °C idle; the kernel's own
-  passive trip for zone9 is 100 °C, so the chip runs in equilibrium at its designed
-  throttle point. The >80 °C pause would fire on nearly every check.
+- **`get_temp()` pause (zone9 > 80 °C) reads the wrong signal.** zone9 is a
+  CPU-core reading: it reaches about 100 °C within seconds under load, then is
+  held at 61–68 °C while the skin keeps rising (#126). The replacement rules are
+  decided but not implemented (#127).
   `thermal_guard.py`'s 82/86 are dead code — nothing imports it and `main.py` uses
   an inline `get_temp`. A replacement needs the correct thermal signal and a
   threshold validated against a real mission trace; neither is selected.
-  See DECISIONS #74, #75, #90.
+  See DECISIONS #74, #75, #90, #126, #127.
 - **Battery thermal zone number unconfirmed.** STATUS previously implied zone
   22; a later enumeration reported zone 25. Neither is canonical until a
   direct thermal_zoneN/type read confirms it.
@@ -386,10 +392,10 @@ observations and follow-up are retained in
 - benchmark/llm_objective_setting/ was published with the docs/WORKFLOW.md
   independent review WAIVED by human decision; the waiver is recorded in its
   README.
-- Co-residency test (DECISIONS #124) will decide the 320/640 mix versus
-  640-only and selector option 2 versus 3.
-- `oneshot.sh` screen-timeout restore is broken (DECISIONS #123); fix pending.
-- Archive the camera-heat run (`benchmark/camera_heat/` and results) in the repo.
+- YOLO power map (DECISIONS #127): 320 rate, 640 cadence and ONNX Runtime
+  cores/threads, each with a selector call every 20 s, 3 min blocks, capped
+  time per policy; then about 20 min confirming the chosen setting.
+- Implement the #127 heat rules in `main.py` (navigation work); needs independent review and a mission thermal trace.
 - RobotCam screen-off capture is untested; frame loss ends a mission
   (fail-closed, no retry by design).
 - Evaluate RelateAnything speed, RAM and weight licence after co-residency (#124).
@@ -417,7 +423,7 @@ or permission to execute hardware work.
    above and in COMMANDS.md §6.
 6. After the safety fix, perform the first motors-live autonomous run under human
    control, with wheels on a stand. Capture the mission thermal trace to validate
-   the sensor and a proposed pause threshold (#75, #90).
+   the #127 heat rules (#75, #90, #127).
 
 Mode 2 video/audio teleop remains parked indefinitely for thermal cost (#58).
 This does not park the serial-command firmware named `mode2_auto.ino`.

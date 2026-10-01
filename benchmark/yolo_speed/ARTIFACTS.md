@@ -82,10 +82,12 @@ Every archived file below with its SHA-256. Copied files were compared byte for 
 
 | Archive path | Bytes | SHA-256 |
 |---|---:|---|
-| `README.md` | 6554 | `215c32f4019c5543f19a2058095628ea129329afa85e75dfcbf11d5c0340b973` |
+| `README.md` | 6785 | `028b8b2fe2d9e168b8b4c8d076bd327a5b71a8ea0dfd23ee238d86448b0d45ba` |
 | `RUN_INDEX.md` | 841 | `40cdcc9bf3a0a3bb7c2d01c6af5b9c3841b978855495c19fd876972575638451` |
 | `run_yolo_speed.sh` | 1156 | `5fbd88589ba6000dabd52803a483bf9375189d2e627297bbda7a92be1f56d77c` |
 | `yolo_speed.py` | 12224 | `3c3f3bce387f3110029d13c2d2290ac75bebc442d68d4a38ae7b0d1eae1c6996` |
+
+README.md re-hashed 2026-10-01 after the heat banner (03ab5b5); previous SHA-256 215c32f4019c5543f19a2058095628ea129329afa85e75dfcbf11d5c0340b973.
 
 ## Not archived (hashed at archive time)
 
@@ -135,7 +137,7 @@ Every archived file below with its SHA-256. Copied files were compared byte for 
 ## sha256sum format
 
 ```sha256sums
-215c32f4019c5543f19a2058095628ea129329afa85e75dfcbf11d5c0340b973  README.md
+028b8b2fe2d9e168b8b4c8d076bd327a5b71a8ea0dfd23ee238d86448b0d45ba  README.md
 40cdcc9bf3a0a3bb7c2d01c6af5b9c3841b978855495c19fd876972575638451  RUN_INDEX.md
 12673ff36a3b73a8ee1dedfff3b3e628694147c24ce4a2a35f3ebf66180a21c6  frames/SHA256SUMS
 ba58ec06e389589546cdb24378b05d5dd3d00e79f53eacd44f2a4a6401d6344a  frames/SOURCES.txt

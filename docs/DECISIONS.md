@@ -1264,3 +1264,71 @@ Format: `NN. [area] decision — why`
      cycle. RelateAnything is a planned future object-relation context source
      for Gemma and the selector on periodic 640 frames. Its speed, RAM and
      weight licence are unmeasured; retain the detector's plain dict boxes.
+
+125. **Co-residency measured: keep the 320/640 mix; option 3 (resident Gemma also selects) decided.**
+     Run run_20261001T041743Z (archived `benchmark/coresidency/`, commit 03ab5b5),
+     native Termux, motors off, on battery, four 180 s blocks gated on VIRTUAL-SKIN ≤
+     idle + 1.5 °C and zone9 ≤ idle + 4 °C, RobotCam 2/s, yolo11s, Gemma E2B Q4_0
+     with server_manager's flags (not #119's), letter-scoring selector call every 20
+     s. Mix (SizePolicy drive mode, #121) vs 640-only: mean power 4.26 vs 6.26 W
+     without Gemma, 4.08 vs 5.77 W with it; 640 detect drift first/last 30 s 499 →
+     376 and 501 → 345 ms (mix) vs 357 → 555 and 358 → 566 ms (640-only); 320
+     median/P95 103/140 ms without Gemma, 108/443 ms with it. CPU caps per policy
+     (Coder analysis of the block JSONs, ARCHIVE1 report): mix without Gemma policy4
+     0%, policy6 6.1% (lowest 2630 MHz); 640-only policy4 76.4%, policy6 94.1%
+     (lowest 500 MHz); policy0 is capped about 99% in every block. Selector 9/9 calls
+     ok and correct in both Gemma blocks; median/P95 2168/2376 ms (mix) vs 2834/4819
+     ms (640-only). RAM: minimum MemAvailable 3849/3814 MiB without Gemma, 2532/2523
+     MiB with it; llama-server peak PSS 3851/3724 MiB; no LMK kills; RobotCam and
+     llama-server survived every block. Gemma load 5.44 s fully cold (page cache
+     dropped), 3.86 s warm. MTP drafter snapshot (RobotCam + both detector sessions +
+     Gemma with drafter): MemAvailable 2619 MiB, llama-server PSS 4154 MiB, VmHWM
+     4211 MiB; MTP deployment itself stays undecided. Option 2 (unload Gemma, load a
+     small selector) is not needed; it stays recorded in #124 as backup. This answers
+     #124's two open questions. Its zone9 rows are CPU-core readings, not heat state
+     (#126). Human decision 2026-10-01.
+
+126. **Heat measured: Android's skin-based governor sets the sustained limit; zone9 is not a heat signal.**
+     Phone config (`benchmark/thermal_char/phone_config/thermal_info_config.json`,
+     read from the phone): VIRTUAL-SKIN status thresholds 39/43/45/46.5/52/55 °C
+     (LIGHT … SHUTDOWN); VIRTUAL-SKIN-CPU 37/39/41/46.5/52/55 and
+     VIRTUAL-SKIN-CPU-GPU 37/43/45/46.5/52/55 drive cpufreq with hard caps from 46.5
+     °C. Run run_20260930T233208Z (archived `benchmark/thermal_char/`), room 22 °C,
+     phone in the robot mount, on battery, 1200 s of RobotCam 2/s + yolo11s 640 on
+     every frame + Gemma E2B Q4_0 streaming back-to-back: policy0 first capped at
+     +1.8 s and policy6 at +3.8 s while VIRTUAL-SKIN was 31.6 °C; from +360 s to the
+     stop the phone held 3.68–4.24 W (30 s timeline windows) with max MHz policy0
+     738–930, policy4 1024–1197, policy6 984, while zone9 read 61–68 °C. Android
+     status LIGHT at +77.9 s, MODERATE +642.9 s, SEVERE +1098.0 s; VIRTUAL-SKIN 45.4
+     °C and battery 40.9 °C at the stop; CRITICAL not reached. 640 detect median 1811
+     → 2967 ms and Gemma 5.6 → 3.2 tok/s, first vs last minute. After the stop:
+     SEVERE → MODERATE at +1252.9 s, MODERATE → LIGHT at +1327.8 s. This confirms #90
+     with measurements. zone9/10/11 are CPU-core sensors that reach about 100 °C
+     within seconds under load and are then held by the kernel, so heat conclusions
+     drawn from them are not trusted: #29's choice of zone9 as the thermal signal,
+     #74's equilibrium interpretation (its readings stand as readings), #110's
+     "thermally contaminated", #119's zone9 rise, #120's "thermally confounded",
+     #121's 75–102 °C, #122's zone9 rise rates (its power and RAM results stand) and
+     #124's heat reference. Speed, RAM and power results of those runs stand; whether
+     the CPU was capped during them is unknown. Every heat reading in the repo is
+     labelled in `benchmark/thermal_char/HEAT_EVIDENCE.md`. The power level that
+     keeps the medium and fast cores uncapped indefinitely is not measured.
+
+127. **Heat-management rules decided (not implemented); duty-cycle goal; next test is a YOLO power map.**
+     Owner decision 2026-10-01. The robot will watch Android thermal status
+     (skin-based) every 5–10 s: below SEVERE normal operation; SEVERE (skin ≥ 45 °C)
+     reduce load (no optional Gemma work, keep the mix); CRITICAL (≥ 46.5 °C) stop
+     the motors and pause until MODERATE; battery ≥ 45 °C hard stop; zone9/10/11 only
+     as a fault check (≥ 110 °C in 3 consecutive 1 s samples). This replaces
+     `main.py`'s zone9 > 80 °C pause, which stays live and unchanged until
+     implemented in the navigation work, with independent review and a mission
+     thermal trace. Owner goal: shape the duty cycle so the medium and fast cores run
+     uncapped most of the time, with Gemma triggered rarely, around how YOLO is used.
+     Next test: a YOLO power map in 3 min blocks, each with a selector call every 20
+     s, varying the 320 rate, the 640 cadence and ONNX Runtime cores/threads,
+     recording power, capped time per policy, skin rate and detect ms; then about 20
+     min confirming the chosen setting. The required detection rate depends on the
+     uncalibrated forward speed and remains UNKNOWN. #123's fix is in
+     `benchmark/coresidency/oneshot.sh` (archived 03ab5b5); the archived ladder
+     `oneshot.sh` stays as executed. From 2026-10-01 the owner uses Codex model
+     gpt-6.1-sol in place of gpt-6-sol.

@@ -398,13 +398,15 @@ Every archived file below with its SHA-256. Copied files were compared byte for 
 
 | Archive path | Bytes | SHA-256 |
 |---|---:|---|
-| `README.md` | 6540 | `d6a76e47fb21a852057df6c2d0aee6a464b4727eb93be1a208ba0e0da61b8d07` |
+| `README.md` | 7037 | `99f9e3e1e7b5ac95eb4fb00223aa70578f856581d526a87d7ff21202497ebcd4` |
 | `RUN_INDEX.md` | 1301 | `84a5b8b095beb3d2f78a33a4dc8bea28838f15d678bf0d9b6163e983b07cfa9a` |
+
+README.md re-hashed 2026-10-01 after the heat banner (03ab5b5); previous SHA-256 d6a76e47fb21a852057df6c2d0aee6a464b4727eb93be1a208ba0e0da61b8d07.
 
 ## sha256sum format
 
 ```sha256sums
-d6a76e47fb21a852057df6c2d0aee6a464b4727eb93be1a208ba0e0da61b8d07  README.md
+99f9e3e1e7b5ac95eb4fb00223aa70578f856581d526a87d7ff21202497ebcd4  README.md
 84a5b8b095beb3d2f78a33a4dc8bea28838f15d678bf0d9b6163e983b07cfa9a  RUN_INDEX.md
 41eeafd28e2ce499437f75091e2069bdd89d4e9e0d789f223ff4dd1c9bebb473  cases/ladder_cases_v1.jsonl
 c7e6d3c9dde9b52575fa5deeee4a7e1e06560ee7b609520d595532015dd16e4f  ladder.py

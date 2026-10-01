@@ -19,9 +19,13 @@ the final exam**: the selector is decided on an independent test set kept outsid
 | [yolo_speed/](yolo_speed/README.md) | YOLO11/26 n/s/m at 320/640 plus deployed yolo11m and int8, phone speed | 2026-09-28 | 11s@320 273 ms total (67 detect), m@640 908 ms; about 200 ms was 12 MP decode; int8 slower; NMS 7–35 ms | complete |
 | [robotcam/](robotcam/README.md) | RobotCam reader test tool | 2026-09-28 | 0 failed frames; rate 2 age median 0.38 s | tool |
 | [llm_objective_setting/conversation/conv_mtp/](llm_objective_setting/conversation/conv_mtp/README.md) | MTP speculative decoding, 13 English prompts | 2026-09-28 | Gemma 14.0 → 20.5 tok/s with identical output; Qwen 4B 8.6 tok/s | complete |
-| camera_heat/ | Camera path heat, power and RAM scripts | 2026-09-29 | RobotCam 2.3 W vs old path 3.3 W | results not yet archived |
+| [camera_heat/](camera_heat/README.md) | Camera path power and RAM (temperatures NOT TRUSTED, zone9) | 2026-09-29 | RobotCam 2.3 W vs old path 3.3 W | complete (power/RAM only) |
+| [coresidency/](coresidency/README.md) | RobotCam + yolo11s mix vs 640-only, with and without resident Gemma + selector; skin-gated 3 min blocks | 2026-10-01 | mix 4.1–4.3 W vs 640-only 5.8–6.3 W; min MemAvailable 2523 MiB with Gemma; selector 9/9 | complete (#125) |
+| [thermal_char/](thermal_char/README.md) | Thermal characterization under the heaviest robot load, 20 min; phone thermal config; heat evidence register | 2026-09-30 | first CPU cap at +1.8 s (skin 31.6 °C); sustained 3.68–4.24 W; SEVERE at 18.3 min | complete (#126) |
 | [qwen_vision/](qwen_vision/README.md) | #105 Qwen3.5 VL benchmark harness, its offline test, projector sourcing report, AGY review and the earlier `qwen35_vision_probe.py` | 2026-09-14/16 | – (no result files archived; their location is unknown); harness edited after review, not re-reviewed | archived sources only |
 | [failclosed_108/](failclosed_108/README.md) | live verification output cited by #108, from local candidate `e5b4394`; the verified code was removed by #111 | 2026-09-14 | forced exception and `ERROR` response → STOP; KeyboardInterrupt propagated | historical evidence only |
+
+Heat readings: every temperature reading in these archives is labelled VALID or NOT TRUSTED in [thermal_char/HEAT_EVIDENCE.md](thermal_char/HEAT_EVIDENCE.md).
 
 Loose files: `run_benchmark.py` and `live_capture.jpg` predate these archives (April 2026) and are not
 part of any folder above.

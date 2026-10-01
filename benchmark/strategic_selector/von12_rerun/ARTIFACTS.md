@@ -50,13 +50,15 @@ Every archived file below with its SHA-256. Copied files were compared byte for 
 
 | Archive path | Bytes | SHA-256 |
 |---|---:|---|
-| `README.md` | 3586 | `edf7d044a86a3a0bb1bc73ed5a433bc1ac219f751aeb4d1c13b33f31124483b7` |
+| `README.md` | 3817 | `ace8731cd27db72930123b552dfa8476aaf94fa60e58a1c945a267fdd3ac0b28` |
 | `RUN_INDEX.md` | 1028 | `1d0c4cd548f59e888fc64a94302934cb42e52ec3a235ae4c31b375778029ab09` |
+
+README.md re-hashed 2026-10-01 after the heat banner (03ab5b5); previous SHA-256 edf7d044a86a3a0bb1bc73ed5a433bc1ac219f751aeb4d1c13b33f31124483b7.
 
 ## sha256sum format
 
 ```sha256sums
-edf7d044a86a3a0bb1bc73ed5a433bc1ac219f751aeb4d1c13b33f31124483b7  README.md
+ace8731cd27db72930123b552dfa8476aaf94fa60e58a1c945a267fdd3ac0b28  README.md
 1d0c4cd548f59e888fc64a94302934cb42e52ec3a235ae4c31b375778029ab09  RUN_INDEX.md
 de8a9f235a71d55bcc5af6daa26c6f1105331911e9c91be071228cea0819b1b7  raw/archived_freeze.txt
 0b21b0a73de0bde4eab128940f3f360ce095c217b3a4e674c33580cca0c2d929  raw/archived_pins.txt

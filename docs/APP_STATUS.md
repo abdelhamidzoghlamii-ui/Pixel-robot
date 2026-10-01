@@ -68,6 +68,8 @@ CP2102 unrooted   NOT YET EXERCISED — follow-up, not a blocker
 runner (PocketPal AI or Maid), the exact `gemma-4-e2b-it-q4_k_m.gguf` the robot
 uses, 10 minutes continuous generation, **screen on**.
 
+> Heat note (2026-10-01): zone9/10/11 are CPU-core readings, not a heat state; see DECISIONS #126 and `benchmark/thermal_char/HEAT_EVIDENCE.md`.
+
 ```
 sustained tok/s          7.4-7.6    (Termux baseline 11-12, STATUS.md)
 degradation over 10 min  NONE — stable across the full run

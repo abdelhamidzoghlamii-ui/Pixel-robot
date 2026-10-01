@@ -63,8 +63,10 @@ Every archived file below with its SHA-256. Copied files were compared byte for 
 
 | Archive path | Bytes | SHA-256 |
 |---|---:|---|
-| `README.md` | 3815 | `ad14e65db0cca0e22d58f0f821007d8ff5c39599654128bd5322121955cd411a` |
+| `README.md` | 4046 | `431a2698c31b32e5113b51d011ddfdb27f1e2301424dd3f406e8fcafb9a7b195` |
 | `RUN_INDEX.md` | 767 | `2d1022e42669b9ccf84b79ae5d680e51a7c972f5bf20db5e94b5d50ea6022b4c` |
+
+README.md re-hashed 2026-10-01 after the heat banner (03ab5b5); previous SHA-256 ad14e65db0cca0e22d58f0f821007d8ff5c39599654128bd5322121955cd411a.
 
 ## Executed scripts, archived one level up (same hashes as `reviews/review5/frozen.sha`)
 
@@ -85,7 +87,7 @@ Every archived file below with its SHA-256. Copied files were compared byte for 
 ## sha256sum format
 
 ```sha256sums
-ad14e65db0cca0e22d58f0f821007d8ff5c39599654128bd5322121955cd411a  README.md
+431a2698c31b32e5113b51d011ddfdb27f1e2301424dd3f406e8fcafb9a7b195  README.md
 2d1022e42669b9ccf84b79ae5d680e51a7c972f5bf20db5e94b5d50ea6022b4c  RUN_INDEX.md
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  conv_mtp_20260928T081906Z.stderr.txt
 3893faccf271f667a90e352443c3cc68fa119e0a361dc8dcc1eafd34ca40a4b0  conv_mtp_20260928T081906Z.stdout.txt
