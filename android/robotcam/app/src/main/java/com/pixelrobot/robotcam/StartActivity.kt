@@ -39,9 +39,20 @@ class StartActivity : Activity() {
         // Without the camera permission the service stops itself and says why in logcat.
         // `--es mode A` selects the repeating stream; default is mode B (preview + stills).
         // `--ei rate 2` publishes twice per second; default is once.
-        startForegroundService(Intent(this, CameraService::class.java)
+        val serviceIntent = Intent(this, CameraService::class.java)
             .putExtra(CameraService.EXTRA_MODE, intent.getStringExtra(CameraService.EXTRA_MODE))
-            .putExtra(CameraService.EXTRA_RATE, intent.getIntExtra(CameraService.EXTRA_RATE, 1)))
+            .putExtra(CameraService.EXTRA_RATE, intent.getIntExtra(CameraService.EXTRA_RATE, 1))
+        for (key in CameraPower.EXTRAS) {
+            if (intent.hasExtra(key)) serviceIntent.putExtras(android.os.Bundle().apply {
+                when (key) {
+                    "frame_ms" -> putInt(key, intent.getIntExtra(key, 0))
+                    "focus_diopters" -> putFloat(key, intent.getFloatExtra(key, -1f))
+                    "dump_characteristics" -> putBoolean(key, intent.getBooleanExtra(key, false))
+                    else -> putString(key, intent.getStringExtra(key))
+                }
+            })
+        }
+        startForegroundService(serviceIntent)
         finish()
     }
 }

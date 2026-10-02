@@ -216,3 +216,56 @@ Local: `gradle -p android/robotcam assembleDebug` with Gradle 8.14, JDK 17 and a
 Android SDK with platform 35.
 
 Toolchain: AGP 8.7.3, Kotlin 2.1.0, compileSdk/targetSdk 35, minSdk 29.
+
+
+## CAMPOWER1 test branch only
+
+These runtime extras are experiments, not decided for the robot. Omitting all
+new extras keeps the same requests, targets, sizes and publish scheduling. The
+JPEG reader contract, clocks and unpublish/generation checks remain unchanged.
+Result callbacks add diagnostic observation overhead, not request changes.
+
+| Extra | Type / values | Default |
+| --- | --- | --- |
+| capture_template | `--es`: still, preview, record (B shots only) | still |
+| processing | `--es`: default, fast, off | default (no overrides) |
+| focus_diopters | `--ef`: finite 0 to camera minimum-focus-distance limit | omitted (template AF) |
+| frame_ms | `--ei`: 0 or 200–500 | 0 (template AE and FPS) |
+| camera_id | `--es`: enumerated BACK camera ID | omitted (same first BACK ID) |
+| dump_characteristics | `--ez`: true/false | false |
+
+`processing` requests supported OFF/FAST NR, edge, hot pixel, aberration and
+shading (off falls back to FAST if OFF unavailable); tone-map FAST, face detection
+OFF, lens OIS and video stabilization OFF when advertised. Unavailable controls
+are left at template defaults, visible in requested/result fields.
+
+`frame_ms` requires MANUAL_SENSOR and sufficient maximum duration. AE warms up
+for at least 1 s and until CONVERGED or FLASH_REQUIRED, then copies result exposure
+and ISO and requests AE OFF with a longer frame duration. Every 30 s it restores
+AE until convergence. Exposure is preserved, not increased to fill the period;
+AWB/AF retain template behaviour unless fixed focus was explicitly supplied.
+The HAL may clamp/ignore duration: inspect RESULT, never infer fps from the extra.
+Non-convergence stays automatic and is labelled `ae_converging`, not manual.
+Unsupported options fail through unpublish/retry; invalid extra syntax stops.
+
+Example (human only, native Termux):
+
+```bash
+am start -n com.pixelrobot.robotcam/.StartActivity --ei frame_ms 500
+am start -n com.pixelrobot.robotcam/.StartActivity --es processing off
+am start -n com.pixelrobot.robotcam/.StartActivity --ez dump_characteristics true
+```
+
+A plain start resets all options. A changed option restarts the camera through
+the existing generation checks. `frame.json` now always contains `variant` and
+`power.options`, `power.requested`, `power.result`, camera ID, result frame number,
+sensor timestamp and manual phase. These are the **latest completed request**
+observation (possibly preview/previous frame), not a promise of a JPEG-matched
+result. Null means unreported/unrequested. The sidecar itself must be paired with
+JPEG session/frame for benchmark diagnostics; robot readers still read JPEG alone.
+The optional all-ID dump is `Download/robotcam/characteristics.json`, refreshed
+on camera open/retry when asked, never a frame or reader dependency.
+
+CI builds `robotcam-camera-power`, artifact `robotcam-debug-apk`; a new CI debug
+signature usually needs uninstall/reinstall and deletion of the old output folder
+from Termux to restore shared-storage ownership. Hardware and savings unverified.

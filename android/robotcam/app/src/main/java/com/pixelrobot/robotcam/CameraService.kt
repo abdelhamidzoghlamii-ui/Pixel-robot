@@ -70,6 +70,7 @@ class CameraService : Service() {
     @Volatile private var rate = 1
     private val periodMs get() = 1000L / rate
     private var sessionId = ""
+    @Volatile private var power = CameraPower()
 
     // Camera state; touched only on camThread.
     private lateinit var camThread: HandlerThread
@@ -135,7 +136,13 @@ class CameraService : Service() {
         val askedRate = intent?.getIntExtra(EXTRA_RATE, 1) ?: 1
         val reqRate = if (askedRate == 2) 2 else 1
         if (askedRate != reqRate) Log.i(TAG, "ERROR rate $askedRate not supported, using 1")
+        val reqPower = try { CameraPower.from(intent) } catch (e: IllegalArgumentException) {
+            Log.i(TAG, "ERROR camera power options refused", e)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (!running) {
+            power = reqPower
             running = true
             mode = reqMode
             rate = reqRate
@@ -150,9 +157,10 @@ class CameraService : Service() {
             camHandler = Handler(camThread.looper)
             camHandler.post { openCamera() }
             writer = Thread(::writeLoop, "robotcam-writer").also { it.start() }
-        } else if (reqMode != mode || reqRate != rate) {
+        } else if (reqMode != mode || reqRate != rate || reqPower != power) {
             camHandler.post {
                 Log.i(TAG, "switching mode $mode -> $reqMode, rate $rate -> $reqRate/s")
+                power = reqPower
                 mode = reqMode
                 rate = reqRate
                 restartCamera("config change")
@@ -193,11 +201,21 @@ class CameraService : Service() {
         val myGen = gen
         val manager = getSystemService(CameraManager::class.java)
         try {
-            val id = manager.cameraIdList.first {
+            if (power.dump) {
+                outDir.mkdirs()
+                writeAtomic("characteristics.json", CameraPower.characteristics(manager).toByteArray())
+            }
+            val id = if (power.cameraId.isNotEmpty()) {
+                require(power.cameraId in manager.cameraIdList) { "camera_id not enumerated" }
+                require(manager.getCameraCharacteristics(power.cameraId).get(CameraCharacteristics.LENS_FACING) ==
+                    CameraCharacteristics.LENS_FACING_BACK) { "camera_id must face BACK" }
+                power.cameraId
+            } else manager.cameraIdList.first {
                 manager.getCameraCharacteristics(it).get(CameraCharacteristics.LENS_FACING) ==
                     CameraCharacteristics.LENS_FACING_BACK
             }
             val chars = manager.getCameraCharacteristics(id)
+            power.configure(chars, id)
             val map = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
             yuvSizes = map.getOutputSizes(ImageFormat.YUV_420_888).toList()
             val (chosen, rule) = chooseFrameSize(yuvSizes)
@@ -258,11 +276,11 @@ class CameraService : Service() {
                     nextStreamDue = 0L
                     if (mode == MODE_A) {
                         s.setRepeatingRequest(request(camera, CameraDevice.TEMPLATE_PREVIEW,
-                            frameSurface), null, camHandler)
+                            frameSurface), resultCallback(myGen), camHandler)
                     } else {
                         s.setRepeatingRequest(request(camera, CameraDevice.TEMPLATE_PREVIEW,
-                            previewSurface!!), null, camHandler)
-                        stillRequest = request(camera, CameraDevice.TEMPLATE_STILL_CAPTURE,
+                            previewSurface!!), resultCallback(myGen), camHandler)
+                        stillRequest = request(camera, power.stillTemplate,
                             frameSurface)
                         stillInFlight = false
                         camHandler.removeCallbacks(stillTick)
@@ -288,7 +306,29 @@ class CameraService : Service() {
         camera.createCaptureRequest(template).apply {
             addTarget(target)
             set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fps)
+            power.apply(this)
         }.build()
+
+    private fun resultCallback(myGen: Long) = object : CameraCaptureSession.CaptureCallback() {
+        override fun onCaptureCompleted(
+            session: CameraCaptureSession, request: CaptureRequest, result: TotalCaptureResult
+        ) { observeResult(myGen, request, result) }
+    }
+
+    private fun observeResult(myGen: Long, request: CaptureRequest, result: TotalCaptureResult) {
+        if (myGen != gen || !running) return
+        try {
+            if (power.observe(request, result)) {
+                val camera = device ?: return
+                val target = if (mode == MODE_A) frameReader!!.surface else previewReader!!.surface
+                session!!.setRepeatingRequest(this.request(camera, CameraDevice.TEMPLATE_PREVIEW, target),
+                    resultCallback(myGen), camHandler)
+                if (mode == MODE_B) stillRequest = this.request(camera, power.stillTemplate, frameReader!!.surface)
+            }
+        } catch (e: Exception) {
+            failed("power result/request", e)
+        }
+    }
 
     /** Mode B: one still per period; skipped while the previous one is still in flight. */
     private fun captureStill() {
@@ -302,7 +342,11 @@ class CameraService : Service() {
             s.capture(req, object : CameraCaptureSession.CaptureCallback() {
                 override fun onCaptureCompleted(
                     session: CameraCaptureSession, request: CaptureRequest, result: TotalCaptureResult
-                ) { if (myGen == gen) stillInFlight = false }
+                ) {
+                    if (myGen != gen || !running) return
+                    stillInFlight = false
+                    observeResult(myGen, request, result)
+                }
                 override fun onCaptureFailed(
                     session: CameraCaptureSession, request: CaptureRequest, failure: CaptureFailure
                 ) {
@@ -461,7 +505,7 @@ class CameraService : Service() {
             """"width":${f.width},"height":${f.height},"size_rule":"$sizeRule",""" +
             """"jpeg_quality":$JPEG_QUALITY,"encode_ms":$encodeMs,"exif_orientation":$exifOrientation,""" +
             """"bytes":${jpeg.size},"fps_min":${fps.lower},"fps_max":${fps.upper},""" +
-            """"clock":"$clock",""" +
+            """"clock":"$clock","variant":${org.json.JSONObject.quote(power.variant)},"power":${power.diagnostics()},""" +
             """"yuv_sizes":[${yuvSizes.joinToString(",") { "\"${it.width}x${it.height}\"" }}]}""" +
             "\n"
         synchronized(lock) {
