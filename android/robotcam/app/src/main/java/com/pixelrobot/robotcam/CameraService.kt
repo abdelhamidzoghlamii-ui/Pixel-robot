@@ -236,7 +236,7 @@ class CameraService : Service() {
                 ImageFormat.YUV_420_888, 3).apply {
                 setOnImageAvailableListener({ r -> onFrame(r) }, camHandler)
             }
-            if (mode == MODE_B) {
+            if (mode == MODE_B && power.frameMs == 0) {
                 val small = choosePreviewSize(yuvSizes, size)
                 Log.i(TAG, "preview surface YUV ${small.width}x${small.height}")
                 previewReader = ImageReader.newInstance(small.width, small.height,
@@ -274,7 +274,13 @@ class CameraService : Service() {
                 session = s
                 try {
                     nextStreamDue = 0L
-                    if (mode == MODE_A) {
+                    if (power.frameMs != 0) {
+                        // Opt-in manual B streams its chosen template directly to the frame
+                        // surface. No still is queued behind long preview pipeline frames.
+                        s.setRepeatingRequest(request(camera,
+                            if (mode == MODE_B) power.stillTemplate else CameraDevice.TEMPLATE_PREVIEW,
+                            frameSurface), resultCallback(myGen), camHandler)
+                    } else if (mode == MODE_A) {
                         s.setRepeatingRequest(request(camera, CameraDevice.TEMPLATE_PREVIEW,
                             frameSurface), resultCallback(myGen), camHandler)
                     } else {
@@ -320,10 +326,12 @@ class CameraService : Service() {
         try {
             if (power.observe(request, result)) {
                 val camera = device ?: return
-                val target = if (mode == MODE_A) frameReader!!.surface else previewReader!!.surface
-                session!!.setRepeatingRequest(this.request(camera, CameraDevice.TEMPLATE_PREVIEW, target),
+                val streamingFrames = mode == MODE_A || power.frameMs != 0
+                val target = if (streamingFrames) frameReader!!.surface else previewReader!!.surface
+                val template = if (mode == MODE_B && power.frameMs != 0) power.stillTemplate else CameraDevice.TEMPLATE_PREVIEW
+                session!!.setRepeatingRequest(this.request(camera, template, target),
                     resultCallback(myGen), camHandler)
-                if (mode == MODE_B) stillRequest = this.request(camera, power.stillTemplate, frameReader!!.surface)
+                if (mode == MODE_B && power.frameMs == 0) stillRequest = this.request(camera, power.stillTemplate, frameReader!!.surface)
             }
         } catch (e: Exception) {
             failed("power result/request", e)
@@ -371,7 +379,15 @@ class CameraService : Service() {
         try {
             val image = r.acquireLatestImage() ?: return
             image.use {
-                if (mode == MODE_A) {
+                if (power.frameMs != 0) {
+                    val now = if (realtimeTimestamps) it.timestamp / 1_000_000 else SystemClock.elapsedRealtime()
+                    // Anchor to the prior deadline: now+period skips every other 1 Hz
+                    // frame when callbacks jitter. Half a frame selects the nearest sample.
+                    val tolerance = minOf(power.frameMs.toLong(), periodMs) / 2
+                    if (now < nextStreamDue - tolerance) return
+                    nextStreamDue = if (nextStreamDue == 0L) now + periodMs else
+                        maxOf(nextStreamDue + periodMs, now + periodMs - tolerance)
+                } else if (mode == MODE_A) {
                     val now = SystemClock.elapsedRealtime()
                     if (now < nextStreamDue) return
                     nextStreamDue = now + periodMs

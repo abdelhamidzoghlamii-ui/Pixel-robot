@@ -21,6 +21,7 @@ data class CameraPower(
     private var chars: CameraCharacteristics? = null
     private var manualExposure: Long? = null
     private var manualIso: Int? = null
+    private var manualBoost: Int? = null
     private var phaseAt = 0L
     private var active = false
     private val overrides = linkedMapOf<CaptureRequest.Key<Int>, Int>()
@@ -40,6 +41,7 @@ data class CameraPower(
         active = false
         manualExposure = null
         manualIso = null
+        manualBoost = null
         phaseAt = SystemClock.elapsedRealtime()
         observation = null
         overrides.clear()
@@ -81,7 +83,8 @@ data class CameraPower(
             if (active) {
                 b.set(CaptureRequest.SENSOR_EXPOSURE_TIME, manualExposure!!)
                 b.set(CaptureRequest.SENSOR_SENSITIVITY, manualIso!!)
-                b.set(CaptureRequest.SENSOR_FRAME_DURATION, maxOf(frameMs * 1_000_000L, manualExposure!!))
+                b.set(CaptureRequest.SENSOR_FRAME_DURATION, frameMs * 1_000_000L)
+                manualBoost?.let { b.set(CaptureRequest.CONTROL_POST_RAW_SENSITIVITY_BOOST, it) }
             }
         }
     }
@@ -107,8 +110,10 @@ data class CameraPower(
             if (c.get(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE)?.contains(exposure) != true ||
                 c.get(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE)?.contains(iso) != true) return false
             // Keep converged exposure; a longer frame period must not introduce extra motion blur.
-            manualExposure = exposure
+            manualExposure = minOf(exposure, frameMs * 1_000_000L)
             manualIso = iso
+            manualBoost = if (c.availableCaptureRequestKeys.contains(CaptureRequest.CONTROL_POST_RAW_SENSITIVITY_BOOST))
+                result.get(CaptureResult.CONTROL_POST_RAW_SENSITIVITY_BOOST) else null
             active = true
             phaseAt = now
             return true
@@ -127,6 +132,7 @@ data class CameraPower(
         field("frame_duration_ns", CaptureRequest.SENSOR_FRAME_DURATION, CaptureResult.SENSOR_FRAME_DURATION)
         field("exposure_ns", CaptureRequest.SENSOR_EXPOSURE_TIME, CaptureResult.SENSOR_EXPOSURE_TIME)
         field("iso", CaptureRequest.SENSOR_SENSITIVITY, CaptureResult.SENSOR_SENSITIVITY)
+        field("post_raw_boost", CaptureRequest.CONTROL_POST_RAW_SENSITIVITY_BOOST, CaptureResult.CONTROL_POST_RAW_SENSITIVITY_BOOST)
         field("ae_mode", CaptureRequest.CONTROL_AE_MODE, CaptureResult.CONTROL_AE_MODE)
         field("af_mode", CaptureRequest.CONTROL_AF_MODE, CaptureResult.CONTROL_AF_MODE)
         field("nr_mode", CaptureRequest.NOISE_REDUCTION_MODE, CaptureResult.NOISE_REDUCTION_MODE)
@@ -148,7 +154,7 @@ data class CameraPower(
     }
 
     fun diagnostics(): String = (observation?.let { JSONObject(observationJson(it.first, it.second)) }
-        ?: JSONObject()).put("options", JSONObject()
+        ?: JSONObject()).put("schema_version", 2).put("options", JSONObject()
         .put("capture_template", template).put("processing", processing)
         .put("focus_diopters", focus ?: JSONObject.NULL).put("frame_ms", frameMs)
         .put("camera_id", cameraId).put("dump_characteristics", dump)).toString()
@@ -164,7 +170,7 @@ data class CameraPower(
             require(p.template in listOf("still", "preview", "record")) { "invalid capture_template" }
             require(p.processing in listOf("default", "fast", "off")) { "invalid processing" }
             require(p.focus == null || (p.focus.isFinite() && p.focus >= 0f)) { "invalid focus_diopters" }
-            require(p.frameMs == 0 || p.frameMs in 200..500) { "frame_ms must be 0 or 200..500" }
+            require(p.frameMs == 0 || p.frameMs in 100..1000) { "frame_ms must be 0 or 100..1000" }
             return p
         }
 

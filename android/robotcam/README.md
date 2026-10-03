@@ -230,7 +230,7 @@ Result callbacks add diagnostic observation overhead, not request changes.
 | capture_template | `--es`: still, preview, record (B shots only) | still |
 | processing | `--es`: default, fast, off | default (no overrides) |
 | focus_diopters | `--ef`: finite 0 to camera minimum-focus-distance limit | omitted (template AF) |
-| frame_ms | `--ei`: 0 or 200–500 | 0 (template AE and FPS) |
+| frame_ms | `--ei`: 0 or 100–1000 | 0 (template AE and FPS) |
 | camera_id | `--es`: enumerated BACK camera ID | omitted (same first BACK ID) |
 | dump_characteristics | `--ez`: true/false | false |
 
@@ -240,9 +240,11 @@ OFF, lens OIS and video stabilization OFF when advertised. Unavailable controls
 are left at template defaults, visible in requested/result fields.
 
 `frame_ms` requires MANUAL_SENSOR and sufficient maximum duration. AE warms up
-for at least 1 s and until CONVERGED or FLASH_REQUIRED, then copies result exposure
-and ISO and requests AE OFF with a longer frame duration. Every 30 s it restores
-AE until convergence. Exposure is preserved, not increased to fill the period;
+for at least 1 s and until CONVERGED or FLASH_REQUIRED, then copies result exposure,
+ISO and post-RAW sensitivity boost (when the result reports it and the request
+key is available), and requests AE OFF with the chosen frame duration. Every 30 s it restores
+AE until convergence. Exposure is clamped to at most that duration and never increased above the
+converged value;
 AWB/AF retain template behaviour unless fixed focus was explicitly supplied.
 The HAL may clamp/ignore duration: inspect RESULT, never infer fps from the extra.
 Non-convergence stays automatic and is labelled `ae_converging`, not manual.
@@ -269,3 +271,23 @@ on camera open/retry when asked, never a frame or reader dependency.
 CI builds `robotcam-camera-power`, artifact `robotcam-debug-apk`; a new CI debug
 signature usually needs uninstall/reinstall and deletion of the old output folder
 from Termux to restore shared-storage ownership. Hardware and savings unverified.
+
+
+## CAMPOWER2 manual cadence fix (test branch only)
+
+With `frame_ms` set, both modes use a repeating request to the publish YUV
+surface, including AE convergence. Manual B uses `capture_template` (still by
+default); manual A uses PREVIEW. Manual B has no small preview surface or queued
+periodic still requests: long preview frames previously delayed those captures.
+No extras retains B's original preview + periodic still path and A's original
+pacing. The opt-in stream selects frames against an anchored publish deadline,
+with half a sensor-frame tolerance so 500/1000 ms cadence is not halved by jitter.
+Non-divisors of the publish period produce quantized intervals around the rate;
+actual cadence and freshness still require a phone check. Re-convergence remains
+every 30 s. Manual behaviour and low-light brightness are not hardware-verified.
+
+`power.schema_version=2` identifies this build to the updated local benchmark.
+`post_raw_boost` appears in both requested and RESULT diagnostics; null means
+unavailable/unreported. Older smoke logs did not record boost, so the dark-room
+brightness cause is a hypothesis, not a confirmed diagnosis. Latest RESULT still
+need not belong to the JPEG. Reader JPEG comments, age limits and clocks are unchanged.
