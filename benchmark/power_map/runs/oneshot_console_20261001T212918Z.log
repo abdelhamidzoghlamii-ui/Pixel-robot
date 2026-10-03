@@ -1,0 +1,60 @@
+[oneshot] screen timeout was 1800000 ms; set to 2147483647 for the run (read back)
+[oneshot] CPU-core reading, not a heat state: 2026-10-01T21:29:24Z z9=37000 z10=37000 z11=37000 CPU-core_reading,_not_a_heat_state=1
+[oneshot] idling 5 minutes; keep Termux in front
+[oneshot] CPU-core reading, not a heat state after idle: 2026-10-01T21:34:25Z z9=30000 z10=29000 z11=30000 CPU-core_reading,_not_a_heat_state=1
+/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_validation.py:66: UserWarning: Unsupported platform (android). ONNX Runtime supports Linux, macOS, AIX and Windows platforms, only.
+  warnings.warn(
+Blocks: R1_r2_c5, R1_r2_c10, R1_r2_off
+Estimated wall time 6.0-6.0 min + load/warm-up and camera checks (includes 5 min launcher idle and up to 8 min per block/start gate).
+[R1_r2_c5] start: skin 27.6813 degC, z9 47.0 degC (CPU-core reading, not a heat state; waited 0 s)
+[R1_r2_c10] start: skin 30.455502 degC, z9 45.0 degC (CPU-core reading, not a heat state; waited 0 s)
+[R1_r2_off] start: skin 31.499102 degC, z9 45.0 degC (CPU-core reading, not a heat state; waited 0 s)
+Power map run_20261001T213425Z_R1_smoke, set R1 [SMOKE: functional check only]
+
+| metric | R1_r2_c5 | R1_r2_c10 | R1_r2_off |
+| --- | --- | --- | --- |
+| rate / cadence / threads | 2 / 5 / default | 2 / 10 / default | 2 / off / default |
+| frames processed | 40 | 40 | 40 |
+| failed reads | none | none | none |
+| detect320 ms median/P95 (n) | 111/463 (37) | 108/433 (39) | 110/369 (40) |
+| detect640 ms median/P95 (n) | 579/580 (3) | 531/531 (1) | n/a/n/a (0) |
+| 640 drift first/last 30 s | 579 -> 579 | 531 -> 531 | n/a |
+| frame age s median | 0.54 | 0.37 | 0.34 |
+| selector ms median/P95 | 2643/2643 | 1661/1661 | 1600/1600 |
+| selector ok/err/correct | 1/0/1 | 1/0/1 | 1/0/1 |
+| mean battery W | 4.13 | 2.23 | 3.48 |
+| VIRTUAL-SKIN start/end/max C | 27.7/29.9/29.9 | 30.5/31.5/31.5 | 31.5/32.3/32.3 |
+| skin rise rate C/min | 7.232 | 3.477 | 2.694 |
+| Android status max | 0 | 0 | 0 |
+| Android status changes | 0.0s NONE(0) | 0.0s NONE(0) | 0.0s NONE(0) |
+| min MemAvailable MiB | 2437 | 2533 | 2548 |
+| max swap MiB | 1974 | 1449 | 1423 |
+| LMK lines (kill lines) | 50 (48) | 1 (0) | 2 (0) |
+| RobotCam / llama-server survival | yes / yes | yes / yes | yes / yes |
+| gate wait s | 0 | 0 | 0 |
+| warm start | no | no | no |
+| stop limit / time s | none / n/a | none / n/a | none / n/a |
+| ORT version | 1.25.1 | 1.25.1 | 1.25.1 |
+| ORT intra-op option (0=auto) | {'320': 0, '640': 0} | {'320': 0, '640': 0} | {'320': 0, '640': 0} |
+| default intra-op count observed | 4 | 4 | 4 |
+| ORT workers observed CPUs / allowed | not requested | not requested | not requested |
+| policy0 capped s (% of block) | 19.0 (93.9%) | 17.9 (89.3%) | 18.0 (89.8%) |
+| policy0 lowest scaling_max MHz | 1401 | 1401 | 1401 |
+| policy4 capped s (% of block) | 0.0 (0.0%) | 0.0 (0.0%) | 0.0 (0.0%) |
+| policy4 lowest scaling_max MHz | 2348 | 2348 | 2348 |
+| policy6 capped s (% of block) | 0.0 (0.0%) | 1.1 (5.2%) | 1.0 (5.0%) |
+| policy6 lowest scaling_max MHz | 2850 | 2802 | 2802 |
+
+Skin rise rate: least-squares slope of in-block 5 s VIRTUAL-SKIN readings versus monotonic time, C/min.
+Capped time is separate per policy: scaling_max_freq < cpuinfo_max_freq. Each in-block 1 s sample owns the gap since the previous in-block sample (first owns time from zero); skipped-slot gaps belong to the later reading; unreadable is unknown and INCOMPLETE; tail after last sample is not counted. Percent denominator is actual block duration. policy4/policy6 are the target; policy0 is reported only.
+Skin start includes the first monitor dump during camera startup; status changes use the latest pre-block state at t=0.
+Gate: VIRTUAL-SKIN <= idle + 1.5 C; after 8 min start marked warm. Smoke skips waiting.
+zone9/10/11 in raw JSON and thermal.log: CPU-core reading, not a heat state; CPU readings are fault checks only.
+ORT observations: /proc task stat processor is the last scheduled CPU at each 1 s sample, not a full scheduler trace. CPU lists count samples only after per-thread utime+stime ticks advance since the preceding sample; the first sample is a baseline. Idle workers retain stale processor values, which are not execution evidence. Sub-tick work and the initial sampling interval may be missed. Cpus_allowed_list is sampled for every runner thread, including idle workers. Only newly created ORT session workers are pinned; mid/little also pin a dedicated detector calling thread, which participates in intra-op work. Default uses the deployed caller. Default count = observed created workers / two sessions + one caller; intra-op option 0 means automatic.
+Detect ms includes resize, inference and NMS. 640 drift = first/last 30 s medians. Battery W = -current_now*voltage_now/1e12; sampler/PSS every 5 s. Selector uses coresidency cases and letter scoring every 20 s. Block limits and INCOMPLETE rules inherited from coresidency, with required sizes adapted to cadence.
+Gemma resident for this invocation; no cold load, cache drop or MTP snapshot.
+Server command: /data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1
+
+[oneshot] done; console log: /data/data/com.termux/files/home/power_map/oneshot_console_20261001T212918Z.log
+[oneshot] screen timeout restored to 1800000 ms; read back: 1800000
+[oneshot] stopped logger

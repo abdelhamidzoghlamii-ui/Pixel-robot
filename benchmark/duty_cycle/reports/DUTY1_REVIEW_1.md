@@ -1,0 +1,7 @@
+1. **[P1] Restore POWERMAP’s rate-1 frame pacing** — [duty_cycle.py:365](/termux-home/robot/benchmark/duty_cycle/duty_cycle.py:365). The loop sleeps only 50 ms after a new frame and 20 ms after repeats. Repeat detection happens after `read_frame()` reads and decodes the JPEG, so CAM and Active repeatedly decode unchanged frames between camera captures. POWERMAP instead paces successful reads to one second. This adds CPU and battery load while the report can still declare the measurement complete, undermining the requested CONFIRM workload and power comparison. Preserve POWERMAP’s pacing and add an offline cadence check.
+
+2. **[P1] Finish selector cleanup before retrying on core loss** — [duty_cycle.py:387](/termux-home/robot/benchmark/duty_cycle/duty_cycle.py:387), [duty_cycle.py:698](/termux-home/robot/benchmark/duty_cycle/duty_cycle.py:698). During selector draining, `limit()` can raise `CoresLost`, escaping cleanup before the selector thread is joined. The retry handler stops the camera but retains the server and selector. A slow in-flight request can therefore overlap the replacement block, consume unrecorded CPU/power, and contaminate numbers subsequently reported as valid. Ensure exceptional cleanup cancels or drains the request and joins its thread before any retry; test core loss during a pending call.
+
+HEAD and both supplied POWERMAP hashes matched. No edits or hardware execution occurred. Further inspection encountered a sandbox mount error; tests were not independently rerun.
+
+**REQUEST CHANGES**

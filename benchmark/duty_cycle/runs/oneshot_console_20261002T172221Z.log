@@ -1,0 +1,22 @@
+[oneshot] screen timeout was 1800000 ms; set to 2147483647 for the run (read back)
+[oneshot] CPU-core reading, not a heat state: 2026-10-02T17:22:27Z z9=32000 z10=32000 z11=32000 CPU-core_reading,_not_a_heat_state=1
+[oneshot] idling 5 minutes; keep Termux in front
+[oneshot] CPU-core reading, not a heat state after idle: 2026-10-02T17:27:28Z z9=26000 z10=26000 z11=27000 CPU-core_reading,_not_a_heat_state=1
+/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_validation.py:66: UserWarning: Unsupported platform (android). ONNX Runtime supports Linux, macOS, AIX and Windows platforms, only.
+  warnings.warn(
+Blocks: CONT 20s, CYC50 20s, CYC25 20s, HEATCOOL 50s
+Estimated wall time 7.8-7.8 min + loads/warm-up, camera checks and call drain; includes launcher 5 min idle and 60 s post-warm-up wait.
+Post-warm-up: waiting 60 s unrecorded
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/robot/benchmark/duty_cycle/duty_cycle.py", line 778, in <module>
+    main()
+    ~~~~^^
+  File "/data/data/com.termux/files/home/robot/benchmark/duty_cycle/duty_cycle.py", line 733, in main
+    cr.check_cores('after post-warm-up wait')
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/robot/benchmark/coresidency/coresidency.py", line 298, in check_cores
+    raise CoresLost(f'cores 4-7 not all allowed {when} (allowed {sorted(allowed_cpus())})')
+coresidency.CoresLost: cores 4-7 not all allowed after post-warm-up wait (allowed [0, 1, 2, 3, 4, 5])
+[oneshot] RUNNER FAILED (exit 1); console log: /data/data/com.termux/files/home/duty_cycle/oneshot_console_20261002T172221Z.log
+[oneshot] screen timeout restored to 1800000 ms; read back: 1800000
+[oneshot] stopped logger

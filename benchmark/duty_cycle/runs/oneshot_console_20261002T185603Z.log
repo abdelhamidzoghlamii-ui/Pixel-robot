@@ -1,0 +1,151 @@
+[oneshot] screen timeout was 1800000 ms; set to 2147483647 for the run (read back)
+[oneshot] CPU-core reading, not a heat state: 2026-10-02T18:56:09Z z9=33000 z10=32000 z11=33000 CPU-core_reading,_not_a_heat_state=1
+[oneshot] idling 5 minutes; keep Termux in front
+[oneshot] CPU-core reading, not a heat state after idle: 2026-10-02T19:01:10Z z9=26000 z10=26000 z11=26000 CPU-core_reading,_not_a_heat_state=1
+/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_validation.py:66: UserWarning: Unsupported platform (android). ONNX Runtime supports Linux, macOS, AIX and Windows platforms, only.
+  warnings.warn(
+Blocks: CONT 20s, CYC50 20s, CYC25 20s, HEATCOOL 50s
+Estimated wall time 7.8-7.8 min + loads/warm-up, camera checks and call drain; includes launcher 5 min idle and 60 s post-warm-up wait.
+Post-warm-up: waiting 60 s unrecorded
+[CONT] selector drain 0.000s; finished
+[CYC50] selector drain 0.000s; finished
+[CYC50] selector drain 0.000s; finished
+[CYC25] selector drain 0.000s; finished
+[CYC25] selector drain 0.000s; finished
+[HEATCOOL] selector drain 0.000s; finished
+DUTY1 run_20261002T190111Z_CYCLE_smoke set CYCLE [SMOKE: not a measurement]
+INCOMPLETE: CYC50: camera phase missing 640 detection
+INCOMPLETE: CYC25: camera phase missing 640 detection
+Battery: current_now x voltage_now, sampled every 0.5 s; fuel-gauge averaging is unverified.
+Energy: derived trapezoidal integral with interpolated edges; missing coverage/gap >1.5 s = n/a.
+Block mean excludes the initial sampler startup sliver before the first battery reading.
+Capped s: POWERMAP later-reading convention, skipped gaps belong to later sample, no tail credit.
+zone9/10/11: CPU-core reading, not a heat state
+Skin slope: least-squares in-block VIRTUAL-SKIN C/min.
+Selector cadence: 20 s accumulated planned active time; first slot zero; pauses add no time.
+Actual active spans include camera startup and drained calls; stop/check overhead belongs to pause.
+CPU seconds: utime+stime snapshots at block boundaries and before process stops; newly born PIDs count from zero.
+Server: /data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1
+
+CONT
+actual/planned s: 24.233/20
+mean battery W: 3.209
+CPU seconds: {"runner": 7.58, "llama_server": 4.63, "robotcam_app": 3.25, "camera_provider": 15.35}
+gate: {"at": "2026-10-02T19:02:21Z", "z9": 27000, "z10": 27000, "z11": 28000, "skin": 23.699501, "status": 0, "waited_s": 0, "warm_start": false}; CPU-core reading, not a heat state
+heat stop: {"reached_limit": false, "limit": null, "reason": null, "time_to_limit_s": null}; CPU-core reading, not a heat state
+ORT: {"caller_tid": 10635, "version": "1.25.1", "setting": "mid", "worker_tids": [10623, 10634], "intra_op_num_threads": {"320": 2, "640": 2}, "observed_default_intra_threads_per_session": null, "default_count_note": "observed created workers / two sessions + one calling thread; option 0 = auto"}
+MemAvailable samples: [{"t": 0.02712044198415242, "mem_available_mib": 2556, "swap_used_mib": 1588, "cached_mib": 2957}, {"t": 5.0275935889803804, "mem_available_mib": 2403, "swap_used_mib": 1559, "cached_mib": 2882}, {"t": 10.027682743995683, "mem_available_mib": 2321, "swap_used_mib": 1558, "cached_mib": 2884}, {"t": 15.030530849995557, "mem_available_mib": 2255, "swap_used_mib": 1563, "cached_mib": 2751}, {"t": 20.027884123992408, "mem_available_mib": 2264, "swap_used_mib": 1563, "cached_mib": 2751}]
+selector ok/err/correct: 1/0/1
+Android status changes: 0.1s NONE(0)
+LMK: {"lines": ["         1790967752.077  1514  1682 I am_cpu  : [495,1069,lmkd,40594,0,10]"], "n_lines": 1, "n_kills": 0, "logcat_rc": 0, "ok": true, "raw_head": "logcat_rc=0\n--------- beginning of main\n         1790967743.116 10639 10639 I AconfigPackage: com.android.webapp.flags is mapped to com.android.webapp\n         1790967743.116 10639 10639 I AconfigPackage: com.android.cellbroadcastreceiver.flags is mapped to com.android.cellbroadcast\n         1790967743.116 1063\n"}
+skin start/end/max C: 23.700/24.730/24.730
+skin slope C/min: 3.074
+detect320 ms median/P95, first/last 30s medians: [145.6739099812694, 219.15783701115288, [145.6739099812694, 145.6739099812694]]
+detect640 ms median/P95, first/last 30s medians: [561.3058280141558, 569.3688970059156, [561.3058280141558, 561.3058280141558]]
+policy0 capped s/% / lowest scaling_max MHz / unknown s: {"seconds": 17.004746590013383, "percent": 70.17186756243397, "unknown_s": 0.0, "lowest_mhz": 1401.0}
+policy4 capped s/% / lowest scaling_max MHz / unknown s: {"seconds": 0.0, "percent": 0.0, "unknown_s": 0.0, "lowest_mhz": 2348.0}
+policy6 capped s/% / lowest scaling_max MHz / unknown s: {"seconds": 0.0, "percent": 0.0, "unknown_s": 0.0, "lowest_mhz": 2850.0}
+derived cost above base P0 W: n/a
+derived selector energy J above P0, L1_01 at 2.306s: n/a
+whole-cycle mean W (complete cycles only): 3.470
+active mean W: 3.470
+pause mean W: n/a
+phases: [{"kind": "active", "start": 0.1309176019858569, "cycle": 0, "whole": true, "planned_s": 20, "nominal_s": 20, "completed": true, "selector_drain_s": 6.783098797313869e-05, "survival": true, "end": 20.46054179800558, "stop_end": 24.2329758410051}]
+frames processed/expected at 1/s: 18/20
+camera restart: {"t": 0.1309176019858569, "start_to_first_fresh_s": 2.1744859220052604, "retries": 0, "failures": 0, "session": "8c27ef022cb940d9", "frame": 1, "attempts": 1, "stop": {"stop_to_stopped_s": 3.5756823339906987, "capture_stopped": true, "frames_seen": [], "unreadable_reads": 0, "check_s": 3.07, "force_stop_rc": 0, "force_stop_output": "", "pids_after_force_stop": []}}
+
+CYC50
+actual/planned s: 26.173/20
+mean battery W: 2.846
+CPU seconds: {"runner": 4.98, "llama_server": 4.71, "robotcam_app": 3.77, "camera_provider": 12.43}
+gate: {"at": "2026-10-02T19:02:47Z", "z9": 51000, "z10": 43000, "z11": 44000, "skin": 24.9819, "status": 0, "waited_s": 0, "warm_start": false}; CPU-core reading, not a heat state
+heat stop: {"reached_limit": false, "limit": null, "reason": null, "time_to_limit_s": null}; CPU-core reading, not a heat state
+ORT: {"caller_tid": 11142, "version": "1.25.1", "setting": "mid", "worker_tids": [11131, 11141], "intra_op_num_threads": {"320": 2, "640": 2}, "observed_default_intra_threads_per_session": null, "default_count_note": "observed created workers / two sessions + one calling thread; option 0 = auto"}
+MemAvailable samples: [{"t": 0.03132531701703556, "mem_available_mib": 2446, "swap_used_mib": 1562, "cached_mib": 2748}, {"t": 5.041941775009036, "mem_available_mib": 2417, "swap_used_mib": 1559, "cached_mib": 2754}, {"t": 10.03362809700775, "mem_available_mib": 2341, "swap_used_mib": 1559, "cached_mib": 2755}, {"t": 15.033930915000383, "mem_available_mib": 2378, "swap_used_mib": 1559, "cached_mib": 2749}, {"t": 20.03156918301829, "mem_available_mib": 2328, "swap_used_mib": 1557, "cached_mib": 2755}, {"t": 25.031718559010187, "mem_available_mib": 2370, "swap_used_mib": 1557, "cached_mib": 2758}]
+selector ok/err/correct: 1/0/1
+Android status changes: 0.1s NONE(0)
+LMK: {"lines": [], "n_lines": 0, "n_kills": 0, "logcat_rc": 0, "ok": true, "raw_head": "logcat_rc=0\n--------- beginning of main\n         1790967768.625 11146 11146 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok\n         1790967768.626 11146 11146 D AndroidRuntime: Cal\n"}
+skin start/end/max C: 24.982/25.592/25.592
+skin slope C/min: 1.597
+detect320 ms median/P95, first/last 30s medians: [147.97283950611018, 190.31469800393097, [147.97283950611018, 147.97283950611018]]
+detect640 ms median/P95, first/last 30s medians: [562.4375410261564, 562.4375410261564, [562.4375410261564, 562.4375410261564]]
+policy0 capped s/% / lowest scaling_max MHz / unknown s: {"seconds": 11.000657027965644, "percent": 42.03067882371018, "unknown_s": 0.0, "lowest_mhz": 1401.0}
+policy4 capped s/% / lowest scaling_max MHz / unknown s: {"seconds": 0.0, "percent": 0.0, "unknown_s": 0.0, "lowest_mhz": 2348.0}
+policy6 capped s/% / lowest scaling_max MHz / unknown s: {"seconds": 0.0, "percent": 0.0, "unknown_s": 0.0, "lowest_mhz": 2850.0}
+derived cost above base P0 W: n/a
+derived selector energy J above P0, L1_01 at 2.060s: n/a
+whole-cycle mean W (complete cycles only): 3.406
+active mean W: 3.422
+pause mean W: 2.122
+phases: [{"kind": "active", "start": 0.1337952880130615, "cycle": 0, "whole": true, "planned_s": 10, "nominal_s": 10, "completed": true, "selector_drain_s": 0.00012914999388158321, "survival": true, "end": 11.21475948599982, "stop_end": 15.08765833202051}, {"kind": "pause", "start": 11.21475948599982, "cycle": 0, "whole": true, "planned_s": 1.1261372459994163, "nominal_s": 5, "completed": true, "end": 16.241206307022367}, {"kind": "active", "start": 16.24380209101946, "cycle": 1, "whole": false, "planned_s": 5, "nominal_s": 5, "completed": true, "selector_drain_s": 0.00014782699872739613, "survival": true, "end": 22.327040335017955, "stop_end": 26.17289743301808}]
+frames processed/expected at 1/s: 13/15
+camera restart: {"t": 0.1337952880130615, "start_to_first_fresh_s": 1.9254962989944033, "retries": 0, "failures": 0, "session": "9fdb8dcc2b8a9569", "frame": 1, "attempts": 1, "stop": {"stop_to_stopped_s": 3.6257288430060726, "capture_stopped": true, "frames_seen": [], "unreadable_reads": 0, "check_s": 3.09, "force_stop_rc": 0, "force_stop_output": "", "pids_after_force_stop": []}}
+camera restart: {"t": 16.24380209101946, "start_to_first_fresh_s": 1.960810466989642, "retries": 0, "failures": 0, "session": "c9befc07bb252881", "frame": 1, "attempts": 1, "stop": {"stop_to_stopped_s": 3.617256024008384, "capture_stopped": true, "frames_seen": [], "unreadable_reads": 0, "check_s": 3.08, "force_stop_rc": 0, "force_stop_output": "", "pids_after_force_stop": []}}
+
+CYC25
+actual/planned s: 26.077/20
+mean battery W: 2.901
+CPU seconds: {"runner": 4.98, "llama_server": 4.25, "robotcam_app": 3.69, "camera_provider": 12.53}
+gate: {"at": "2026-10-02T19:03:12Z", "z9": 36000, "z10": 35000, "z11": 36000, "skin": 25.591803, "status": 0, "waited_s": 0, "warm_start": false}; CPU-core reading, not a heat state
+heat stop: {"reached_limit": false, "limit": null, "reason": null, "time_to_limit_s": null}; CPU-core reading, not a heat state
+ORT: {"caller_tid": 11797, "version": "1.25.1", "setting": "mid", "worker_tids": [11786, 11787], "intra_op_num_threads": {"320": 2, "640": 2}, "observed_default_intra_threads_per_session": null, "default_count_note": "observed created workers / two sessions + one calling thread; option 0 = auto"}
+MemAvailable samples: [{"t": 0.026238972990540788, "mem_available_mib": 2474, "swap_used_mib": 1557, "cached_mib": 2753}, {"t": 5.026464521011803, "mem_available_mib": 2371, "swap_used_mib": 1554, "cached_mib": 2758}, {"t": 10.0265455369954, "mem_available_mib": 2297, "swap_used_mib": 1554, "cached_mib": 2759}, {"t": 15.026478807994863, "mem_available_mib": 2321, "swap_used_mib": 1553, "cached_mib": 2755}, {"t": 20.026383513992187, "mem_available_mib": 2323, "swap_used_mib": 1551, "cached_mib": 2760}, {"t": 25.030281059007393, "mem_available_mib": 2358, "swap_used_mib": 1551, "cached_mib": 2764}]
+selector ok/err/correct: 1/0/1
+Android status changes: 0.1s NONE(0)
+LMK: {"lines": [], "n_lines": 0, "n_kills": 0, "logcat_rc": 0, "ok": true, "raw_head": "logcat_rc=0\n--------- beginning of main\n         1790967796.216  2031  2031 I pixel-thermal: cellular-emergency:25.5918 raw data: VIRTUAL-NEUTRAL-QUIET:24566.4 VIRTUAL-QUIET-DISP:23482.2 VIRTUAL-QUIET-QI:25591.8 VIRTUAL-SKIN:25591.8 VIRTUAL-USB-QUIET:24100 cellular-emergency:25591.8 disp_therm:24364 neutral_the\n"}
+skin start/end/max C: 25.592/25.998/26.005
+skin slope C/min: 1.149
+detect320 ms median/P95, first/last 30s medians: [150.20263599581085, 286.9472249876708, [150.20263599581085, 150.20263599581085]]
+detect640 ms median/P95, first/last 30s medians: [563.3007410215214, 563.3007410215214, [563.3007410215214, 563.3007410215214]]
+policy0 capped s/% / lowest scaling_max MHz / unknown s: {"seconds": 11.020316981012002, "percent": 42.26134320686315, "unknown_s": 0.0, "lowest_mhz": 1401.0}
+policy4 capped s/% / lowest scaling_max MHz / unknown s: {"seconds": 0.0, "percent": 0.0, "unknown_s": 0.0, "lowest_mhz": 2348.0}
+policy6 capped s/% / lowest scaling_max MHz / unknown s: {"seconds": 0.0, "percent": 0.0, "unknown_s": 0.0, "lowest_mhz": 2850.0}
+derived cost above base P0 W: n/a
+derived selector energy J above P0, L1_01 at 2.092s: n/a
+whole-cycle mean W (complete cycles only): 2.857
+active mean W: 3.640
+pause mean W: 0.984
+phases: [{"kind": "active", "start": 0.13114912901073694, "cycle": 0, "whole": true, "planned_s": 10, "nominal_s": 10, "completed": true, "selector_drain_s": 0.00015604699729010463, "survival": true, "end": 11.22597127800691, "stop_end": 15.063390185008757}, {"kind": "pause", "start": 11.22597127800691, "cycle": 0, "whole": true, "planned_s": 1.1622535780188628, "nominal_s": 5, "completed": true, "end": 16.271404427010566}, {"kind": "active", "start": 16.273857388994657, "cycle": 1, "whole": false, "planned_s": 5, "nominal_s": 5, "completed": true, "selector_drain_s": 0.00016894500004127622, "survival": true, "end": 22.344199229992228, "stop_end": 26.07657431298867}]
+frames processed/expected at 1/s: 13/15
+camera restart: {"t": 0.13114912901073694, "start_to_first_fresh_s": 1.9592351900064386, "retries": 0, "failures": 0, "session": "55a8590213024da2", "frame": 1, "attempts": 1, "stop": {"stop_to_stopped_s": 3.637125286011724, "capture_stopped": true, "frames_seen": [], "unreadable_reads": 0, "check_s": 3.07, "force_stop_rc": 0, "force_stop_output": "", "pids_after_force_stop": []}}
+camera restart: {"t": 16.273857388994657, "start_to_first_fresh_s": 1.9665347090049181, "retries": 0, "failures": 0, "session": "4d3882c20d1018c0", "frame": 1, "attempts": 1, "stop": {"stop_to_stopped_s": 3.521148683008505, "capture_stopped": true, "frames_seen": [], "unreadable_reads": 0, "check_s": 3.07, "force_stop_rc": 0, "force_stop_output": "", "pids_after_force_stop": []}}
+
+HEATCOOL
+actual/planned s: 50.262/50
+mean battery W: 2.567
+CPU seconds: {"runner": 12.97, "llama_server": 9.72, "robotcam_app": 5.03, "camera_provider": 23.2}
+gate: {"at": "2026-10-02T19:03:38Z", "z9": 43000, "z10": 40000, "z11": 41000, "skin": 25.997702, "status": 0, "waited_s": 0, "warm_start": false}; CPU-core reading, not a heat state
+heat stop: {"reached_limit": false, "limit": null, "reason": null, "time_to_limit_s": null}; CPU-core reading, not a heat state
+ORT: {"caller_tid": 12458, "version": "1.25.1", "setting": "mid", "worker_tids": [12447, 12457], "intra_op_num_threads": {"320": 2, "640": 2}, "observed_default_intra_threads_per_session": null, "default_count_note": "observed created workers / two sessions + one calling thread; option 0 = auto"}
+MemAvailable samples: [{"t": 0.02333789097610861, "mem_available_mib": 2482, "swap_used_mib": 1551, "cached_mib": 2759}, {"t": 5.023472373984987, "mem_available_mib": 2376, "swap_used_mib": 1550, "cached_mib": 2764}, {"t": 10.024141524976585, "mem_available_mib": 2297, "swap_used_mib": 1550, "cached_mib": 2765}, {"t": 15.02384892498958, "mem_available_mib": 2234, "swap_used_mib": 1550, "cached_mib": 2765}, {"t": 20.02374142498593, "mem_available_mib": 2243, "swap_used_mib": 1550, "cached_mib": 2765}, {"t": 25.024285371997394, "mem_available_mib": 2229, "swap_used_mib": 1550, "cached_mib": 2765}, {"t": 30.02486675500404, "mem_available_mib": 2232, "swap_used_mib": 1550, "cached_mib": 2765}, {"t": 35.0305710620014, "mem_available_mib": 2381, "swap_used_mib": 1667, "cached_mib": 2622}, {"t": 40.02718463097699, "mem_available_mib": 2413, "swap_used_mib": 1663, "cached_mib": 2622}, {"t": 45.02605776197743, "mem_available_mib": 2374, "swap_used_mib": 1630, "cached_mib": 2683}, {"t": 50.031926537980326, "mem_available_mib": 2368, "swap_used_mib": 1630, "cached_mib": 2683}]
+selector ok/err/correct: 2/0/2
+Android status changes: 0.1s NONE(0)
+LMK: {"lines": [], "n_lines": 0, "n_kills": 0, "logcat_rc": 0, "ok": true, "raw_head": "logcat_rc=0\n--------- beginning of main\n         1790967823.655  2031  2031 I pixel-thermal: cellular-emergency:26.0529 raw data: VIRTUAL-NEUTRAL-QUIET:25006.5 VIRTUAL-QUIET-DISP:23983 VIRTUAL-QUIET-QI:26052.9 VIRTUAL-SKIN:26052.9 VIRTUAL-USB-QUIET:24323.3 cellular-emergency:26052.9 disp_therm:24504 neutral_the\n"}
+skin start/end/max C: 26.053/26.288/26.913
+skin slope C/min: 0.717
+detect320 ms median/P95, first/last 30s medians: [149.80110700707883, 189.96138498187065, [149.80110700707883, 148.0146899993997]]
+detect640 ms median/P95, first/last 30s medians: [557.1605229924899, 567.0226640067995, [557.1605229924899, 547.5713505002204]]
+policy0 capped s/% / lowest scaling_max MHz / unknown s: {"seconds": 27.00206340799923, "percent": 53.72240062691015, "unknown_s": 0.0, "lowest_mhz": 1401.0}
+policy4 capped s/% / lowest scaling_max MHz / unknown s: {"seconds": 0.0, "percent": 0.0, "unknown_s": 0.0, "lowest_mhz": 2348.0}
+policy6 capped s/% / lowest scaling_max MHz / unknown s: {"seconds": 0.0, "percent": 0.0, "unknown_s": 0.0, "lowest_mhz": 2850.0}
+derived cost above base P0 W: n/a
+derived selector energy J above P0, L1_01 at 2.101s: n/a
+derived selector energy J above P0, L1_02 at 20.128s: n/a
+whole-cycle mean W (complete cycles only): 2.561
+active mean W: 3.628
+pause mean W: 0.957
+phases: [{"kind": "active", "start": 0.1270119629916735, "cycle": 0, "whole": true, "planned_s": 30, "nominal_s": 30, "completed": true, "selector_drain_s": 8.67100025061518e-05, "survival": true, "end": 30.241047133982647, "stop_end": 34.04703476600116}, {"kind": "pause", "start": 30.241047133982647, "cycle": 0, "whole": true, "planned_s": 16.193372555979295, "nominal_s": 20, "completed": true, "end": 50.26217934599845}]
+frames processed/expected at 1/s: 28/30
+camera restart: {"t": 0.1270119629916735, "start_to_first_fresh_s": 1.9730006519821472, "retries": 0, "failures": 0, "session": "f61ef7eeb482aaeb", "frame": 1, "attempts": 1, "stop": {"stop_to_stopped_s": 3.5672955339832697, "capture_stopped": true, "frames_seen": [], "unreadable_reads": 0, "check_s": 3.09, "force_stop_rc": 0, "force_stop_output": "", "pids_after_force_stop": []}}
+COOL starting skin C (latest preceding dump): 26.701
+COOL 0s: skin=26.912603 power_W=1.856 scaling_max_khz={'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000}
+COOL 5s: skin=26.875301 power_W=0.698 scaling_max_khz={'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000}
+COOL 10s: skin=26.5732 power_W=0.598 scaling_max_khz={'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000}
+COOL 15s: skin=26.288002 power_W=0.676 scaling_max_khz={'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000}
+COOL 20s: skin=not recorded power_W=0.980 scaling_max_khz=not recorded
+COOL 0-20.0s slope C/min: -2.613
+
+RUN INCOMPLETE: CYC50: camera phase missing 640 detection; CYC25: camera phase missing 640 detection
+[oneshot] RUNNER FAILED (exit 1); console log: /data/data/com.termux/files/home/duty_cycle/oneshot_console_20261002T185603Z.log
+[oneshot] screen timeout restored to 1800000 ms; read back: 1800000
+[oneshot] stopped logger

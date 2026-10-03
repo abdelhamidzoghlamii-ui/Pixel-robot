@@ -24,6 +24,9 @@ the final exam**: the selector is decided on an independent test set kept outsid
 | [thermal_char/](thermal_char/README.md) | Thermal characterization under the heaviest robot load, 20 min; phone thermal config; heat evidence register | 2026-09-30 | first CPU cap at +1.8 s (skin 31.6 °C); sustained 3.68–4.24 W; SEVERE at 18.3 min | complete (#126) |
 | [qwen_vision/](qwen_vision/README.md) | #105 Qwen3.5 VL benchmark harness, its offline test, projector sourcing report, AGY review and the earlier `qwen35_vision_probe.py` | 2026-09-14/16 | – (no result files archived; their location is unknown); harness edited after review, not re-reviewed | archived sources only |
 | [failclosed_108/](failclosed_108/README.md) | live verification output cited by #108, from local candidate `e5b4394`; the verified code was removed by #111 | 2026-09-14 | forced exception and `ERROR` response → STOP; KeyboardInterrupt propagated | historical evidence only |
+| [power_map/](power_map/README.md) | POWERMAP1 frame rate, 640 cadence, ORT threads and 20 min confirmation | 2026-10-01/02 | 1/s about halves power; MID chosen; caps near minute 17; absolute watts conflict with #122 | archived; fixed validity labels in RUN_INDEX |
+| [duty_cycle/](duty_cycle/README.md) | DUTY1 component power and active/pause cycles | 2026-10-02/03 | full PARTS/CYCLE valid with warm-start limits; active power differs from CONFIRM, unexplained | archived; smoke/failed-start/typo labelled |
+| [camera_power/](camera_power/README.md) | CAMPOWER1/2 camera variants, diagnostics and public example frames | 2026-10-03 | full CAMPOWER2 valid except manual_500 gap; 10 Hz polling means watts not comparable to DUTY1 | archived; test APK branch stays unmerged |
 
 Heat readings: every temperature reading in these archives is labelled VALID or NOT TRUSTED in [thermal_char/HEAT_EVIDENCE.md](thermal_char/HEAT_EVIDENCE.md).
 

@@ -1,0 +1,71 @@
+{
+  "set": "CYCLE",
+  "smoke": false,
+  "blocks": [
+    {
+      "name": "CONT",
+      "duration": 240
+    },
+    {
+      "name": "CYC50",
+      "duration": 240
+    },
+    {
+      "name": "CYC25",
+      "duration": 240
+    },
+    {
+      "name": "HEATCOOL",
+      "duration": 540
+    }
+  ],
+  "idle": {
+    "at": "2026-10-03T09:07:41Z",
+    "z9": 26000,
+    "z10": 26000,
+    "z11": 26000,
+    "skin": 23.708801
+  },
+  "layout": {
+    "cpu_zones": {
+      "BIG": "9",
+      "MID": "10",
+      "LITTLE": "11"
+    },
+    "policies": {
+      "policy0": 1803000,
+      "policy4": 2348000,
+      "policy6": 2850000
+    }
+  },
+  "started": "2026-10-03T09:07:43+00:00",
+  "server_cmd": [
+    "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+    "-m",
+    "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+    "--port",
+    "8080",
+    "--ctx-size",
+    "2048",
+    "--threads",
+    "4",
+    "--threads-batch",
+    "4",
+    "--parallel",
+    "1",
+    "--swa-full",
+    "--cache-ram",
+    "0",
+    "--host",
+    "127.0.0.1"
+  ],
+  "sample_interval_s": 0.5,
+  "sha256": {
+    "/data/data/com.termux/files/home/robot/benchmark/duty_cycle/duty_cycle.py": "5a5d4bd01099572955057e7aef4881c30afe13b0e922696ad0ab7397767a6e0a",
+    "/data/data/com.termux/files/home/robot/benchmark/power_map/power_map.py": "4756ce7dc7ba4e358578288c0d2509345fc4e2fe02d45f077f65355792e29539",
+    "/data/data/com.termux/files/home/robot/benchmark/coresidency/coresidency.py": "85a6e4cb003bd4f56d501c186a8cbac1b528fb1aa4369380c34be25ad2743626",
+    "/data/data/com.termux/files/home/robot/detect_person.py": "0d43ae09844433feb916ee423e2945183a455005b53168e6086363bd897b771a",
+    "/data/data/com.termux/files/home/robot/yolo11s_320.onnx": "9eab5ebc83d1254e0049abf2a939ef12db696b7e0ef74af7ec8b70cec993f863",
+    "/data/data/com.termux/files/home/robot/yolo11s_640.onnx": "dc9fe7c50e66ef272db1318f282d6e6dc4ba6adaa0103a2197a87300fbb9dcb5"
+  }
+}
