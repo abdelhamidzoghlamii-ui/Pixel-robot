@@ -13,7 +13,7 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | Motor safety | Firmware watchdog is 1000 ms; the `nav_stuck` safety-move override was fixed in Python; LLM failure paths now select STOP. Hardware validation remains separate. | #47, #88, #108; STATUS Pending |
 | Firmware and wiring | Corrected `mode2_auto.ino` and corner map are committed; what is flashed on the physical board is unconfirmed. | #43, #89; STATUS Architecture |
 | Person stop | Coarse detector area bucket was chosen to replace uncalibrated centimetres, but is not implemented. | #78–#80; STATUS Pending |
-| Thermal control | Android's skin-based governor sets the sustained limit (about 4 W measured under heavy load); zone9 is not a heat signal. Heat rules based on Android thermal status are decided, not implemented; the live `main.py` pause still reads BIG at >80 °C. | #74–#75, #90–#93, #126, #127; STATUS Thermal/Pending |
+| Thermal control | Android's skin-based governor sets the sustained limit; zone9 is not a heat signal. Power map and duty-cycle measurements show continuous use needs heat pauses. Planned camera-off pauses with safe sensor-only moves and resident Gemma are decided, not implemented; #127 emergency stops retain precedence. The live `main.py` pause still reads BIG at >80 °C. | #74–#75, #90–#93, #126–#129; STATUS Thermal/Pending |
 | Model vision | Deployed image requests were effectively text-only; later projector experiments did not yield usable on-device LLM vision. YOLO remains perception. | #96, #105; STATUS Vision |
 | Android app | Root-free USB and sustained inference spikes passed; the native app itself has no code yet. Prototype measurements do not transfer automatically. | #67–#69; APP_STATUS |
 | Licensing | [LICENSES.md](LICENSES.md) owns the app allowlist. Its derived copy in APP_CLAUDE.md is intentional. | #66 |
@@ -24,6 +24,7 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | Selector direction | Gemma letter-scoring leads (1.55 s, 77%); one resident Gemma for talk + selection decided (option 3, #125). | #116, #125 |
 | Language | English-only speech input and replies are acceptable; English-only components are eligible. | #117 |
 | Detection and co-residency | yolo11s 320/640 mix kept over 640-only (less power, fewer caps, steadier detect ms); RobotCam + detector + resident Gemma fit in RAM with no LMK kills. | #121, #125 |
+| Power and camera candidates | Power-map choice: 1 frame/s, 640 every 5 s, MID cores (4–5); benchmark choice, not deployed config. Manual-exposure 2 fps mode A remains an unadopted candidate on `robotcam-camera-power` (`90ef439`); torch work and mission validation remain pending. | #128, #129; STATUS Pending |
 
 ## Corrections worth knowing before citing an older entry
 
@@ -42,6 +43,7 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | #116 says the 1.55 s Q4_0 ladder result is b2351-only | #119 measures 1408 ms on the robot's dotprod build. |
 | Local build names b1609 / b2351 | #119 identifies upstream llama.cpp tags b10194 / b10936. |
 | #29, #74, #110, #119–#122, #124 zone9-based heat conclusions | #126 marks them not trusted; speed, RAM and power results stand. Register: `benchmark/thermal_char/HEAT_EVIDENCE.md`. |
+| #122 says camera-idle mode is not needed now | #129 decides camera OFF during planned preventive heat pauses; #127 emergency motor and battery stops retain precedence. |
 
 For any claim outside these selected topics, search the numbered log and inspect
 the later entries that cite it. This index makes no claim to classify all decisions.

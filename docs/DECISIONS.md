@@ -1332,3 +1332,94 @@ Format: `NN. [area] decision — why`
      `benchmark/coresidency/oneshot.sh` (archived 03ab5b5); the archived ladder
      `oneshot.sh` stays as executed. From 2026-10-01 the owner uses Codex model
      gpt-6.1-sol in place of gpt-6-sol.
+
+128. **Measured: YOLO power map, power split, duty cycle and camera power (2026-10-01..03); heat pauses are needed.**
+     Evidence: `benchmark/power_map/`, `benchmark/duty_cycle/` and
+     `benchmark/camera_power/`, archived in `85ab9d0`; every run is labelled in
+     its folder's `RUN_INDEX.md`. RobotCam test build: `90ef439` on unmerged
+     branch `robotcam-camera-power`.
+
+     Power map (power_map, valid runs R1/R2/R3/CONFIRM): 1 frame/s roughly
+     halves power vs 2/s (R2 1.97–2.16 W vs R1 3.98–4.52 W); 640 every 5 s vs
+     10 s is not a lever. MID cores (cpus 4–5, 2 intra-op threads, pinning
+     verified) chosen: steady timing (320 detect 148/203 ms median/P95) and
+     least disturbance to Gemma; LITTLE out (149/180 frames). CONFIRM 20 min
+     (1/s, 640 every 5 s, MID, selector every 20 s, 2.84 W): policy4/policy6
+     uncapped until about minute 17, capping starts when VIRTUAL-SKIN passes
+     about 37 °C; skin 25.0 → 37.9 °C, still rising.
+
+     Power split (duty_cycle PARTS, 120 s blocks, valid): phone base 0.63 W;
+     Gemma resident and idle +0.00 W (no measurable increase in PARTS; RAM
+     remains allocated); camera 1/s +1.62 W (camera provider about 0.94 core);
+     YOLO on top of camera +0.70 W; selector every 20 s +0.50 W (about 8 J per
+     call). A warm Gemma reload takes 3.6–3.8 s to readiness (/health), plus
+     the selector call; reload plus one call about 29 J above base, with LMK
+     kills of other apps. Reloading once a minute costs about as much as
+     resident selection every 20 s. ONNX Runtime spinning off: no measurable
+     gain (2.91 vs 2.95 W). Separate RAM evidence from #125: without-drafter
+     peak llama-server PSS 3851/3724 MiB; the MTP snapshot measured PSS
+     4154 MiB with the drafter loaded. These are separate from PARTS idle-power
+     evidence.
+
+     Duty cycle (duty_cycle CYCLE, valid): cooling from skin 35.7 °C with
+     camera, YOLO and selector off and Gemma resident (0.64 W): −3.5, −2.1,
+     −1.2 °C/min in successive 30 s windows, about −0.6 °C/min after 2 min.
+     Active heating about 1.1 °C/min (29.2 → 35.8 °C in 6 min). Camera stop
+     3.6 s (includes the benchmark's own 3 s end check) plus start about 2.0 s:
+     10 s pauses averaged 1.21 W and 5 s pauses 1.51 W; whole-cycle power
+     −12 % (50 s/10 s) and −9 % (25 s/5 s) vs continuous. 14 camera restarts
+     in the valid CYCLE run, 0 failures (smoke runs also had none). Blocks
+     after the first started warm: between-block heat slopes are not
+     comparable.
+
+     Camera (camera_power, RobotCam test build 90ef439, full run valid except
+     one INCOMPLETE block): the stock stream runs at a fixed 15 fps (lowest
+     AE range 15–15) to publish 1 frame/s. Manual exposure at 2 fps cuts
+     camera-provider CPU about 75 % but saves only about 0.3 W (2.33 →
+     2.03–2.06 W), starts in about 1.0 s instead of 2.0 s, and frames are
+     about 0.4 s older. Template/processing/fixed-focus camera-provider CPU
+     comparisons showed no reduction in smoke runs only (20 s blocks), not
+     in the full run. Smoke watts were recorded but are not valid measurement
+     evidence. Mode A auto was in the full run and showed no power reduction
+     (2.34 W vs 2.33/2.35 W baseline). Camera-power watts include the runner's
+     10 Hz polling and are comparable only within that run, not with
+     duty_cycle or power_map watts. 1 fps is at its edge (gaps up to 2.6 s in
+     smoke runs). Only camera ids 0 (back, logical) and 1 (front) are exposed;
+     the ultra-wide cannot be selected. Most camera power is hardware being
+     on, not CPU.
+
+     Open, unexplained: absolute watts across runners (power_map whole system
+     at 1/s about 2.1 W vs #122 RobotCam alone 2.30 W; duty_cycle CYCLE active
+     3.5 W vs CONFIRM 2.84 W with the same settings); run-to-run noise about
+     0.7 W; skin stayed about 33 °C during one 7 min gate wait (cause unknown).
+     Selector misses in longer runs (CONFIRM 46/60, HEATCOOL 16/18) fall on
+     later case levels: likely difficulty, not heat; unverified.
+
+129. **Owner's heat-pause design decided (not implemented); torch for dark scenes; camera setting candidate.**
+     Owner decisions 2026-10-02/03: heat is managed by planned pauses in which
+     YOLO and the selector stop; pause length depends on heat (longer as the
+     skin nears the limit), in `main.py` under the #127 rules. The camera is
+     OFF during pauses (supersedes #122's "camera-idle mode not needed now").
+     The robot never stands still in a planned heat pause: sensor-only
+     behaviour driven by plain Python (today one forward ultrasonic, so
+     turning in place or slow creeping; 2D LiDAR is only a proposed redesign).
+     This applies only to planned preventive pauses when movement is safe.
+     #127's emergency actions are unchanged: CRITICAL stops the motors and
+     pauses until MODERATE; battery ≥ 45 °C is a hard stop; all other safety
+     stops stay. Gemma stays resident through pauses (#128: no measurable
+     idle-power increase in PARTS, reload plus one call costs about 29 J above
+     base). In dark scenes, when picture brightness falls below a threshold,
+     the phone's torch switches on (threshold, torch power and exposure
+     re-check not designed or measured); this replaces a separate dark-room
+     test.
+
+     Local AI recommendations from #128 (pending, not config): prefer fewer,
+     longer pauses (about 30–60 s) over 5–10 s pauses, because camera
+     stop/start overhead eats short pauses and the first minute cools
+     fastest; an estimated rhythm near the hot end is about 2 min active to
+     1 min pause (estimate from one curve, to be validated on a mission
+     trace). RobotCam manual exposure at 2 fps in mode A is the best camera
+     candidate; adoption needs an owner decision, the torch work and merging
+     the test branch. Constraints: pause moves must be safe without the
+     camera; #79 person-stop is not implemented; camera restart reliability
+     is critical (14/14 in the valid CYCLE run).

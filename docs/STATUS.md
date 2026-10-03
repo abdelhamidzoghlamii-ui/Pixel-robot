@@ -178,7 +178,10 @@ skin is about 32 °C; from 6 min the phone holds 3.68–4.24 W; status LIGHT at
 78 s, MODERATE at 10.7 min, SEVERE (skin 45 °C) at 18.3 min. Co-residency
 (#125): mix 4.1–4.3 W, 640-only 5.8–6.3 W. Heat rules decided, not implemented
 (#127); `main.py` still pauses on zone9 > 80 °C. Every heat reading in the repo
-is labelled in `benchmark/thermal_char/HEAT_EVIDENCE.md`.
+is labelled in `benchmark/thermal_char/HEAT_EVIDENCE.md`. Power map, power split,
+duty-cycle and camera-power measurements (#128) and the owner's heat-pause design
+(#129, not implemented) are archived in `benchmark/power_map/`,
+`benchmark/duty_cycle/` and `benchmark/camera_power/`.
 
 ## Memory
 
@@ -392,10 +395,14 @@ observations and follow-up are retained in
 - benchmark/llm_objective_setting/ was published with the docs/WORKFLOW.md
   independent review WAIVED by human decision; the waiver is recorded in its
   README.
-- YOLO power map (DECISIONS #127): 320 rate, 640 cadence and ONNX Runtime
-  cores/threads, each with a selector call every 20 s, 3 min blocks, capped
-  time per policy; then about 20 min confirming the chosen setting.
-- Implement the #127 heat rules in `main.py` (navigation work); needs independent review and a mission thermal trace.
+- YOLO power map done (#128): chosen setting 1 frame/s, 640 every 5 s, MID
+  cores (4–5); continuous use reaches skin about 37 °C in about 17 min, so
+  heat pauses are needed (#129).
+- Implement the #127 heat rules and the #129 pause design (camera off,
+  sensor-only moves, Gemma resident, torch in the dark) in `main.py`
+  (navigation work); needs independent review and a mission thermal trace.
+- RobotCam manual-exposure 2 fps (mode A) is a candidate on unmerged branch
+  `robotcam-camera-power` (90ef439); not adopted; torch untested (#128, #129).
 - RobotCam screen-off capture is untested; frame loss ends a mission
   (fail-closed, no retry by design).
 - Evaluate RelateAnything speed, RAM and weight licence after co-residency (#124).
