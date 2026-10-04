@@ -102,13 +102,16 @@ def require_policies(layout):
         raise RuntimeError('missing required CPU frequency policies; not started')
 
 
-def read_fast(shell, keys, power_rows, root_pid):
+def read_fast(shell, keys, power_rows, root_pid, cpus=CPUS):
     row = cr.fast_sample(shell, keys)
     tid = threading.get_native_id()
     allowed = os.sched_getaffinity(tid)
     root_allowed = os.sched_getaffinity(root_pid)
-    if allowed & CPUS or root_allowed & CPUS:
+    if not allowed or not root_allowed or allowed & cpus or root_allowed & cpus:
         raise RuntimeError('fast sampler/root shell may run on inference cores')
+    pump_masks = {str(t): sorted(os.sched_getaffinity(t)) for t in getattr(shell, 'monitor_tids', ())}
+    for mask in pump_masks.values():
+        require_monitor_mask(set(mask), cpus)
     start = time.monotonic()
     values = shell.run(f'for f in {cr.BATTERY}/current_now {cr.BATTERY}/voltage_now; '
                        'do v=; read -r v <"$f"; echo "$v"; done')
@@ -119,7 +122,8 @@ def read_fast(shell, keys, power_rows, root_pid):
     power_rows.append({'t_start': start, 't': ended, 'battery_w': -current * voltage / 1e12,
                        'current_now_uA': current, 'voltage_now_uV': voltage,
                        'sampler_tid': tid, 'sampler_cpus': sorted(allowed),
-                       'root_shell_pid': root_pid, 'root_shell_cpus': sorted(root_allowed)})
+                       'root_shell_pid': root_pid, 'root_shell_cpus': sorted(root_allowed),
+                       'pump_cpus': pump_masks})
     return row
 
 
@@ -145,57 +149,91 @@ class Calls:
         return self.head.infer(image, detections)
 
 
-def build(name):
+def build(name, cpus=CPUS, threads=2, head_factory=Head):
     before = pm.thread_ids()
-    head = Head(name)
+    head = head_factory(name, threads=threads)
     workers = sorted(pm.thread_ids() - before)
-    if len(workers) != 1:
-        raise RuntimeError(f'expected one ORT worker (2 intra-op incl caller), got {workers}')
+    expected = threads - 1
+    if len(workers) != expected:
+        raise RuntimeError(f'expected {expected} ORT workers, got {workers}')
     for tid in workers:
-        os.sched_setaffinity(tid, CPUS)
-        if os.sched_getaffinity(tid) != CPUS:
+        os.sched_setaffinity(tid, cpus)
+        if os.sched_getaffinity(tid) != cpus:
             raise RuntimeError('ORT worker affinity failed')
-    caller = pm.PinnedDetector(Calls(head), CPUS)
+    caller = pm.PinnedDetector(Calls(head), cpus)
     return head, caller, workers + [caller.tid]
 
 
-def check_pinning(tids):
+def check_pinning(tids, cpus=CPUS):
     for tid in tids:
-        if os.sched_getaffinity(tid) != CPUS:
-            raise RuntimeError(f'worker/caller {tid} lost MID affinity')
+        if os.sched_getaffinity(tid) != cpus:
+            raise RuntimeError(f'worker/caller {tid} lost cluster affinity')
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--model', required=True, choices=NAMES)
-    ap.add_argument('--dry-run', action='store_true')
-    ap.add_argument('--output', type=Path)
-    args = ap.parse_args()
-    require_parity(args.model)
-    if sys.platform != 'android':
-        ap.error('native Termux Python required')
-    lock_path = HOME / '.cache/relate_anything/speed.lock'
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    lock = lock_path.open('a')
+def require_monitor_mask(mask, cpus=CPUS):
+    if not mask or mask & cpus:
+        raise RuntimeError('root shell/monitor mask empty or includes inference cores')
+
+
+def prepare_monitor(cpus=CPUS):
+    previous = os.sched_getaffinity(0)
+    monitor_cpus = previous - cpus
+    require_monitor_mask(monitor_cpus, cpus)
+    shell = None
     try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        raise SystemExit('another RelateAnything speed runner holds the lock')
-    if not args.dry_run:
-        cr.require_native()
-        processes_clear()
-        cr.check_cores('before idle')
-        battery_sample()  # fail before loading or idling if root/charger check fails
-    else:
-        print('INFORMAL — agents resident, NOT VALID TIMING — dry-run; no charger/agent/idle/skin gates or sensor sampling', flush=True)
+        try:
+            os.sched_setaffinity(0, monitor_cpus)
+            before = pm.thread_ids()
+            shell = cr.RootShell()
+            shell.monitor_tids = pm.thread_ids() - before
+        finally:
+            os.sched_setaffinity(0, previous)
+        mask = format(sum(1 << c for c in monitor_cpus), 'x')
+        shell.run(f'taskset -p {mask} {shell.p.pid}')
+        shell.run(f'taskset -p {mask} $$')
+        root_pid = int(shell.run('echo $$')[0])
+        shell.root_pid = root_pid
+        require_monitor_mask(os.sched_getaffinity(root_pid), cpus)
+        require_monitor_mask(os.sched_getaffinity(shell.p.pid), cpus)
+        layout = cr.discover(shell)
+        require_policies(layout)
+        return shell, monitor_cpus, root_pid, layout
+    except BaseException:
+        if shell:
+            shell.close()
+        raise
+
+
+def load_speed_input():
     datum = json.loads((HERE / 'speed_input.json').read_text())
     image_path = HERE / datum['image']
     image = open_image(image_path)
     if list(image.size) != datum['size'] or max(image.size) != 640 or not 2 <= len(datum['detections']) <= 32:
         raise RuntimeError('saved 640 image/boxes contract failed')
+    return datum, image_path, image
+
+
+def run_block(args, *, cpus=CPUS, threads=2, head_factory=Head, session=None):
+    """Shared block implementation; a session owns screen, lock, idle and root shell."""
+    require_parity(args.model)
+    if sys.platform != 'android':
+        raise RuntimeError('native Termux Python required')
+    datum, image_path, image = load_speed_input()
     out = args.output or HERE / 'results' / args.model / f'{"dry_run_desk3" if args.dry_run else "speed"}_{time.monotonic_ns()}.json'
     if out.exists():
-        ap.error('output exists; choose a new evidence filename')
+        raise RuntimeError('output exists; choose a new evidence filename')
+    lock = None
+    if session is None:
+        lock_path = HOME / '.cache/relate_anything/speed.lock'
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        lock = lock_path.open('a')
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            lock.close()
+            raise RuntimeError('another RelateAnything speed runner holds the lock')
+    if args.dry_run:
+        print('INFORMAL — agents resident, NOT VALID TIMING — dry-run; no charger/agent/idle/skin gates or sensor sampling', flush=True)
     shell, caller, monitors = None, None, []
     screen = Screen()
     evidence_origin = time.monotonic()
@@ -204,7 +242,7 @@ def main():
     fast, dumps, samples, powers, affinities, calls, failures = [], [], [], [], [], [], []
     result = {'model': args.model, 'label': 'INFORMAL — agents resident, NOT VALID TIMING — DRY RUN' if args.dry_run else 'CANDIDATE TIMING; validity checked below',
               'photo': str(image_path), 'photo_sha256': hashlib.sha256(image_path.read_bytes()).hexdigest(),
-              'input': datum, 'cadence_s': 5, 'planned_s': 180, 'intra_op_threads': 2, 'cpus': sorted(CPUS),
+              'input': datum, 'cadence_s': 5, 'planned_s': 180, 'intra_op_threads': threads, 'cpus': sorted(cpus),
               'sampling': {'caps_cpu_battery_temp_s': 1, 'battery_power_s': 1,
                            'skin_android_status_s': 5, 'battery_status_memory_s': 5},
               'power_source': {'current': cr.BATTERY + '/current_now',
@@ -212,8 +250,14 @@ def main():
                                'kind': 'current_now sysfs reading; no runner averaging; driver filtering unspecified'},
               'fast': fast, 'dumps': dumps, 'status_memory': samples, 'power': powers,
               'affinity': affinities, 'calls': calls}
+    result.update(variant=getattr(args, 'variant', 'fp32'), cluster=getattr(args, 'cluster', 'MID'))
     try:
-        if not args.dry_run:
+        if not args.dry_run and session is None:
+            cr.require_native()
+            processes_clear()
+            cr.check_cores('before idle')
+            battery_sample()
+            shell, monitor_cpus, root_pid, layout = prepare_monitor(cpus)
             screen.start()
             print('Idling 300 s; unplugged, screen on, Termux foreground', flush=True)
             for _ in range(60):
@@ -225,9 +269,18 @@ def main():
             if idle['skin'] is None or idle['status'] is None:
                 raise RuntimeError('no idle skin/status; not started')
             result['idle'] = idle
-        head, caller, tids = build(args.model)
+        if not args.dry_run and session is not None:
+            idle = dict(session['idle'])
+            result['idle'] = idle
+            shell, monitor_cpus, root_pid, layout = session['monitor']
+            require_monitor_mask(monitor_cpus, cpus)
+            require_monitor_mask(os.sched_getaffinity(root_pid), cpus)
+        head, caller, tids = build(args.model, cpus, threads, head_factory)
         result.update(load_ms=head.load_ms, graph=head.metadata, ort_tids=tids)
-        check_pinning(tids)
+        result.update(providers=head.session.get_providers(),
+                      optimization_level=str(head.session.get_session_options().graph_optimization_level),
+                      artifact_identity=getattr(head, 'artifact_identity', None))
+        check_pinning(tids, cpus)
         if not args.dry_run:
             # power_map skin-only gate, bounded at 8 min; a timeout is recorded WARM START.
             began = time.monotonic()
@@ -243,23 +296,8 @@ def main():
                     result['gate'] = {**reading, 'warm_start': not cool, 'waited_s': time.monotonic() - began}
                     break
                 time.sleep(cr.GATE_POLL_S)
-            monitor_cpus = os.sched_getaffinity(0) - CPUS
-            if not monitor_cpus:
-                raise RuntimeError('no non-inference cores available for fast monitor')
-            previous = os.sched_getaffinity(0)
-            try:
-                os.sched_setaffinity(0, monitor_cpus)
-                shell = cr.RootShell()  # pump thread inherits the non-MID mask
-            finally:
-                os.sched_setaffinity(0, previous)
-            mask = format(sum(1 << c for c in monitor_cpus), 'x')
-            shell.run(f'taskset -p {mask} $$')
-            root_pid = int(shell.run('echo $$')[0])
-            if os.sched_getaffinity(root_pid) != monitor_cpus:
-                raise RuntimeError('root shell non-MID affinity readback failed')
             result['power_monitor_cpus'] = sorted(monitor_cpus)
-            layout = cr.discover(shell)
-            require_policies(layout)
+            result['root_shell_cpus'] = sorted(os.sched_getaffinity(root_pid))
             result['cpuinfo_max_khz'] = layout['policies']
             keys = cr.fast_keys(layout)
             def monitor(period, read, rows):
@@ -273,10 +311,10 @@ def main():
                     failures.append(str(error))
                     stop.set()
             def affinity_sample():
-                check_pinning(tids)
+                check_pinning(tids, cpus)
                 return pm.thread_sample(0, tids)
             for period, read, rows in [(1, affinity_sample, affinities),
-                                       (1, lambda: read_fast(shell, keys, powers, root_pid), fast),
+                                       (1, lambda: read_fast(shell, keys, powers, root_pid, cpus), fast),
                                        (5, cr.read_dump, dumps), (5, status_memory_sample, samples)]:
                 thread = threading.Thread(target=monitor, args=(period, read, rows), daemon=True)
                 thread.start()
@@ -298,7 +336,7 @@ def main():
             while time.monotonic() < due:
                 if stop.wait(min(0.2, due - time.monotonic())):
                     raise RuntimeError('sensor monitor failed: ' + repr(failures))
-                check_pinning(tids)
+                check_pinning(tids, cpus)
                 if not args.dry_run:
                     cr.check_cores('between calls')
                     if hit := cr.block_limit(time.monotonic(), t0, fast, dumps):
@@ -309,11 +347,11 @@ def main():
                     raise RuntimeError('monitor/limit: ' + repr(failures or hit))
                 if time.monotonic() >= t0 + duration:
                     raise RuntimeError('call cadence overran block')
-            check_pinning(tids)
+            check_pinning(tids, cpus)
             start = time.monotonic()
             triplets, ort_ms = caller.detect(image, datum['detections'])
             ended = time.monotonic()
-            check_pinning(tids)
+            check_pinning(tids, cpus)
             affinities.append(pm.thread_sample(0, tids))
             calls.append({'slot_s': slot * 5, 'started_s': start - t0, 'ended_s': ended - t0,
                           'ort_ms': ort_ms, 'pipeline_ms': (time.monotonic() - start) * 1000,
@@ -323,7 +361,7 @@ def main():
             while time.monotonic() < t0 + duration:
                 time.sleep(0.2)
                 cr.check_cores('block tail')
-                check_pinning(tids)
+                check_pinning(tids, cpus)
                 if failures or (hit := cr.block_limit(time.monotonic(), t0, fast, dumps)):
                     raise RuntimeError('monitor/limit: ' + repr(failures or hit))
         result['duration_s'] = time.monotonic() - t0
@@ -341,14 +379,15 @@ def main():
             result['label'] = 'TIMING COMPLETE; warm starts flagged; no cold-cache load claim'
     except BaseException as error:
         result.update(label='NOT VALID — INCOMPLETE', error=f'{type(error).__name__}: {error}')
-        raise
+        if session is None or not isinstance(error, Exception):
+            raise
     finally:
         stop.set()
         for thread in monitors:
             thread.join(timeout=60)
         if any(t.is_alive() for t in monitors):
             result.update(label='NOT VALID — INCOMPLETE', error='monitor still alive')
-        for resource in (caller, shell):
+        for resource in (caller, shell if session is None else None):
             if resource:
                 try:
                     resource.close()
@@ -357,9 +396,12 @@ def main():
         if failures:
             result.update(label='NOT VALID — INCOMPLETE', monitor_errors=failures)
         try:
-            screen.restore()
+            if session is None:
+                screen.restore()
         except BaseException as error:
             result.update(label='NOT VALID — INCOMPLETE', cleanup_error=str(error))
+        if lock is not None:
+            lock.close()
         # Shared sensor/limit helpers use absolute monotonic readings during execution.
         # Convert every saved sample (including idle/gate and pre-block rows) once, here.
         origin = t0 if t0 is not None else evidence_origin
@@ -376,9 +418,22 @@ def main():
             result['caps_by_policy'] = pm.capped_by_policy(block)
             if any(r.get('error') or None in r['max'].values() for r in fast):
                 result.update(label='NOT VALID — INCOMPLETE', error='unreadable CPU cap sample')
+        result['validity'] = ('NOT VALID — INCOMPLETE' if result['label'] == 'NOT VALID — INCOMPLETE' else
+                              'NOT VALID — DRY RUN' if args.dry_run else
+                              'NOT VALID — WARM START' if result.get('gate', {}).get('warm_start') else 'VALID')
         write_json(out, result)
         print(json.dumps({k: v for k, v in result.items() if k not in ('fast', 'dumps', 'status_memory', 'power', 'affinity', 'calls', 'input', 'graph')}, indent=2), flush=True)
     print('Evidence:', out, flush=True)
+    return result
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--model', required=True, choices=NAMES)
+    ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--output', type=Path)
+    args = ap.parse_args()
+    result = run_block(args)
     if result['label'] == 'NOT VALID — INCOMPLETE':
         raise SystemExit(1)
 

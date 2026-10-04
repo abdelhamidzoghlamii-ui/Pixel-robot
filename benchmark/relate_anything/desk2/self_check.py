@@ -167,3 +167,12 @@ with patch.object(sb.cr, 'fast_sample', return_value={}), \
     except RuntimeError: pass
     else: raise AssertionError('root sampler permitted on MID cores')
 print('PASS: required policies; one-second current_now fields, sign/units/monotonic window means, boundary counts, null dry means and non-MID sampler/root refusal')
+
+# Different cgroups may narrow a safe root mask; equality is not required.
+for safe in ({0}, {6, 7}, {0, 1, 2, 3, 6, 7}):
+    sb.require_monitor_mask(safe)
+for unsafe in (set(), {4}, {5, 6}):
+    try: sb.require_monitor_mask(unsafe)
+    except RuntimeError: pass
+    else: raise AssertionError('unsafe root mask accepted')
+print('PASS: nonempty non-MID root masks accepted, empty/MID masks refused')

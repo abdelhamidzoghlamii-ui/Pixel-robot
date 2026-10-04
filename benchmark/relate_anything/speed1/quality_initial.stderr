@@ -1,0 +1,47 @@
+/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_validation.py:66: UserWarning: Unsupported platform (android). ONNX Runtime supports Linux, macOS, AIX and Windows platforms, only.
+  warnings.warn(
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/robot/benchmark/relate_anything/speed1/quality.py", line 68, in main
+    head, caller, tids = build(variant, 'MID')
+                         ~~~~~^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/robot/benchmark/relate_anything/speed1/variants.py", line 69, in build
+    return sb.build(NAME, cpus, threads, lambda name, threads: make_head(variant, threads))
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/robot/benchmark/relate_anything/desk2/speed_block.py", line 150, in build
+    head = head_factory(name, threads=threads)
+  File "/data/data/com.termux/files/home/robot/benchmark/relate_anything/speed1/variants.py", line 69, in <lambda>
+    return sb.build(NAME, cpus, threads, lambda name, threads: make_head(variant, threads))
+                                                               ~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/robot/benchmark/relate_anything/speed1/variants.py", line 39, in make_head
+    head = dc.Head(NAME, directory=directory(variant), size={'img384': 384, 'img336': 336}.get(variant, 448),
+                   threads=threads, providers=providers)
+  File "/data/data/com.termux/files/home/robot/benchmark/relate_anything/desk2/desk_check.py", line 98, in __init__
+    self.session = ort.InferenceSession(str(directory / 'relateanything.onnx'), options,
+                   ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                        providers=providers or ['CPUExecutionProvider'])
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_inference_collection.py", line 529, in __init__
+    self._create_inference_session(providers, provider_options, disabled_optimizers)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_inference_collection.py", line 624, in _create_inference_session
+    sess = C.InferenceSession(session_options, self._model_path, True, self._read_config_from_model)
+onnxruntime.capi.onnxruntime_pybind11_state.Fail: [ONNXRuntimeError] : 1 : FAIL : Load model from /data/data/com.termux/files/home/models/relate_anything/relsgg-vits16-int8/relateanything.onnx failed:Node (/model/spatial_pool/scene_pe/proj/Gemm_MatMul_quant) Op (MatMulInteger) [ShapeInferenceError] Incompatible dimensions for matrix multiplication
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/robot/benchmark/relate_anything/speed1/quality.py", line 73, in main
+    horse, _ = caller.detect(dc.open_image(dc.EXTERNAL / 'assets/reel/images/horse.jpg'), horse_dets)
+               ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/robot/benchmark/power_map/power_map.py", line 105, in detect
+    raise result
+  File "/data/data/com.termux/files/home/robot/benchmark/power_map/power_map.py", line 97, in loop
+    self.answers.put((True, self.detector.detect(*request)))
+                            ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/data/data/com.termux/files/home/robot/benchmark/relate_anything/desk2/speed_block.py", line 145, in detect
+    return self.head.infer(image, detections)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/robot/benchmark/relate_anything/desk2/desk_check.py", line 119, in infer
+    outputs = self.session.run(OUTPUTS, feed)
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_inference_collection.py", line 321, in run
+    return self._sess.run(output_names, input_feed, run_options)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+onnxruntime.capi.onnxruntime_pybind11_state.RuntimeException: [ONNXRuntimeError] : 6 : RUNTIME_EXCEPTION : Non-zero status code returned while running Reshape node. Name:'/model/spatial_pool/cross_attn/Reshape_7' Status Message: /home/builder/.termux-build/onnxruntime/src/onnxruntime/core/providers/cpu/tensor/reshape_helper.h:47 onnxruntime::ReshapeHelper::ReshapeHelper(const TensorShape &, TensorShapeVector &, bool) input_shape_size == size was false. The input tensor cannot be reshaped to the requested shape. Input shape:{1,384}, requested shape:{32,1,384}
+

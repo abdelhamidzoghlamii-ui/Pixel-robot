@@ -1,0 +1,65 @@
+{
+  "versions": {
+    "torch": "2.13.0+cpu",
+    "onnx": "1.23.1",
+    "onnxruntime": "1.30.0",
+    "numpy": "2.5.2",
+    "transformers": "5.14.1"
+  },
+  "python": "3.13.5 (main, Aug 10 2026, 12:06:59) [GCC 14.2.0]",
+  "exporter_sha256": "2f0c2511eb6a0d07f314e03ba18c96cdcc5bad70507911f7ec206dd7230f276e",
+  "variants": {
+    "int8": {
+      "directory": "/termux-home/models/relate_anything/relsgg-vits16-int8",
+      "img_size": 448,
+      "command": "/termux-home/ext/venv-relate-export/bin/python /data/data/com.termux/files/home/robot/benchmark/relate_anything/speed1/quantize_matmul.py; quantize_dynamic('/termux-home/models/relate_anything/relsgg-vits16/relateanything.onnx', '/termux-home/models/relate_anything/relsgg-vits16-int8/relateanything.onnx', weight_type=QuantType.QInt8, op_types_to_quantize=['MatMul'], extra_options={'MatMulConstBOnly': True})",
+      "status": "NOT AVAILABLE",
+      "attempts": [
+        {
+          "command": "/termux-home/ext/venv-relate-export/bin/python /data/data/com.termux/files/home/robot/benchmark/relate_anything/speed1/build_variants.py: quantize_dynamic('/termux-home/models/relate_anything/relsgg-vits16/relateanything.onnx', '/termux-home/models/relate_anything/relsgg-vits16-int8/relateanything.onnx', weight_type=QuantType.QInt8)",
+          "status": "BUILD FAILED",
+          "error": "RuntimeError(\"Unable to find data type for weight_name='/model/spatial_pool/scene_pe/proj/Gemm_output_0_MatMul'. shape_inference failed to return a type probably this node is from a different domain or using an input produced by such an operator. This may happen if you quantize a model already quantized. You may use extra_options `DefaultTensorType` to indicate the default weight type, usually `onnx.TensorProto.FLOAT`.\")"
+        },
+        {
+          "command": "/termux-home/ext/venv-relate-export/bin/python /data/data/com.termux/files/home/robot/benchmark/relate_anything/speed1/quantize_int8.py; quantize_dynamic('/termux-home/models/relate_anything/relsgg-vits16/relateanything.onnx', '/termux-home/models/relate_anything/relsgg-vits16-int8/relateanything.onnx', weight_type=QuantType.QInt8, extra_options={'DefaultTensorType': onnx.TensorProto.FLOAT})",
+          "status": "AVAILABLE",
+          "bytes": 53796701,
+          "sha256": "d7d41edaec13b574179e69487cab690db6892367ffde97de712e487c4836ab16",
+          "native_load_error": "MatMulInteger ShapeInferenceError: Incompatible dimensions for matrix multiplication (quality_initial.stderr)"
+        }
+      ],
+      "bytes": 53796701,
+      "sha256": "d7d41edaec13b574179e69487cab690db6892367ffde97de712e487c4836ab16",
+      "external_data": [],
+      "bank_sha256": "6043ff8fb765db34d89019617979d566b79967b7740c72bb4007786179839f48",
+      "sidecar_sha256": "e70152faa7875bf9ae865d14b3539b7aac358f33bfb10db265365441db26bfaa",
+      "error": "RuntimeError(\"Unable to find data type for weight_name='/model/spatial_pool/scene_pe/proj/Gemm_output_0_MatMul'. shape_inference failed to return a type probably this node is from a different domain or using an input produced by such an operator. This may happen if you quantize a model already quantized. You may use extra_options `DefaultTensorType` to indicate the default weight type, usually `onnx.TensorProto.FLOAT`.\")",
+      "build_status": "BUILD FAILED",
+      "artifact_path": "/termux-home/models/relate_anything/relsgg-vits16-int8/failed_default_tensor_type.onnx"
+    },
+    "img384": {
+      "directory": "/termux-home/models/relate_anything/relsgg-vits16-img384",
+      "img_size": 384,
+      "command": "/termux-home/ext/venv-relate-export/bin/python /termux-home/ext/RelateAnything/deploy/export_onnx.py --checkpoint /termux-home/models/relate_anything/relsgg-vits16/model.pth --out /termux-home/models/relate_anything/relsgg-vits16-img384/relateanything.onnx --vocab-npz /termux-home/models/relate_anything/relsgg-vits16/predicate_bank.npz --vocab-mode input --opset 17 --img-size 384 --max-boxes 32 --weights ema --check",
+      "status": "AVAILABLE",
+      "bytes": 179495602,
+      "sha256": "a39133aea268810ccedbeee158933040bfe1ad2e35354917c32f92c3479542d8",
+      "external_data": [],
+      "bank_sha256": "6043ff8fb765db34d89019617979d566b79967b7740c72bb4007786179839f48",
+      "sidecar_sha256": "0e814fae355b8d84902d2ffd84ba28a35695b6b300e29bb1c79ecdbfe147936c"
+    },
+    "img336": {
+      "directory": "/termux-home/models/relate_anything/relsgg-vits16-img336",
+      "img_size": 336,
+      "command": "/termux-home/ext/venv-relate-export/bin/python /termux-home/ext/RelateAnything/deploy/export_onnx.py --checkpoint /termux-home/models/relate_anything/relsgg-vits16/model.pth --out /termux-home/models/relate_anything/relsgg-vits16-img336/relateanything.onnx --vocab-npz /termux-home/models/relate_anything/relsgg-vits16/predicate_bank.npz --vocab-mode input --opset 17 --img-size 336 --max-boxes 32 --weights ema --check",
+      "status": "AVAILABLE",
+      "bytes": 179495602,
+      "sha256": "1d3912a3df4cfcf99078c635d4e4f6eb8c9853d776087efc0b4afde2b2d59b90",
+      "external_data": [],
+      "bank_sha256": "6043ff8fb765db34d89019617979d566b79967b7740c72bb4007786179839f48",
+      "sidecar_sha256": "5e36b55ac39dc72937fa561350d850fe06727fca64bde90ed89bed6f8bd9a83d"
+    }
+  },
+  "exporter_unchanged": true,
+  "reference_external_data": []
+}

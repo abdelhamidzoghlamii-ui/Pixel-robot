@@ -68,11 +68,15 @@ def sigmoid(x):
 
 
 class Head:
-    def __init__(self, name):
-        directory = MODELS / name
-        require_parity(name)
+    def __init__(self, name, *, directory=None, size=448, threads=2, providers=None):
+        if directory is None:
+            require_parity(name)
+        directory = directory or MODELS / name
+        if size not in (448, 384, 336) or threads not in (2, 4):
+            raise ValueError('unsupported size/thread count')
+        self.size = size
         self.meta = json.loads((directory / 'relateanything.json').read_text())
-        if (self.meta['img_size'], self.meta['max_boxes'], self.meta['vocab_mode'], self.meta['opset']) != (448, 32, 'input', 17):
+        if (self.meta['img_size'], self.meta['max_boxes'], self.meta['vocab_mode'], self.meta['opset']) != (size, 32, 'input', 17):
             raise ValueError('unsupported sidecar contract')
         with np.load(directory / 'predicate_bank.npz', allow_pickle=True) as bank:
             names = list(map(str, bank['names']))
@@ -88,16 +92,16 @@ class Head:
             raise ValueError('invalid calibration')
         self.thresholds = mapped_thresholds(raw_thresholds, self.a, self.b)
         options = ort.SessionOptions()
-        options.intra_op_num_threads = 2
+        options.intra_op_num_threads = threads
         options.inter_op_num_threads = 1
         start = time.monotonic()
         self.session = ort.InferenceSession(str(directory / 'relateanything.onnx'), options,
-                                            providers=['CPUExecutionProvider'])
+                                            providers=providers or ['CPUExecutionProvider'])
         self.load_ms = (time.monotonic() - start) * 1000
         self.metadata = {kind: [{'name': v.name, 'shape': v.shape, 'type': v.type} for v in values]
                          for kind, values in [('inputs', self.session.get_inputs()), ('outputs', self.session.get_outputs())]}
         inputs = {v.name: v for v in self.session.get_inputs()}
-        expected = {'image': ('tensor(float)', [1, 3, 448, 448]),
+        expected = {'image': ('tensor(float)', [1, 3, size, size]),
                     'boxes': ('tensor(float)', [1, 32, 4]), 'box_counts': ('tensor(int64)', [1]),
                     'W': ('tensor(float)', [35, 512]), 'alpha': ('tensor(float)', [35])}
         if set(inputs) != set(expected) or [v.name for v in self.session.get_outputs()] != OUTPUTS:
@@ -109,7 +113,7 @@ class Head:
         assert self.W.shape == (35, 512) and self.alpha.shape == (35,)
 
     def infer(self, image, detections):
-        feed = preprocess(image, [d['box_xyxy'] for d in detections])
+        feed = preprocess(image, [d['box_xyxy'] for d in detections], size=getattr(self, 'size', 448))
         feed.update(W=self.W, alpha=self.alpha)
         start = time.monotonic()
         outputs = self.session.run(OUTPUTS, feed)

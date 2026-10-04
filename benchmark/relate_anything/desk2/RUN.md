@@ -22,7 +22,7 @@ python -u ~/robot/benchmark/relate_anything/desk2/speed_block.py --model relsgg-
 
 Success prints `INFORMAL — agents resident, NOT VALID TIMING — dry-run`, JSON
 with that label ending in `DRY RUN`, median/P95 ORT ms, VmHWM, and `Evidence:`.
-Send the complete stdout, stderr and owner_dry_m1.json. This proves inference and
+Send the complete stdout, stderr and owner_dry_m1_fix1.json. This proves inference and
 MID caller/worker pinning only. It supplies no valid speed/power measurement.
 
 2. Dry-run M2 (eligible because its new two-photo parity passed):
@@ -32,7 +32,7 @@ python -u ~/robot/benchmark/relate_anything/desk2/speed_block.py --model relsgg-
 ```
 
 Success prints the same NOT VALID label and summary for M2. Send complete stdout,
-stderr and owner_dry_m2.json. Missing/failed parity_valid_relsgg-vits16.json refuses
+stderr and owner_dry_m2_fix1.json. Missing/failed parity_valid_relsgg-vits16.json refuses
 before loading, locking or inference; old horse_parity.json never authorizes M2.
 
 3. Timed block M1, after exiting all agents:
@@ -43,7 +43,7 @@ python -u ~/robot/benchmark/relate_anything/desk2/speed_block.py --model relsgg-
 
 Success prints the saved/set screen timeout, `Idling 300 s`, the restored timeout,
 then JSON labelled `TIMING COMPLETE; warm starts flagged; no cold-cache load claim`
-and `Evidence:`. Send complete stdout, stderr and owner_speed_m1.json, including
+and `Evidence:`. Send complete stdout, stderr and owner_speed_m1_fix1.json, including
 raw sensor/affinity/call rows, warm-start gate and CPU-cap summary. A refusal or
 `NOT VALID — INCOMPLETE` is a failed block; report it and restore the stated
 conditions before a fresh invocation with a new output filename.
@@ -55,6 +55,6 @@ python -u ~/robot/benchmark/relate_anything/desk2/speed_block.py --model relsgg-
 ```
 
 Success prints the same screen/idle/restoration messages and TIMING COMPLETE
-summary for M2. Send complete stdout, stderr and owner_speed_m2.json. Each block
+summary for M2. Send complete stdout, stderr and owner_speed_m2_fix1.json. Each block
 plans 36 calls at 0,5,...,175 s across 180 s on MID cores 4–5, intra-op threads=2.
 Do not compare speed until both block JSONs have been checked for validity.

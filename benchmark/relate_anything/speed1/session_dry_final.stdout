@@ -1,0 +1,249 @@
+Planned blocks: [{"block": 1, "variant": "fp32", "cluster": "MID", "cpus": [4, 5], "threads": 2, "output": "/termux-home/robot/benchmark/relate_anything/speed1/session_dry_final_block_01_fp32_MID.json"}, {"block": 2, "variant": "fp32", "cluster": "BIG", "cpus": [6, 7], "threads": 2, "output": "/termux-home/robot/benchmark/relate_anything/speed1/session_dry_final_block_02_fp32_BIG.json"}, {"block": 3, "variant": "fp32", "cluster": "LITTLE", "cpus": [0, 1, 2, 3], "threads": 4, "output": "/termux-home/robot/benchmark/relate_anything/speed1/session_dry_final_block_03_fp32_LITTLE.json"}, {"block": 4, "variant": "fp32", "cluster": "MID", "cpus": [4, 5], "threads": 2, "output": "/termux-home/robot/benchmark/relate_anything/speed1/session_dry_final_block_04_fp32_MID.json"}]
+Estimated owner session: 17.0 min + loads/setup; up to 49.0 min with all gates at 8 min.
+INFORMAL — agents resident, NOT VALID TIMING — two calls per block, no idle/gates/sensors
+INFORMAL — agents resident, NOT VALID TIMING — dry-run; no charger/agent/idle/skin gates or sensor sampling
+{
+  "model": "relsgg-vits16",
+  "label": "INFORMAL \u2014 agents resident, NOT VALID TIMING \u2014 DRY RUN",
+  "photo": "/data/data/com.termux/files/home/robot/benchmark/relate_anything/desk2/speed_photo.jpg",
+  "photo_sha256": "4da2d789dd9a60405658184de81e9f46b3c55e09024a6f2ce26a934d899d0fd8",
+  "cadence_s": 5,
+  "planned_s": 180,
+  "intra_op_threads": 2,
+  "cpus": [
+    4,
+    5
+  ],
+  "sampling": {
+    "caps_cpu_battery_temp_s": 1,
+    "battery_power_s": 1,
+    "skin_android_status_s": 5,
+    "battery_status_memory_s": 5
+  },
+  "power_source": {
+    "current": "/sys/class/power_supply/battery/current_now",
+    "voltage": "/sys/class/power_supply/battery/voltage_now",
+    "kind": "current_now sysfs reading; no runner averaging; driver filtering unspecified"
+  },
+  "variant": "fp32",
+  "cluster": "MID",
+  "load_ms": 1936.8839529925026,
+  "ort_tids": [
+    17342,
+    17343
+  ],
+  "providers": [
+    "CPUExecutionProvider"
+  ],
+  "optimization_level": "GraphOptimizationLevel.ORT_ENABLE_ALL",
+  "artifact_identity": {
+    "relateanything.onnx": "24a2e2a2ef8ea7d1b7cffef9fe5e35ab9c8eeb413e73eb4dee5afa9b24dd98d5",
+    "relateanything.json": "e70152faa7875bf9ae865d14b3539b7aac358f33bfb10db265365441db26bfaa",
+    "predicate_bank.npz": "6043ff8fb765db34d89019617979d566b79967b7740c72bb4007786179839f48"
+  },
+  "block_start_s": 0.0,
+  "time_base": "time.monotonic; all sample times relative to block start",
+  "duration_s": 6.1674322949838825,
+  "median_ort_ms": 1157.9255990218371,
+  "p95_ort_ms": 1175.2026803209446,
+  "VmHWM_KiB": 443616,
+  "min_MemAvailable_MiB": null,
+  "power_summary": {
+    "mean_battery_w": null,
+    "mean_inside_calls_w": null,
+    "mean_outside_calls_w": null,
+    "samples": 0,
+    "inside_samples": 0,
+    "outside_samples": 0,
+    "classification": "sample receipt t in [started_s, ended_s); block 0 <= t <= duration",
+    "read_overlaps_call_boundary": 0
+  },
+  "validity": "NOT VALID \u2014 DRY RUN"
+}
+Evidence: /termux-home/robot/benchmark/relate_anything/speed1/session_dry_final_block_01_fp32_MID.json
+INFORMAL — agents resident, NOT VALID TIMING — dry-run; no charger/agent/idle/skin gates or sensor sampling
+{
+  "model": "relsgg-vits16",
+  "label": "INFORMAL \u2014 agents resident, NOT VALID TIMING \u2014 DRY RUN",
+  "photo": "/data/data/com.termux/files/home/robot/benchmark/relate_anything/desk2/speed_photo.jpg",
+  "photo_sha256": "4da2d789dd9a60405658184de81e9f46b3c55e09024a6f2ce26a934d899d0fd8",
+  "cadence_s": 5,
+  "planned_s": 180,
+  "intra_op_threads": 2,
+  "cpus": [
+    6,
+    7
+  ],
+  "sampling": {
+    "caps_cpu_battery_temp_s": 1,
+    "battery_power_s": 1,
+    "skin_android_status_s": 5,
+    "battery_status_memory_s": 5
+  },
+  "power_source": {
+    "current": "/sys/class/power_supply/battery/current_now",
+    "voltage": "/sys/class/power_supply/battery/voltage_now",
+    "kind": "current_now sysfs reading; no runner averaging; driver filtering unspecified"
+  },
+  "variant": "fp32",
+  "cluster": "BIG",
+  "load_ms": 1994.5445159683004,
+  "ort_tids": [
+    17347,
+    17348
+  ],
+  "providers": [
+    "CPUExecutionProvider"
+  ],
+  "optimization_level": "GraphOptimizationLevel.ORT_ENABLE_ALL",
+  "artifact_identity": {
+    "relateanything.onnx": "24a2e2a2ef8ea7d1b7cffef9fe5e35ab9c8eeb413e73eb4dee5afa9b24dd98d5",
+    "relateanything.json": "e70152faa7875bf9ae865d14b3539b7aac358f33bfb10db265365441db26bfaa",
+    "predicate_bank.npz": "6043ff8fb765db34d89019617979d566b79967b7740c72bb4007786179839f48"
+  },
+  "block_start_s": 0.0,
+  "time_base": "time.monotonic; all sample times relative to block start",
+  "duration_s": 5.650171756045893,
+  "median_ort_ms": 623.0340169859119,
+  "p95_ort_ms": 626.593990373658,
+  "VmHWM_KiB": 447484,
+  "min_MemAvailable_MiB": null,
+  "power_summary": {
+    "mean_battery_w": null,
+    "mean_inside_calls_w": null,
+    "mean_outside_calls_w": null,
+    "samples": 0,
+    "inside_samples": 0,
+    "outside_samples": 0,
+    "classification": "sample receipt t in [started_s, ended_s); block 0 <= t <= duration",
+    "read_overlaps_call_boundary": 0
+  },
+  "validity": "NOT VALID \u2014 DRY RUN"
+}
+Evidence: /termux-home/robot/benchmark/relate_anything/speed1/session_dry_final_block_02_fp32_BIG.json
+INFORMAL — agents resident, NOT VALID TIMING — dry-run; no charger/agent/idle/skin gates or sensor sampling
+{
+  "model": "relsgg-vits16",
+  "label": "INFORMAL \u2014 agents resident, NOT VALID TIMING \u2014 DRY RUN",
+  "photo": "/data/data/com.termux/files/home/robot/benchmark/relate_anything/desk2/speed_photo.jpg",
+  "photo_sha256": "4da2d789dd9a60405658184de81e9f46b3c55e09024a6f2ce26a934d899d0fd8",
+  "cadence_s": 5,
+  "planned_s": 180,
+  "intra_op_threads": 4,
+  "cpus": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "sampling": {
+    "caps_cpu_battery_temp_s": 1,
+    "battery_power_s": 1,
+    "skin_android_status_s": 5,
+    "battery_status_memory_s": 5
+  },
+  "power_source": {
+    "current": "/sys/class/power_supply/battery/current_now",
+    "voltage": "/sys/class/power_supply/battery/voltage_now",
+    "kind": "current_now sysfs reading; no runner averaging; driver filtering unspecified"
+  },
+  "variant": "fp32",
+  "cluster": "LITTLE",
+  "load_ms": 2019.9072269606404,
+  "ort_tids": [
+    17349,
+    17350,
+    17351,
+    17354
+  ],
+  "providers": [
+    "CPUExecutionProvider"
+  ],
+  "optimization_level": "GraphOptimizationLevel.ORT_ENABLE_ALL",
+  "artifact_identity": {
+    "relateanything.onnx": "24a2e2a2ef8ea7d1b7cffef9fe5e35ab9c8eeb413e73eb4dee5afa9b24dd98d5",
+    "relateanything.json": "e70152faa7875bf9ae865d14b3539b7aac358f33bfb10db265365441db26bfaa",
+    "predicate_bank.npz": "6043ff8fb765db34d89019617979d566b79967b7740c72bb4007786179839f48"
+  },
+  "block_start_s": 0.0,
+  "time_base": "time.monotonic; all sample times relative to block start",
+  "duration_s": 8.346086552017368,
+  "median_ort_ms": 3258.3548194961622,
+  "p95_ort_ms": 3259.1168310435023,
+  "VmHWM_KiB": 447616,
+  "min_MemAvailable_MiB": null,
+  "power_summary": {
+    "mean_battery_w": null,
+    "mean_inside_calls_w": null,
+    "mean_outside_calls_w": null,
+    "samples": 0,
+    "inside_samples": 0,
+    "outside_samples": 0,
+    "classification": "sample receipt t in [started_s, ended_s); block 0 <= t <= duration",
+    "read_overlaps_call_boundary": 0
+  },
+  "validity": "NOT VALID \u2014 DRY RUN"
+}
+Evidence: /termux-home/robot/benchmark/relate_anything/speed1/session_dry_final_block_03_fp32_LITTLE.json
+INFORMAL — agents resident, NOT VALID TIMING — dry-run; no charger/agent/idle/skin gates or sensor sampling
+{
+  "model": "relsgg-vits16",
+  "label": "INFORMAL \u2014 agents resident, NOT VALID TIMING \u2014 DRY RUN",
+  "photo": "/data/data/com.termux/files/home/robot/benchmark/relate_anything/desk2/speed_photo.jpg",
+  "photo_sha256": "4da2d789dd9a60405658184de81e9f46b3c55e09024a6f2ce26a934d899d0fd8",
+  "cadence_s": 5,
+  "planned_s": 180,
+  "intra_op_threads": 2,
+  "cpus": [
+    4,
+    5
+  ],
+  "sampling": {
+    "caps_cpu_battery_temp_s": 1,
+    "battery_power_s": 1,
+    "skin_android_status_s": 5,
+    "battery_status_memory_s": 5
+  },
+  "power_source": {
+    "current": "/sys/class/power_supply/battery/current_now",
+    "voltage": "/sys/class/power_supply/battery/voltage_now",
+    "kind": "current_now sysfs reading; no runner averaging; driver filtering unspecified"
+  },
+  "variant": "fp32",
+  "cluster": "MID",
+  "load_ms": 2058.9617930236273,
+  "ort_tids": [
+    17369,
+    17372
+  ],
+  "providers": [
+    "CPUExecutionProvider"
+  ],
+  "optimization_level": "GraphOptimizationLevel.ORT_ENABLE_ALL",
+  "artifact_identity": {
+    "relateanything.onnx": "24a2e2a2ef8ea7d1b7cffef9fe5e35ab9c8eeb413e73eb4dee5afa9b24dd98d5",
+    "relateanything.json": "e70152faa7875bf9ae865d14b3539b7aac358f33bfb10db265365441db26bfaa",
+    "predicate_bank.npz": "6043ff8fb765db34d89019617979d566b79967b7740c72bb4007786179839f48"
+  },
+  "block_start_s": 0.0,
+  "time_base": "time.monotonic; all sample times relative to block start",
+  "duration_s": 6.165648115042131,
+  "median_ort_ms": 1157.5906375364866,
+  "p95_ort_ms": 1176.2384093919536,
+  "VmHWM_KiB": 447616,
+  "min_MemAvailable_MiB": null,
+  "power_summary": {
+    "mean_battery_w": null,
+    "mean_inside_calls_w": null,
+    "mean_outside_calls_w": null,
+    "samples": 0,
+    "inside_samples": 0,
+    "outside_samples": 0,
+    "classification": "sample receipt t in [started_s, ended_s); block 0 <= t <= duration",
+    "read_overlaps_call_boundary": 0
+  },
+  "validity": "NOT VALID \u2014 DRY RUN"
+}
+Evidence: /termux-home/robot/benchmark/relate_anything/speed1/session_dry_final_block_04_fp32_MID.json
+Session label: INFORMAL — agents resident, NOT VALID TIMING — SESSION DRY RUN 
+Evidence: /termux-home/robot/benchmark/relate_anything/speed1/session_dry_final.json
