@@ -151,7 +151,10 @@ assert summary['mean_outside_calls_w'] == 4/3
 assert summary['read_overlaps_call_boundary'] == 2
 assert sb.power_summary([], windows, 10)['mean_battery_w'] is None
 class Shell:
+    p = SimpleNamespace(pid=123)
     def run(self, command):
+        if '/proc/' in command:
+            return ['Cpus_allowed_list:\t6-7']
         assert '/current_now' in command and '/voltage_now' in command
         return ['-1000000', '4000000']
 power=[]
@@ -162,7 +165,8 @@ with patch.object(sb.cr, 'fast_sample', return_value={'t': 1}), \
 assert power[0]['battery_w'] == 4 and power[0]['t_start'] == 1.1 and power[0]['t'] == 1.2
 assert not set(power[0]['sampler_cpus']) & sb.CPUS
 with patch.object(sb.cr, 'fast_sample', return_value={}), \
-     patch.object(sb.os, 'sched_getaffinity', side_effect=[{6,7},{4,5}]):
+     patch.object(sb.os, 'sched_getaffinity', return_value={6,7}), \
+     patch.object(sb, 'root_mask', return_value={4,5}):
     try: sb.read_fast(Shell(), [], [], 123)
     except RuntimeError: pass
     else: raise AssertionError('root sampler permitted on MID cores')

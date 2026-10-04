@@ -69,7 +69,8 @@ with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp)
     (root / 'quality.json').write_text(json.dumps(quality))
     events = []
-    shell = SimpleNamespace(close=lambda: events.append('root_close'))
+    shell = SimpleNamespace(close=lambda: events.append('root_close'), p=SimpleNamespace(pid=123),
+                            run=lambda command: ['Cpus_allowed_list: 0'])
     monitor = (shell, {0, 1}, 123, {'policies': {}})
     def fake_block(args, **kw):
         events.append(('block', args.variant, args.cluster, kw['session']['idle']['skin']))
@@ -102,13 +103,145 @@ print('PASS: all cluster/thread rules; literal quality thresholds and box identi
 class Root:
     p = SimpleNamespace(pid=123)
     def run(self, command):
+        if '/proc/' in command:
+            return ['Cpus_allowed_list:\t0']
         return ['234'] if command == 'echo $$' else []
     def close(self): pass
 with patch.object(v.sb.cr, 'RootShell', return_value=Root()), \
      patch.object(v.sb.pm, 'thread_ids', side_effect=[{1}, {1, 2}]), \
-     patch.object(v.sb.os, 'sched_getaffinity', side_effect=[set(range(8)), {0}, {0}]), \
+     patch.object(v.sb.os, 'sched_getaffinity', return_value=set(range(8))), \
      patch.object(v.sb.os, 'sched_setaffinity'), \
      patch.object(v.sb.cr, 'discover', return_value={'policies': dict.fromkeys(v.sb.pm.POLICIES, 1)}):
     monitor = v.sb.prepare_monitor()
     assert monitor[2] == 234 and monitor[0].monitor_tids == {2}
 print('PASS: actual prepare_monitor accepts narrower safe root/su masks (mock), before idle')
+
+# Status parsing and validation use the real root reader; foreign affinity syscalls fail.
+for text, expected in [('0-3,6', {0,1,2,3,6}), ('0', {0})]:
+    shell = SimpleNamespace(run=lambda command: ['Name:\tsh', 'Cpus_allowed_list:\t' + text])
+    with patch.object(v.sb.os, 'cpu_count', return_value=8):
+        assert v.sb.root_mask(shell, 123) == expected
+for text in ('', '0-', '3-0', '0,,6', '0-3 junk', '-1', '8', '0x1'):
+    shell = SimpleNamespace(run=lambda command: ['Cpus_allowed_list:\t' + text])
+    with patch.object(v.sb.os, 'cpu_count', return_value=8):
+        try: v.sb.root_mask(shell, 123)
+        except RuntimeError: pass
+        else: raise AssertionError(text)
+for lines in ([], ['Cpus_allowed_list: 0', 'Cpus_allowed_list: 6']):
+    try: v.sb.root_mask(SimpleNamespace(run=lambda command: lines), 123)
+    except RuntimeError: pass
+    else: raise AssertionError(lines)
+for mask in ('4', '0,5'):
+    shell = SimpleNamespace(run=lambda command: ['Cpus_allowed_list: ' + mask])
+    try: v.sb.require_monitor_mask(v.sb.root_mask(shell, 123))
+    except RuntimeError: pass
+    else: raise AssertionError(mask)
+print('PASS: root status valid/ranges/narrow; empty/missing/duplicate/malformed/overlapping refused')
+
+# Both session and --variant preflight check every planned cluster, without idle/blocks.
+for variant in (None, 'fp32'):
+    for refusal in (None, 'charger', 'agents', 'root', 'cleanup'):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'quality.json').write_text(json.dumps(quality))
+            checked = []
+            shell = SimpleNamespace(close=lambda: None, p=SimpleNamespace(pid=123),
+                                    run=lambda command: ['Cpus_allowed_list: 0'])
+            monitor = (shell, {0}, 123, {'policies': {}})
+            output = root / 'preflight.json'
+            argv = ['session.py', '--preflight', '--output', str(output)]
+            if variant: argv += ['--variant', variant, '--cluster', 'BIG']
+            managers = (contextlib.redirect_stdout(io.StringIO()), patch.object(s, 'HERE', root),
+                 patch.object(s, 'require_quality'), patch.object(s, 'build', side_effect=fake_build),
+                 patch.object(s, 'repin_monitor', side_effect=lambda m,c: checked.append(c) or m),
+                 patch.object(s.sb, 'prepare_monitor', side_effect=RuntimeError('root') if refusal == 'root' else None, return_value=monitor),
+                 patch.object(s.sb, 'Screen'), patch.object(s.sb.cr, 'require_native'),
+                 patch.object(s.sb, 'processes_clear', side_effect=RuntimeError('agents') if refusal == 'agents' else None),
+                 patch.object(s.sb, 'battery_sample', side_effect=RuntimeError('charger') if refusal == 'charger' else None),
+                 patch.object(s.sb.cr, 'check_cores'), patch.object(s.sb.cr, 'read_dump', return_value={'skin':30,'status':0}),
+                 patch.object(s.sb, 'check_pinning'), patch.object(s.os, 'sched_getaffinity', return_value=set(range(8))),
+                 patch.object(s.time, 'sleep'), patch.object(s.sb, 'run_block'),
+                 patch.object(sys, 'argv', argv))
+            with contextlib.ExitStack() as stack:
+                entered = [stack.enter_context(m) for m in managers]
+                screen, no_sleep, no_block = entered[6], entered[-3], entered[-2]
+
+                if refusal == 'cleanup': screen.return_value.restore.side_effect = RuntimeError('cleanup')
+                try: s.main()
+                except RuntimeError: assert refusal
+                else: assert refusal is None
+                no_sleep.assert_not_called()
+                no_block.assert_not_called()
+                screen.return_value.restore.assert_called_once()
+            record = json.loads(output.read_text())
+            assert not record['blocks']
+            if refusal is None:
+                assert record['label'] == 'PREFLIGHT ONLY — NO TIMING'
+                assert all(v.CLUSTERS[c][0] in checked for _,c in
+                           ([('fp32','BIG')] if variant else v.planned_blocks(quality)))
+print('PASS: session and single-variant preflight all clusters, charger/agents/root refusal, cleanup failure; no idle/gates/blocks (mocks)')
+
+with tempfile.TemporaryDirectory() as tmp, contextlib.ExitStack() as stack:
+    args = SimpleNamespace(model=v.NAME, dry_run=False, preflight=True, output=Path(tmp)/'block.json')
+    for manager in (contextlib.redirect_stdout(io.StringIO()), patch.object(v.sb, 'require_parity'),
+                    patch.object(v.sb.cr, 'require_native'), patch.object(v.sb, 'processes_clear'),
+                    patch.object(v.sb.cr, 'check_cores'), patch.object(v.sb, 'battery_sample'),
+                    patch.object(v.sb, 'prepare_monitor', return_value=(Root(), {0}, 234, {'policies':{}})),
+                    patch.object(v.sb, 'build', return_value=(object(), SimpleNamespace(close=lambda:None), [1])),
+                    patch.object(v.sb, 'check_pinning'), patch.object(v.sb.cr, 'read_dump', return_value={'skin':30,'status':0})):
+        stack.enter_context(manager)
+    screen = stack.enter_context(patch.object(v.sb, 'Screen'))
+    sleep = stack.enter_context(patch.object(v.sb.time, 'sleep'))
+    result = v.sb.run_block(args)
+    assert result['label'] == result['validity'] == 'PREFLIGHT ONLY — NO TIMING'
+    assert not result['calls'] and not result['power'] and 'idle' not in result
+    sleep.assert_not_called()
+    screen.return_value.start.assert_called_once()
+    screen.return_value.restore.assert_called_once()
+print('PASS: standalone block preflight build/pinning and screen cleanup, no idle/gates/calls (mocks)')
+
+for cluster, (cpus, _) in v.CLUSTERS.items():
+    safe = min(set(range(8)) - cpus)
+    shell = SimpleNamespace(p=SimpleNamespace(pid=123), monitor_tids={1},
+                            run=lambda command: ['Cpus_allowed_list: ' + str(safe)])
+    def own_affinity(pid):
+        assert pid in (0, 1), 'foreign sched_getaffinity'
+        return set(range(8)) if pid == 0 else {safe}
+    with patch.object(s.os, 'sched_getaffinity', side_effect=own_affinity), \
+         patch.object(s.os, 'sched_setaffinity'):
+        s.repin_monitor((shell, {safe}, 234, {}), cpus)
+for value in ('', '4', 'bogus'):
+    class BadRoot(Root):
+        def run(self, command):
+            return ['Cpus_allowed_list: ' + value] if '/proc/' in command else super().run(command)
+    with patch.object(v.sb.cr, 'RootShell', return_value=BadRoot()), \
+         patch.object(v.sb.pm, 'thread_ids', side_effect=[{1}, {1,2}]), \
+         patch.object(v.sb.os, 'sched_getaffinity', return_value=set(range(8))), \
+         patch.object(v.sb.os, 'sched_setaffinity'):
+        try: v.sb.prepare_monitor()
+        except RuntimeError: pass
+        else: raise AssertionError(value)
+try: v.sb.root_mask(SimpleNamespace(run=lambda command: (_ for _ in ()).throw(RuntimeError('read failure'))),123)
+except RuntimeError: pass
+else: raise AssertionError('read error accepted')
+print('PASS: real repin across all clusters avoids foreign affinity syscalls; prepare_monitor and read failures fail closed (mocks)')
+
+# Execute the generated builtin shell command against mock status files, no su/root.
+import subprocess
+import shlex
+with tempfile.TemporaryDirectory() as tmp:
+    status = Path(tmp)/'status'
+    def mock_status_shell(command):
+        assert 'cat ' not in command
+        command = command.replace('</proc/123/status', '<' + shlex.quote(str(status)))
+        done = subprocess.run(['bash', '-c', command], capture_output=True, text=True)
+        return done.stdout.splitlines()
+    for text, expected in [('Name:\tsh\nCpus_allowed_list:\t0-3,6\n', {0,1,2,3,6}),
+                           ('Cpus_allowed_list:\t0\n', {0})]:
+        status.write_text(text)
+        assert v.sb.root_mask(SimpleNamespace(run=mock_status_shell), 123) == expected
+    status.unlink()
+    try: v.sb.root_mask(SimpleNamespace(run=mock_status_shell), 123)
+    except RuntimeError: pass
+    else: raise AssertionError('missing status read accepted')
+print('PASS: generated builtin shell reader handles mock status files and missing file; no external cat, no root')

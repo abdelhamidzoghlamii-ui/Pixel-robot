@@ -2,7 +2,7 @@
 
 M2 fp32 is the benchmark reference, not deployed. Native Termux Python only,
 motors off, charger unplugged for the timed session, Termux in front and screen
-on. Exit Codex, Claude, AGY, node, robot runners and model servers before step 2.
+on. Exit Codex, Claude, AGY, node, robot runners and model servers before steps 2 and 3.
 The Downloads directory below is created during Coder preparation. Existing
 evidence is refused; use a fresh output stem and matching log filenames on reruns.
 
@@ -20,7 +20,7 @@ or changed artifacts. The plan is:
 Step 1 — session dry-run (two calls per block, no idle/gates/sensors, NOT VALID):
 
 ```sh
-python -u ~/robot/benchmark/relate_anything/speed1/session.py --session --dry-run --output ~/storage/downloads/relate_speed1/owner_dry_speed1.json > ~/storage/downloads/relate_speed1/owner_dry_speed1.stdout 2> ~/storage/downloads/relate_speed1/owner_dry_speed1.stderr
+python -u ~/robot/benchmark/relate_anything/speed1/session.py --session --dry-run --output ~/storage/downloads/relate_speed1/owner_dry_speed1_fix.json > ~/storage/downloads/relate_speed1/owner_dry_speed1_fix.stdout 2> ~/storage/downloads/relate_speed1/owner_dry_speed1_fix.stderr
 ```
 
 Expected about 40 seconds including loads/cadence (informal estimate only).
@@ -31,16 +31,42 @@ block/inside-call/outside-call mean watts with zero sample counts. It ends with
 `INFORMAL — agents resident, NOT VALID TIMING — SESSION DRY RUN` and `Evidence:`.
 No valid speed or power evidence is produced. Send these exact files:
 
-- `owner_dry_speed1.stdout`, `owner_dry_speed1.stderr`, `owner_dry_speed1.json`
-- `owner_dry_speed1_block_01_fp32_MID.json`
-- `owner_dry_speed1_block_02_fp32_BIG.json`
-- `owner_dry_speed1_block_03_fp32_LITTLE.json`
-- `owner_dry_speed1_block_04_fp32_MID.json`
+- `owner_dry_speed1_fix.stdout`, `owner_dry_speed1_fix.stderr`, `owner_dry_speed1_fix.json`
+- `owner_dry_speed1_fix_block_01_fp32_MID.json`
+- `owner_dry_speed1_fix_block_02_fp32_BIG.json`
+- `owner_dry_speed1_fix_block_03_fp32_LITTLE.json`
+- `owner_dry_speed1_fix_block_04_fp32_MID.json`
 
-Step 2 — timed session, owner only, after exiting all agents:
+Step 2 — preflight only, owner in native Termux, charger unplugged, no agents:
 
 ```sh
-python -u ~/robot/benchmark/relate_anything/speed1/session.py --session --output ~/storage/downloads/relate_speed1/owner_session_speed1.json > ~/storage/downloads/relate_speed1/owner_session_speed1.stdout 2> ~/storage/downloads/relate_speed1/owner_session_speed1.stderr
+python -u ~/robot/benchmark/relate_anything/speed1/session.py --session --preflight --output ~/storage/downloads/relate_speed1/owner_preflight_speed1_fix.json > ~/storage/downloads/relate_speed1/owner_preflight_speed1_fix.stdout 2> ~/storage/downloads/relate_speed1/owner_preflight_speed1_fix.stderr
+```
+
+Expected under 1 minute for the current fp32 plan (estimate, not live validated).
+Runs the real pre-idle checks: charger, agents/processes, cores, root/su masks,
+policies, saved input, quality/graph hashes, engines and worker pinning; checks
+root masks for every planned cluster. Sets/readbacks/restores screen timeout and
+releases the wake lock/root shell. No idle, gates or blocks. Success label:
+`PREFLIGHT ONLY — NO TIMING`. Send exactly `owner_preflight_speed1_fix.json`,
+`owner_preflight_speed1_fix.stdout`, and `owner_preflight_speed1_fix.stderr`,
+including any refusal. No block files are produced. Dry-run and preflight are
+mutually exclusive; `--variant fp32 --cluster BIG --preflight` checks one block.
+For the desk2 standalone path, always supply a fresh Downloads output path:
+
+```sh
+python -u ~/robot/benchmark/relate_anything/desk2/speed_block.py --model relsgg-vits16 --preflight --output ~/storage/downloads/relate_speed1/owner_preflight_desk2_speed1_fix.json > ~/storage/downloads/relate_speed1/owner_preflight_desk2_speed1_fix.stdout 2> ~/storage/downloads/relate_speed1/owner_preflight_desk2_speed1_fix.stderr
+```
+
+Send exactly `owner_preflight_desk2_speed1_fix.json`,
+`owner_preflight_desk2_speed1_fix.stdout`, `owner_preflight_desk2_speed1_fix.stderr`.
+Never omit `--output`: default desk2 results are hashed quality reference inputs.
+Do not proceed to step 3 unless preflight and cleanup succeed.
+
+Step 3 — timed session, owner only, after exiting all agents:
+
+```sh
+python -u ~/robot/benchmark/relate_anything/speed1/session.py --session --output ~/storage/downloads/relate_speed1/owner_session_speed1_fix.json > ~/storage/downloads/relate_speed1/owner_session_speed1_fix.stdout 2> ~/storage/downloads/relate_speed1/owner_session_speed1_fix.stderr
 ```
 
 Expected 17 minutes plus setup/load time with immediately satisfied gates; up to
@@ -69,11 +95,11 @@ inference and cleanup failures stop the session; refused blocks and the unrun pl
 are recorded. A session-complete label is not blanket validity for its blocks.
 Send all of these exact files, including failures:
 
-- `owner_session_speed1.stdout`, `owner_session_speed1.stderr`, `owner_session_speed1.json`
-- `owner_session_speed1_block_01_fp32_MID.json`
-- `owner_session_speed1_block_02_fp32_BIG.json`
-- `owner_session_speed1_block_03_fp32_LITTLE.json`
-- `owner_session_speed1_block_04_fp32_MID.json`
+- `owner_session_speed1_fix.stdout`, `owner_session_speed1_fix.stderr`, `owner_session_speed1_fix.json`
+- `owner_session_speed1_fix_block_01_fp32_MID.json`
+- `owner_session_speed1_fix_block_02_fp32_BIG.json`
+- `owner_session_speed1_fix_block_03_fp32_LITTLE.json`
+- `owner_session_speed1_fix_block_04_fp32_MID.json`
 
 The same runner also accepts `--variant {fp32,int8,xnnpack,img384,img336}` and
 `--cluster {MID,BIG,LITTLE}` for one-block owner runs; failed variants refuse even

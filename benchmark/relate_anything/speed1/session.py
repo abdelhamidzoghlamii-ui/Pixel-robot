@@ -23,8 +23,8 @@ def repin_monitor(monitor, cpus):
     mask = format(sum(1 << c for c in allowed), 'x')
     shell.run(f'taskset -p {mask} {shell.p.pid}')
     shell.run(f'taskset -p {mask} {root_pid}')
-    sb.require_monitor_mask(os.sched_getaffinity(shell.p.pid), cpus)
-    sb.require_monitor_mask(os.sched_getaffinity(root_pid), cpus)
+    sb.require_monitor_mask(sb.root_mask(shell, shell.p.pid), cpus)
+    sb.require_monitor_mask(sb.root_mask(shell, root_pid), cpus)
     return shell, allowed, root_pid, layout
 
 
@@ -42,8 +42,13 @@ def main():
     ap.add_argument('--variant', choices=VARIANTS)
     ap.add_argument('--cluster', choices=CLUSTERS, default='MID')
     ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--preflight', action='store_true')
     ap.add_argument('--output', type=Path, required=True)
     args = ap.parse_args()
+    if args.preflight and args.dry_run:
+        ap.error('--preflight and --dry-run are mutually exclusive')
+    if args.preflight:
+        print('PREFLIGHT ONLY — NO TIMING', flush=True)
     if args.session and args.variant:
         ap.error('--session and --variant are mutually exclusive')
     if sys.platform != 'android':
@@ -93,18 +98,30 @@ def main():
                 if reading['skin'] is None or reading['status'] is None or reading['status'] >= sb.cr.STATUS_STOP:
                     raise RuntimeError('pre-idle skin/status missing or thermal stop')
                 # Verify every engine, thread count and affinity before spending idle time.
+                result['preflight_engines'] = []
                 for variant, cluster in dict.fromkeys(blocks):
                     head, caller, tids = build(variant, cluster)
                     try:
                         sb.check_pinning(tids, CLUSTERS[cluster][0])
+                        result['preflight_engines'].append({'variant': variant, 'cluster': cluster,
+                            'ort_tids': tids, 'verified_cpus': sorted(CLUSTERS[cluster][0])})
                     finally:
                         caller.close()
                     head = caller = None
                 monitor = sb.prepare_monitor(CLUSTERS[blocks[0][1]][0])
+                result['preflight_clusters'] = []
                 for cluster in dict.fromkeys(c for _, c in blocks):
                     monitor = repin_monitor(monitor, CLUSTERS[cluster][0])
+                    result['preflight_clusters'].append({'cluster': cluster,
+                        'root_shell_cpus': sorted(sb.root_mask(monitor[0], monitor[2])),
+                        'su_cpus': sorted(sb.root_mask(monitor[0], monitor[0].p.pid)),
+                        'policies': monitor[3]['policies']})
                 monitor = repin_monitor(monitor, CLUSTERS[blocks[0][1]][0])
                 screen.start()
+                if args.preflight:
+                    result['label'] = 'PREFLIGHT ONLY — NO TIMING'
+                    print(result['label'], flush=True)
+                    return
                 print('Idling 300 s once; unplugged, screen on, Termux foreground', flush=True)
                 for _ in range(60):
                     time.sleep(5)
@@ -162,6 +179,8 @@ def main():
             result['unrun_blocks'] = plan[len(result['blocks']):]
             dc.write_json(output, result)
             print('Session label:', result['label'], '\nEvidence:', output, flush=True)
+            if args.preflight and result.get('cleanup_error'):
+                raise RuntimeError('preflight cleanup failed: ' + result['cleanup_error'])
     if result['label'] == 'NOT VALID — SESSION INCOMPLETE':
         raise SystemExit(1)
 

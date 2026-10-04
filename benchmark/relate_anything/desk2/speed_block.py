@@ -106,7 +106,8 @@ def read_fast(shell, keys, power_rows, root_pid, cpus=CPUS):
     row = cr.fast_sample(shell, keys)
     tid = threading.get_native_id()
     allowed = os.sched_getaffinity(tid)
-    root_allowed = os.sched_getaffinity(root_pid)
+    root_allowed = root_mask(shell, root_pid)
+    require_monitor_mask(root_mask(shell, shell.p.pid), cpus)
     if not allowed or not root_allowed or allowed & cpus or root_allowed & cpus:
         raise RuntimeError('fast sampler/root shell may run on inference cores')
     pump_masks = {str(t): sorted(os.sched_getaffinity(t)) for t in getattr(shell, 'monitor_tids', ())}
@@ -175,6 +176,27 @@ def require_monitor_mask(mask, cpus=CPUS):
         raise RuntimeError('root shell/monitor mask empty or includes inference cores')
 
 
+def root_mask(shell, pid):
+    """Read a root-owned PID through root, never through Termux's affinity syscall."""
+    if type(pid) is not int or pid <= 0:
+        raise RuntimeError('invalid root mask PID')
+    lines = shell.run('while IFS= read -r line; do case "$line" in '
+                      'Cpus_allowed_list:*) printf \'%s\\n\' "$line";; esac; done '
+                      f'</proc/{pid}/status')
+    fields = [line.partition(':')[2].strip() for line in lines
+              if line.startswith('Cpus_allowed_list:')]
+    if len(fields) != 1 or not re.fullmatch(r'[0-9]+(?:-[0-9]+)?(?:,[0-9]+(?:-[0-9]+)?)*', fields[0]):
+        raise RuntimeError('missing/malformed root Cpus_allowed_list')
+    mask = set()
+    for part in fields[0].split(','):
+        ends = list(map(int, part.split('-')))
+        first, last = ends[0], ends[-1]
+        if first > last or last >= os.cpu_count():
+            raise RuntimeError('invalid root CPU range')
+        mask.update(range(first, last + 1))
+    return mask
+
+
 def prepare_monitor(cpus=CPUS):
     previous = os.sched_getaffinity(0)
     monitor_cpus = previous - cpus
@@ -193,8 +215,8 @@ def prepare_monitor(cpus=CPUS):
         shell.run(f'taskset -p {mask} $$')
         root_pid = int(shell.run('echo $$')[0])
         shell.root_pid = root_pid
-        require_monitor_mask(os.sched_getaffinity(root_pid), cpus)
-        require_monitor_mask(os.sched_getaffinity(shell.p.pid), cpus)
+        require_monitor_mask(root_mask(shell, root_pid), cpus)
+        require_monitor_mask(root_mask(shell, shell.p.pid), cpus)
         layout = cr.discover(shell)
         require_policies(layout)
         return shell, monitor_cpus, root_pid, layout
@@ -215,6 +237,11 @@ def load_speed_input():
 
 def run_block(args, *, cpus=CPUS, threads=2, head_factory=Head, session=None):
     """Shared block implementation; a session owns screen, lock, idle and root shell."""
+    preflight = getattr(args, 'preflight', False)
+    if preflight and args.dry_run:
+        raise RuntimeError('--preflight and --dry-run are mutually exclusive')
+    if preflight:
+        print('PREFLIGHT ONLY — NO TIMING', flush=True)
     require_parity(args.model)
     if sys.platform != 'android':
         raise RuntimeError('native Termux Python required')
@@ -258,7 +285,19 @@ def run_block(args, *, cpus=CPUS, threads=2, head_factory=Head, session=None):
             cr.check_cores('before idle')
             battery_sample()
             shell, monitor_cpus, root_pid, layout = prepare_monitor(cpus)
+            head, caller, tids = build(args.model, cpus, threads, head_factory)
+            check_pinning(tids, cpus)
+            reading = cr.read_dump()
+            if reading['skin'] is None or reading['status'] is None or reading['status'] >= cr.STATUS_STOP:
+                raise RuntimeError('pre-idle skin/status missing or thermal stop')
             screen.start()
+            if preflight:
+                result.update(label='PREFLIGHT ONLY — NO TIMING',
+                              root_shell_cpus=sorted(root_mask(shell, root_pid)),
+                              cpuinfo_max_khz=layout['policies'], ort_tids=tids)
+                return result
+            caller.close()
+            head = caller = None
             print('Idling 300 s; unplugged, screen on, Termux foreground', flush=True)
             for _ in range(60):
                 time.sleep(5)
@@ -274,7 +313,7 @@ def run_block(args, *, cpus=CPUS, threads=2, head_factory=Head, session=None):
             result['idle'] = idle
             shell, monitor_cpus, root_pid, layout = session['monitor']
             require_monitor_mask(monitor_cpus, cpus)
-            require_monitor_mask(os.sched_getaffinity(root_pid), cpus)
+            require_monitor_mask(root_mask(shell, root_pid), cpus)
         head, caller, tids = build(args.model, cpus, threads, head_factory)
         result.update(load_ms=head.load_ms, graph=head.metadata, ort_tids=tids)
         result.update(providers=head.session.get_providers(),
@@ -297,7 +336,7 @@ def run_block(args, *, cpus=CPUS, threads=2, head_factory=Head, session=None):
                     break
                 time.sleep(cr.GATE_POLL_S)
             result['power_monitor_cpus'] = sorted(monitor_cpus)
-            result['root_shell_cpus'] = sorted(os.sched_getaffinity(root_pid))
+            result['root_shell_cpus'] = sorted(root_mask(shell, root_pid))
             result['cpuinfo_max_khz'] = layout['policies']
             keys = cr.fast_keys(layout)
             def monitor(period, read, rows):
@@ -419,10 +458,15 @@ def run_block(args, *, cpus=CPUS, threads=2, head_factory=Head, session=None):
             if any(r.get('error') or None in r['max'].values() for r in fast):
                 result.update(label='NOT VALID — INCOMPLETE', error='unreadable CPU cap sample')
         result['validity'] = ('NOT VALID — INCOMPLETE' if result['label'] == 'NOT VALID — INCOMPLETE' else
+                              'PREFLIGHT ONLY — NO TIMING' if preflight else
                               'NOT VALID — DRY RUN' if args.dry_run else
                               'NOT VALID — WARM START' if result.get('gate', {}).get('warm_start') else 'VALID')
         write_json(out, result)
         print(json.dumps({k: v for k, v in result.items() if k not in ('fast', 'dumps', 'status_memory', 'power', 'affinity', 'calls', 'input', 'graph')}, indent=2), flush=True)
+        if preflight and result.get('cleanup_error'):
+            raise RuntimeError('preflight cleanup failed: ' + result['cleanup_error'])
+        if preflight:
+            print('Evidence:', out, flush=True)
     print('Evidence:', out, flush=True)
     return result
 
@@ -431,6 +475,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--model', required=True, choices=NAMES)
     ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--preflight', action='store_true')
     ap.add_argument('--output', type=Path)
     args = ap.parse_args()
     result = run_block(args)
