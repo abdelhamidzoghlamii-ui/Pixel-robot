@@ -27,6 +27,7 @@ the final exam**: the selector is decided on an independent test set kept outsid
 | [power_map/](power_map/README.md) | POWERMAP1 frame rate, 640 cadence, ORT threads and 20 min confirmation | 2026-10-01/02 | 1/s about halves power; MID chosen; caps near minute 17; absolute watts conflict with #122 | archived; fixed validity labels in RUN_INDEX |
 | [duty_cycle/](duty_cycle/README.md) | DUTY1 component power and active/pause cycles | 2026-10-02/03 | full PARTS/CYCLE valid with warm-start limits; active power differs from CONFIRM, unexplained | archived; smoke/failed-start/typo labelled |
 | [camera_power/](camera_power/README.md) | CAMPOWER1/2 camera variants, diagnostics and public example frames | 2026-10-03 | full CAMPOWER2 valid except manual_500 gap; 10 Hz polling means watts not comparable to DUTY1 | archived; test APK branch stays unmerged |
+| [campaign/](campaign/RUN.md) | CAMPAIGN_P1 full-cycle layout screening and de-phased power/lag method | 2026-10-04 | prepared, mock-tested; [SPEED1 fixed owner archive](relate_anything/speed1/runs/RUN_INDEX.md): MID 1116/1126, BIG 646/671, LITTLE 3130/3208 ms | candidate; no live campaign validation |
 
 Heat readings: every temperature reading in these archives is labelled VALID or NOT TRUSTED in [thermal_char/HEAT_EVIDENCE.md](thermal_char/HEAT_EVIDENCE.md).
 

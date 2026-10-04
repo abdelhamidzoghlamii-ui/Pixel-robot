@@ -1,0 +1,104 @@
+{
+  "self_check": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/campaign/self_check.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script, executed from proot; no live root"
+  },
+  "speed1_self_check": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/relate_anything/speed1/self_check.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script, executed from proot; no live root"
+  },
+  "desk2_self_check": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/relate_anything/desk2/self_check.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script, executed from proot; no live root"
+  },
+  "power_map_units": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/power_map/test_power_map.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script, executed from proot; no live root"
+  },
+  "coresidency_units": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/coresidency/test_coresidency.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script, executed from proot; no live root"
+  },
+  "detector_units": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "test_detector_robotcam.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script, executed from proot; no live root"
+  },
+  "mission_units": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "test_run_mission.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script, executed from proot; no live root"
+  },
+  "cycle_units": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "run_cycle_safety_test.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script, executed from proot; no live root"
+  },
+  "self_check_round2": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/campaign/self_check.py"
+    ],
+    "exit_code": 0,
+    "scope": "expanded mocks, no live root/timing"
+  },
+  "portable_dry_round2": {
+    "command": [
+      "/usr/bin/python3",
+      "benchmark/campaign/phase1.py",
+      "--dry-run",
+      "--output",
+      "/termux-home/storage/downloads/campaign/coder_dry_round2.json"
+    ],
+    "exit_code": 0,
+    "scope": "all hardware mocked, six 6s blocks in proot"
+  },
+  "self_check_round3": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/campaign/self_check.py"
+    ],
+    "exit_code": 0,
+    "scope": "expanded mocks incl round3 regressions; no live root/timing"
+  },
+  "portable_dry_round3": {
+    "command": [
+      "/usr/bin/python3",
+      "benchmark/campaign/phase1.py",
+      "--dry-run",
+      "--output",
+      "/termux-home/storage/downloads/campaign/coder_dry_round3.json"
+    ],
+    "exit_code": 0,
+    "scope": "six complete hardware-mocked 6s blocks in proot"
+  }
+}
