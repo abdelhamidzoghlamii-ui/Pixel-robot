@@ -1,0 +1,7988 @@
+{
+  "model": "relsgg-vits16",
+  "criterion": "same real (sub,obj) set; every matched real pair pred max abs and pair abs <= 1e-3",
+  "real_definition": "valid_mask True, sub != obj, both indices in range",
+  "threshold_abs_logits": 0.001,
+  "top10_identity_definition": "ordered decoded triplets and threshold flags identical; scores reported separately",
+  "passed": true,
+  "ort_version": "1.25.1",
+  "providers": [
+    "CPUExecutionProvider"
+  ],
+  "graph_sha256": "24a2e2a2ef8ea7d1b7cffef9fe5e35ab9c8eeb413e73eb4dee5afa9b24dd98d5",
+  "checkpoint_sha256": "e0c236553c90fb90e8e8c277f7640d801c2cf58652f5007235e8b029e556aad6",
+  "vocabulary_delivery": "bank default names in order; same indexed W/alpha float32 rows in saved feed; embeddings=W then RelSGGExport(vocab_as_input=True) assigns exact W/alpha",
+  "timing_label": "INFORMAL \u2014 agents resident, NOT VALID TIMING",
+  "photos": [
+    {
+      "photo": "/data/data/com.termux/files/home/ext/RelateAnything/assets/reel/images/horse.jpg",
+      "key": "horse",
+      "detections": [
+        {
+          "class_name": "person",
+          "box_xyxy": [
+            470,
+            130,
+            650,
+            630
+          ]
+        },
+        {
+          "class_name": "horse",
+          "box_xyxy": [
+            90,
+            310,
+            1010,
+            875
+          ]
+        }
+      ],
+      "photo_sha256": "549bd965a4ac9aa682f70e40757c5841d160c4e84eb86c2948d5bac5dedecf29",
+      "base_feed_sha256": "88f565c9d1140444f92f18f48311cc5e55b99d910089bd1c8976a18673ce32cf",
+      "feed_sha256": "fcef34fcaa59b3cc95cd8a3273fcd2cc1b9183d30d0326e8949af0037bb3ddaa",
+      "real_pair_sets_identical": true,
+      "torch_real_pairs": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "onnx_real_pairs": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "matched_real_pairs": [
+        {
+          "pair": [
+            0,
+            1
+          ],
+          "torch_slot": 0,
+          "onnx_slot": 0,
+          "pred_max_abs": 7.62939453125e-06,
+          "pair_abs": 4.76837158203125e-06
+        },
+        {
+          "pair": [
+            1,
+            0
+          ],
+          "torch_slot": 1,
+          "onnx_slot": 1,
+          "pred_max_abs": 9.5367431640625e-06,
+          "pair_abs": 5.960464477539063e-08
+        }
+      ],
+      "max_real_pred_delta": 9.5367431640625e-06,
+      "max_real_pair_delta": 4.76837158203125e-06,
+      "all_slot_deltas": {
+        "pred_logits": 6.576393127441406,
+        "pair_logits": 0.8003199696540833
+      },
+      "all_slot_exact": {
+        "sub_idx": false,
+        "obj_idx": false,
+        "valid_mask": true
+      },
+      "mismatched_slots": [
+        {
+          "slot": 0,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            0,
+            1
+          ],
+          "onnx_pair": [
+            0,
+            1
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.62939453125e-06,
+          "pair_abs": 4.76837158203125e-06
+        },
+        {
+          "slot": 1,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            1,
+            0
+          ],
+          "onnx_pair": [
+            1,
+            0
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.5367431640625e-06,
+          "pair_abs": 5.960464477539063e-08
+        },
+        {
+          "slot": 2,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            15
+          ],
+          "onnx_pair": [
+            0,
+            0
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.576393127441406,
+          "pair_abs": 0.08750632405281067
+        },
+        {
+          "slot": 3,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            1
+          ],
+          "onnx_pair": [
+            0,
+            2
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 5.375980377197266,
+          "pair_abs": 0.302886962890625
+        },
+        {
+          "slot": 4,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            14
+          ],
+          "onnx_pair": [
+            0,
+            3
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 5,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            13
+          ],
+          "onnx_pair": [
+            0,
+            4
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 6,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            12
+          ],
+          "onnx_pair": [
+            0,
+            5
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 7,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            11
+          ],
+          "onnx_pair": [
+            0,
+            6
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 8,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            10
+          ],
+          "onnx_pair": [
+            0,
+            7
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 9,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            9
+          ],
+          "onnx_pair": [
+            0,
+            8
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 10,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            8
+          ],
+          "onnx_pair": [
+            0,
+            9
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 11,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            7
+          ],
+          "onnx_pair": [
+            0,
+            10
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 12,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            4
+          ],
+          "onnx_pair": [
+            0,
+            11
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 13,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            5
+          ],
+          "onnx_pair": [
+            0,
+            12
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 14,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            4
+          ],
+          "onnx_pair": [
+            0,
+            13
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 15,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            3
+          ],
+          "onnx_pair": [
+            0,
+            14
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 16,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            2
+          ],
+          "onnx_pair": [
+            0,
+            15
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 17,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            14
+          ],
+          "onnx_pair": [
+            0,
+            16
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 18,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            16
+          ],
+          "onnx_pair": [
+            0,
+            17
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 19,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            17
+          ],
+          "onnx_pair": [
+            0,
+            18
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 20,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            6
+          ],
+          "onnx_pair": [
+            0,
+            19
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 21,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            31,
+            31
+          ],
+          "onnx_pair": [
+            0,
+            20
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 22,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            3
+          ],
+          "onnx_pair": [
+            0,
+            21
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 23,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            4
+          ],
+          "onnx_pair": [
+            0,
+            22
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 24,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            5
+          ],
+          "onnx_pair": [
+            0,
+            23
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 25,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            6
+          ],
+          "onnx_pair": [
+            0,
+            24
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 26,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            7
+          ],
+          "onnx_pair": [
+            0,
+            25
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 27,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            8
+          ],
+          "onnx_pair": [
+            0,
+            26
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 28,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            9
+          ],
+          "onnx_pair": [
+            0,
+            27
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 29,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            10
+          ],
+          "onnx_pair": [
+            0,
+            28
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 30,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            11
+          ],
+          "onnx_pair": [
+            0,
+            29
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 31,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            12
+          ],
+          "onnx_pair": [
+            0,
+            30
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 32,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            26
+          ],
+          "onnx_pair": [
+            0,
+            31
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.125002861022949,
+          "pair_abs": 0.8003199696540833
+        },
+        {
+          "slot": 33,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            6
+          ],
+          "onnx_pair": [
+            1,
+            1
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 5.65401029586792,
+          "pair_abs": 0.740346372127533
+        },
+        {
+          "slot": 34,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            21
+          ],
+          "onnx_pair": [
+            1,
+            2
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 35,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            30
+          ],
+          "onnx_pair": [
+            1,
+            3
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 36,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            7
+          ],
+          "onnx_pair": [
+            1,
+            4
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 37,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            8
+          ],
+          "onnx_pair": [
+            1,
+            5
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 38,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            9
+          ],
+          "onnx_pair": [
+            1,
+            6
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 39,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            10
+          ],
+          "onnx_pair": [
+            1,
+            7
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 40,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            11
+          ],
+          "onnx_pair": [
+            1,
+            8
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 41,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            12
+          ],
+          "onnx_pair": [
+            1,
+            9
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 42,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            13
+          ],
+          "onnx_pair": [
+            1,
+            10
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 43,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            14
+          ],
+          "onnx_pair": [
+            1,
+            11
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 44,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            15
+          ],
+          "onnx_pair": [
+            1,
+            12
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 45,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            29
+          ],
+          "onnx_pair": [
+            1,
+            13
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 46,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            17
+          ],
+          "onnx_pair": [
+            1,
+            14
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 47,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            18
+          ],
+          "onnx_pair": [
+            1,
+            15
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 48,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            19
+          ],
+          "onnx_pair": [
+            1,
+            16
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 49,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            20
+          ],
+          "onnx_pair": [
+            1,
+            17
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 50,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            0
+          ],
+          "onnx_pair": [
+            1,
+            18
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 5.4452009201049805,
+          "pair_abs": 0.0066177695989608765
+        },
+        {
+          "slot": 51,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            22
+          ],
+          "onnx_pair": [
+            1,
+            19
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 52,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            23
+          ],
+          "onnx_pair": [
+            1,
+            20
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 53,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            24
+          ],
+          "onnx_pair": [
+            1,
+            21
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 54,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            25
+          ],
+          "onnx_pair": [
+            1,
+            22
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 55,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            26
+          ],
+          "onnx_pair": [
+            1,
+            23
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 56,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            27
+          ],
+          "onnx_pair": [
+            1,
+            24
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 57,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            28
+          ],
+          "onnx_pair": [
+            1,
+            25
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 58,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            16
+          ],
+          "onnx_pair": [
+            1,
+            26
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 59,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            5
+          ],
+          "onnx_pair": [
+            1,
+            27
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 60,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            27
+          ],
+          "onnx_pair": [
+            1,
+            28
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 61,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            28
+          ],
+          "onnx_pair": [
+            1,
+            29
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 62,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            29
+          ],
+          "onnx_pair": [
+            1,
+            30
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 63,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            30
+          ],
+          "onnx_pair": [
+            1,
+            31
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 6.1691460609436035,
+          "pair_abs": 0.2505474090576172
+        },
+        {
+          "slot": 64,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            31
+          ],
+          "onnx_pair": [
+            2,
+            0
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 4.224952697753906,
+          "pair_abs": 0.25716719031333923
+        },
+        {
+          "slot": 65,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            29
+          ],
+          "onnx_pair": [
+            2,
+            1
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.548732280731201,
+          "pair_abs": 0.4974396228790283
+        },
+        {
+          "slot": 66,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            0
+          ],
+          "onnx_pair": [
+            2,
+            2
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 4.224924564361572,
+          "pair_abs": 0.25717002153396606
+        },
+        {
+          "slot": 67,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            1
+          ],
+          "onnx_pair": [
+            2,
+            3
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.5486879348754883,
+          "pair_abs": 0.49743786454200745
+        },
+        {
+          "slot": 68,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            2
+          ],
+          "onnx_pair": [
+            2,
+            4
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 69,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            19,
+            3
+          ],
+          "onnx_pair": [
+            2,
+            5
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 70,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            23
+          ],
+          "onnx_pair": [
+            2,
+            6
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 71,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            19
+          ],
+          "onnx_pair": [
+            2,
+            7
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 72,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            20
+          ],
+          "onnx_pair": [
+            2,
+            8
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 73,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            21
+          ],
+          "onnx_pair": [
+            2,
+            9
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 74,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            22
+          ],
+          "onnx_pair": [
+            2,
+            10
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 75,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            23
+          ],
+          "onnx_pair": [
+            2,
+            11
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 76,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            24
+          ],
+          "onnx_pair": [
+            2,
+            12
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 77,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            25
+          ],
+          "onnx_pair": [
+            2,
+            13
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 78,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            26
+          ],
+          "onnx_pair": [
+            2,
+            14
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 79,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            27
+          ],
+          "onnx_pair": [
+            2,
+            15
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 80,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            28
+          ],
+          "onnx_pair": [
+            2,
+            16
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 81,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            31
+          ],
+          "onnx_pair": [
+            2,
+            17
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 82,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            11
+          ],
+          "onnx_pair": [
+            2,
+            18
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 83,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            31
+          ],
+          "onnx_pair": [
+            2,
+            19
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 84,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            0
+          ],
+          "onnx_pair": [
+            2,
+            20
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 4.224924564361572,
+          "pair_abs": 0.25717002153396606
+        },
+        {
+          "slot": 85,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            1
+          ],
+          "onnx_pair": [
+            2,
+            21
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.5486879348754883,
+          "pair_abs": 0.49743786454200745
+        },
+        {
+          "slot": 86,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            2
+          ],
+          "onnx_pair": [
+            2,
+            22
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 87,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            3
+          ],
+          "onnx_pair": [
+            2,
+            23
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 88,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            4
+          ],
+          "onnx_pair": [
+            2,
+            24
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 89,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            5
+          ],
+          "onnx_pair": [
+            2,
+            25
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 90,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            6
+          ],
+          "onnx_pair": [
+            2,
+            26
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 91,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            7
+          ],
+          "onnx_pair": [
+            2,
+            27
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 92,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            8
+          ],
+          "onnx_pair": [
+            2,
+            28
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 93,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            9
+          ],
+          "onnx_pair": [
+            2,
+            29
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 94,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            10
+          ],
+          "onnx_pair": [
+            2,
+            30
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 95,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            25,
+            8
+          ],
+          "onnx_pair": [
+            2,
+            31
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 96,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            18,
+            16
+          ],
+          "onnx_pair": [
+            3,
+            0
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 4.224952697753906,
+          "pair_abs": 0.25716719031333923
+        },
+        {
+          "slot": 97,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            16
+          ],
+          "onnx_pair": [
+            3,
+            1
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.548732280731201,
+          "pair_abs": 0.4974396228790283
+        },
+        {
+          "slot": 98,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            17
+          ],
+          "onnx_pair": [
+            3,
+            2
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 99,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            18
+          ],
+          "onnx_pair": [
+            3,
+            3
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 100,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            19
+          ],
+          "onnx_pair": [
+            3,
+            4
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 101,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            20
+          ],
+          "onnx_pair": [
+            3,
+            5
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 102,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            21
+          ],
+          "onnx_pair": [
+            3,
+            6
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 103,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            22
+          ],
+          "onnx_pair": [
+            3,
+            7
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 104,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            23
+          ],
+          "onnx_pair": [
+            3,
+            8
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 105,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            24
+          ],
+          "onnx_pair": [
+            3,
+            9
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 106,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            25
+          ],
+          "onnx_pair": [
+            3,
+            10
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 107,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            13
+          ],
+          "onnx_pair": [
+            3,
+            11
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 108,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            12
+          ],
+          "onnx_pair": [
+            3,
+            12
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 109,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            13
+          ],
+          "onnx_pair": [
+            3,
+            13
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 110,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            14
+          ],
+          "onnx_pair": [
+            3,
+            14
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 111,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            15
+          ],
+          "onnx_pair": [
+            3,
+            15
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 112,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            16,
+            15
+          ],
+          "onnx_pair": [
+            3,
+            16
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 113,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            17
+          ],
+          "onnx_pair": [
+            3,
+            17
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 114,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            18
+          ],
+          "onnx_pair": [
+            3,
+            18
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 115,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            19
+          ],
+          "onnx_pair": [
+            3,
+            19
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 116,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            20
+          ],
+          "onnx_pair": [
+            3,
+            20
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 117,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            21
+          ],
+          "onnx_pair": [
+            3,
+            21
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 118,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            22
+          ],
+          "onnx_pair": [
+            3,
+            22
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 119,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            17,
+            18
+          ],
+          "onnx_pair": [
+            3,
+            23
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 120,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            24
+          ],
+          "onnx_pair": [
+            3,
+            24
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 121,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            25
+          ],
+          "onnx_pair": [
+            3,
+            25
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 122,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            26
+          ],
+          "onnx_pair": [
+            3,
+            26
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 123,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            27
+          ],
+          "onnx_pair": [
+            3,
+            27
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 124,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            28
+          ],
+          "onnx_pair": [
+            3,
+            28
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 125,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            29
+          ],
+          "onnx_pair": [
+            3,
+            29
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 126,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx"
+          ],
+          "torch_pair": [
+            18,
+            30
+          ],
+          "onnx_pair": [
+            3,
+            30
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        },
+        {
+          "slot": 127,
+          "fields": [
+            "pred_logits",
+            "pair_logits",
+            "sub_idx",
+            "obj_idx"
+          ],
+          "torch_pair": [
+            20,
+            5
+          ],
+          "onnx_pair": [
+            3,
+            31
+          ],
+          "torch_real": false,
+          "onnx_real": false,
+          "pred_max_abs": 2.6226043701171875e-05,
+          "pair_abs": 4.842877388000488e-06
+        }
+      ],
+      "top10_identical": true,
+      "top10_full_records_bitwise_identical": false,
+      "top10_torch": [
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "riding",
+          "object_idx": 1,
+          "object": "horse",
+          "score": 0.6158593893051147,
+          "threshold": 0.5307691693305969,
+          "pass": true
+        },
+        {
+          "subject_idx": 1,
+          "subject": "horse",
+          "predicate": "carrying",
+          "object_idx": 0,
+          "object": "person",
+          "score": 0.014450101181864738,
+          "threshold": 0.4536415636539459,
+          "pass": false
+        }
+      ],
+      "top10_onnx": [
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "riding",
+          "object_idx": 1,
+          "object": "horse",
+          "score": 0.6158592700958252,
+          "threshold": 0.5307691693305969,
+          "pass": true
+        },
+        {
+          "subject_idx": 1,
+          "subject": "horse",
+          "predicate": "carrying",
+          "object_idx": 0,
+          "object": "person",
+          "score": 0.01445008721202612,
+          "threshold": 0.4536415636539459,
+          "pass": false
+        }
+      ],
+      "passed": true
+    },
+    {
+      "photo": "bench_photos/blocked_1.jpg",
+      "detections": [
+        {
+          "class_name": "cup",
+          "class_id": 41,
+          "conf": 0.937321662902832,
+          "box_xyxy": [
+            1026.8999633789062,
+            3187.1835651397705,
+            1479.4558959960937,
+            3958.791440963745
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "chair",
+          "class_id": 56,
+          "conf": 0.9102773666381836,
+          "box_xyxy": [
+            2384.5875,
+            2514.786334991455,
+            3069.5490234375,
+            4076.4298210144043
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "scissors",
+          "class_id": 76,
+          "conf": 0.9070584774017334,
+          "box_xyxy": [
+            1579.4718017578125,
+            2914.2952194213867,
+            2029.0436279296875,
+            3529.600227355957
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "laptop",
+          "class_id": 63,
+          "conf": 0.8838749527931213,
+          "box_xyxy": [
+            510.96068115234374,
+            1619.9096202850342,
+            1720.7806274414063,
+            2669.0910816192627
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.7946063280105591,
+          "box_xyxy": [
+            2681.02470703125,
+            531.98876953125,
+            3062.89716796875,
+            1016.2401351928711
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "cup",
+          "class_id": 41,
+          "conf": 0.7890886664390564,
+          "box_xyxy": [
+            1932.55078125,
+            2029.114465713501,
+            2144.6009765625,
+            2316.594320297241
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "vase",
+          "class_id": 75,
+          "conf": 0.7828837633132935,
+          "box_xyxy": [
+            1869.4468505859375,
+            1480.8408279418945,
+            2060.9533447265626,
+            1905.826171875
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.7680631279945374,
+          "box_xyxy": [
+            1744.6236328125,
+            1010.6999473571777,
+            2322.96767578125,
+            1897.4862213134766
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.6668354272842407,
+          "box_xyxy": [
+            2378.0888671875,
+            486.8185443878174,
+            2639.1205078125,
+            993.1293983459473
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "dining table",
+          "class_id": 60,
+          "conf": 0.5568990111351013,
+          "box_xyxy": [
+            14.4732421875,
+            1656.7844467163086,
+            2432.109375,
+            4065.0687103271484
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "cup",
+          "class_id": 41,
+          "conf": 0.5369865894317627,
+          "box_xyxy": [
+            1563.6787353515624,
+            1392.1119289398193,
+            1891.9550537109376,
+            2066.6360721588135
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "chair",
+          "class_id": 56,
+          "conf": 0.48043322563171387,
+          "box_xyxy": [
+            0.330706787109375,
+            1356.3792057037354,
+            282.5439514160156,
+            1908.4495754241943
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "chair",
+          "class_id": 56,
+          "conf": 0.47357091307640076,
+          "box_xyxy": [
+            395.10380859375,
+            928.7150115966797,
+            1556.1755859375,
+            1952.66748046875
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "mouse",
+          "class_id": 64,
+          "conf": 0.4670632779598236,
+          "box_xyxy": [
+            271.5949768066406,
+            2581.4418354034424,
+            667.6273864746094,
+            2779.635892868042
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "couch",
+          "class_id": 57,
+          "conf": 0.45263588428497314,
+          "box_xyxy": [
+            393.19833984375,
+            928.2757186889648,
+            1563.9205078125,
+            1953.2308959960938
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "cell phone",
+          "class_id": 67,
+          "conf": 0.4238632023334503,
+          "box_xyxy": [
+            509.88878173828124,
+            2945.6827754974365,
+            1074.1701049804688,
+            3164.75705909729
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "remote",
+          "class_id": 65,
+          "conf": 0.38450151681900024,
+          "box_xyxy": [
+            1151.6633056640626,
+            2676.561492919922,
+            1663.5355224609375,
+            2915.3815841674805
+          ],
+          "size_used": 640
+        }
+      ],
+      "key": "blocked_1",
+      "photo_sha256": "f78a3a1bb2658688cc8a98a67f7642677639d231b6bcd350314ecad024b0db2c",
+      "base_feed_sha256": "3c474b2af5cedb8da71bf14c4be732eeed64d300453160fb25c6d16f4e9b0735",
+      "feed_sha256": "a005ea6d113060406480501ff2b62d8da5065b709a9004704a6bec4eca273033",
+      "real_pair_sets_identical": true,
+      "torch_real_pairs": [
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          5
+        ],
+        [
+          0,
+          6
+        ],
+        [
+          0,
+          9
+        ],
+        [
+          0,
+          10
+        ],
+        [
+          0,
+          13
+        ],
+        [
+          0,
+          15
+        ],
+        [
+          0,
+          16
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          9
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          9
+        ],
+        [
+          2,
+          13
+        ],
+        [
+          2,
+          15
+        ],
+        [
+          2,
+          16
+        ],
+        [
+          3,
+          0
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          3,
+          5
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          3,
+          7
+        ],
+        [
+          3,
+          9
+        ],
+        [
+          3,
+          10
+        ],
+        [
+          3,
+          12
+        ],
+        [
+          3,
+          13
+        ],
+        [
+          3,
+          14
+        ],
+        [
+          3,
+          15
+        ],
+        [
+          3,
+          16
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          4,
+          7
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          4,
+          9
+        ],
+        [
+          5,
+          0
+        ],
+        [
+          5,
+          2
+        ],
+        [
+          5,
+          3
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          5,
+          7
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          5,
+          10
+        ],
+        [
+          5,
+          13
+        ],
+        [
+          5,
+          15
+        ],
+        [
+          5,
+          16
+        ],
+        [
+          6,
+          0
+        ],
+        [
+          6,
+          3
+        ],
+        [
+          6,
+          4
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          6,
+          10
+        ],
+        [
+          7,
+          0
+        ],
+        [
+          7,
+          3
+        ],
+        [
+          7,
+          4
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          7,
+          10
+        ],
+        [
+          8,
+          4
+        ],
+        [
+          8,
+          6
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          8,
+          9
+        ],
+        [
+          8,
+          10
+        ],
+        [
+          9,
+          0
+        ],
+        [
+          9,
+          1
+        ],
+        [
+          9,
+          2
+        ],
+        [
+          9,
+          3
+        ],
+        [
+          9,
+          4
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          9,
+          6
+        ],
+        [
+          9,
+          7
+        ],
+        [
+          9,
+          8
+        ],
+        [
+          9,
+          10
+        ],
+        [
+          9,
+          11
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          9,
+          13
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          9,
+          15
+        ],
+        [
+          9,
+          16
+        ],
+        [
+          10,
+          0
+        ],
+        [
+          10,
+          3
+        ],
+        [
+          10,
+          5
+        ],
+        [
+          10,
+          6
+        ],
+        [
+          10,
+          7
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          10,
+          9
+        ],
+        [
+          10,
+          16
+        ],
+        [
+          11,
+          3
+        ],
+        [
+          11,
+          9
+        ],
+        [
+          11,
+          12
+        ],
+        [
+          11,
+          14
+        ],
+        [
+          12,
+          3
+        ],
+        [
+          12,
+          4
+        ],
+        [
+          12,
+          8
+        ],
+        [
+          12,
+          9
+        ],
+        [
+          12,
+          10
+        ],
+        [
+          12,
+          11
+        ],
+        [
+          12,
+          14
+        ],
+        [
+          13,
+          0
+        ],
+        [
+          13,
+          2
+        ],
+        [
+          13,
+          3
+        ],
+        [
+          13,
+          9
+        ],
+        [
+          13,
+          15
+        ],
+        [
+          13,
+          16
+        ],
+        [
+          14,
+          3
+        ],
+        [
+          14,
+          4
+        ],
+        [
+          14,
+          8
+        ],
+        [
+          14,
+          9
+        ],
+        [
+          14,
+          10
+        ],
+        [
+          14,
+          11
+        ],
+        [
+          14,
+          12
+        ],
+        [
+          15,
+          0
+        ],
+        [
+          15,
+          2
+        ],
+        [
+          15,
+          3
+        ],
+        [
+          15,
+          9
+        ],
+        [
+          15,
+          13
+        ],
+        [
+          15,
+          16
+        ],
+        [
+          16,
+          0
+        ],
+        [
+          16,
+          2
+        ],
+        [
+          16,
+          3
+        ],
+        [
+          16,
+          5
+        ],
+        [
+          16,
+          9
+        ],
+        [
+          16,
+          10
+        ],
+        [
+          16,
+          13
+        ],
+        [
+          16,
+          15
+        ]
+      ],
+      "onnx_real_pairs": [
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          5
+        ],
+        [
+          0,
+          6
+        ],
+        [
+          0,
+          9
+        ],
+        [
+          0,
+          10
+        ],
+        [
+          0,
+          13
+        ],
+        [
+          0,
+          15
+        ],
+        [
+          0,
+          16
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          9
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          9
+        ],
+        [
+          2,
+          13
+        ],
+        [
+          2,
+          15
+        ],
+        [
+          2,
+          16
+        ],
+        [
+          3,
+          0
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          3,
+          5
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          3,
+          7
+        ],
+        [
+          3,
+          9
+        ],
+        [
+          3,
+          10
+        ],
+        [
+          3,
+          12
+        ],
+        [
+          3,
+          13
+        ],
+        [
+          3,
+          14
+        ],
+        [
+          3,
+          15
+        ],
+        [
+          3,
+          16
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          4,
+          7
+        ],
+        [
+          4,
+          8
+        ],
+        [
+          4,
+          9
+        ],
+        [
+          5,
+          0
+        ],
+        [
+          5,
+          2
+        ],
+        [
+          5,
+          3
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          5,
+          7
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          5,
+          10
+        ],
+        [
+          5,
+          13
+        ],
+        [
+          5,
+          15
+        ],
+        [
+          5,
+          16
+        ],
+        [
+          6,
+          0
+        ],
+        [
+          6,
+          3
+        ],
+        [
+          6,
+          4
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          6,
+          9
+        ],
+        [
+          6,
+          10
+        ],
+        [
+          7,
+          0
+        ],
+        [
+          7,
+          3
+        ],
+        [
+          7,
+          4
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          7,
+          10
+        ],
+        [
+          8,
+          4
+        ],
+        [
+          8,
+          6
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          8,
+          9
+        ],
+        [
+          8,
+          10
+        ],
+        [
+          9,
+          0
+        ],
+        [
+          9,
+          1
+        ],
+        [
+          9,
+          2
+        ],
+        [
+          9,
+          3
+        ],
+        [
+          9,
+          4
+        ],
+        [
+          9,
+          5
+        ],
+        [
+          9,
+          6
+        ],
+        [
+          9,
+          7
+        ],
+        [
+          9,
+          8
+        ],
+        [
+          9,
+          10
+        ],
+        [
+          9,
+          11
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          9,
+          13
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          9,
+          15
+        ],
+        [
+          9,
+          16
+        ],
+        [
+          10,
+          0
+        ],
+        [
+          10,
+          3
+        ],
+        [
+          10,
+          5
+        ],
+        [
+          10,
+          6
+        ],
+        [
+          10,
+          7
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          10,
+          9
+        ],
+        [
+          10,
+          16
+        ],
+        [
+          11,
+          3
+        ],
+        [
+          11,
+          9
+        ],
+        [
+          11,
+          12
+        ],
+        [
+          11,
+          14
+        ],
+        [
+          12,
+          3
+        ],
+        [
+          12,
+          4
+        ],
+        [
+          12,
+          8
+        ],
+        [
+          12,
+          9
+        ],
+        [
+          12,
+          10
+        ],
+        [
+          12,
+          11
+        ],
+        [
+          12,
+          14
+        ],
+        [
+          13,
+          0
+        ],
+        [
+          13,
+          2
+        ],
+        [
+          13,
+          3
+        ],
+        [
+          13,
+          9
+        ],
+        [
+          13,
+          15
+        ],
+        [
+          13,
+          16
+        ],
+        [
+          14,
+          3
+        ],
+        [
+          14,
+          4
+        ],
+        [
+          14,
+          8
+        ],
+        [
+          14,
+          9
+        ],
+        [
+          14,
+          10
+        ],
+        [
+          14,
+          11
+        ],
+        [
+          14,
+          12
+        ],
+        [
+          15,
+          0
+        ],
+        [
+          15,
+          2
+        ],
+        [
+          15,
+          3
+        ],
+        [
+          15,
+          9
+        ],
+        [
+          15,
+          13
+        ],
+        [
+          15,
+          16
+        ],
+        [
+          16,
+          0
+        ],
+        [
+          16,
+          2
+        ],
+        [
+          16,
+          3
+        ],
+        [
+          16,
+          5
+        ],
+        [
+          16,
+          9
+        ],
+        [
+          16,
+          10
+        ],
+        [
+          16,
+          13
+        ],
+        [
+          16,
+          15
+        ]
+      ],
+      "matched_real_pairs": [
+        {
+          "pair": [
+            0,
+            2
+          ],
+          "torch_slot": 82,
+          "onnx_slot": 82,
+          "pred_max_abs": 3.814697265625e-06,
+          "pair_abs": 8.344650268554688e-07
+        },
+        {
+          "pair": [
+            0,
+            3
+          ],
+          "torch_slot": 68,
+          "onnx_slot": 68,
+          "pred_max_abs": 6.198883056640625e-06,
+          "pair_abs": 1.9073486328125e-06
+        },
+        {
+          "pair": [
+            0,
+            5
+          ],
+          "torch_slot": 99,
+          "onnx_slot": 99,
+          "pred_max_abs": 2.193450927734375e-05,
+          "pair_abs": 2.7418136596679688e-06
+        },
+        {
+          "pair": [
+            0,
+            6
+          ],
+          "torch_slot": 127,
+          "onnx_slot": 127,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 1.0728836059570312e-06
+        },
+        {
+          "pair": [
+            0,
+            9
+          ],
+          "torch_slot": 6,
+          "onnx_slot": 6,
+          "pred_max_abs": 4.0531158447265625e-06,
+          "pair_abs": 1.9073486328125e-06
+        },
+        {
+          "pair": [
+            0,
+            10
+          ],
+          "torch_slot": 108,
+          "onnx_slot": 108,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 5.960464477539062e-07
+        },
+        {
+          "pair": [
+            0,
+            13
+          ],
+          "torch_slot": 118,
+          "onnx_slot": 118,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 5.960464477539062e-07
+        },
+        {
+          "pair": [
+            0,
+            15
+          ],
+          "torch_slot": 60,
+          "onnx_slot": 60,
+          "pred_max_abs": 4.76837158203125e-06,
+          "pair_abs": 1.5497207641601562e-06
+        },
+        {
+          "pair": [
+            0,
+            16
+          ],
+          "torch_slot": 89,
+          "onnx_slot": 89,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 2.384185791015625e-06
+        },
+        {
+          "pair": [
+            1,
+            2
+          ],
+          "torch_slot": 123,
+          "onnx_slot": 123,
+          "pred_max_abs": 3.337860107421875e-06,
+          "pair_abs": 0.0
+        },
+        {
+          "pair": [
+            1,
+            3
+          ],
+          "torch_slot": 126,
+          "onnx_slot": 126,
+          "pred_max_abs": 7.152557373046875e-06,
+          "pair_abs": 9.5367431640625e-07
+        },
+        {
+          "pair": [
+            1,
+            9
+          ],
+          "torch_slot": 8,
+          "onnx_slot": 8,
+          "pred_max_abs": 1.8596649169921875e-05,
+          "pair_abs": 6.556510925292969e-07
+        },
+        {
+          "pair": [
+            2,
+            0
+          ],
+          "torch_slot": 39,
+          "onnx_slot": 39,
+          "pred_max_abs": 9.5367431640625e-06,
+          "pair_abs": 3.5762786865234375e-07
+        },
+        {
+          "pair": [
+            2,
+            3
+          ],
+          "torch_slot": 50,
+          "onnx_slot": 50,
+          "pred_max_abs": 1.239776611328125e-05,
+          "pair_abs": 2.0265579223632812e-06
+        },
+        {
+          "pair": [
+            2,
+            5
+          ],
+          "torch_slot": 106,
+          "onnx_slot": 106,
+          "pred_max_abs": 2.09808349609375e-05,
+          "pair_abs": 7.152557373046875e-07
+        },
+        {
+          "pair": [
+            2,
+            9
+          ],
+          "torch_slot": 5,
+          "onnx_slot": 5,
+          "pred_max_abs": 5.0067901611328125e-06,
+          "pair_abs": 1.6689300537109375e-06
+        },
+        {
+          "pair": [
+            2,
+            13
+          ],
+          "torch_slot": 120,
+          "onnx_slot": 120,
+          "pred_max_abs": 7.152557373046875e-06,
+          "pair_abs": 1.6689300537109375e-06
+        },
+        {
+          "pair": [
+            2,
+            15
+          ],
+          "torch_slot": 71,
+          "onnx_slot": 71,
+          "pred_max_abs": 1.1920928955078125e-05,
+          "pair_abs": 1.3113021850585938e-06
+        },
+        {
+          "pair": [
+            2,
+            16
+          ],
+          "torch_slot": 46,
+          "onnx_slot": 46,
+          "pred_max_abs": 1.239776611328125e-05,
+          "pair_abs": 5.960464477539062e-07
+        },
+        {
+          "pair": [
+            3,
+            0
+          ],
+          "torch_slot": 77,
+          "onnx_slot": 77,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 1.7881393432617188e-06
+        },
+        {
+          "pair": [
+            3,
+            2
+          ],
+          "torch_slot": 83,
+          "onnx_slot": 83,
+          "pred_max_abs": 5.0067901611328125e-06,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "pair": [
+            3,
+            5
+          ],
+          "torch_slot": 70,
+          "onnx_slot": 70,
+          "pred_max_abs": 1.430511474609375e-05,
+          "pair_abs": 5.364418029785156e-07
+        },
+        {
+          "pair": [
+            3,
+            6
+          ],
+          "torch_slot": 91,
+          "onnx_slot": 91,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 7.152557373046875e-07
+        },
+        {
+          "pair": [
+            3,
+            7
+          ],
+          "torch_slot": 109,
+          "onnx_slot": 109,
+          "pred_max_abs": 1.049041748046875e-05,
+          "pair_abs": 2.384185791015625e-07
+        },
+        {
+          "pair": [
+            3,
+            9
+          ],
+          "torch_slot": 0,
+          "onnx_slot": 0,
+          "pred_max_abs": 4.0531158447265625e-06,
+          "pair_abs": 5.960464477539062e-07
+        },
+        {
+          "pair": [
+            3,
+            10
+          ],
+          "torch_slot": 48,
+          "onnx_slot": 48,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 5.960464477539063e-08
+        },
+        {
+          "pair": [
+            3,
+            12
+          ],
+          "torch_slot": 97,
+          "onnx_slot": 97,
+          "pred_max_abs": 8.106231689453125e-06,
+          "pair_abs": 1.9073486328125e-06
+        },
+        {
+          "pair": [
+            3,
+            13
+          ],
+          "torch_slot": 31,
+          "onnx_slot": 31,
+          "pred_max_abs": 1.2874603271484375e-05,
+          "pair_abs": 6.556510925292969e-07
+        },
+        {
+          "pair": [
+            3,
+            14
+          ],
+          "torch_slot": 96,
+          "onnx_slot": 96,
+          "pred_max_abs": 9.5367431640625e-06,
+          "pair_abs": 2.1457672119140625e-06
+        },
+        {
+          "pair": [
+            3,
+            15
+          ],
+          "torch_slot": 35,
+          "onnx_slot": 35,
+          "pred_max_abs": 1.0967254638671875e-05,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "pair": [
+            3,
+            16
+          ],
+          "torch_slot": 41,
+          "onnx_slot": 41,
+          "pred_max_abs": 1.4781951904296875e-05,
+          "pair_abs": 1.3113021850585938e-06
+        },
+        {
+          "pair": [
+            4,
+            6
+          ],
+          "torch_slot": 57,
+          "onnx_slot": 57,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 3.039836883544922e-06
+        },
+        {
+          "pair": [
+            4,
+            7
+          ],
+          "torch_slot": 79,
+          "onnx_slot": 79,
+          "pred_max_abs": 9.059906005859375e-06,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "pair": [
+            4,
+            8
+          ],
+          "torch_slot": 25,
+          "onnx_slot": 25,
+          "pred_max_abs": 1.4543533325195312e-05,
+          "pair_abs": 1.4603137969970703e-06
+        },
+        {
+          "pair": [
+            4,
+            9
+          ],
+          "torch_slot": 44,
+          "onnx_slot": 44,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 5.364418029785156e-07
+        },
+        {
+          "pair": [
+            5,
+            0
+          ],
+          "torch_slot": 81,
+          "onnx_slot": 81,
+          "pred_max_abs": 1.7642974853515625e-05,
+          "pair_abs": 1.1920928955078125e-06
+        },
+        {
+          "pair": [
+            5,
+            2
+          ],
+          "torch_slot": 107,
+          "onnx_slot": 107,
+          "pred_max_abs": 1.52587890625e-05,
+          "pair_abs": 1.5497207641601562e-06
+        },
+        {
+          "pair": [
+            5,
+            3
+          ],
+          "torch_slot": 54,
+          "onnx_slot": 54,
+          "pred_max_abs": 9.5367431640625e-06,
+          "pair_abs": 5.960464477539062e-07
+        },
+        {
+          "pair": [
+            5,
+            6
+          ],
+          "torch_slot": 65,
+          "onnx_slot": 65,
+          "pred_max_abs": 1.8835067749023438e-05,
+          "pair_abs": 2.562999725341797e-06
+        },
+        {
+          "pair": [
+            5,
+            7
+          ],
+          "torch_slot": 76,
+          "onnx_slot": 76,
+          "pred_max_abs": 2.1457672119140625e-05,
+          "pair_abs": 1.6689300537109375e-06
+        },
+        {
+          "pair": [
+            5,
+            9
+          ],
+          "torch_slot": 7,
+          "onnx_slot": 7,
+          "pred_max_abs": 3.0994415283203125e-05,
+          "pair_abs": 7.152557373046875e-07
+        },
+        {
+          "pair": [
+            5,
+            10
+          ],
+          "torch_slot": 36,
+          "onnx_slot": 36,
+          "pred_max_abs": 7.867813110351562e-06,
+          "pair_abs": 5.960464477539063e-08
+        },
+        {
+          "pair": [
+            5,
+            13
+          ],
+          "torch_slot": 115,
+          "onnx_slot": 115,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 2.1457672119140625e-06
+        },
+        {
+          "pair": [
+            5,
+            15
+          ],
+          "torch_slot": 119,
+          "onnx_slot": 119,
+          "pred_max_abs": 1.5735626220703125e-05,
+          "pair_abs": 9.5367431640625e-07
+        },
+        {
+          "pair": [
+            5,
+            16
+          ],
+          "torch_slot": 98,
+          "onnx_slot": 98,
+          "pred_max_abs": 1.5020370483398438e-05,
+          "pair_abs": 3.5762786865234375e-07
+        },
+        {
+          "pair": [
+            6,
+            0
+          ],
+          "torch_slot": 110,
+          "onnx_slot": 110,
+          "pred_max_abs": 1.239776611328125e-05,
+          "pair_abs": 1.5497207641601562e-06
+        },
+        {
+          "pair": [
+            6,
+            3
+          ],
+          "torch_slot": 92,
+          "onnx_slot": 92,
+          "pred_max_abs": 6.67572021484375e-06,
+          "pair_abs": 9.5367431640625e-07
+        },
+        {
+          "pair": [
+            6,
+            4
+          ],
+          "torch_slot": 101,
+          "onnx_slot": 101,
+          "pred_max_abs": 7.62939453125e-06,
+          "pair_abs": 1.7881393432617188e-06
+        },
+        {
+          "pair": [
+            6,
+            5
+          ],
+          "torch_slot": 93,
+          "onnx_slot": 93,
+          "pred_max_abs": 1.8596649169921875e-05,
+          "pair_abs": 2.1457672119140625e-06
+        },
+        {
+          "pair": [
+            6,
+            7
+          ],
+          "torch_slot": 23,
+          "onnx_slot": 23,
+          "pred_max_abs": 7.152557373046875e-06,
+          "pair_abs": 1.7881393432617188e-07
+        },
+        {
+          "pair": [
+            6,
+            8
+          ],
+          "torch_slot": 62,
+          "onnx_slot": 62,
+          "pred_max_abs": 6.198883056640625e-06,
+          "pair_abs": 1.1324882507324219e-06
+        },
+        {
+          "pair": [
+            6,
+            9
+          ],
+          "torch_slot": 10,
+          "onnx_slot": 10,
+          "pred_max_abs": 9.5367431640625e-06,
+          "pair_abs": 2.652406692504883e-06
+        },
+        {
+          "pair": [
+            6,
+            10
+          ],
+          "torch_slot": 40,
+          "onnx_slot": 40,
+          "pred_max_abs": 7.152557373046875e-06,
+          "pair_abs": 6.556510925292969e-07
+        },
+        {
+          "pair": [
+            7,
+            0
+          ],
+          "torch_slot": 116,
+          "onnx_slot": 116,
+          "pred_max_abs": 7.62939453125e-06,
+          "pair_abs": 3.5762786865234375e-07
+        },
+        {
+          "pair": [
+            7,
+            3
+          ],
+          "torch_slot": 78,
+          "onnx_slot": 78,
+          "pred_max_abs": 1.3828277587890625e-05,
+          "pair_abs": 1.5497207641601562e-06
+        },
+        {
+          "pair": [
+            7,
+            4
+          ],
+          "torch_slot": 73,
+          "onnx_slot": 73,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 1.2516975402832031e-06
+        },
+        {
+          "pair": [
+            7,
+            5
+          ],
+          "torch_slot": 56,
+          "onnx_slot": 56,
+          "pred_max_abs": 2.09808349609375e-05,
+          "pair_abs": 1.2516975402832031e-06
+        },
+        {
+          "pair": [
+            7,
+            6
+          ],
+          "torch_slot": 4,
+          "onnx_slot": 4,
+          "pred_max_abs": 1.0013580322265625e-05,
+          "pair_abs": 2.0265579223632812e-06
+        },
+        {
+          "pair": [
+            7,
+            8
+          ],
+          "torch_slot": 53,
+          "onnx_slot": 53,
+          "pred_max_abs": 5.0067901611328125e-06,
+          "pair_abs": 2.980232238769531e-07
+        },
+        {
+          "pair": [
+            7,
+            9
+          ],
+          "torch_slot": 22,
+          "onnx_slot": 22,
+          "pred_max_abs": 1.0013580322265625e-05,
+          "pair_abs": 3.606081008911133e-06
+        },
+        {
+          "pair": [
+            7,
+            10
+          ],
+          "torch_slot": 24,
+          "onnx_slot": 24,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 2.115964889526367e-06
+        },
+        {
+          "pair": [
+            8,
+            4
+          ],
+          "torch_slot": 15,
+          "onnx_slot": 15,
+          "pred_max_abs": 3.814697265625e-06,
+          "pair_abs": 3.725290298461914e-07
+        },
+        {
+          "pair": [
+            8,
+            6
+          ],
+          "torch_slot": 12,
+          "onnx_slot": 12,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 2.6226043701171875e-06
+        },
+        {
+          "pair": [
+            8,
+            7
+          ],
+          "torch_slot": 29,
+          "onnx_slot": 29,
+          "pred_max_abs": 9.775161743164062e-06,
+          "pair_abs": 6.258487701416016e-07
+        },
+        {
+          "pair": [
+            8,
+            9
+          ],
+          "torch_slot": 47,
+          "onnx_slot": 47,
+          "pred_max_abs": 1.811981201171875e-05,
+          "pair_abs": 2.980232238769531e-07
+        },
+        {
+          "pair": [
+            8,
+            10
+          ],
+          "torch_slot": 88,
+          "onnx_slot": 88,
+          "pred_max_abs": 7.152557373046875e-06,
+          "pair_abs": 1.0728836059570312e-06
+        },
+        {
+          "pair": [
+            9,
+            0
+          ],
+          "torch_slot": 43,
+          "onnx_slot": 43,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 1.0132789611816406e-06
+        },
+        {
+          "pair": [
+            9,
+            1
+          ],
+          "torch_slot": 34,
+          "onnx_slot": 34,
+          "pred_max_abs": 5.245208740234375e-06,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "pair": [
+            9,
+            2
+          ],
+          "torch_slot": 69,
+          "onnx_slot": 69,
+          "pred_max_abs": 6.9141387939453125e-06,
+          "pair_abs": 1.2516975402832031e-06
+        },
+        {
+          "pair": [
+            9,
+            3
+          ],
+          "torch_slot": 58,
+          "onnx_slot": 58,
+          "pred_max_abs": 1.1920928955078125e-05,
+          "pair_abs": 1.7285346984863281e-06
+        },
+        {
+          "pair": [
+            9,
+            4
+          ],
+          "torch_slot": 80,
+          "onnx_slot": 80,
+          "pred_max_abs": 7.3909759521484375e-06,
+          "pair_abs": 5.960464477539063e-08
+        },
+        {
+          "pair": [
+            9,
+            5
+          ],
+          "torch_slot": 100,
+          "onnx_slot": 100,
+          "pred_max_abs": 5.245208740234375e-06,
+          "pair_abs": 3.2186508178710938e-06
+        },
+        {
+          "pair": [
+            9,
+            6
+          ],
+          "torch_slot": 103,
+          "onnx_slot": 103,
+          "pred_max_abs": 6.198883056640625e-06,
+          "pair_abs": 1.1920928955078125e-06
+        },
+        {
+          "pair": [
+            9,
+            7
+          ],
+          "torch_slot": 90,
+          "onnx_slot": 90,
+          "pred_max_abs": 9.059906005859375e-06,
+          "pair_abs": 1.430511474609375e-06
+        },
+        {
+          "pair": [
+            9,
+            8
+          ],
+          "torch_slot": 87,
+          "onnx_slot": 87,
+          "pred_max_abs": 1.2159347534179688e-05,
+          "pair_abs": 8.344650268554688e-07
+        },
+        {
+          "pair": [
+            9,
+            10
+          ],
+          "torch_slot": 85,
+          "onnx_slot": 85,
+          "pred_max_abs": 1.5497207641601562e-05,
+          "pair_abs": 1.7881393432617188e-06
+        },
+        {
+          "pair": [
+            9,
+            11
+          ],
+          "torch_slot": 42,
+          "onnx_slot": 42,
+          "pred_max_abs": 1.9550323486328125e-05,
+          "pair_abs": 0.0
+        },
+        {
+          "pair": [
+            9,
+            12
+          ],
+          "torch_slot": 20,
+          "onnx_slot": 20,
+          "pred_max_abs": 4.76837158203125e-06,
+          "pair_abs": 2.473592758178711e-06
+        },
+        {
+          "pair": [
+            9,
+            13
+          ],
+          "torch_slot": 72,
+          "onnx_slot": 72,
+          "pred_max_abs": 9.298324584960938e-06,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "pair": [
+            9,
+            14
+          ],
+          "torch_slot": 19,
+          "onnx_slot": 19,
+          "pred_max_abs": 6.67572021484375e-06,
+          "pair_abs": 3.0249357223510742e-06
+        },
+        {
+          "pair": [
+            9,
+            15
+          ],
+          "torch_slot": 59,
+          "onnx_slot": 59,
+          "pred_max_abs": 6.198883056640625e-06,
+          "pair_abs": 1.430511474609375e-06
+        },
+        {
+          "pair": [
+            9,
+            16
+          ],
+          "torch_slot": 84,
+          "onnx_slot": 84,
+          "pred_max_abs": 4.76837158203125e-06,
+          "pair_abs": 1.1920928955078125e-06
+        },
+        {
+          "pair": [
+            10,
+            0
+          ],
+          "torch_slot": 94,
+          "onnx_slot": 94,
+          "pred_max_abs": 5.245208740234375e-06,
+          "pair_abs": 1.7881393432617188e-06
+        },
+        {
+          "pair": [
+            10,
+            3
+          ],
+          "torch_slot": 30,
+          "onnx_slot": 30,
+          "pred_max_abs": 6.67572021484375e-06,
+          "pair_abs": 7.152557373046875e-07
+        },
+        {
+          "pair": [
+            10,
+            5
+          ],
+          "torch_slot": 38,
+          "onnx_slot": 38,
+          "pred_max_abs": 9.059906005859375e-06,
+          "pair_abs": 3.5762786865234375e-07
+        },
+        {
+          "pair": [
+            10,
+            6
+          ],
+          "torch_slot": 26,
+          "onnx_slot": 26,
+          "pred_max_abs": 1.3828277587890625e-05,
+          "pair_abs": 2.980232238769531e-07
+        },
+        {
+          "pair": [
+            10,
+            7
+          ],
+          "torch_slot": 28,
+          "onnx_slot": 28,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 1.5795230865478516e-06
+        },
+        {
+          "pair": [
+            10,
+            8
+          ],
+          "torch_slot": 95,
+          "onnx_slot": 95,
+          "pred_max_abs": 1.0013580322265625e-05,
+          "pair_abs": 1.6689300537109375e-06
+        },
+        {
+          "pair": [
+            10,
+            9
+          ],
+          "torch_slot": 9,
+          "onnx_slot": 9,
+          "pred_max_abs": 1.2159347534179688e-05,
+          "pair_abs": 8.344650268554688e-07
+        },
+        {
+          "pair": [
+            10,
+            16
+          ],
+          "torch_slot": 112,
+          "onnx_slot": 112,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 1.3113021850585938e-06
+        },
+        {
+          "pair": [
+            11,
+            3
+          ],
+          "torch_slot": 104,
+          "onnx_slot": 104,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 1.0728836059570312e-06
+        },
+        {
+          "pair": [
+            11,
+            9
+          ],
+          "torch_slot": 11,
+          "onnx_slot": 11,
+          "pred_max_abs": 1.0013580322265625e-05,
+          "pair_abs": 1.1920928955078125e-07
+        },
+        {
+          "pair": [
+            11,
+            12
+          ],
+          "torch_slot": 33,
+          "onnx_slot": 33,
+          "pred_max_abs": 9.059906005859375e-06,
+          "pair_abs": 6.258487701416016e-07
+        },
+        {
+          "pair": [
+            11,
+            14
+          ],
+          "torch_slot": 32,
+          "onnx_slot": 32,
+          "pred_max_abs": 1.049041748046875e-05,
+          "pair_abs": 5.364418029785156e-07
+        },
+        {
+          "pair": [
+            12,
+            3
+          ],
+          "torch_slot": 75,
+          "onnx_slot": 75,
+          "pred_max_abs": 1.3113021850585938e-05,
+          "pair_abs": 1.9073486328125e-06
+        },
+        {
+          "pair": [
+            12,
+            4
+          ],
+          "torch_slot": 122,
+          "onnx_slot": 122,
+          "pred_max_abs": 7.867813110351562e-06,
+          "pair_abs": 2.384185791015625e-07
+        },
+        {
+          "pair": [
+            12,
+            8
+          ],
+          "torch_slot": 114,
+          "onnx_slot": 114,
+          "pred_max_abs": 6.9141387939453125e-06,
+          "pair_abs": 1.1920928955078125e-06
+        },
+        {
+          "pair": [
+            12,
+            9
+          ],
+          "torch_slot": 14,
+          "onnx_slot": 14,
+          "pred_max_abs": 2.7418136596679688e-05,
+          "pair_abs": 1.3262033462524414e-06
+        },
+        {
+          "pair": [
+            12,
+            10
+          ],
+          "torch_slot": 125,
+          "onnx_slot": 125,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 3.0994415283203125e-06
+        },
+        {
+          "pair": [
+            12,
+            11
+          ],
+          "torch_slot": 63,
+          "onnx_slot": 63,
+          "pred_max_abs": 1.0251998901367188e-05,
+          "pair_abs": 1.1920928955078125e-07
+        },
+        {
+          "pair": [
+            12,
+            14
+          ],
+          "torch_slot": 17,
+          "onnx_slot": 17,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 8.940696716308594e-08
+        },
+        {
+          "pair": [
+            13,
+            0
+          ],
+          "torch_slot": 111,
+          "onnx_slot": 111,
+          "pred_max_abs": 6.198883056640625e-06,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "pair": [
+            13,
+            2
+          ],
+          "torch_slot": 102,
+          "onnx_slot": 102,
+          "pred_max_abs": 6.67572021484375e-06,
+          "pair_abs": 1.6689300537109375e-06
+        },
+        {
+          "pair": [
+            13,
+            3
+          ],
+          "torch_slot": 21,
+          "onnx_slot": 21,
+          "pred_max_abs": 1.33514404296875e-05,
+          "pair_abs": 3.7401914596557617e-06
+        },
+        {
+          "pair": [
+            13,
+            9
+          ],
+          "torch_slot": 2,
+          "onnx_slot": 2,
+          "pred_max_abs": 1.1205673217773438e-05,
+          "pair_abs": 1.6093254089355469e-06
+        },
+        {
+          "pair": [
+            13,
+            15
+          ],
+          "torch_slot": 45,
+          "onnx_slot": 45,
+          "pred_max_abs": 9.059906005859375e-06,
+          "pair_abs": 7.748603820800781e-07
+        },
+        {
+          "pair": [
+            13,
+            16
+          ],
+          "torch_slot": 67,
+          "onnx_slot": 67,
+          "pred_max_abs": 1.2874603271484375e-05,
+          "pair_abs": 1.1920928955078125e-07
+        },
+        {
+          "pair": [
+            14,
+            3
+          ],
+          "torch_slot": 74,
+          "onnx_slot": 74,
+          "pred_max_abs": 1.8358230590820312e-05,
+          "pair_abs": 1.8477439880371094e-06
+        },
+        {
+          "pair": [
+            14,
+            4
+          ],
+          "torch_slot": 121,
+          "onnx_slot": 121,
+          "pred_max_abs": 1.2159347534179688e-05,
+          "pair_abs": 2.384185791015625e-07
+        },
+        {
+          "pair": [
+            14,
+            8
+          ],
+          "torch_slot": 113,
+          "onnx_slot": 113,
+          "pred_max_abs": 1.2636184692382812e-05,
+          "pair_abs": 1.3113021850585938e-06
+        },
+        {
+          "pair": [
+            14,
+            9
+          ],
+          "torch_slot": 13,
+          "onnx_slot": 13,
+          "pred_max_abs": 2.765655517578125e-05,
+          "pair_abs": 1.0728836059570312e-06
+        },
+        {
+          "pair": [
+            14,
+            10
+          ],
+          "torch_slot": 124,
+          "onnx_slot": 124,
+          "pred_max_abs": 6.67572021484375e-06,
+          "pair_abs": 2.9802322387695312e-06
+        },
+        {
+          "pair": [
+            14,
+            11
+          ],
+          "torch_slot": 64,
+          "onnx_slot": 64,
+          "pred_max_abs": 1.2159347534179688e-05,
+          "pair_abs": 2.384185791015625e-07
+        },
+        {
+          "pair": [
+            14,
+            12
+          ],
+          "torch_slot": 18,
+          "onnx_slot": 18,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 7.748603820800781e-07
+        },
+        {
+          "pair": [
+            15,
+            0
+          ],
+          "torch_slot": 51,
+          "onnx_slot": 51,
+          "pred_max_abs": 4.291534423828125e-06,
+          "pair_abs": 1.7881393432617188e-06
+        },
+        {
+          "pair": [
+            15,
+            2
+          ],
+          "torch_slot": 61,
+          "onnx_slot": 61,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 3.5762786865234375e-07
+        },
+        {
+          "pair": [
+            15,
+            3
+          ],
+          "torch_slot": 16,
+          "onnx_slot": 16,
+          "pred_max_abs": 1.049041748046875e-05,
+          "pair_abs": 3.0100345611572266e-06
+        },
+        {
+          "pair": [
+            15,
+            9
+          ],
+          "torch_slot": 1,
+          "onnx_slot": 1,
+          "pred_max_abs": 5.245208740234375e-06,
+          "pair_abs": 1.6093254089355469e-06
+        },
+        {
+          "pair": [
+            15,
+            13
+          ],
+          "torch_slot": 37,
+          "onnx_slot": 37,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 0.0
+        },
+        {
+          "pair": [
+            15,
+            16
+          ],
+          "torch_slot": 49,
+          "onnx_slot": 49,
+          "pred_max_abs": 7.867813110351562e-06,
+          "pair_abs": 1.430511474609375e-06
+        },
+        {
+          "pair": [
+            16,
+            0
+          ],
+          "torch_slot": 66,
+          "onnx_slot": 66,
+          "pred_max_abs": 7.152557373046875e-06,
+          "pair_abs": 5.960464477539063e-08
+        },
+        {
+          "pair": [
+            16,
+            2
+          ],
+          "torch_slot": 52,
+          "onnx_slot": 52,
+          "pred_max_abs": 7.62939453125e-06,
+          "pair_abs": 2.2649765014648438e-06
+        },
+        {
+          "pair": [
+            16,
+            3
+          ],
+          "torch_slot": 27,
+          "onnx_slot": 27,
+          "pred_max_abs": 9.059906005859375e-06,
+          "pair_abs": 1.3709068298339844e-06
+        },
+        {
+          "pair": [
+            16,
+            5
+          ],
+          "torch_slot": 105,
+          "onnx_slot": 105,
+          "pred_max_abs": 6.67572021484375e-06,
+          "pair_abs": 1.1920928955078125e-06
+        },
+        {
+          "pair": [
+            16,
+            9
+          ],
+          "torch_slot": 3,
+          "onnx_slot": 3,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 1.4901161193847656e-06
+        },
+        {
+          "pair": [
+            16,
+            10
+          ],
+          "torch_slot": 117,
+          "onnx_slot": 117,
+          "pred_max_abs": 9.5367431640625e-06,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "pair": [
+            16,
+            13
+          ],
+          "torch_slot": 86,
+          "onnx_slot": 86,
+          "pred_max_abs": 4.76837158203125e-06,
+          "pair_abs": 2.2649765014648438e-06
+        },
+        {
+          "pair": [
+            16,
+            15
+          ],
+          "torch_slot": 55,
+          "onnx_slot": 55,
+          "pred_max_abs": 8.821487426757812e-06,
+          "pair_abs": 5.364418029785156e-07
+        }
+      ],
+      "max_real_pred_delta": 3.0994415283203125e-05,
+      "max_real_pair_delta": 3.7401914596557617e-06,
+      "all_slot_deltas": {
+        "pred_logits": 3.0994415283203125e-05,
+        "pair_logits": 3.7401914596557617e-06
+      },
+      "all_slot_exact": {
+        "sub_idx": true,
+        "obj_idx": true,
+        "valid_mask": true
+      },
+      "mismatched_slots": [
+        {
+          "slot": 0,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            3,
+            9
+          ],
+          "onnx_pair": [
+            3,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 4.0531158447265625e-06,
+          "pair_abs": 5.960464477539062e-07
+        },
+        {
+          "slot": 1,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            15,
+            9
+          ],
+          "onnx_pair": [
+            15,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.245208740234375e-06,
+          "pair_abs": 1.6093254089355469e-06
+        },
+        {
+          "slot": 2,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            13,
+            9
+          ],
+          "onnx_pair": [
+            13,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.1205673217773438e-05,
+          "pair_abs": 1.6093254089355469e-06
+        },
+        {
+          "slot": 3,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            16,
+            9
+          ],
+          "onnx_pair": [
+            16,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 1.4901161193847656e-06
+        },
+        {
+          "slot": 4,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            7,
+            6
+          ],
+          "onnx_pair": [
+            7,
+            6
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.0013580322265625e-05,
+          "pair_abs": 2.0265579223632812e-06
+        },
+        {
+          "slot": 5,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            2,
+            9
+          ],
+          "onnx_pair": [
+            2,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.0067901611328125e-06,
+          "pair_abs": 1.6689300537109375e-06
+        },
+        {
+          "slot": 6,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            0,
+            9
+          ],
+          "onnx_pair": [
+            0,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 4.0531158447265625e-06,
+          "pair_abs": 1.9073486328125e-06
+        },
+        {
+          "slot": 7,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            5,
+            9
+          ],
+          "onnx_pair": [
+            5,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 3.0994415283203125e-05,
+          "pair_abs": 7.152557373046875e-07
+        },
+        {
+          "slot": 8,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            1,
+            9
+          ],
+          "onnx_pair": [
+            1,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.8596649169921875e-05,
+          "pair_abs": 6.556510925292969e-07
+        },
+        {
+          "slot": 9,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            10,
+            9
+          ],
+          "onnx_pair": [
+            10,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.2159347534179688e-05,
+          "pair_abs": 8.344650268554688e-07
+        },
+        {
+          "slot": 10,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            6,
+            9
+          ],
+          "onnx_pair": [
+            6,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.5367431640625e-06,
+          "pair_abs": 2.652406692504883e-06
+        },
+        {
+          "slot": 11,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            11,
+            9
+          ],
+          "onnx_pair": [
+            11,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.0013580322265625e-05,
+          "pair_abs": 1.1920928955078125e-07
+        },
+        {
+          "slot": 12,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            8,
+            6
+          ],
+          "onnx_pair": [
+            8,
+            6
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 2.6226043701171875e-06
+        },
+        {
+          "slot": 13,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            14,
+            9
+          ],
+          "onnx_pair": [
+            14,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 2.765655517578125e-05,
+          "pair_abs": 1.0728836059570312e-06
+        },
+        {
+          "slot": 14,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            12,
+            9
+          ],
+          "onnx_pair": [
+            12,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 2.7418136596679688e-05,
+          "pair_abs": 1.3262033462524414e-06
+        },
+        {
+          "slot": 15,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            8,
+            4
+          ],
+          "onnx_pair": [
+            8,
+            4
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 3.814697265625e-06,
+          "pair_abs": 3.725290298461914e-07
+        },
+        {
+          "slot": 16,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            15,
+            3
+          ],
+          "onnx_pair": [
+            15,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.049041748046875e-05,
+          "pair_abs": 3.0100345611572266e-06
+        },
+        {
+          "slot": 17,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            12,
+            14
+          ],
+          "onnx_pair": [
+            12,
+            14
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 8.940696716308594e-08
+        },
+        {
+          "slot": 18,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            14,
+            12
+          ],
+          "onnx_pair": [
+            14,
+            12
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 7.748603820800781e-07
+        },
+        {
+          "slot": 19,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            14
+          ],
+          "onnx_pair": [
+            9,
+            14
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 6.67572021484375e-06,
+          "pair_abs": 3.0249357223510742e-06
+        },
+        {
+          "slot": 20,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            12
+          ],
+          "onnx_pair": [
+            9,
+            12
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 4.76837158203125e-06,
+          "pair_abs": 2.473592758178711e-06
+        },
+        {
+          "slot": 21,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            13,
+            3
+          ],
+          "onnx_pair": [
+            13,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.33514404296875e-05,
+          "pair_abs": 3.7401914596557617e-06
+        },
+        {
+          "slot": 22,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            7,
+            9
+          ],
+          "onnx_pair": [
+            7,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.0013580322265625e-05,
+          "pair_abs": 3.606081008911133e-06
+        },
+        {
+          "slot": 23,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            6,
+            7
+          ],
+          "onnx_pair": [
+            6,
+            7
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.152557373046875e-06,
+          "pair_abs": 1.7881393432617188e-07
+        },
+        {
+          "slot": 24,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            7,
+            10
+          ],
+          "onnx_pair": [
+            7,
+            10
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 2.115964889526367e-06
+        },
+        {
+          "slot": 25,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            4,
+            8
+          ],
+          "onnx_pair": [
+            4,
+            8
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.4543533325195312e-05,
+          "pair_abs": 1.4603137969970703e-06
+        },
+        {
+          "slot": 26,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            10,
+            6
+          ],
+          "onnx_pair": [
+            10,
+            6
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.3828277587890625e-05,
+          "pair_abs": 2.980232238769531e-07
+        },
+        {
+          "slot": 27,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            16,
+            3
+          ],
+          "onnx_pair": [
+            16,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.059906005859375e-06,
+          "pair_abs": 1.3709068298339844e-06
+        },
+        {
+          "slot": 28,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            10,
+            7
+          ],
+          "onnx_pair": [
+            10,
+            7
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 1.5795230865478516e-06
+        },
+        {
+          "slot": 29,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            8,
+            7
+          ],
+          "onnx_pair": [
+            8,
+            7
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.775161743164062e-06,
+          "pair_abs": 6.258487701416016e-07
+        },
+        {
+          "slot": 30,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            10,
+            3
+          ],
+          "onnx_pair": [
+            10,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 6.67572021484375e-06,
+          "pair_abs": 7.152557373046875e-07
+        },
+        {
+          "slot": 31,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            3,
+            13
+          ],
+          "onnx_pair": [
+            3,
+            13
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.2874603271484375e-05,
+          "pair_abs": 6.556510925292969e-07
+        },
+        {
+          "slot": 32,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            11,
+            14
+          ],
+          "onnx_pair": [
+            11,
+            14
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.049041748046875e-05,
+          "pair_abs": 5.364418029785156e-07
+        },
+        {
+          "slot": 33,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            11,
+            12
+          ],
+          "onnx_pair": [
+            11,
+            12
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.059906005859375e-06,
+          "pair_abs": 6.258487701416016e-07
+        },
+        {
+          "slot": 34,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            1
+          ],
+          "onnx_pair": [
+            9,
+            1
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.245208740234375e-06,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "slot": 35,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            3,
+            15
+          ],
+          "onnx_pair": [
+            3,
+            15
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.0967254638671875e-05,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "slot": 36,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            5,
+            10
+          ],
+          "onnx_pair": [
+            5,
+            10
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.867813110351562e-06,
+          "pair_abs": 5.960464477539063e-08
+        },
+        {
+          "slot": 37,
+          "fields": [
+            "pred_logits"
+          ],
+          "torch_pair": [
+            15,
+            13
+          ],
+          "onnx_pair": [
+            15,
+            13
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 0.0
+        },
+        {
+          "slot": 38,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            10,
+            5
+          ],
+          "onnx_pair": [
+            10,
+            5
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.059906005859375e-06,
+          "pair_abs": 3.5762786865234375e-07
+        },
+        {
+          "slot": 39,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            2,
+            0
+          ],
+          "onnx_pair": [
+            2,
+            0
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.5367431640625e-06,
+          "pair_abs": 3.5762786865234375e-07
+        },
+        {
+          "slot": 40,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            6,
+            10
+          ],
+          "onnx_pair": [
+            6,
+            10
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.152557373046875e-06,
+          "pair_abs": 6.556510925292969e-07
+        },
+        {
+          "slot": 41,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            3,
+            16
+          ],
+          "onnx_pair": [
+            3,
+            16
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.4781951904296875e-05,
+          "pair_abs": 1.3113021850585938e-06
+        },
+        {
+          "slot": 42,
+          "fields": [
+            "pred_logits"
+          ],
+          "torch_pair": [
+            9,
+            11
+          ],
+          "onnx_pair": [
+            9,
+            11
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.9550323486328125e-05,
+          "pair_abs": 0.0
+        },
+        {
+          "slot": 43,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            0
+          ],
+          "onnx_pair": [
+            9,
+            0
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 1.0132789611816406e-06
+        },
+        {
+          "slot": 44,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            4,
+            9
+          ],
+          "onnx_pair": [
+            4,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 5.364418029785156e-07
+        },
+        {
+          "slot": 45,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            13,
+            15
+          ],
+          "onnx_pair": [
+            13,
+            15
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.059906005859375e-06,
+          "pair_abs": 7.748603820800781e-07
+        },
+        {
+          "slot": 46,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            2,
+            16
+          ],
+          "onnx_pair": [
+            2,
+            16
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.239776611328125e-05,
+          "pair_abs": 5.960464477539062e-07
+        },
+        {
+          "slot": 47,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            8,
+            9
+          ],
+          "onnx_pair": [
+            8,
+            9
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.811981201171875e-05,
+          "pair_abs": 2.980232238769531e-07
+        },
+        {
+          "slot": 48,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            3,
+            10
+          ],
+          "onnx_pair": [
+            3,
+            10
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 5.960464477539063e-08
+        },
+        {
+          "slot": 49,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            15,
+            16
+          ],
+          "onnx_pair": [
+            15,
+            16
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.867813110351562e-06,
+          "pair_abs": 1.430511474609375e-06
+        },
+        {
+          "slot": 50,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            2,
+            3
+          ],
+          "onnx_pair": [
+            2,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.239776611328125e-05,
+          "pair_abs": 2.0265579223632812e-06
+        },
+        {
+          "slot": 51,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            15,
+            0
+          ],
+          "onnx_pair": [
+            15,
+            0
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 4.291534423828125e-06,
+          "pair_abs": 1.7881393432617188e-06
+        },
+        {
+          "slot": 52,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            16,
+            2
+          ],
+          "onnx_pair": [
+            16,
+            2
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.62939453125e-06,
+          "pair_abs": 2.2649765014648438e-06
+        },
+        {
+          "slot": 53,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            7,
+            8
+          ],
+          "onnx_pair": [
+            7,
+            8
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.0067901611328125e-06,
+          "pair_abs": 2.980232238769531e-07
+        },
+        {
+          "slot": 54,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            5,
+            3
+          ],
+          "onnx_pair": [
+            5,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.5367431640625e-06,
+          "pair_abs": 5.960464477539062e-07
+        },
+        {
+          "slot": 55,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            16,
+            15
+          ],
+          "onnx_pair": [
+            16,
+            15
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 8.821487426757812e-06,
+          "pair_abs": 5.364418029785156e-07
+        },
+        {
+          "slot": 56,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            7,
+            5
+          ],
+          "onnx_pair": [
+            7,
+            5
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 2.09808349609375e-05,
+          "pair_abs": 1.2516975402832031e-06
+        },
+        {
+          "slot": 57,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            4,
+            6
+          ],
+          "onnx_pair": [
+            4,
+            6
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 3.039836883544922e-06
+        },
+        {
+          "slot": 58,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            3
+          ],
+          "onnx_pair": [
+            9,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.1920928955078125e-05,
+          "pair_abs": 1.7285346984863281e-06
+        },
+        {
+          "slot": 59,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            15
+          ],
+          "onnx_pair": [
+            9,
+            15
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 6.198883056640625e-06,
+          "pair_abs": 1.430511474609375e-06
+        },
+        {
+          "slot": 60,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            0,
+            15
+          ],
+          "onnx_pair": [
+            0,
+            15
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 4.76837158203125e-06,
+          "pair_abs": 1.5497207641601562e-06
+        },
+        {
+          "slot": 61,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            15,
+            2
+          ],
+          "onnx_pair": [
+            15,
+            2
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 3.5762786865234375e-07
+        },
+        {
+          "slot": 62,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            6,
+            8
+          ],
+          "onnx_pair": [
+            6,
+            8
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 6.198883056640625e-06,
+          "pair_abs": 1.1324882507324219e-06
+        },
+        {
+          "slot": 63,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            12,
+            11
+          ],
+          "onnx_pair": [
+            12,
+            11
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.0251998901367188e-05,
+          "pair_abs": 1.1920928955078125e-07
+        },
+        {
+          "slot": 64,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            14,
+            11
+          ],
+          "onnx_pair": [
+            14,
+            11
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.2159347534179688e-05,
+          "pair_abs": 2.384185791015625e-07
+        },
+        {
+          "slot": 65,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            5,
+            6
+          ],
+          "onnx_pair": [
+            5,
+            6
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.8835067749023438e-05,
+          "pair_abs": 2.562999725341797e-06
+        },
+        {
+          "slot": 66,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            16,
+            0
+          ],
+          "onnx_pair": [
+            16,
+            0
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.152557373046875e-06,
+          "pair_abs": 5.960464477539063e-08
+        },
+        {
+          "slot": 67,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            13,
+            16
+          ],
+          "onnx_pair": [
+            13,
+            16
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.2874603271484375e-05,
+          "pair_abs": 1.1920928955078125e-07
+        },
+        {
+          "slot": 68,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            0,
+            3
+          ],
+          "onnx_pair": [
+            0,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 6.198883056640625e-06,
+          "pair_abs": 1.9073486328125e-06
+        },
+        {
+          "slot": 69,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            2
+          ],
+          "onnx_pair": [
+            9,
+            2
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 6.9141387939453125e-06,
+          "pair_abs": 1.2516975402832031e-06
+        },
+        {
+          "slot": 70,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            3,
+            5
+          ],
+          "onnx_pair": [
+            3,
+            5
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.430511474609375e-05,
+          "pair_abs": 5.364418029785156e-07
+        },
+        {
+          "slot": 71,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            2,
+            15
+          ],
+          "onnx_pair": [
+            2,
+            15
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.1920928955078125e-05,
+          "pair_abs": 1.3113021850585938e-06
+        },
+        {
+          "slot": 72,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            13
+          ],
+          "onnx_pair": [
+            9,
+            13
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.298324584960938e-06,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "slot": 73,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            7,
+            4
+          ],
+          "onnx_pair": [
+            7,
+            4
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 1.2516975402832031e-06
+        },
+        {
+          "slot": 74,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            14,
+            3
+          ],
+          "onnx_pair": [
+            14,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.8358230590820312e-05,
+          "pair_abs": 1.8477439880371094e-06
+        },
+        {
+          "slot": 75,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            12,
+            3
+          ],
+          "onnx_pair": [
+            12,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.3113021850585938e-05,
+          "pair_abs": 1.9073486328125e-06
+        },
+        {
+          "slot": 76,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            5,
+            7
+          ],
+          "onnx_pair": [
+            5,
+            7
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 2.1457672119140625e-05,
+          "pair_abs": 1.6689300537109375e-06
+        },
+        {
+          "slot": 77,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            3,
+            0
+          ],
+          "onnx_pair": [
+            3,
+            0
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 1.7881393432617188e-06
+        },
+        {
+          "slot": 78,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            7,
+            3
+          ],
+          "onnx_pair": [
+            7,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.3828277587890625e-05,
+          "pair_abs": 1.5497207641601562e-06
+        },
+        {
+          "slot": 79,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            4,
+            7
+          ],
+          "onnx_pair": [
+            4,
+            7
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.059906005859375e-06,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "slot": 80,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            4
+          ],
+          "onnx_pair": [
+            9,
+            4
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.3909759521484375e-06,
+          "pair_abs": 5.960464477539063e-08
+        },
+        {
+          "slot": 81,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            5,
+            0
+          ],
+          "onnx_pair": [
+            5,
+            0
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.7642974853515625e-05,
+          "pair_abs": 1.1920928955078125e-06
+        },
+        {
+          "slot": 82,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            0,
+            2
+          ],
+          "onnx_pair": [
+            0,
+            2
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 3.814697265625e-06,
+          "pair_abs": 8.344650268554688e-07
+        },
+        {
+          "slot": 83,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            3,
+            2
+          ],
+          "onnx_pair": [
+            3,
+            2
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.0067901611328125e-06,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "slot": 84,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            16
+          ],
+          "onnx_pair": [
+            9,
+            16
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 4.76837158203125e-06,
+          "pair_abs": 1.1920928955078125e-06
+        },
+        {
+          "slot": 85,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            10
+          ],
+          "onnx_pair": [
+            9,
+            10
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.5497207641601562e-05,
+          "pair_abs": 1.7881393432617188e-06
+        },
+        {
+          "slot": 86,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            16,
+            13
+          ],
+          "onnx_pair": [
+            16,
+            13
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 4.76837158203125e-06,
+          "pair_abs": 2.2649765014648438e-06
+        },
+        {
+          "slot": 87,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            8
+          ],
+          "onnx_pair": [
+            9,
+            8
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.2159347534179688e-05,
+          "pair_abs": 8.344650268554688e-07
+        },
+        {
+          "slot": 88,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            8,
+            10
+          ],
+          "onnx_pair": [
+            8,
+            10
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.152557373046875e-06,
+          "pair_abs": 1.0728836059570312e-06
+        },
+        {
+          "slot": 89,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            0,
+            16
+          ],
+          "onnx_pair": [
+            0,
+            16
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 2.384185791015625e-06
+        },
+        {
+          "slot": 90,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            7
+          ],
+          "onnx_pair": [
+            9,
+            7
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.059906005859375e-06,
+          "pair_abs": 1.430511474609375e-06
+        },
+        {
+          "slot": 91,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            3,
+            6
+          ],
+          "onnx_pair": [
+            3,
+            6
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 7.152557373046875e-07
+        },
+        {
+          "slot": 92,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            6,
+            3
+          ],
+          "onnx_pair": [
+            6,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 6.67572021484375e-06,
+          "pair_abs": 9.5367431640625e-07
+        },
+        {
+          "slot": 93,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            6,
+            5
+          ],
+          "onnx_pair": [
+            6,
+            5
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.8596649169921875e-05,
+          "pair_abs": 2.1457672119140625e-06
+        },
+        {
+          "slot": 94,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            10,
+            0
+          ],
+          "onnx_pair": [
+            10,
+            0
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.245208740234375e-06,
+          "pair_abs": 1.7881393432617188e-06
+        },
+        {
+          "slot": 95,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            10,
+            8
+          ],
+          "onnx_pair": [
+            10,
+            8
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.0013580322265625e-05,
+          "pair_abs": 1.6689300537109375e-06
+        },
+        {
+          "slot": 96,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            3,
+            14
+          ],
+          "onnx_pair": [
+            3,
+            14
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.5367431640625e-06,
+          "pair_abs": 2.1457672119140625e-06
+        },
+        {
+          "slot": 97,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            3,
+            12
+          ],
+          "onnx_pair": [
+            3,
+            12
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 8.106231689453125e-06,
+          "pair_abs": 1.9073486328125e-06
+        },
+        {
+          "slot": 98,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            5,
+            16
+          ],
+          "onnx_pair": [
+            5,
+            16
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.5020370483398438e-05,
+          "pair_abs": 3.5762786865234375e-07
+        },
+        {
+          "slot": 99,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            0,
+            5
+          ],
+          "onnx_pair": [
+            0,
+            5
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 2.193450927734375e-05,
+          "pair_abs": 2.7418136596679688e-06
+        },
+        {
+          "slot": 100,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            5
+          ],
+          "onnx_pair": [
+            9,
+            5
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.245208740234375e-06,
+          "pair_abs": 3.2186508178710938e-06
+        },
+        {
+          "slot": 101,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            6,
+            4
+          ],
+          "onnx_pair": [
+            6,
+            4
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.62939453125e-06,
+          "pair_abs": 1.7881393432617188e-06
+        },
+        {
+          "slot": 102,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            13,
+            2
+          ],
+          "onnx_pair": [
+            13,
+            2
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 6.67572021484375e-06,
+          "pair_abs": 1.6689300537109375e-06
+        },
+        {
+          "slot": 103,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            9,
+            6
+          ],
+          "onnx_pair": [
+            9,
+            6
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 6.198883056640625e-06,
+          "pair_abs": 1.1920928955078125e-06
+        },
+        {
+          "slot": 104,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            11,
+            3
+          ],
+          "onnx_pair": [
+            11,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 1.0728836059570312e-06
+        },
+        {
+          "slot": 105,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            16,
+            5
+          ],
+          "onnx_pair": [
+            16,
+            5
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 6.67572021484375e-06,
+          "pair_abs": 1.1920928955078125e-06
+        },
+        {
+          "slot": 106,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            2,
+            5
+          ],
+          "onnx_pair": [
+            2,
+            5
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 2.09808349609375e-05,
+          "pair_abs": 7.152557373046875e-07
+        },
+        {
+          "slot": 107,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            5,
+            2
+          ],
+          "onnx_pair": [
+            5,
+            2
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.52587890625e-05,
+          "pair_abs": 1.5497207641601562e-06
+        },
+        {
+          "slot": 108,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            0,
+            10
+          ],
+          "onnx_pair": [
+            0,
+            10
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 5.960464477539062e-07
+        },
+        {
+          "slot": 109,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            3,
+            7
+          ],
+          "onnx_pair": [
+            3,
+            7
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.049041748046875e-05,
+          "pair_abs": 2.384185791015625e-07
+        },
+        {
+          "slot": 110,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            6,
+            0
+          ],
+          "onnx_pair": [
+            6,
+            0
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.239776611328125e-05,
+          "pair_abs": 1.5497207641601562e-06
+        },
+        {
+          "slot": 111,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            13,
+            0
+          ],
+          "onnx_pair": [
+            13,
+            0
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 6.198883056640625e-06,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "slot": 112,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            10,
+            16
+          ],
+          "onnx_pair": [
+            10,
+            16
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 1.3113021850585938e-06
+        },
+        {
+          "slot": 113,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            14,
+            8
+          ],
+          "onnx_pair": [
+            14,
+            8
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.2636184692382812e-05,
+          "pair_abs": 1.3113021850585938e-06
+        },
+        {
+          "slot": 114,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            12,
+            8
+          ],
+          "onnx_pair": [
+            12,
+            8
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 6.9141387939453125e-06,
+          "pair_abs": 1.1920928955078125e-06
+        },
+        {
+          "slot": 115,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            5,
+            13
+          ],
+          "onnx_pair": [
+            5,
+            13
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.1444091796875e-05,
+          "pair_abs": 2.1457672119140625e-06
+        },
+        {
+          "slot": 116,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            7,
+            0
+          ],
+          "onnx_pair": [
+            7,
+            0
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.62939453125e-06,
+          "pair_abs": 3.5762786865234375e-07
+        },
+        {
+          "slot": 117,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            16,
+            10
+          ],
+          "onnx_pair": [
+            16,
+            10
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 9.5367431640625e-06,
+          "pair_abs": 4.76837158203125e-07
+        },
+        {
+          "slot": 118,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            0,
+            13
+          ],
+          "onnx_pair": [
+            0,
+            13
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 5.960464477539062e-07
+        },
+        {
+          "slot": 119,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            5,
+            15
+          ],
+          "onnx_pair": [
+            5,
+            15
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.5735626220703125e-05,
+          "pair_abs": 9.5367431640625e-07
+        },
+        {
+          "slot": 120,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            2,
+            13
+          ],
+          "onnx_pair": [
+            2,
+            13
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.152557373046875e-06,
+          "pair_abs": 1.6689300537109375e-06
+        },
+        {
+          "slot": 121,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            14,
+            4
+          ],
+          "onnx_pair": [
+            14,
+            4
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 1.2159347534179688e-05,
+          "pair_abs": 2.384185791015625e-07
+        },
+        {
+          "slot": 122,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            12,
+            4
+          ],
+          "onnx_pair": [
+            12,
+            4
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.867813110351562e-06,
+          "pair_abs": 2.384185791015625e-07
+        },
+        {
+          "slot": 123,
+          "fields": [
+            "pred_logits"
+          ],
+          "torch_pair": [
+            1,
+            2
+          ],
+          "onnx_pair": [
+            1,
+            2
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 3.337860107421875e-06,
+          "pair_abs": 0.0
+        },
+        {
+          "slot": 124,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            14,
+            10
+          ],
+          "onnx_pair": [
+            14,
+            10
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 6.67572021484375e-06,
+          "pair_abs": 2.9802322387695312e-06
+        },
+        {
+          "slot": 125,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            12,
+            10
+          ],
+          "onnx_pair": [
+            12,
+            10
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 5.7220458984375e-06,
+          "pair_abs": 3.0994415283203125e-06
+        },
+        {
+          "slot": 126,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            1,
+            3
+          ],
+          "onnx_pair": [
+            1,
+            3
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 7.152557373046875e-06,
+          "pair_abs": 9.5367431640625e-07
+        },
+        {
+          "slot": 127,
+          "fields": [
+            "pred_logits",
+            "pair_logits"
+          ],
+          "torch_pair": [
+            0,
+            6
+          ],
+          "onnx_pair": [
+            0,
+            6
+          ],
+          "torch_real": true,
+          "onnx_real": true,
+          "pred_max_abs": 8.58306884765625e-06,
+          "pair_abs": 1.0728836059570312e-06
+        }
+      ],
+      "top10_identical": true,
+      "top10_full_records_bitwise_identical": false,
+      "top10_torch": [
+        {
+          "subject_idx": 7,
+          "subject": "potted plant",
+          "predicate": "contained in",
+          "object_idx": 6,
+          "object": "vase",
+          "score": 0.7009664177894592,
+          "threshold": 0.5697068572044373,
+          "pass": true
+        },
+        {
+          "subject_idx": 3,
+          "subject": "laptop",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6961787939071655,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 13,
+          "subject": "mouse",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.692257285118103,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 16,
+          "subject": "remote",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6879077553749084,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 2,
+          "subject": "scissors",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6836262941360474,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 0,
+          "subject": "cup",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6522095799446106,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 5,
+          "subject": "cup",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6435088515281677,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 15,
+          "subject": "cell phone",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6252738237380981,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 10,
+          "subject": "cup",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6229321956634521,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 1,
+          "subject": "chair",
+          "predicate": "beside",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.5762340426445007,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        }
+      ],
+      "top10_onnx": [
+        {
+          "subject_idx": 7,
+          "subject": "potted plant",
+          "predicate": "contained in",
+          "object_idx": 6,
+          "object": "vase",
+          "score": 0.700967013835907,
+          "threshold": 0.5697068572044373,
+          "pass": true
+        },
+        {
+          "subject_idx": 3,
+          "subject": "laptop",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6961788535118103,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 13,
+          "subject": "mouse",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6922580003738403,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 16,
+          "subject": "remote",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6879084706306458,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 2,
+          "subject": "scissors",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6836267709732056,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 0,
+          "subject": "cup",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6522095799446106,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 5,
+          "subject": "cup",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6435096859931946,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 15,
+          "subject": "cell phone",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6252742409706116,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 10,
+          "subject": "cup",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6229320168495178,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        },
+        {
+          "subject_idx": 1,
+          "subject": "chair",
+          "predicate": "beside",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.5762345790863037,
+          "threshold": 0.5001243948936462,
+          "pass": true
+        }
+      ],
+      "passed": true
+    }
+  ]
+}

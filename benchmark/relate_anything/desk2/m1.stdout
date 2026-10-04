@@ -1,0 +1,90 @@
+{
+  "inputs": [
+    {
+      "name": "image",
+      "shape": [
+        "batch",
+        3,
+        448,
+        448
+      ],
+      "type": "tensor(float)"
+    },
+    {
+      "name": "boxes",
+      "shape": [
+        "batch",
+        "num_boxes",
+        4
+      ],
+      "type": "tensor(float)"
+    },
+    {
+      "name": "box_counts",
+      "shape": [
+        "batch"
+      ],
+      "type": "tensor(int64)"
+    },
+    {
+      "name": "W",
+      "shape": [
+        "num_predicates",
+        512
+      ],
+      "type": "tensor(float)"
+    },
+    {
+      "name": "alpha",
+      "shape": [
+        "num_predicates"
+      ],
+      "type": "tensor(float)"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "pred_logits",
+      "shape": [
+        "batch",
+        "num_pairs",
+        "num_predicates"
+      ],
+      "type": "tensor(float)"
+    },
+    {
+      "name": "pair_logits",
+      "shape": [
+        "batch",
+        "num_pairs"
+      ],
+      "type": "tensor(float)"
+    },
+    {
+      "name": "sub_idx",
+      "shape": [
+        "batch",
+        "num_pairs"
+      ],
+      "type": "tensor(int64)"
+    },
+    {
+      "name": "obj_idx",
+      "shape": [
+        "batch",
+        "num_pairs"
+      ],
+      "type": "tensor(int64)"
+    },
+    {
+      "name": "valid_mask",
+      "shape": [
+        "batch",
+        "num_pairs"
+      ],
+      "type": "tensor(bool)"
+    }
+  ]
+}
+SANITY relsgg-vits16plus True [{"subject_idx": 0, "subject": "person", "predicate": "riding", "object_idx": 1, "object": "horse", "score": 0.5517520904541016, "threshold": 0.5589663982391357, "pass": false}, {"subject_idx": 1, "subject": "horse", "predicate": "carrying", "object_idx": 0, "object": "person", "score": 0.02818777970969677, "threshold": 0.5269686579704285, "pass": false}]
+{"model": "relsgg-vits16plus", "timing_label": "INFORMAL \u2014 agents resident, NOT VALID TIMING", "load_ms": 2505.5298269726336, "median_ort_ms": 780.3738210350275, "VmHWM_KiB": 649500, "sanity_pass": true, "timing_scope": "session construction load; ORT session.run only per image; excludes decode/preprocess/postprocess"}

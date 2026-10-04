@@ -1,0 +1,135 @@
+{
+  "passed": true,
+  "detections": [
+    {
+      "class_name": "person",
+      "box_xyxy": [
+        470,
+        130,
+        650,
+        630
+      ]
+    },
+    {
+      "class_name": "horse",
+      "box_xyxy": [
+        90,
+        310,
+        1010,
+        875
+      ]
+    }
+  ],
+  "triplets": [
+    {
+      "subject_idx": 0,
+      "subject": "person",
+      "predicate": "riding",
+      "object_idx": 1,
+      "object": "horse",
+      "score": 0.6158592700958252,
+      "threshold": 0.5307691453753881,
+      "pass": true
+    },
+    {
+      "subject_idx": 1,
+      "subject": "horse",
+      "predicate": "carrying",
+      "object_idx": 0,
+      "object": "person",
+      "score": 0.01445008721202612,
+      "threshold": 0.4536415805681637,
+      "pass": false
+    }
+  ],
+  "ort_ms": 693.538127001375,
+  "timing_label": "INFORMAL \u2014 agents resident, NOT VALID TIMING",
+  "graph": {
+    "inputs": [
+      {
+        "name": "image",
+        "shape": [
+          "batch",
+          3,
+          448,
+          448
+        ],
+        "type": "tensor(float)"
+      },
+      {
+        "name": "boxes",
+        "shape": [
+          "batch",
+          "num_boxes",
+          4
+        ],
+        "type": "tensor(float)"
+      },
+      {
+        "name": "box_counts",
+        "shape": [
+          "batch"
+        ],
+        "type": "tensor(int64)"
+      },
+      {
+        "name": "W",
+        "shape": [
+          "num_predicates",
+          512
+        ],
+        "type": "tensor(float)"
+      },
+      {
+        "name": "alpha",
+        "shape": [
+          "num_predicates"
+        ],
+        "type": "tensor(float)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "pred_logits",
+        "shape": [
+          "batch",
+          "num_pairs",
+          "num_predicates"
+        ],
+        "type": "tensor(float)"
+      },
+      {
+        "name": "pair_logits",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ],
+        "type": "tensor(float)"
+      },
+      {
+        "name": "sub_idx",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ],
+        "type": "tensor(int64)"
+      },
+      {
+        "name": "obj_idx",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ],
+        "type": "tensor(int64)"
+      },
+      {
+        "name": "valid_mask",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ],
+        "type": "tensor(bool)"
+      }
+    ]
+  }
+}

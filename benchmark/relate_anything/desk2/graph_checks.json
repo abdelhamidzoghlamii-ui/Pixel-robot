@@ -1,0 +1,196 @@
+{
+  "relsgg-vits16plus": {
+    "bytes": 207881414,
+    "sha256": "b8b6a047c5e0771a897a5015c2ffb09d8fe5e3ffa0651e1e61af0e8436a3617a",
+    "opsets": [
+      {
+        "domain": "",
+        "version": 17
+      }
+    ],
+    "onnx_checker": "PASS",
+    "inputs": [
+      {
+        "name": "image",
+        "type": "FLOAT",
+        "shape": [
+          "batch",
+          3,
+          448,
+          448
+        ]
+      },
+      {
+        "name": "boxes",
+        "type": "FLOAT",
+        "shape": [
+          "batch",
+          "num_boxes",
+          4
+        ]
+      },
+      {
+        "name": "box_counts",
+        "type": "INT64",
+        "shape": [
+          "batch"
+        ]
+      },
+      {
+        "name": "W",
+        "type": "FLOAT",
+        "shape": [
+          "num_predicates",
+          512
+        ]
+      },
+      {
+        "name": "alpha",
+        "type": "FLOAT",
+        "shape": [
+          "num_predicates"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "pred_logits",
+        "type": "FLOAT",
+        "shape": [
+          "batch",
+          "num_pairs",
+          "num_predicates"
+        ]
+      },
+      {
+        "name": "pair_logits",
+        "type": "FLOAT",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ]
+      },
+      {
+        "name": "sub_idx",
+        "type": "INT64",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ]
+      },
+      {
+        "name": "obj_idx",
+        "type": "INT64",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ]
+      },
+      {
+        "name": "valid_mask",
+        "type": "BOOL",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ]
+      }
+    ]
+  },
+  "relsgg-vits16": {
+    "bytes": 179495602,
+    "sha256": "24a2e2a2ef8ea7d1b7cffef9fe5e35ab9c8eeb413e73eb4dee5afa9b24dd98d5",
+    "opsets": [
+      {
+        "domain": "",
+        "version": 17
+      }
+    ],
+    "onnx_checker": "PASS",
+    "inputs": [
+      {
+        "name": "image",
+        "type": "FLOAT",
+        "shape": [
+          "batch",
+          3,
+          448,
+          448
+        ]
+      },
+      {
+        "name": "boxes",
+        "type": "FLOAT",
+        "shape": [
+          "batch",
+          "num_boxes",
+          4
+        ]
+      },
+      {
+        "name": "box_counts",
+        "type": "INT64",
+        "shape": [
+          "batch"
+        ]
+      },
+      {
+        "name": "W",
+        "type": "FLOAT",
+        "shape": [
+          "num_predicates",
+          512
+        ]
+      },
+      {
+        "name": "alpha",
+        "type": "FLOAT",
+        "shape": [
+          "num_predicates"
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "pred_logits",
+        "type": "FLOAT",
+        "shape": [
+          "batch",
+          "num_pairs",
+          "num_predicates"
+        ]
+      },
+      {
+        "name": "pair_logits",
+        "type": "FLOAT",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ]
+      },
+      {
+        "name": "sub_idx",
+        "type": "INT64",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ]
+      },
+      {
+        "name": "obj_idx",
+        "type": "INT64",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ]
+      },
+      {
+        "name": "valid_mask",
+        "type": "BOOL",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ]
+      }
+    ]
+  }
+}

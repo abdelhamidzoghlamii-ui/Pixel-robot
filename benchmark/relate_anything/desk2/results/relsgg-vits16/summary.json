@@ -1,0 +1,1454 @@
+{
+  "model": "relsgg-vits16",
+  "timing_label": "INFORMAL \u2014 agents resident, NOT VALID TIMING",
+  "load_ms": 1929.9965419922955,
+  "median_ort_ms": 622.5848390022293,
+  "VmHWM_KiB": 622540,
+  "graph": {
+    "inputs": [
+      {
+        "name": "image",
+        "shape": [
+          "batch",
+          3,
+          448,
+          448
+        ],
+        "type": "tensor(float)"
+      },
+      {
+        "name": "boxes",
+        "shape": [
+          "batch",
+          "num_boxes",
+          4
+        ],
+        "type": "tensor(float)"
+      },
+      {
+        "name": "box_counts",
+        "shape": [
+          "batch"
+        ],
+        "type": "tensor(int64)"
+      },
+      {
+        "name": "W",
+        "shape": [
+          "num_predicates",
+          512
+        ],
+        "type": "tensor(float)"
+      },
+      {
+        "name": "alpha",
+        "shape": [
+          "num_predicates"
+        ],
+        "type": "tensor(float)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "pred_logits",
+        "shape": [
+          "batch",
+          "num_pairs",
+          "num_predicates"
+        ],
+        "type": "tensor(float)"
+      },
+      {
+        "name": "pair_logits",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ],
+        "type": "tensor(float)"
+      },
+      {
+        "name": "sub_idx",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ],
+        "type": "tensor(int64)"
+      },
+      {
+        "name": "obj_idx",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ],
+        "type": "tensor(int64)"
+      },
+      {
+        "name": "valid_mask",
+        "shape": [
+          "batch",
+          "num_pairs"
+        ],
+        "type": "tensor(bool)"
+      }
+    ]
+  },
+  "sanity_pass": true,
+  "photos": [
+    {
+      "photo": "test_photos/PXL_20260405_213419918.MP.jpg",
+      "detections": [
+        {
+          "class_name": "person",
+          "class_id": 0,
+          "conf": 0.9197725057601929,
+          "box_xyxy": [
+            1933.73203125,
+            935.9059524536133,
+            3051.1787109375,
+            4073.736282348633
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bowl",
+          "class_id": 45,
+          "conf": 0.7677413821220398,
+          "box_xyxy": [
+            0,
+            2453.7241344451904,
+            277.79197998046874,
+            2670.400011062622
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bottle",
+          "class_id": 39,
+          "conf": 0.7459899187088013,
+          "box_xyxy": [
+            574.4923095703125,
+            1895.3587245941162,
+            687.8652099609375,
+            2253.136728286743
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bowl",
+          "class_id": 45,
+          "conf": 0.7175970673561096,
+          "box_xyxy": [
+            2908.278369140625,
+            2267.0156021118164,
+            3071.101318359375,
+            2626.997657775879
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bottle",
+          "class_id": 39,
+          "conf": 0.7047910690307617,
+          "box_xyxy": [
+            758.9708862304688,
+            1889.1415042877197,
+            838.4160278320312,
+            2205.0380458831787
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.7045130133628845,
+          "box_xyxy": [
+            1616.94375,
+            1491.4512205123901,
+            1879.18125,
+            1799.535138130188
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.6971965432167053,
+          "box_xyxy": [
+            1437.9317138671875,
+            1591.331262588501,
+            1628.8106689453125,
+            1831.558141708374
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.6690979599952698,
+          "box_xyxy": [
+            1220.9941772460938,
+            1484.5943698883057,
+            1411.6282836914063,
+            1819.4120235443115
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "cup",
+          "class_id": 41,
+          "conf": 0.5629068613052368,
+          "box_xyxy": [
+            419.08958129882814,
+            1980.2613201141357,
+            571.2055847167969,
+            2255.7573108673096
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bowl",
+          "class_id": 45,
+          "conf": 0.5043789148330688,
+          "box_xyxy": [
+            0,
+            2270.592882156372,
+            350.8454223632813,
+            2487.078489303589
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bowl",
+          "class_id": 45,
+          "conf": 0.4992976188659668,
+          "box_xyxy": [
+            2584.890966796875,
+            65.29253482818604,
+            2977.407861328125,
+            310.45854091644287
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "oven",
+          "class_id": 69,
+          "conf": 0.4385705590248108,
+          "box_xyxy": [
+            201.352294921875,
+            2425.354917526245,
+            847.19765625,
+            3907.4379444122314
+          ],
+          "size_used": 640
+        }
+      ],
+      "triplets": [
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "holding",
+          "object_idx": 3,
+          "object": "bowl",
+          "score": 0.5169753432273865,
+          "threshold": 0.5001244057632612,
+          "pass": true
+        },
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "using",
+          "object_idx": 11,
+          "object": "oven",
+          "score": 0.4334051311016083,
+          "threshold": 0.5697068814346373,
+          "pass": false
+        },
+        {
+          "subject_idx": 5,
+          "subject": "potted plant",
+          "predicate": "resting on",
+          "object_idx": 6,
+          "object": "potted plant",
+          "score": 0.4058018624782562,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 1,
+          "subject": "bowl",
+          "predicate": "resting on",
+          "object_idx": 11,
+          "object": "oven",
+          "score": 0.3784438371658325,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 1,
+          "subject": "bowl",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "bowl",
+          "score": 0.3752914369106293,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 9,
+          "subject": "bowl",
+          "predicate": "resting on",
+          "object_idx": 1,
+          "object": "bowl",
+          "score": 0.3713369369506836,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 9,
+          "subject": "bowl",
+          "predicate": "resting on",
+          "object_idx": 11,
+          "object": "oven",
+          "score": 0.3260626792907715,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 6,
+          "subject": "potted plant",
+          "predicate": "resting on",
+          "object_idx": 5,
+          "object": "potted plant",
+          "score": 0.32462286949157715,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 7,
+          "subject": "potted plant",
+          "predicate": "resting on",
+          "object_idx": 6,
+          "object": "potted plant",
+          "score": 0.3130267858505249,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "below",
+          "object_idx": 10,
+          "object": "bowl",
+          "score": 0.18331179022789001,
+          "threshold": 0.3004389298732996,
+          "pass": false
+        }
+      ],
+      "ort_ms": 622.7370600099675,
+      "timing_label": "INFORMAL \u2014 agents resident, NOT VALID TIMING"
+    },
+    {
+      "photo": "test_photos/PXL_20260405_213509269.MP.jpg",
+      "detections": [
+        {
+          "class_name": "person",
+          "class_id": 0,
+          "conf": 0.938336968421936,
+          "box_xyxy": [
+            99.903955078125,
+            667.6730804443359,
+            1494.303076171875,
+            4077.2109375
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bottle",
+          "class_id": 39,
+          "conf": 0.8231629729270935,
+          "box_xyxy": [
+            2137.6348388671877,
+            1665.0113639831543,
+            2337.0450439453125,
+            2178.0389442443848
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bowl",
+          "class_id": 45,
+          "conf": 0.6021237373352051,
+          "box_xyxy": [
+            1396.0645751953125,
+            7.231601715087891,
+            1673.3192138671875,
+            216.03648948669434
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bottle",
+          "class_id": 39,
+          "conf": 0.5851136445999146,
+          "box_xyxy": [
+            1886.7591064453125,
+            1544.1008548736572,
+            2024.3514404296875,
+            2025.9427242279053
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "cup",
+          "class_id": 41,
+          "conf": 0.4911300837993622,
+          "box_xyxy": [
+            1964.1479736328124,
+            1846.859951019287,
+            2129.3121826171873,
+            2145.7472190856934
+          ],
+          "size_used": 640
+        }
+      ],
+      "triplets": [
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "using",
+          "object_idx": 1,
+          "object": "bottle",
+          "score": 0.3716835677623749,
+          "threshold": 0.5697068814346373,
+          "pass": false
+        },
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "below",
+          "object_idx": 2,
+          "object": "bowl",
+          "score": 0.36359915137290955,
+          "threshold": 0.3004389298732996,
+          "pass": true
+        },
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "using",
+          "object_idx": 3,
+          "object": "bottle",
+          "score": 0.332789808511734,
+          "threshold": 0.5697068814346373,
+          "pass": false
+        },
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "using",
+          "object_idx": 4,
+          "object": "cup",
+          "score": 0.3020594120025635,
+          "threshold": 0.5697068814346373,
+          "pass": false
+        },
+        {
+          "subject_idx": 2,
+          "subject": "bowl",
+          "predicate": "above",
+          "object_idx": 0,
+          "object": "person",
+          "score": 0.2929956614971161,
+          "threshold": 0.30636206910681935,
+          "pass": false
+        },
+        {
+          "subject_idx": 3,
+          "subject": "bottle",
+          "predicate": "resting on",
+          "object_idx": 4,
+          "object": "cup",
+          "score": 0.27150607109069824,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 4,
+          "subject": "cup",
+          "predicate": "contained in",
+          "object_idx": 3,
+          "object": "bottle",
+          "score": 0.2031787484884262,
+          "threshold": 0.5697068814346373,
+          "pass": false
+        },
+        {
+          "subject_idx": 4,
+          "subject": "cup",
+          "predicate": "beside",
+          "object_idx": 1,
+          "object": "bottle",
+          "score": 0.15956494212150574,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 3,
+          "subject": "bottle",
+          "predicate": "below",
+          "object_idx": 2,
+          "object": "bowl",
+          "score": 0.14352171123027802,
+          "threshold": 0.3004389298732996,
+          "pass": false
+        },
+        {
+          "subject_idx": 3,
+          "subject": "bottle",
+          "predicate": "beside",
+          "object_idx": 1,
+          "object": "bottle",
+          "score": 0.14239706099033356,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        }
+      ],
+      "ort_ms": 612.6756590092555,
+      "timing_label": "INFORMAL \u2014 agents resident, NOT VALID TIMING"
+    },
+    {
+      "photo": "test_photos/PXL_20260405_213514191.MP.jpg",
+      "detections": [
+        {
+          "class_name": "person",
+          "class_id": 0,
+          "conf": 0.9245891571044922,
+          "box_xyxy": [
+            1031.497998046875,
+            580.3666305541992,
+            2292.612158203125,
+            4078.717140197754
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "oven",
+          "class_id": 69,
+          "conf": 0.7596787214279175,
+          "box_xyxy": [
+            0.98701171875,
+            2068.6945037841797,
+            537.9469848632813,
+            3519.4451293945312
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.748551070690155,
+          "box_xyxy": [
+            911.0346313476563,
+            1205.987434387207,
+            1093.4724975585937,
+            1505.9252700805664
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bottle",
+          "class_id": 39,
+          "conf": 0.6783714890480042,
+          "box_xyxy": [
+            277.49949645996094,
+            1561.5572032928467,
+            394.0732818603516,
+            1900.1915302276611
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bottle",
+          "class_id": 39,
+          "conf": 0.5530248880386353,
+          "box_xyxy": [
+            2616.4951171875,
+            1448.007963180542,
+            2778.6673828125,
+            1925.5654621124268
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bottle",
+          "class_id": 39,
+          "conf": 0.4554746150970459,
+          "box_xyxy": [
+            467.6406555175781,
+            1619.5621547698975,
+            542.1694519042969,
+            1869.5558109283447
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "banana",
+          "class_id": 46,
+          "conf": 0.43164339661598206,
+          "box_xyxy": [
+            2704.374755859375,
+            2023.87748336792,
+            2888.123291015625,
+            2181.305820465088
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "cup",
+          "class_id": 41,
+          "conf": 0.37608590722084045,
+          "box_xyxy": [
+            2729.607568359375,
+            1755.1297359466553,
+            2927.215869140625,
+            2051.2051792144775
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bowl",
+          "class_id": 45,
+          "conf": 0.36097708344459534,
+          "box_xyxy": [
+            2952.618603515625,
+            2059.4738273620605,
+            3070.999365234375,
+            2384.944347381592
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "bowl",
+          "class_id": 45,
+          "conf": 0.35879218578338623,
+          "box_xyxy": [
+            2104.9225341796873,
+            1717.316888809204,
+            2561.2675048828123,
+            2238.00563621521
+          ],
+          "size_used": 640
+        }
+      ],
+      "triplets": [
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "holding",
+          "object_idx": 9,
+          "object": "bowl",
+          "score": 0.7642180323600769,
+          "threshold": 0.5001244057632612,
+          "pass": true
+        },
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "wearing",
+          "object_idx": 2,
+          "object": "potted plant",
+          "score": 0.4766926169395447,
+          "threshold": 0.5697068814346373,
+          "pass": false
+        },
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "beside",
+          "object_idx": 1,
+          "object": "oven",
+          "score": 0.42130014300346375,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 4,
+          "subject": "bottle",
+          "predicate": "resting on",
+          "object_idx": 7,
+          "object": "cup",
+          "score": 0.2544976472854614,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 7,
+          "subject": "cup",
+          "predicate": "above",
+          "object_idx": 8,
+          "object": "bowl",
+          "score": 0.2524395287036896,
+          "threshold": 0.30636206910681935,
+          "pass": false
+        },
+        {
+          "subject_idx": 2,
+          "subject": "potted plant",
+          "predicate": "sitting on",
+          "object_idx": 0,
+          "object": "person",
+          "score": 0.2422783523797989,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 4,
+          "subject": "bottle",
+          "predicate": "above",
+          "object_idx": 8,
+          "object": "bowl",
+          "score": 0.23372890055179596,
+          "threshold": 0.30636206910681935,
+          "pass": false
+        },
+        {
+          "subject_idx": 7,
+          "subject": "cup",
+          "predicate": "below",
+          "object_idx": 4,
+          "object": "bottle",
+          "score": 0.2240918129682541,
+          "threshold": 0.3004389298732996,
+          "pass": false
+        },
+        {
+          "subject_idx": 6,
+          "subject": "banana",
+          "predicate": "below",
+          "object_idx": 7,
+          "object": "cup",
+          "score": 0.22241051495075226,
+          "threshold": 0.3004389298732996,
+          "pass": false
+        },
+        {
+          "subject_idx": 9,
+          "subject": "bowl",
+          "predicate": "on",
+          "object_idx": 0,
+          "object": "person",
+          "score": 0.21320083737373352,
+          "threshold": 0.3691637179725402,
+          "pass": false
+        }
+      ],
+      "ort_ms": 618.5204680077732,
+      "timing_label": "INFORMAL \u2014 agents resident, NOT VALID TIMING"
+    },
+    {
+      "photo": "test_photos/PXL_20260405_213536608.jpg",
+      "detections": [
+        {
+          "class_name": "person",
+          "class_id": 0,
+          "conf": 0.9591547250747681,
+          "box_xyxy": [
+            2.04931640625,
+            1141.1794738769531,
+            1290.294873046875,
+            4072.6689834594727
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "microwave",
+          "class_id": 68,
+          "conf": 0.3524089455604553,
+          "box_xyxy": [
+            2643.697119140625,
+            3039.5892219543457,
+            3070.521240234375,
+            4076.2197074890137
+          ],
+          "size_used": 640
+        }
+      ],
+      "triplets": [
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "standing beside",
+          "object_idx": 1,
+          "object": "microwave",
+          "score": 0.42502033710479736,
+          "threshold": 0.5307691453753881,
+          "pass": false
+        },
+        {
+          "subject_idx": 1,
+          "subject": "microwave",
+          "predicate": "to the right of",
+          "object_idx": 0,
+          "object": "person",
+          "score": 0.17482765018939972,
+          "threshold": 0.2702571061394385,
+          "pass": false
+        }
+      ],
+      "ort_ms": 620.874309039209,
+      "timing_label": "INFORMAL \u2014 agents resident, NOT VALID TIMING"
+    },
+    {
+      "photo": "test_photos/abdel_close_back.jpg",
+      "detections": [
+        {
+          "class_name": "person",
+          "class_id": 0,
+          "conf": 0.9440171718597412,
+          "box_xyxy": [
+            779.1181640625,
+            1219.1826610565186,
+            2269.88232421875,
+            4071.4494495391846
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.8817002773284912,
+          "box_xyxy": [
+            434.46884765625,
+            2523.950300216675,
+            848.8400390625,
+            3294.1679248809814
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "tv",
+          "class_id": 62,
+          "conf": 0.7576658725738525,
+          "box_xyxy": [
+            0.4145965576171875,
+            1834.3919506072998,
+            71.90743103027344,
+            2828.8590717315674
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.6818962097167969,
+          "box_xyxy": [
+            2505.440771484375,
+            1093.7424545288086,
+            3070.621728515625,
+            2773.634719848633
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "chair",
+          "class_id": 56,
+          "conf": 0.5729057192802429,
+          "box_xyxy": [
+            368.23456420898435,
+            3233.4635009765625,
+            829.6329162597656,
+            4077.9930267333984
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "clock",
+          "class_id": 74,
+          "conf": 0.548911988735199,
+          "box_xyxy": [
+            470.85296630859375,
+            1786.3135013580322,
+            778.6467407226562,
+            2105.3329524993896
+          ],
+          "size_used": 640
+        }
+      ],
+      "triplets": [
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "watching",
+          "object_idx": 2,
+          "object": "tv",
+          "score": 0.7179771065711975,
+          "threshold": 0.5307691453753881,
+          "pass": true
+        },
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "wearing",
+          "object_idx": 4,
+          "object": "chair",
+          "score": 0.6588664054870605,
+          "threshold": 0.5697068814346373,
+          "pass": true
+        },
+        {
+          "subject_idx": 1,
+          "subject": "potted plant",
+          "predicate": "resting on",
+          "object_idx": 4,
+          "object": "chair",
+          "score": 0.5456345677375793,
+          "threshold": 0.5001244057632612,
+          "pass": true
+        },
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "wearing",
+          "object_idx": 1,
+          "object": "potted plant",
+          "score": 0.44788408279418945,
+          "threshold": 0.5697068814346373,
+          "pass": false
+        },
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "looking at",
+          "object_idx": 3,
+          "object": "potted plant",
+          "score": 0.41366517543792725,
+          "threshold": 0.4536415805681637,
+          "pass": false
+        },
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "looking at",
+          "object_idx": 5,
+          "object": "clock",
+          "score": 0.3995567560195923,
+          "threshold": 0.4536415805681637,
+          "pass": false
+        },
+        {
+          "subject_idx": 1,
+          "subject": "potted plant",
+          "predicate": "beside",
+          "object_idx": 0,
+          "object": "person",
+          "score": 0.37633004784584045,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 3,
+          "subject": "potted plant",
+          "predicate": "beside",
+          "object_idx": 0,
+          "object": "person",
+          "score": 0.3584383428096771,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 5,
+          "subject": "clock",
+          "predicate": "hanging from",
+          "object_idx": 0,
+          "object": "person",
+          "score": 0.27965620160102844,
+          "threshold": 0.5697068814346373,
+          "pass": false
+        },
+        {
+          "subject_idx": 4,
+          "subject": "chair",
+          "predicate": "behind",
+          "object_idx": 0,
+          "object": "person",
+          "score": 0.23846136033535004,
+          "threshold": 0.3004389298732996,
+          "pass": false
+        }
+      ],
+      "ort_ms": 624.4969890103675,
+      "timing_label": "INFORMAL \u2014 agents resident, NOT VALID TIMING"
+    },
+    {
+      "photo": "bench_photos/blocked_1.jpg",
+      "detections": [
+        {
+          "class_name": "cup",
+          "class_id": 41,
+          "conf": 0.937321662902832,
+          "box_xyxy": [
+            1026.8999633789062,
+            3187.1835651397705,
+            1479.4558959960937,
+            3958.791440963745
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "chair",
+          "class_id": 56,
+          "conf": 0.9102773666381836,
+          "box_xyxy": [
+            2384.5875,
+            2514.786334991455,
+            3069.5490234375,
+            4076.4298210144043
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "scissors",
+          "class_id": 76,
+          "conf": 0.9070584774017334,
+          "box_xyxy": [
+            1579.4718017578125,
+            2914.2952194213867,
+            2029.0436279296875,
+            3529.600227355957
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "laptop",
+          "class_id": 63,
+          "conf": 0.8838749527931213,
+          "box_xyxy": [
+            510.96068115234374,
+            1619.9096202850342,
+            1720.7806274414063,
+            2669.0910816192627
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.7946063280105591,
+          "box_xyxy": [
+            2681.02470703125,
+            531.98876953125,
+            3062.89716796875,
+            1016.2401351928711
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "cup",
+          "class_id": 41,
+          "conf": 0.7890886664390564,
+          "box_xyxy": [
+            1932.55078125,
+            2029.114465713501,
+            2144.6009765625,
+            2316.594320297241
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "vase",
+          "class_id": 75,
+          "conf": 0.7828837633132935,
+          "box_xyxy": [
+            1869.4468505859375,
+            1480.8408279418945,
+            2060.9533447265626,
+            1905.826171875
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.7680631279945374,
+          "box_xyxy": [
+            1744.6236328125,
+            1010.6999473571777,
+            2322.96767578125,
+            1897.4862213134766
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.6668354272842407,
+          "box_xyxy": [
+            2378.0888671875,
+            486.8185443878174,
+            2639.1205078125,
+            993.1293983459473
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "dining table",
+          "class_id": 60,
+          "conf": 0.5568990111351013,
+          "box_xyxy": [
+            14.4732421875,
+            1656.7844467163086,
+            2432.109375,
+            4065.0687103271484
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "cup",
+          "class_id": 41,
+          "conf": 0.5369865894317627,
+          "box_xyxy": [
+            1563.6787353515624,
+            1392.1119289398193,
+            1891.9550537109376,
+            2066.6360721588135
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "chair",
+          "class_id": 56,
+          "conf": 0.48043322563171387,
+          "box_xyxy": [
+            0.330706787109375,
+            1356.3792057037354,
+            282.5439514160156,
+            1908.4495754241943
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "chair",
+          "class_id": 56,
+          "conf": 0.47357091307640076,
+          "box_xyxy": [
+            395.10380859375,
+            928.7150115966797,
+            1556.1755859375,
+            1952.66748046875
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "mouse",
+          "class_id": 64,
+          "conf": 0.4670632779598236,
+          "box_xyxy": [
+            271.5949768066406,
+            2581.4418354034424,
+            667.6273864746094,
+            2779.635892868042
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "couch",
+          "class_id": 57,
+          "conf": 0.45263588428497314,
+          "box_xyxy": [
+            393.19833984375,
+            928.2757186889648,
+            1563.9205078125,
+            1953.2308959960938
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "cell phone",
+          "class_id": 67,
+          "conf": 0.4238632023334503,
+          "box_xyxy": [
+            509.88878173828124,
+            2945.6827754974365,
+            1074.1701049804688,
+            3164.75705909729
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "remote",
+          "class_id": 65,
+          "conf": 0.38450151681900024,
+          "box_xyxy": [
+            1151.6633056640626,
+            2676.561492919922,
+            1663.5355224609375,
+            2915.3815841674805
+          ],
+          "size_used": 640
+        }
+      ],
+      "triplets": [
+        {
+          "subject_idx": 7,
+          "subject": "potted plant",
+          "predicate": "contained in",
+          "object_idx": 6,
+          "object": "vase",
+          "score": 0.700967013835907,
+          "threshold": 0.5697068814346373,
+          "pass": true
+        },
+        {
+          "subject_idx": 3,
+          "subject": "laptop",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6961788535118103,
+          "threshold": 0.5001244057632612,
+          "pass": true
+        },
+        {
+          "subject_idx": 13,
+          "subject": "mouse",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6922580003738403,
+          "threshold": 0.5001244057632612,
+          "pass": true
+        },
+        {
+          "subject_idx": 16,
+          "subject": "remote",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6879084706306458,
+          "threshold": 0.5001244057632612,
+          "pass": true
+        },
+        {
+          "subject_idx": 2,
+          "subject": "scissors",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6836267709732056,
+          "threshold": 0.5001244057632612,
+          "pass": true
+        },
+        {
+          "subject_idx": 0,
+          "subject": "cup",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6522095799446106,
+          "threshold": 0.5001244057632612,
+          "pass": true
+        },
+        {
+          "subject_idx": 5,
+          "subject": "cup",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6435096859931946,
+          "threshold": 0.5001244057632612,
+          "pass": true
+        },
+        {
+          "subject_idx": 15,
+          "subject": "cell phone",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6252742409706116,
+          "threshold": 0.5001244057632612,
+          "pass": true
+        },
+        {
+          "subject_idx": 10,
+          "subject": "cup",
+          "predicate": "resting on",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.6229320168495178,
+          "threshold": 0.5001244057632612,
+          "pass": true
+        },
+        {
+          "subject_idx": 1,
+          "subject": "chair",
+          "predicate": "beside",
+          "object_idx": 9,
+          "object": "dining table",
+          "score": 0.5762345790863037,
+          "threshold": 0.5001244057632612,
+          "pass": true
+        }
+      ],
+      "ort_ms": 622.5848390022293,
+      "timing_label": "INFORMAL \u2014 agents resident, NOT VALID TIMING"
+    },
+    {
+      "photo": "bench_photos/roomsig_couch_1.jpg",
+      "detections": [
+        {
+          "class_name": "person",
+          "class_id": 0,
+          "conf": 0.9214991331100464,
+          "box_xyxy": [
+            1.95029296875,
+            2.9802074432373047,
+            1381.8193359375,
+            1119.3549041748047
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.7787181735038757,
+          "box_xyxy": [
+            1498.7558349609376,
+            0.19211769104003906,
+            2235.6447509765626,
+            831.8734931945801
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "potted plant",
+          "class_id": 58,
+          "conf": 0.7635774612426758,
+          "box_xyxy": [
+            2311.338720703125,
+            183.22677612304688,
+            2831.321044921875,
+            822.1125526428223
+          ],
+          "size_used": 640
+        },
+        {
+          "class_name": "couch",
+          "class_id": 57,
+          "conf": 0.5378981828689575,
+          "box_xyxy": [
+            4.59814453125,
+            1177.5192890167236,
+            3069.141796875,
+            2906.6347332000732
+          ],
+          "size_used": 640
+        }
+      ],
+      "triplets": [
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "resting on",
+          "object_idx": 3,
+          "object": "couch",
+          "score": 0.4089130759239197,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 1,
+          "subject": "potted plant",
+          "predicate": "beside",
+          "object_idx": 2,
+          "object": "potted plant",
+          "score": 0.40802881121635437,
+          "threshold": 0.5001244057632612,
+          "pass": false
+        },
+        {
+          "subject_idx": 2,
+          "subject": "potted plant",
+          "predicate": "to the right of",
+          "object_idx": 1,
+          "object": "potted plant",
+          "score": 0.3859727084636688,
+          "threshold": 0.2702571061394385,
+          "pass": true
+        },
+        {
+          "subject_idx": 1,
+          "subject": "potted plant",
+          "predicate": "to the right of",
+          "object_idx": 0,
+          "object": "person",
+          "score": 0.34188470244407654,
+          "threshold": 0.2702571061394385,
+          "pass": true
+        },
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "to the left of",
+          "object_idx": 1,
+          "object": "potted plant",
+          "score": 0.3151187002658844,
+          "threshold": 0.2702571061394385,
+          "pass": true
+        },
+        {
+          "subject_idx": 1,
+          "subject": "potted plant",
+          "predicate": "behind",
+          "object_idx": 3,
+          "object": "couch",
+          "score": 0.3148025870323181,
+          "threshold": 0.3004389298732996,
+          "pass": true
+        },
+        {
+          "subject_idx": 3,
+          "subject": "couch",
+          "predicate": "in front of",
+          "object_idx": 0,
+          "object": "person",
+          "score": 0.3106146454811096,
+          "threshold": 0.27475165012350317,
+          "pass": true
+        },
+        {
+          "subject_idx": 2,
+          "subject": "potted plant",
+          "predicate": "behind",
+          "object_idx": 3,
+          "object": "couch",
+          "score": 0.2711728513240814,
+          "threshold": 0.3004389298732996,
+          "pass": false
+        },
+        {
+          "subject_idx": 3,
+          "subject": "couch",
+          "predicate": "in front of",
+          "object_idx": 1,
+          "object": "potted plant",
+          "score": 0.18015331029891968,
+          "threshold": 0.27475165012350317,
+          "pass": false
+        },
+        {
+          "subject_idx": 0,
+          "subject": "person",
+          "predicate": "to the left of",
+          "object_idx": 2,
+          "object": "potted plant",
+          "score": 0.17423617839813232,
+          "threshold": 0.2702571061394385,
+          "pass": false
+        }
+      ],
+      "ort_ms": 627.146648010239,
+      "timing_label": "INFORMAL \u2014 agents resident, NOT VALID TIMING"
+    }
+  ],
+  "timing_scope": "session construction load; ORT session.run only per image; excludes decode/preprocess/postprocess"
+}
