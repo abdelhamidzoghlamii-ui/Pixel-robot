@@ -36,26 +36,59 @@ def clear_processes(server_pid=None):
         raise RuntimeError('agents/robot/other runners resident: '+'\n'.join(others))
 
 
+def require_mask(mask, measured, allowed, process, how):
+    if not mask or set(mask) & set(measured) or not set(mask) <= set(allowed):
+        raise RuntimeError('root shell/monitor mask empty or includes inference cores: '
+                           f'actual={sorted(mask)} measured={sorted(measured)} allowed={sorted(allowed)} '
+                           f'process={process} how={how}')
+
+
 def verify_monitor(sb, monitor, measured):
     shell, mask, pid, _ = monitor
-    sb.require_monitor_mask(mask, measured)
-    for root_pid in (pid, shell.p.pid):
+    require_mask(mask, measured, mask, 'configured monitor', 'prepare result')
+    for root_pid, process in ((pid, 'persistent shell'), (shell.p.pid, 'su')):
         observed = sb.root_mask(shell, root_pid)
+        require_mask(observed, measured, mask, f'{process} pid={root_pid}', 'root /proc/PID/status Cpus_allowed_list')
         if observed != set(mask):
-            raise RuntimeError('root/su affinity changed')
-        sb.require_monitor_mask(observed, measured)
+            raise RuntimeError(f'root/su affinity changed: actual={sorted(observed)} measured={sorted(measured)} '
+                               f'allowed={sorted(mask)} process={process} pid={root_pid} how=root /proc/PID/status')
     for tid in shell.monitor_tids:
-        if os.sched_getaffinity(tid) != set(mask):
-            raise RuntimeError('root pump affinity changed')
+        observed = os.sched_getaffinity(tid)
+        require_mask(observed, measured, mask, f'pump tid={tid}', 'os.sched_getaffinity(tid)')
+        if observed != set(mask):
+            raise RuntimeError(f'root pump affinity changed: actual={sorted(observed)} measured={sorted(measured)} '
+                               f'allowed={sorted(mask)} process=pump tid={tid} how=os.sched_getaffinity(tid)')
+
+
+def setup_affinity(cr, measured):
+    """Refresh a stale caller mask; the kernel still enforces Android's cpuset.
+
+    Never retry inside a measured interval. A continuing restriction refuses setup.
+    """
+    before = set(os.sched_getaffinity(0))
+    requested = set(range(os.cpu_count()))
+    os.sched_setaffinity(0, requested)
+    actual = set(os.sched_getaffinity(0))
+    try:
+        cr.check_cores('campaign monitor setup after affinity refresh')
+    except Exception as e:
+        raise RuntimeError(f'campaign setup affinity restricted: before={sorted(before)} '
+                           f'requested={sorted(requested)} actual={sorted(actual)} '
+                           f'measured={sorted(measured)} allowed={sorted(actual)} '
+                           f'process=calling thread how=os.sched_setaffinity/getaffinity: {e}') from e
+    return dict(before=sorted(before), requested=sorted(requested), actual=sorted(actual))
 
 
 def prepare(sb, measured, restrict=None):
+    _, _, _, cr, _ = imports()
+    affinity = setup_affinity(cr, measured)
     monitor = sb.prepare_monitor(measured)
     try:
+        monitor[0].campaign_setup_affinity = affinity
         if restrict is not None:
             shell, allowed, pid, layout = monitor
             mask = set(allowed) & set(restrict)
-            sb.require_monitor_mask(mask, measured)
+            require_mask(mask, measured, allowed, "restricted monitor", "allowed intersect restrict")
             for tid in shell.monitor_tids:
                 os.sched_setaffinity(tid, mask)
             bits = format(sum(1 << c for c in mask), 'x')
@@ -147,16 +180,21 @@ def root_mask_scope(cr, sb, mask, measured):
     Magisk may spawn the shell from its daemon, so caller inheritance alone is insufficient.
     Binder service work in Android's existing processes remains outside our affinity control.
     """
-    sb.require_monitor_mask(mask, measured)
+    require_mask(mask, measured, mask, "transient shell configured", "root_mask_scope argument")
     bits = format(sum(1 << c for c in mask), 'x')
     original = cr.root
     def bound(command, tag, timeout=60):
-        prefix = (f'taskset -p {bits} $$ >/dev/null || exit 97; '
-                  'actual=$(taskset -p $$) || exit 98; '
+        prefix = (f'taskset -p {bits} $$ >/dev/null; pin_rc=$?; '
+                  'actual=$(taskset -p $$); read_rc=$?; '
+                  "printf 'CAMPAIGN_ROOT_MASK pid=%s actual=%s\\n' \"$$\" \"$actual\"; "
+                  '[ "$pin_rc" = 0 ] || exit 97; [ "$read_rc" = 0 ] || exit 98; '
                   f'case "$actual" in *": {bits}") ;; *) exit 98;; esac; ')
         rc, text = original(prefix+command, tag, timeout=timeout)
         if rc in (97, 98):
-            raise RuntimeError('transient root shell pin/readback failed')
+            raise RuntimeError(f'transient root shell pin/readback failed: actual={text!r} '
+                               f'measured={sorted(measured)} allowed={sorted(mask)} '
+                               f'process=transient shell (pid in output) how=taskset -p $$ rc={rc}')
+        text = '\n'.join(line for line in text.splitlines() if not line.startswith('CAMPAIGN_ROOT_MASK '))
         return rc, text
     cr.root = bound
     try:

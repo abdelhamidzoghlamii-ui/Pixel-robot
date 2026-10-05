@@ -1,0 +1,117 @@
+{
+  "self_check": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/campaign/self_check.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script from proot; no live root or timing"
+  },
+  "speed1_self_check": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/relate_anything/speed1/self_check.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script from proot; no live root or timing"
+  },
+  "desk2_self_check": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/relate_anything/desk2/self_check.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script from proot; no live root or timing"
+  },
+  "power_map_units": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/power_map/test_power_map.py"
+    ],
+    "exit_code": 1,
+    "scope": "offline mocks/direct script from proot; no live root or timing"
+  },
+  "coresidency_units": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/coresidency/test_coresidency.py"
+    ],
+    "exit_code": 1,
+    "scope": "offline mocks/direct script from proot; no live root or timing"
+  },
+  "detector_units": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "test_detector_robotcam.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script from proot; no live root or timing"
+  },
+  "mission_units": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "test_run_mission.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script from proot; no live root or timing"
+  },
+  "cycle_units": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "run_cycle_safety_test.py"
+    ],
+    "exit_code": 0,
+    "scope": "offline mocks/direct script from proot; no live root or timing"
+  },
+  "power_map_units_r2": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/power_map/test_power_map.py"
+    ],
+    "env": {
+      "OPENBLAS_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1"
+    },
+    "exit_code": 0,
+    "scope": "offline mocks, sequential retry with numerical-library threads limited; no native root/timing"
+  },
+  "coresidency_units_r2": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/coresidency/test_coresidency.py"
+    ],
+    "env": {
+      "OPENBLAS_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1"
+    },
+    "exit_code": 0,
+    "scope": "offline mocks, sequential retry with numerical-library threads limited; no native root/timing"
+  },
+  "self_check_r2": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/campaign/self_check.py"
+    ],
+    "exit_code": 0,
+    "scope": "expanded offline checks including noclobber; no root or live timing"
+  },
+  "portable_dry": {
+    "command": [
+      "python3",
+      "benchmark/campaign/phase1.py",
+      "--dry-run",
+      "--output",
+      "/termux-home/storage/downloads/campaign/coder_dry_p1_fix.json"
+    ],
+    "exit_code": 0,
+    "scope": "NOT VALID \u2014 DRY RUN; six 6s mocked blocks, no native hardware/root"
+  },
+  "self_check_r3": {
+    "command": [
+      "/data/data/com.termux/files/usr/bin/python",
+      "benchmark/campaign/self_check.py"
+    ],
+    "exit_code": 0,
+    "scope": "expanded offline checks including noclobber; no root or live timing"
+  }
+}

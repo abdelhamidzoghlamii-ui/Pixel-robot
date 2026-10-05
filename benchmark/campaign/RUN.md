@@ -6,99 +6,91 @@ Motors OFF, phone on a table, lights ON, charger unplugged, screen ON, native
 Termux foreground. No motors, USB or serial API is imported or commanded.
 Exit Codex, Claude, AGY, node and every robot/benchmark/model-server process
 before steps 1, 2 and 4. The runner starts and owns one Gemma server itself.
-Use fresh output/log stems on reruns; existing evidence is refused. Downloads
-`campaign/` was created during preparation. Commands below are native Termux;
-step 3 can also run inside Debian/proot using `/usr/bin/python3` and
-`/termux-home/robot` / `/termux-home/storage/downloads` paths.
+Never rerun a command with the same stem. Even a refused rerun can overwrite
+`.stdout`/`.stderr` because the shell opens redirections before Python checks
+evidence. Every invocation below uses a fresh `_p1_fix` stem and runs in a
+subshell with `set -C` (noclobber): an existing redirect file refuses before
+Python starts. On another attempt, change the stem in **every** filename; never
+use `>|`, truncate or remove previous evidence. The runner still refuses existing
+JSON/block/server evidence. Checking non-empty `.stdout`/`.stderr` inside Python
+would be too late to prevent truncation, and normal startup itself fills stdout;
+therefore shell noclobber is the protection, rather than a Python log-size check.
 
-1. Lag probe (about 1 minute plus setup/cleanup):
+Historical owner lag/preflight/setup-refusal evidence is in [RUN_INDEX.md](RUN_INDEX.md).
+The completed lag probe supports `current_now`; `current_avg` responds too slowly.
+No lag probe rerun is needed for this fix. Commands below are native Termux;
+Downloads `campaign/` already exists. Exit all agents before owner execution.
 
-```sh
-python -u ~/robot/benchmark/campaign/lag_probe.py --output ~/storage/downloads/campaign/owner_lag_p1.json > ~/storage/downloads/campaign/owner_lag_p1.stdout 2> ~/storage/downloads/campaign/owner_lag_p1.stderr
-```
-
-Send `owner_lag_p1.json`, `owner_lag_p1.stdout`, `owner_lag_p1.stderr`.
-Label: `POWER LAG PROBE — method check, not a benchmark`. After model load,
-20 s quiet with camera/server off, then saved desk2 M2 input continuously on
-BIG 6–7 / two threads for at least 10 s, then 20 s quiet. Last call may extend
-the load by one inference; the first actual inference-call start and last end drive the step math.
-Root sampler/shell/pump and safety monitors use available CPUs 0–3 only;
-fastest sequential reads, no sampling sleep. Root/su/pump mask verification
-occurs once per second in this probe (every sample in 0.37 s cadence mode),
-plus final verification; achieved rate includes this verification overhead. Report achieved Hz, current_now
-and optional current_avg, rise 50%/90% and recovery 50%/10% of observed step.
-Observed baseline/plateau use the final 5 s of quiet/load. No positive step,
-absent current_avg or unobserved crossing => null, never fabricated delay.
-
-2. Phase-1 preflight (estimate 1–3 minutes, no idle/gates/timed blocks):
+1. Phase-1 preflight with a fresh stem (all layouts; no idle/gates/timed blocks):
 
 ```sh
-python -u ~/robot/benchmark/campaign/phase1.py --preflight --output ~/storage/downloads/campaign/owner_preflight_p1.json > ~/storage/downloads/campaign/owner_preflight_p1.stdout 2> ~/storage/downloads/campaign/owner_preflight_p1.stderr
+(set -C; python -u ~/robot/benchmark/campaign/phase1.py --preflight --output ~/storage/downloads/campaign/owner_preflight_p1_fix.json > ~/storage/downloads/campaign/owner_preflight_p1_fix.stdout 2> ~/storage/downloads/campaign/owner_preflight_p1_fix.stderr)
 ```
 
-Send `owner_preflight_p1.json`, `owner_preflight_p1.stdout`,
-`owner_preflight_p1.stderr`, `owner_preflight_p1_llama-server.log`.
-Success: `PREFLIGHT ONLY — NO TIMING`. Checks every layout's root/su/pump
-safe mask, required policies, YOLO workers/caller, M2 workers/caller, charger,
-agents/other processes, cores 4–7, skin/status and battery/CPU/policy reads,
-fixed external graph/bank/sidecar/YOLO/Gemma/server hashes, installed RobotCam
-version, camera startup on mode B at rate 1, server health and s1o warmup.
-Screen timeout/wake lock and all owned resources are restored/closed.
-Do not proceed to session unless preflight and cleanup succeed. Subsets are
-accepted, but the default preflight checks L0 through L4.
+Send `owner_preflight_p1_fix.json`, `owner_preflight_p1_fix.stdout`,
+`owner_preflight_p1_fix.stderr`, `owner_preflight_p1_fix_llama-server.log`.
+Success: `PREFLIGHT ONLY — NO TIMING`, `setup_complete: true`, successful cleanup.
+Preflight and session run exactly the same setup function and order, without a
+mode argument, then branch at the first idle boundary. Both check each selected
+layout's root/su/pump mask, required policies, YOLO/M2 workers and caller,
+charger/processes/cores/skin/status/sensors, fixed artifact hashes and installed
+RobotCam version; own a screen/wake lock and server, perform S1O warmup, start
+camera mode B at rate 1 and verify a frame, then stop camera and run pre-idle
+checks. Cleanup closes the server and restores screen/wake lock.
 
-3. Portable scheduling dry run (about 36 seconds; hardware fully mocked):
+Before every campaign monitor setup, reset only the calling thread's requested
+mask to the configured device CPUs, then read back and require cores 4–7. Android
+cpuset restrictions remain enforced by the kernel. This repairs a stale narrowed
+thread mask after a transient restriction; a continuing restriction fails closed.
+Keep Termux foreground and screen on throughout. A preflight pass verifies that
+invocation's start path, not future Android CPU availability. Layout evidence
+records `setup_affinity.before/requested/actual`; refusal errors show masks,
+process and read method. Do not proceed until preflight and cleanup succeed.
+
+2. Session part A (L0,L1,L2; 14–38 minutes plus loads/setup/cleanup):
 
 ```sh
-python -u ~/robot/benchmark/campaign/phase1.py --dry-run --output ~/storage/downloads/campaign/owner_dry_p1.json > ~/storage/downloads/campaign/owner_dry_p1.stdout 2> ~/storage/downloads/campaign/owner_dry_p1.stderr
+(set -C; python -u ~/robot/benchmark/campaign/phase1.py --blocks L0,L1,L2 --output ~/storage/downloads/campaign/owner_session_p1a_fix.json > ~/storage/downloads/campaign/owner_session_p1a_fix.stdout 2> ~/storage/downloads/campaign/owner_session_p1a_fix.stderr)
 ```
 
-Send `owner_dry_p1.json`, `owner_dry_p1.stdout`, `owner_dry_p1.stderr` and
-`owner_dry_p1_block_01_L0.json`, `owner_dry_p1_block_02_L1.json`,
-`owner_dry_p1_block_03_L2.json`, `owner_dry_p1_block_04_L3.json`,
-`owner_dry_p1_block_05_L4.json`, `owner_dry_p1_block_06_L0.json`.
-Label: `NOT VALID — DRY RUN (all hardware mocked)`. Six 6 s blocks, same
-scheduling code, no models/camera/server/root/idle/gates/sensors. Null watts.
-This checks wiring, not installed native execution. It deliberately shows
-L3 skips using a fake 1.2 s relation call. Preflight/dry-run are exclusive.
+Send `owner_session_p1a_fix.json`, `owner_session_p1a_fix.stdout`,
+`owner_session_p1a_fix.stderr`, `owner_session_p1a_fix_llama-server.log`,
+`owner_session_p1a_fix_block_01_L0.json`, `owner_session_p1a_fix_block_02_L1.json`,
+`owner_session_p1a_fix_block_03_L2.json` (only files actually created).
 
-4. Phase-1 session (23–71 minutes plus loads/setup/cleanup):
+3. Session part B (L3,L4,L0; 14–38 minutes plus loads/setup/cleanup):
 
 ```sh
-python -u ~/robot/benchmark/campaign/phase1.py --output ~/storage/downloads/campaign/owner_session_p1.json > ~/storage/downloads/campaign/owner_session_p1.stdout 2> ~/storage/downloads/campaign/owner_session_p1.stderr
+(set -C; python -u ~/robot/benchmark/campaign/phase1.py --blocks L3,L4,L0 --output ~/storage/downloads/campaign/owner_session_p1b_fix.json > ~/storage/downloads/campaign/owner_session_p1b_fix.stdout 2> ~/storage/downloads/campaign/owner_session_p1b_fix.stderr)
 ```
 
-Send `owner_session_p1.json`, `owner_session_p1.stdout`,
-`owner_session_p1.stderr`, `owner_session_p1_llama-server.log`,
-`owner_session_p1_block_01_L0.json`, `owner_session_p1_block_02_L1.json`,
-`owner_session_p1_block_03_L2.json`, `owner_session_p1_block_04_L3.json`,
-`owner_session_p1_block_05_L4.json`, `owner_session_p1_block_06_L0.json`.
-All refusals/checks precede one 300 s idle with Gemma loaded/camera off.
-All blocks are 180 s, order L0,L1,L2,L3,L4,L0 for drift. Each has the same
-power-map skin condition (idle +1.5 °C) and 480 s maximum gate; timed-out
-gates label the block `NOT VALID — WARM START`. Session completion does not
-establish block validity. Full maximum-gate estimate exceeds 60 minutes;
-the runner prints this warning before setup. To split, replace step 4 with
-the following two separate owner invocations (14–38 minutes each plus setup):
+Send `owner_session_p1b_fix.json`, `owner_session_p1b_fix.stdout`,
+`owner_session_p1b_fix.stderr`, `owner_session_p1b_fix_llama-server.log`,
+`owner_session_p1b_fix_block_01_L3.json`, `owner_session_p1b_fix_block_02_L4.json`,
+`owner_session_p1b_fix_block_03_L0.json` (only files actually created).
+Each split has one 300 s idle with Gemma loaded and camera off, then 180 s blocks.
+Skin gates require idle +1.5 °C, with 480 s maximum; timed-out gates label blocks
+`NOT VALID — WARM START`. Session completion does not establish block validity.
+Each split has its own baseline; cross-session comparisons need care. Default
+unsplit order is L0,L1,L2,L3,L4,L0 (23–71 minutes plus setup), which exceeds
+60 minutes at maximum gates.
+
+Optional portable scheduling dry run (36 s; fully mocked, **NOT VALID**):
 
 ```sh
-python -u ~/robot/benchmark/campaign/phase1.py --blocks L0,L1,L2 --output ~/storage/downloads/campaign/owner_session_p1a.json > ~/storage/downloads/campaign/owner_session_p1a.stdout 2> ~/storage/downloads/campaign/owner_session_p1a.stderr
+(set -C; python -u ~/robot/benchmark/campaign/phase1.py --dry-run --output ~/storage/downloads/campaign/owner_dry_p1_fix.json > ~/storage/downloads/campaign/owner_dry_p1_fix.stdout 2> ~/storage/downloads/campaign/owner_dry_p1_fix.stderr)
 ```
 
-```sh
-python -u ~/robot/benchmark/campaign/phase1.py --blocks L3,L4,L0 --output ~/storage/downloads/campaign/owner_session_p1b.json > ~/storage/downloads/campaign/owner_session_p1b.stdout 2> ~/storage/downloads/campaign/owner_session_p1b.stderr
-```
-
-Send `owner_session_p1a.{json,stdout,stderr}`, `owner_session_p1a_llama-server.log`,
-`owner_session_p1a_block_01_L0.json`, `owner_session_p1a_block_02_L1.json`,
-`owner_session_p1a_block_03_L2.json`, `owner_session_p1b.{json,stdout,stderr}`,
-`owner_session_p1b_llama-server.log`, `owner_session_p1b_block_01_L3.json`,
-`owner_session_p1b_block_02_L4.json`, `owner_session_p1b_block_03_L0.json`.
-Each split starts its own idle baseline; cross-session comparisons need care.
+Files: `owner_dry_p1_fix.{json,stdout,stderr}` and
+`owner_dry_p1_fix_block_01_L0.json`, `_block_02_L1.json`, `_block_03_L2.json`,
+`_block_04_L3.json`, `_block_05_L4.json`, `_block_06_L0.json` (same stem).
+Label: `NOT VALID — DRY RUN (all hardware mocked)`. Six 6 s blocks use the
+same scheduler; no models/camera/server/root/idle/gates/sensors; null watts.
+Can run in Debian with `/usr/bin/python3` and `/termux-home` paths.
 
 ## Reuse and layout details
 
-Unmodified imported paths: `power_map.build_detector('mid')`,
+Reused imported paths (desk2 mask diagnostics extended; behavior unchanged): `power_map.build_detector('mid')`,
 `power_map.camera_start(1)`, `coresidency.read_frame`, `coresidency.Server`,
 `coresidency.make_selector/select`, `variants.build('fp32', cluster)`,
 `speed_block.prepare_monitor/root_mask/check_pinning/Screen`,
@@ -216,7 +208,7 @@ stop later blocks. Warm starts remain invalid and the next block is gated.
 ## Verification limits
 
 `self_check.py` exercises new scheduling/power/lag/refusal/lifecycle paths with
-mocks. Existing direct-script test results are in `checks/results.json`.
+mocks. Original direct-script test results are in `checks/results.json`; fix checks are in `checks/p1_fix/results.json`.
 Coder ran no real timed block, session or root preflight. Proot cannot reach
 phone root; agents resident would invalidate timings. Live battery gauge,
 root/su affinity/readback, Android services/policies/caps/thermal/logcat/PSS,

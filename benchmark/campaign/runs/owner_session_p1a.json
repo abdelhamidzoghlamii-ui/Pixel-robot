@@ -1,0 +1,67 @@
+{
+  "label": "NOT VALID \u2014 SESSION INCOMPLETE",
+  "plan": [
+    "L0",
+    "L1",
+    "L2"
+  ],
+  "minimum_s": 840,
+  "maximum_gate_s": 2280,
+  "continuation_rule": "Only local cadence misses may continue after successful cleanup and no monitor errors. Root, sensors, thermal, charger, processes, cores/affinity, camera, inference, server and cleanup failures stop later blocks. Warm starts remain NOT VALID and the next block has its own gate.",
+  "blocks": [],
+  "unrun_blocks": [
+    "L0",
+    "L1",
+    "L2"
+  ],
+  "detector_note": "Explicit task: 320 EVERY frame plus 640 every 5 s; #128 SizePolicy replaced 320 on 640 frames.",
+  "context_example": "M2 relations:\n- person [0] next to chair [1].",
+  "context_accuracy": "NOT EVALUATED",
+  "hashes": {
+    "/data/data/com.termux/files/home/models/relate_anything/relsgg-vits16/relateanything.onnx": "24a2e2a2ef8ea7d1b7cffef9fe5e35ab9c8eeb413e73eb4dee5afa9b24dd98d5",
+    "/data/data/com.termux/files/home/models/relate_anything/relsgg-vits16/relateanything.json": "e70152faa7875bf9ae865d14b3539b7aac358f33bfb10db265365441db26bfaa",
+    "/data/data/com.termux/files/home/models/relate_anything/relsgg-vits16/predicate_bank.npz": "6043ff8fb765db34d89019617979d566b79967b7740c72bb4007786179839f48",
+    "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf": "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52",
+    "/data/data/com.termux/files/home/robot/yolo11s_320.onnx": "9eab5ebc83d1254e0049abf2a939ef12db696b7e0ef74af7ec8b70cec993f863",
+    "/data/data/com.termux/files/home/robot/yolo11s_640.onnx": "dc9fe7c50e66ef272db1318f282d6e6dc4ba6adaa0103a2197a87300fbb9dcb5",
+    "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server": "77eb35a0e716dff307e0d33b0b45ce0ed91e216a20db9411a7b9dc94e6624053"
+  },
+  "installed_robotcam": {
+    "versionCode": "1",
+    "versionName": "0.1"
+  },
+  "layout_checks": [
+    {
+      "layout": "L0",
+      "safe_cpus": [
+        0,
+        1,
+        2,
+        3,
+        6,
+        7
+      ],
+      "policies": {
+        "policy0": 1803000,
+        "policy4": 2348000,
+        "policy6": 2850000
+      },
+      "ort": {
+        "caller_tid": 23650,
+        "version": "1.25.1",
+        "setting": "mid",
+        "worker_tids": [
+          23637,
+          23649
+        ],
+        "intra_op_num_threads": {
+          "320": 2,
+          "640": 2
+        },
+        "observed_default_intra_threads_per_session": null,
+        "default_count_note": "observed created workers / two sessions + one calling thread; option 0 = auto"
+      }
+    }
+  ],
+  "error": "RuntimeError: root shell/monitor mask empty or includes inference cores"
+}

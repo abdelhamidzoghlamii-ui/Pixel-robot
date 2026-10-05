@@ -336,6 +336,7 @@ def live_block(name, out, server, idle, dry=False):
     try:
         monitor=rt.prepare(sb,measured)
         shell,mask,pid,layout=monitor
+        record['setup_affinity']=getattr(shell,'campaign_setup_affinity',None)
         root_scope=rt.root_mask_scope(cr,sb,mask,measured)
         root_scope.__enter__()
         record['root_service_mask']=sorted(mask)
@@ -352,6 +353,7 @@ def live_block(name, out, server, idle, dry=False):
         record['m2_cluster']=dict(cpus=sorted(cluster),threads=v.CLUSTERS[LAYOUTS[name]][1]) if LAYOUTS[name] else None
         # A dedicated root reader owns each shell, so no request interleaving.
         fast_monitor=rt.prepare(sb,measured)
+        record['fast_setup_affinity']=getattr(fast_monitor[0],'campaign_setup_affinity',None)
         def gate_guard():
             guard()
             shared_check()
@@ -490,7 +492,8 @@ def preflight(names, out, result, resources):
             if LAYOUTS[name]:
                 head,caller,tids=v.build('fp32',LAYOUTS[name])
                 sb.check_pinning(tids,v.CLUSTERS[LAYOUTS[name]][0])
-            result['layout_checks'].append(dict(layout=name,safe_cpus=sorted(monitor[1]),policies=monitor[3]['policies'],ort=ort))
+            result['layout_checks'].append(dict(layout=name,safe_cpus=sorted(monitor[1]),policies=monitor[3]['policies'],ort=ort,
+                setup_affinity=getattr(monitor[0],'campaign_setup_affinity',None)))
         finally:
             rt.release(caller); head=None
             rt.release(detector)
@@ -542,7 +545,9 @@ def main(argv=None):
         try:
             write(a.output,result)
             if not a.dry_run:
+                # Both modes execute this exact setup, with no mode argument or early branch.
                 preflight(names,a.output,result,resources)
+                result['setup_complete']=True
                 if a.preflight:
                     result['label']='PREFLIGHT ONLY — NO TIMING'
                     return

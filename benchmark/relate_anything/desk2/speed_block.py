@@ -171,9 +171,12 @@ def check_pinning(tids, cpus=CPUS):
             raise RuntimeError(f'worker/caller {tid} lost cluster affinity')
 
 
-def require_monitor_mask(mask, cpus=CPUS):
+def require_monitor_mask(mask, cpus=CPUS, *, process="unspecified monitor", how="caller-supplied mask", allowed=None):
     if not mask or mask & cpus:
-        raise RuntimeError('root shell/monitor mask empty or includes inference cores')
+        raise RuntimeError('root shell/monitor mask empty or includes inference cores: '
+                           f'actual={sorted(mask)} measured={sorted(cpus)} '
+                           f'allowed={sorted(allowed) if allowed is not None else None} '
+                           f'process={process} how={how}')
 
 
 def root_mask(shell, pid):
@@ -200,7 +203,8 @@ def root_mask(shell, pid):
 def prepare_monitor(cpus=CPUS):
     previous = os.sched_getaffinity(0)
     monitor_cpus = previous - cpus
-    require_monitor_mask(monitor_cpus, cpus)
+    require_monitor_mask(monitor_cpus, cpus, process=f"calling thread tid={threading.get_native_id()} (no root shell created)",
+                         how="os.sched_getaffinity(0) minus measured", allowed=previous)
     shell = None
     try:
         try:
@@ -215,8 +219,10 @@ def prepare_monitor(cpus=CPUS):
         shell.run(f'taskset -p {mask} $$')
         root_pid = int(shell.run('echo $$')[0])
         shell.root_pid = root_pid
-        require_monitor_mask(root_mask(shell, root_pid), cpus)
-        require_monitor_mask(root_mask(shell, shell.p.pid), cpus)
+        require_monitor_mask(root_mask(shell, root_pid), cpus, process=f"persistent shell pid={root_pid}",
+                             how="root /proc/PID/status Cpus_allowed_list", allowed=monitor_cpus)
+        require_monitor_mask(root_mask(shell, shell.p.pid), cpus, process=f"su pid={shell.p.pid}",
+                             how="root /proc/PID/status Cpus_allowed_list", allowed=monitor_cpus)
         layout = cr.discover(shell)
         require_policies(layout)
         return shell, monitor_cpus, root_pid, layout

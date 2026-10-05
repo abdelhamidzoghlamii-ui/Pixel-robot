@@ -167,7 +167,8 @@ def check_runtime():
 def check_preflight():
     # Real preflight control flow; hardware calls mocked, refusals before idle or gates.
     v,sb,pm,cr,_=rt.imports()
-    for refusal in (None,'charger','agents','root','cores','hashes','camera','server','policies'):
+    traces={}
+    for refusal,mode in ((r,m) for r in (None,'charger','agents','root','cores','hashes','camera','server','policies') for m in ('preflight','session')):
         with tempfile.TemporaryDirectory() as tmp,contextlib.ExitStack() as stack:
             out=Path(tmp)/'preflight.json'
             bad=lambda name:RuntimeError(name) if refusal==name else None
@@ -185,17 +186,27 @@ def check_preflight():
                    patch.object(cr,'read_frame',return_value={'status':'ok'}),patch.object(rt,'stop_camera'),
                    patch.object(p.time,'sleep'),patch.object(p,'live_block'),patch.object(rt,'skin_gate')]
             handles=[stack.enter_context(m) for m in mocks]
+            trace=MagicMock()
+            for i,handle in enumerate(handles):trace.attach_mock(handle,f'call_{i}')
+            # Stop the session exactly at the idle boundary: no real idle/block.
+            handles[-3].side_effect=RuntimeError('mock idle boundary')
             stack.enter_context(patch.object(rt,'fast_check',return_value={}))
             handles[12].return_value.alive.return_value=refusal!='server'
             handles[12].return_value.cmd=['mock-server'];handles[12].return_value.load_s=0;handles[12].return_value.proc.pid=123
             stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
-            try:p.main(['--preflight','--output',str(out)])
-            except RuntimeError:assert refusal
-            else:assert refusal is None
-            handles[-3].assert_not_called();handles[-2].assert_not_called();handles[-1].assert_not_called()
+            try:p.main((['--preflight'] if mode=='preflight' else [])+['--output',str(out)])
+            except RuntimeError as e:assert refusal or (mode=='session' and str(e)=='mock idle boundary')
+            else:assert refusal is None and mode=='preflight'
+            if mode=='preflight' or refusal:handles[-3].assert_not_called()
+            calls=[repr(c).replace(str(out.parent),'TMP') for c in trace.mock_calls if not repr(c).startswith('call.call_18(')]
+            if mode=='preflight':traces[refusal]=calls
+            else:assert calls==traces[refusal],(refusal,calls,traces[refusal])
+            handles[-2].assert_not_called();handles[-1].assert_not_called()
             result=json.loads(out.read_text())
             assert not result['blocks']
-            if not refusal:assert result['label']=='PREFLIGHT ONLY — NO TIMING' and len(result['layout_checks'])==5
+            if not refusal:
+                assert result['setup_complete'] and len(result['layout_checks'])==5
+                if mode=='preflight':assert result['label']=='PREFLIGHT ONLY — NO TIMING'
     print('PASS real preflight path all layouts, charger/agents/root/cores/hashes/policies/camera/server refusals; no idle/gates/blocks')
 
 
@@ -365,7 +376,7 @@ def check_root_adapters():
     shell.run=run
     sb=NS(require_monitor_mask=lambda mask,measured:power.safe_mask(mask,measured),
           prepare_monitor=lambda measured:(shell,{0,1,2,3},12,{}),root_mask=lambda shell,pid:mask_state[pid])
-    with patch.object(rt.os,'sched_setaffinity',side_effect=lambda tid,mask:mask_state.__setitem__(tid,set(mask))),patch.object(rt.os,'sched_getaffinity',side_effect=lambda tid:mask_state[tid]):
+    with patch.object(rt,'setup_affinity',return_value={}),patch.object(rt.os,'sched_setaffinity',side_effect=lambda tid,mask:mask_state.__setitem__(tid,set(mask))),patch.object(rt.os,'sched_getaffinity',side_effect=lambda tid:mask_state[tid]):
         monitor=rt.prepare(sb,{6,7},restrict={0,1})
         assert monitor[1]=={0,1} and mask_state[10]=={0,1} and mask_state[12]=={0,1}
         try:rt.prepare(sb,{6,7},restrict={4})
@@ -540,6 +551,61 @@ def check_round3_regressions():
     print('PASS de-phased telemetry periods, fastest-probe 1 Hz verification, LMK block window/error handling, busy recheck after YOLO')
 
 
+
+def check_setup_affinity_fix():
+    v,sb,pm,cr,_=rt.imports()
+    measured=set(range(6))  # L1 after L0; reproduce the owner's exact refusal site.
+    state=[set(range(6))]
+    shell=NS(p=NS(pid=10),run=lambda command:['12'] if command=='echo $$' else [],close=MagicMock())
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(patch.object(rt.os,'cpu_count',return_value=8))
+        stack.enter_context(patch.object(rt.os,'sched_getaffinity',side_effect=lambda tid:set(state[0]) if tid==0 else {6,7}))
+        stack.enter_context(patch.object(rt.os,'sched_setaffinity',side_effect=lambda tid,mask:state.__setitem__(0,set(mask)) if tid==0 else None))
+        stack.enter_context(patch.object(cr,'check_cores',side_effect=lambda when: None if {4,5,6,7}<=state[0] else (_ for _ in ()).throw(RuntimeError('cores lost'))))
+        root=stack.enter_context(patch.object(cr,'RootShell',return_value=shell))
+        stack.enter_context(patch.object(pm,'thread_ids',side_effect=[{1},{1,11}]))
+        stack.enter_context(patch.object(sb,'root_mask',return_value={6,7}))
+        stack.enter_context(patch.object(cr,'discover',return_value={'policies':dict.fromkeys(pm.POLICIES,1)}))
+        try:sb.prepare_monitor(measured)
+        except RuntimeError as e:
+            assert 'actual=[]' in str(e) and 'allowed=[0, 1, 2, 3, 4, 5]' in str(e) and 'no root shell created' in str(e)
+        else:raise AssertionError('legacy failure not reproduced')
+        root.assert_not_called()
+        monitor=rt.prepare(sb,measured)
+        assert monitor[1]=={6,7} and shell.campaign_setup_affinity['before']==list(range(6))
+        assert state[0]==set(range(8))
+        # Kernel cpuset continues excluding BIG: reset cannot override it, no root starts.
+        root.reset_mock();state[0]=set(range(6))
+        with patch.object(rt.os,'sched_setaffinity',side_effect=lambda *args:None):
+            try:rt.prepare(sb,measured)
+            except RuntimeError as e:assert 'actual=[0, 1, 2, 3, 4, 5]' in str(e)
+            else:raise AssertionError('continuing Android restriction accepted')
+        root.assert_not_called()
+    for actual,process in ((set(),'persistent shell'),({4},'su'),({5},'pump')):
+        try:rt.require_mask(actual,{4,5},{0,1},process,'test readback')
+        except RuntimeError as e:
+            assert all(k in str(e) for k in ('actual=','measured=','allowed=','process='+process,'how=test readback'))
+        else:raise AssertionError('unsafe diagnostic accepted')
+    # Execute transient wrapper in an ordinary shell, with a mocked taskset (no root).
+    def fake_root(command,tag,timeout=60):
+        script='taskset() { if [ "$#" = 3 ]; then return 0; fi; echo "pid $3 current affinity mask: 1"; }; '+command
+        done=subprocess.run(['sh','-c',script],capture_output=True,text=True)
+        return done.returncode,done.stdout
+    fake_cr=NS(root=fake_root)
+    with rt.root_mask_scope(fake_cr,sb,{0},{4,5}):assert fake_cr.root('printf "Discharging\\n"','test')==(0,'Discharging')
+    with rt.root_mask_scope(fake_cr,sb,{1},{4,5}):
+        try:fake_cr.root('echo MUST_NOT_RUN','test')
+        except RuntimeError as e:assert 'CAMPAIGN_ROOT_MASK pid=' in str(e) and 'mask: 1' in str(e) and 'MUST_NOT_RUN' not in str(e)
+        else:raise AssertionError('transient mismatch accepted')
+    with tempfile.TemporaryDirectory() as tmp:
+        stdout,stderr=Path(tmp)/'run.stdout',Path(tmp)/'run.stderr'
+        for existing in (stdout,stderr):
+            stdout.unlink(missing_ok=True);stderr.unlink(missing_ok=True)
+            existing.write_text('original evidence')
+            done=subprocess.run(['sh','-c','set -C; printf changed > "$1" 2> "$2"','sh',str(stdout),str(stderr)],capture_output=True,text=True)
+            assert done.returncode and existing.read_text()=='original evidence'
+    print('PASS pre-fix L1 empty-mask reproduction, campaign refresh, continuing cpuset refusal, detailed diagnostics and executed transient wrapper')
+
 if __name__=='__main__':
-    check_power();check_cycle();check_runtime();check_preflight();check_lag_lifecycle();check_live_block()
+    check_setup_affinity_fix();check_power();check_cycle();check_runtime();check_preflight();check_lag_lifecycle();check_live_block()
     check_live_adapters();check_extra_scheduling();check_root_adapters();check_session_transitions();check_monitor_workers();check_round3_regressions()

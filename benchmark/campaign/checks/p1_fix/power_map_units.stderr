@@ -1,0 +1,38 @@
+/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_validation.py:66: UserWarning: Unsupported platform (android). ONNX Runtime supports Linux, macOS, AIX and Windows platforms, only.
+  warnings.warn(
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/robot/benchmark/power_map/test_power_map.py", line 246, in <module>
+    check_integration()
+    ~~~~~~~~~~~~~~~~~^^
+  File "/data/data/com.termux/files/home/robot/benchmark/power_map/test_power_map.py", line 223, in check_integration
+    assert result.returncode == 0, result.stdout[-3000:] + result.stderr[-3000:]
+           ^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: es / yes | yes / yes |
+| gate wait s | 0 | 0 | 0 |
+| warm start | no | no | no |
+| stop limit / time s | none / n/a | none / n/a | none / n/a |
+| ORT version | fake | fake | fake |
+| ORT intra-op option (0=auto) | {'320': 0, '640': 0} | {'320': 0, '640': 0} | {'320': 0, '640': 0} |
+| default intra-op count observed | 1 | 1 | 1 |
+| ORT workers observed CPUs / allowed | not requested | not requested | not requested |
+| policy0 capped s (% of block) | 0.0 (0.0%) | 0.0 (0.0%) | 0.0 (0.0%) |
+| policy0 lowest scaling_max MHz | 1803 | 1803 | 1803 |
+| policy4 capped s (% of block) | 0.0 (0.0%) | 0.0 (0.0%) | 0.0 (0.0%) |
+| policy4 lowest scaling_max MHz | 2348 | 2348 | 2348 |
+| policy6 capped s (% of block) | 0.0 (0.0%) | 0.0 (0.0%) | 0.0 (0.0%) |
+| policy6 lowest scaling_max MHz | 2850 | 2850 | 2850 |
+
+Skin rise rate: least-squares slope of in-block 5 s VIRTUAL-SKIN readings versus monotonic time, C/min.
+Capped time is separate per policy: scaling_max_freq < cpuinfo_max_freq. Each in-block 1 s sample owns the gap since the previous in-block sample (first owns time from zero); skipped-slot gaps belong to the later reading; unreadable is unknown and INCOMPLETE; tail after last sample is not counted. Percent denominator is actual block duration. policy4/policy6 are the target; policy0 is reported only.
+Skin start includes the first monitor dump during camera startup; status changes use the latest pre-block state at t=0.
+Gate: VIRTUAL-SKIN <= idle + 1.5 C; after 8 min start marked warm. Smoke skips waiting.
+zone9/10/11 in raw JSON and thermal.log: CPU-core reading, not a heat state; CPU readings are fault checks only.
+ORT observations: /proc task stat processor is the last scheduled CPU at each 1 s sample, not a full scheduler trace. CPU lists count samples only after per-thread utime+stime ticks advance since the preceding sample; the first sample is a baseline. Idle workers retain stale processor values, which are not execution evidence. Sub-tick work and the initial sampling interval may be missed. Cpus_allowed_list is sampled for every runner thread, including idle workers. Only newly created ORT session workers are pinned; mid/little also pin a dedicated detector calling thread, which participates in intra-op work. Default uses the deployed caller. Default count = observed created workers / two sessions + one caller; intra-op option 0 means automatic.
+Detect ms includes resize, inference and NMS. 640 drift = first/last 30 s medians. Battery W = -current_now*voltage_now/1e12; sampler/PSS every 5 s. Selector uses coresidency cases and letter scoring every 20 s. Block limits and INCOMPLETE rules inherited from coresidency, with required sizes adapted to cadence.
+Gemma resident for this invocation; no cold load, cache drop or MTP snapshot.
+Server command: /data/data/com.termux/files/usr/bin/python /data/data/com.termux/files/home/robot/benchmark/coresidency/test_coresidency.py --fake-server 18180 /data/data/com.termux/files/usr/tmp/tmpm26y0_69/server.pid
+
+/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_validation.py:66: UserWarning: Unsupported platform (android). ONNX Runtime supports Linux, macOS, AIX and Windows platforms, only.
+  warnings.warn(
+RUN INCOMPLETE: R1_r2_c5: RobotCam: 31 frames, failed reads {'missing': 20}, new frame at end True, process at end True
+
