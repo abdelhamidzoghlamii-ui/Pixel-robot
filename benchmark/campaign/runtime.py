@@ -1,5 +1,6 @@
 """Lazy imports of unchanged benchmark runners; native operations owner only."""
 import gc
+import hashlib
 import contextlib
 import json
 import os
@@ -12,6 +13,26 @@ import time
 HERE = Path(__file__).resolve().parent
 ROBOT = HERE.parents[1]
 HOME = Path('/data/data/com.termux/files/home')
+
+FALLBACK = ROBOT/'benchmark/relate_anything/desk2'
+FALLBACK_HASHES = {
+    'speed_photo.jpg': '4da2d789dd9a60405658184de81e9f46b3c55e09024a6f2ce26a934d899d0fd8',
+    'speed_input.json': '35694e263f3894597e711bd2c2045bc55b3790f0bcd32d75baae11e60c20e32f',
+}
+
+
+def fallback_hashes():
+    got = {n:hashlib.sha256((FALLBACK/n).read_bytes()).hexdigest() for n in FALLBACK_HASHES}
+    if got != FALLBACK_HASHES:
+        raise RuntimeError('fallback photo/committed YOLO boxes SHA-256 mismatch')
+    return got
+
+
+def fallback_input():
+    fallback_hashes()
+    _, sb, _, _, _ = imports()
+    datum, _, image = sb.load_speed_input()
+    return image, datum['detections']
 
 
 def imports():
@@ -120,21 +141,6 @@ def dump_check(cr):
     if d['skin'] is None or d['status'] is None or d['status'] >= cr.STATUS_STOP:
         raise RuntimeError('skin/status missing or thermal stop')
     return d
-
-
-def skin_gate(cr, baseline, label, guard):
-    # Adapt power_map.thermal_gate's skin condition/bound to avoid its external thermal.log dependency.
-    # CPU fault readings are collected directly by this campaign, not via a second root logger.
-    began = time.monotonic()
-    while True:
-        guard()
-        d = dump_check(cr)
-        cool = d['skin'] <= baseline['skin'] + cr.SKIN_GATE_C
-        waited = time.monotonic()-began
-        if cool or waited >= 480:
-            return dict(**d, waited_s=waited, warm_start=not cool)
-        print(f'[{label}] skin {d["skin"]}; gate <= {baseline["skin"]+cr.SKIN_GATE_C:.1f}; waited {waited:.0f}s', flush=True)
-        time.sleep(10)
 
 
 def camera_version(cr):

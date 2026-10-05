@@ -17,12 +17,13 @@ import time
 sys.dont_write_bytecode = True
 import power
 import runtime as rt
+import diagnostics as diag
 
 LAYOUTS = dict(L0=None, L1='LITTLE', L2='BIG', L3='MID', L4='BIG')
 DEFAULT = ['L0', 'L1', 'L2', 'L3', 'L4', 'L0']
 CONTINUATION = ('Only local cadence misses may continue after successful cleanup and no monitor errors. '
                 'Root, sensors, thermal, charger, processes, cores/affinity, camera, inference, server and cleanup failures stop later blocks. '
-                'Warm starts remain NOT VALID and the next block has its own gate.')
+                'Start-temperature comparability is assessed against the first measured block.')
 
 
 def blocks(value):
@@ -67,7 +68,7 @@ def run_cycle(name, duration, ops, record):
     if t0 is None:
         t0 = ops.now()
     stop, ready, lock = threading.Event(), threading.Event(), threading.Lock()
-    shared = dict(frame=None, boxes=None, triplets=[], m2_thread=None)
+    shared = dict(frame=None, boxes=None, triplets=[], scene='live', m2_thread=None)
     errors = record.setdefault('worker_errors', [])
     record.update(reads=[], yolo=[], m2=[], selector=[], frames_due={'320':0,'640':0},
                   frames_skipped={'320':0,'640':0}, camera_late=0)
@@ -76,12 +77,22 @@ def run_cycle(name, duration, ops, record):
     def m2(image, boxes, frame, slot):
         start = stamp()
         try:
+            scene = 'live'
+            live_boxes = len(boxes)
+            if live_boxes < 2:
+                image, boxes = ops.fallback()
+                scene = 'fallback'
             rows, inference_ms = ops.relate(image, boxes)
+            if inference_ms <= 0:
+                raise RuntimeError('M2 slot did not execute inference')
             end = stamp()
             row = dict(slot_s=slot, frame=frame, started_s=start, ended_s=end,
-                       ms=(end-start)*1000, inference_ms=inference_ms, inference_executed=inference_ms>0, context=context(rows))
+                       scene=scene, live_boxes=live_boxes, input_boxes=len(boxes),
+                       ms=(end-start)*1000, inference_ms=inference_ms, inference_executed=True,
+                       context=('(fallback scene)\n' if scene=='fallback' else '')+context(rows))
             with lock:
                 shared['triplets'] = rows
+                shared['scene'] = scene
                 record['m2'].append(row)
             return rows
         except BaseException as e:
@@ -102,6 +113,8 @@ def run_cycle(name, duration, ops, record):
                         return
                 with lock:
                     text = None if name == 'L0' else context(shared['triplets'])
+                    if text is not None and shared['scene']=='fallback':
+                        text = '(fallback scene)\n'+text
                 start = stamp()
                 try:
                     row = ops.select(len(record['selector']), text)
@@ -213,6 +226,8 @@ def summarize(record):
                **stats([r for r in record['yolo'] if r['size']==size])) for size in (320,640)},
         camera_frames_delivered=len(record['reads']), camera_frames_late=record['camera_late'],
         m2=dict(calls=sum(r['inference_executed'] for r in record['m2']), slots=len(record['m2']),
+                live_calls=sum(r.get('scene')=='live' for r in record['m2']),
+                fallback_calls=sum(r.get('scene')=='fallback' for r in record['m2']),
                 insufficient_box_slots=sum(not r['inference_executed'] for r in record['m2']), **stats(record['m2']), inference_stats=stats([r for r in record['m2'] if r['inference_executed']], 'inference_ms')),
         selector=dict(calls=len(record['selector']), **stats(record['selector']),
                       prompt_tokens=[r.get('prompt_tokens') for r in record['selector']],
@@ -233,6 +248,8 @@ class MockOps:
         time.sleep(.005)
         return [dict(class_name='person', box_xyxy=[0,0,10,20]),
                 dict(class_name='chair', box_xyxy=[20,0,40,20])]
+    def fallback(self):
+        return None, self.detect(None,640)
     def relate(self, image, boxes):
         time.sleep(1.2 if self.name=='L3' else .01)
         return [dict(subject='person',subject_idx=0,predicate='next_to',object='chair',object_idx=1,
@@ -262,12 +279,14 @@ class LiveOps:
         self.sb.check_pinning(self.tids, self.cluster)
         # Head requires 2..32 boxes. Do not invent or truncate live detections.
         if len(boxes) < 2:
-            return [], 0.
+            raise RuntimeError('M2 requires fallback selection before inference')
         if len(boxes) > 32:
             raise RuntimeError('M2 needs at most 32 boxes; never truncate')
         rows, ms = self.caller.detect(image, boxes)
         self.sb.check_pinning(self.tids, self.cluster)
         return rows, ms
+    def fallback(self):
+        return self.fallback_input
     def select(self, index, text):
         case = copy.deepcopy(self.cases[index % len(self.cases)])
         if text is not None:
@@ -354,14 +373,14 @@ def live_block(name, out, server, idle, dry=False):
         # A dedicated root reader owns each shell, so no request interleaving.
         fast_monitor=rt.prepare(sb,measured)
         record['fast_setup_affinity']=getattr(fast_monitor[0],'campaign_setup_affinity',None)
-        def gate_guard():
-            guard()
-            shared_check()
-            sb.battery_sample()
-            rt.fast_check(cr,fast_monitor,sb,measured)
-        record['gate']=rt.skin_gate(cr,idle,name,gate_guard)
+        guard()
+        shared_check()
+        sb.battery_sample()
+        rt.fast_check(cr,fast_monitor,sb,measured)
+        fallback_input = rt.fallback_input() if LAYOUTS[name] else None
         cam=pm.camera_start(1)
         record['camera']=cam
+        record['diagnostics_start']=diag.snapshot(cr,True)
         record['skin_start']=rt.dump_check(cr)
         selector=bounded_selector(cr)
         cases=cr.load_cases()
@@ -387,6 +406,7 @@ def live_block(name, out, server, idle, dry=False):
             record['power'],record['monitor_errors'],lambda:rt.verify_monitor(sb,monitor,measured)),daemon=True)
         threads.append(thread); thread.start()
         ops=LiveOps(cr,sb,detector,ort,caller,tids,cluster,cam,server,selector,cases,guard)
+        ops.fallback_input=fallback_input
         # Use exactly the same origin for cadence and power receipt accounting.
         ops.now=lambda:time.monotonic()
         ops.origin=t0
@@ -395,9 +415,9 @@ def live_block(name, out, server, idle, dry=False):
         guard()
         shared_check()
         record['skin_end']=rt.dump_check(cr)
+        record['diagnostics_end']=diag.snapshot(cr,True)
         record['failure_kind']='cadence' if record.get('cadence_missed') else None
-        record['validity']=('NOT VALID — INCOMPLETE' if record.get('cadence_missed') else
-                            'NOT VALID — WARM START' if record['gate']['warm_start'] else 'VALID')
+        record['validity']='NOT VALID — INCOMPLETE' if record.get('cadence_missed') else 'VALID'
     except BaseException as e:
         record['error']=f'{type(e).__name__}: {e}'
         record['failure_kind']='shared'
@@ -467,18 +487,126 @@ def write(path,data):
     path.write_text(json.dumps(data,indent=2,allow_nan=False)+'\n')
 
 
+def compare_start(record, reference):
+    temperature = record['skin_start']['skin']
+    reference = temperature if reference is None else reference
+    record['T_ref_c'] = reference
+    record['start_temperature_delta_c'] = temperature-reference
+    if abs(temperature-reference) > 1.5:
+        record['start_temperature_comparability']='NOT COMPARABLE — START TEMP'
+        if record['validity']=='VALID':
+            record['validity']='NOT COMPARABLE — START TEMP'
+    else:
+        record['start_temperature_comparability']='COMPARABLE'
+    return reference
+
+
+def rest(label, duration, server, record, camera_on=False, dry=False):
+    """No inference objects exist here; only Gemma and measurement remain resident."""
+    record.update(label=label, camera_on=camera_on, planned_s=duration,
+                  fast=[], dumps=[], memory=[], power=[], monitor_errors=[], cleanup_errors=[])
+    if dry:
+        record['label']='NOT VALID — DRY RUN (all hardware mocked): '+label
+        time.sleep(duration)
+        record['duration_s']=duration
+        return record
+    v,sb,pm,cr,_=rt.imports()
+    monitor=None; fast_monitor=None; scope=None; stop=threading.Event(); threads=[]
+    began=time.monotonic()
+    try:
+        diag.battery(cr,25)
+        rt.stop_camera(cr)
+        monitor=rt.prepare(sb,{4,5})
+        shell,mask,pid,layout=monitor
+        scope=rt.root_mask_scope(cr,sb,mask,{4,5});scope.__enter__()
+        record['cpuinfo_max_khz']=layout['policies']
+        if camera_on:
+            record['camera']=pm.camera_start(1)
+        record['diagnostics_start']=diag.snapshot(cr,camera_on)
+        record['power'].append(power.sample(shell,cr.BATTERY,began))
+        origin=time.monotonic()
+        offset=origin-began
+        for row in record['power']:
+            row['t']-=offset;row['t_start']-=offset
+        began=origin
+        def worker(period,read,rows):
+            try:
+                tid=threading.get_native_id();os.sched_setaffinity(tid,mask)
+                def checked():
+                    if os.sched_getaffinity(tid)!=mask:
+                        raise RuntimeError('pause monitor affinity changed')
+                    return read()
+                cr.monitor_loop(period,checked,rows,stop)
+            except BaseException as e:
+                record['monitor_errors'].append(str(e));stop.set()
+        # Power shell is owned solely by its sampler; other reads use the scoped root wrapper.
+        # Use a second persistent shell for the reused fast parser.
+        fast_monitor=rt.prepare(sb,{4,5})
+        def fast():return rt.fast_check(cr,fast_monitor,sb,{4,5})
+        record['fast_monitor']=True
+        for period,read,rows in ((1,fast,record['fast']),
+            (4.87,cr.read_dump,record['dumps']),
+            (5.13,lambda:dict(t=time.monotonic(),**cr.meminfo_mib(),**cr.root_sample(server.proc.pid)),record['memory'])):
+            thread=threading.Thread(target=worker,args=(period,read,rows),daemon=True)
+            threads.append(thread);thread.start()
+        thread=threading.Thread(target=power.sampler,args=(shell,cr.BATTERY,began,mask,{4,5},stop,
+            record['power'],record['monitor_errors'],lambda:rt.verify_monitor(sb,monitor,{4,5})),daemon=True)
+        threads.append(thread);thread.start()
+        while time.monotonic()-began < duration:
+            if record['monitor_errors']:raise RuntimeError('pause monitor failed')
+            rt.clear_processes(server.proc.pid);sb.battery_sample();cr.check_cores('pause')
+            rt.dump_check(cr)
+            if not server.alive():raise RuntimeError('server unhealthy during pause')
+            if hit:=cr.block_limit(time.monotonic(),began,record['fast'],record['dumps']):
+                raise RuntimeError('pause thermal/sensor stop: '+str(hit))
+            if stop.wait(min(5,max(0,began+duration-time.monotonic()))):
+                raise RuntimeError('pause sampler stopped')
+        record['diagnostics_end']=diag.snapshot(cr,camera_on)
+    except BaseException as e:
+        record['error']=f'{type(e).__name__}: {e}'
+        raise
+    finally:
+        stop.set()
+        for thread in threads:thread.join(timeout=60)
+        if any(t.is_alive() for t in threads):record['cleanup_errors'].append('pause monitor still running')
+        for action in (lambda:rt.stop_camera(cr),lambda:monitor[0].close() if monitor else None,
+                       lambda:fast_monitor[0].close() if fast_monitor else None):
+            try:action()
+            except BaseException as e:record['cleanup_errors'].append(str(e))
+        if scope:scope.__exit__(None,None,None)
+        record['duration_s']=time.monotonic()-began
+        for rows in (record['fast'],record['dumps'],record['memory']):
+            for row in rows:
+                row['t']-=began
+                if 't_start' in row:row['t_start']-=began
+        record['power_summary']=power.summary(record['power'],[],duration)
+        if monitor:record['caps_by_policy']=pm.capped_by_policy({**record,'duration_s':duration})
+        if record['cleanup_errors']:raise RuntimeError('pause cleanup failed')
+    if record['power_summary']['mean_battery_w'] is None:
+        raise RuntimeError('pause power coverage missing')
+    if not record['memory'] or any(r.get('root_rc') != 0 or r.get('pss_error') or r.get('battery_status')!='Discharging' for r in record['memory']):
+        raise RuntimeError('pause memory/battery read failed')
+    return record
+
+
 def preflight(names, out, result, resources):
     v,sb,pm,cr,_=rt.imports()
     cr.require_native()
     rt.clear_processes()
     cr.check_cores('preflight')
     sb.battery_sample()
+    result['battery_start_percent']=diag.battery(cr,80)
+    result['fallback_hashes']=rt.fallback_hashes()
+    fallback_image,fallback_boxes=rt.fallback_input()
+    result['fallback_input_check']=dict(size=list(fallback_image.size),boxes=len(fallback_boxes),loaded=True)
+    del fallback_image,fallback_boxes
     result['hashes']=rt.require_hashes(v,cr,pm)
     result['installed_robotcam']=rt.camera_version(cr)
     rt.dump_check(cr)
     screen=sb.Screen(); resources['screen']=screen; screen.start()
     result['layout_checks']=[]
-    for name in dict.fromkeys(names):
+    # Subsets still execute the L0 warm-up, so validate that configuration too.
+    for name in dict.fromkeys(['L0',*names]):
         detector=caller=head=None; monitor=None
         try:
             measured={4,5}|(v.CLUSTERS[LAYOUTS[name]][0] if LAYOUTS[name] else set())
@@ -487,12 +615,14 @@ def preflight(names, out, result, resources):
             with rt.root_mask_scope(cr,sb,monitor[1],measured):
                 rt.dump_check(cr)
                 sb.battery_sample()
+                diagnostics=diag.snapshot(cr,False)
             detector,ort=pm.build_detector('mid')
             sb.check_pinning(ort['worker_tids']+[ort['caller_tid']],{4,5})
             if LAYOUTS[name]:
                 head,caller,tids=v.build('fp32',LAYOUTS[name])
                 sb.check_pinning(tids,v.CLUSTERS[LAYOUTS[name]][0])
             result['layout_checks'].append(dict(layout=name,safe_cpus=sorted(monitor[1]),policies=monitor[3]['policies'],ort=ort,
+                diagnostics=diagnostics,
                 setup_affinity=getattr(monitor[0],'campaign_setup_affinity',None)))
         finally:
             rt.release(caller); head=None
@@ -527,14 +657,15 @@ def main(argv=None):
     try:names=blocks(a.blocks)
     except ValueError as e:ap.error(str(e))
     paths=[a.output.with_name(a.output.stem+f'_block_{i:02d}_{n}.json') for i,n in enumerate(names,1)]
-    if a.output.exists() or a.output.with_name(a.output.stem+'_llama-server.log').exists() or any(p.exists() for p in paths):ap.error('evidence exists; choose a fresh stem')
+    warm_path=a.output.with_name(a.output.stem+'_warmup_L0.json')
+    if a.output.exists() or a.output.with_name(a.output.stem+'_llama-server.log').exists() or warm_path.exists() or any(p.exists() for p in paths):ap.error('evidence exists; choose a fresh stem')
     a.output.parent.mkdir(parents=True,exist_ok=True)
-    minimum=300+180*len(names); maximum=minimum+480*len(names)
-    print('Plan:',','.join(names),'; motors OFF; phone on table, lights ON.',flush=True)
-    print(f'Estimate {minimum/60:.1f}–{maximum/60:.1f} min plus setup/loads/cleanup.',flush=True)
-    if maximum>3600:print('WARNING over 60 minutes with maximum gates; split --blocks L0,L1,L2 and --blocks L3,L4,L0.',flush=True)
+    minimum=300+180+780*len(names)
+    print('Plan: 300 s idle (180 s camera OFF + 60 s camera OFF + 60 s camera ON without inference), WARM-UP L0 180 s,',
+          ','.join('600 s pause + '+n+' 180 s' for n in names),'; motors OFF.',flush=True)
+    print(f'Estimate {minimum/60:.1f} min scheduled; full default about 85–90 min including setup/loads/cleanup.',flush=True)
     result=dict(label='NOT VALID — DRY RUN (all hardware mocked)' if a.dry_run else 'SESSION STARTING',
-        plan=names,minimum_s=minimum,maximum_gate_s=maximum,continuation_rule=CONTINUATION,blocks=[],unrun_blocks=names[:],
+        plan=names,minimum_s=minimum,continuation_rule=CONTINUATION,blocks=[],pauses=[],idle_phases=[],unrun_blocks=names[:],
         detector_note='Explicit task: 320 EVERY frame plus 640 every 5 s; #128 SizePolicy replaced 320 on 640 frames.',
         context_example='M2 relations:\n- person [0] next to chair [1].',context_accuracy='NOT EVALUATED')
     resources={}
@@ -553,22 +684,39 @@ def main(argv=None):
                     return
                 v,sb,pm,cr,_=rt.imports()
                 server=resources['server']
-                print('One 300 s idle with Gemma loaded, camera OFF',flush=True)
-                for _ in range(60):
-                    time.sleep(5); rt.clear_processes(server.proc.pid); sb.battery_sample(); cr.check_cores('idle'); rt.dump_check(cr)
-                    if not server.alive():raise RuntimeError('server unhealthy during idle')
-                idle=rt.dump_check(cr); result['idle']=idle
+            server=resources.get('server')
+            for label,seconds,on in (('IDLE',180,False),('IDLE CAMERA OFF',60,False),('IDLE CAMERA ON — NO INFERENCE',60,True)):
+                row={};result['idle_phases'].append(row)
+                rest(label,.1 if a.dry_run else seconds,server,row,on,a.dry_run)
+                write(a.output,result)
+            if not a.dry_run:diag.battery(cr,25)
+            warm=dict(block='L0',validity='NOT VALID — DRY RUN (all hardware mocked)',mock_only=True) if a.dry_run else live_block('L0',warm_path,server,None)
+            if a.dry_run:run_cycle('L0',1,MockOps('L0'),warm)
+            warm['result_validity']=warm['validity'];warm['validity']='WARM-UP — NOT A RESULT'
+            result['warmup']=warm;write(warm_path,warm);write(a.output,result)
+            if warm.get('failure_kind') and not can_continue(warm):raise RuntimeError('warm-up invalidates later blocks')
+            reference=None
             for name,path in zip(names,paths):
+                if not a.dry_run:diag.battery(cr,25)
+                row={};result['pauses'].append(row)
+                rest('FIXED PAUSE',.1 if a.dry_run else 600,server,row,dry=a.dry_run)
+                write(a.output,result)
+                if not a.dry_run:diag.battery(cr,25)
                 if a.dry_run:
                     b=dict(block=name,validity='NOT VALID — DRY RUN (all hardware mocked)',mock_only=True)
                     run_cycle(name,6,MockOps(name),b)
                     b['power_summary']=power.summary([],[],6)
                     write(path,b)
                 else:
-                    b=live_block(name,path,server,idle)
+                    b=live_block(name,path,server,None)
+                    if 'skin_start' in b:reference=compare_start(b,reference)
+                    result['T_ref_c']=reference
+                    write(path,b)
                 result['blocks'].append(b); result['unrun_blocks']=names[len(result['blocks']):]; write(a.output,result)
                 if b.get('failure_kind') and not can_continue(b):raise RuntimeError('block invalidates later blocks')
             result['label']='NOT VALID — DRY RUN (all hardware mocked)' if a.dry_run else 'SESSION COMPLETE; inspect individual validity'
+        except diag.BatteryStop as e:
+            result.update(label='SESSION STOPPED — BATTERY BELOW 25%; remaining blocks UNRUN',error=str(e))
         except BaseException as e:
             result.update(label='NOT VALID — SESSION INCOMPLETE',error=f'{type(e).__name__}: {e}')
             raise
