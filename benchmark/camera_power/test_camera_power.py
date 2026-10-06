@@ -104,7 +104,7 @@ def block_integration(core_loss=False):
     spec = {**cp.blocks_for(True)[0], 'duration': .35}
     groups = {n:[dict(pid=i+1, born_ticks=0, ticks=10)] for i,n in enumerate(
         ('runner', 'llama_server', 'robotcam_app', 'camera_provider'))}
-    stop_result = dict(capture_stopped=True, force_stop_rc=0, pids_after_force_stop=[])
+    stop_result = dict(capture_stopped=True, force_stop_rc=0, pids_after_force_stop=[], pidof_root_rc=0, pidof_rc=1)
     frame = [0]
     stopped = []
     image = Image.new('RGB', (640,480), (100,100,100))
@@ -273,7 +273,7 @@ def stalled_accounting():
     def stop_camera():
         timeline.append('STOP/end-check/force-stop')
         stop_called.set()
-        return dict(capture_stopped=True, force_stop_rc=0, pids_after_force_stop=[])
+        return dict(capture_stopped=True, force_stop_rc=0, pids_after_force_stop=[], pidof_root_rc=0, pidof_rc=1)
     def fast(*a):
         t = time.monotonic()
         return dict(t=t, t_start=t, bat_c=45., cpu_c=30., max={}, cpu={})
@@ -314,7 +314,7 @@ def fail_closed_orchestration():
                         (cp.signal,'signal',lambda *a:None), (cp,'run_block',run),
                         (cp,'write_report',lambda *a:reports.append(True) or []),
                         (cp.dc,'stop_camera',lambda:cleanup.append(True) or
-                         dict(capture_stopped=True,force_stop_rc=0,pids_after_force_stop=[]))]
+                         dict(capture_stopped=True,force_stop_rc=0,pids_after_force_stop=[],pidof_root_rc=0,pidof_rc=1))]
         for obj,key,value in replacements: stack.enter_context(patch.object(obj,key,value))
         stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
         try: cp.main(['--smoke'])

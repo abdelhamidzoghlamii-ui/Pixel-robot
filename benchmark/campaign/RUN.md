@@ -1,4 +1,4 @@
-# CAMPAIGN_P1_FIX2 owner steps
+# CAMPAIGN_P1_FIX3 owner steps
 
 M2 fp32 is a benchmark candidate, not deployed. This screens speed, memory,
 heat and power; **selector accuracy with relation context is NOT evaluated**.
@@ -8,24 +8,87 @@ Keep the screen ON and stay in native Termux in the foreground throughout.
 Exit Codex, Claude, AGY, node and every robot/benchmark/model-server process
 before either command. The runner owns one Gemma server. No motion API is used.
 
+Fix3: with the camera OFF the RobotCam app is force-stopped, so its PSS is now
+recorded as `robotcam_app: "not running (camera OFF)"` (PSS null) instead of
+stopping the session, but only after a separate status-checked root `pidof`
+confirms no RobotCam process (`pidof_rc=1`, no pid); any other answer fails. A missing app while the camera is ON, root rc ≠ 0,
+missing battery fields/MemAvailable, and missing runner/llama-server/camera
+provider PSS still stop it. `owner_session_p1_fix2` stopped on exactly this.
+
+Fix3b: thermal reads are checked. A `dumpsys thermalservice` read with root
+rc ≠ 0, a reader error, or missing/unparsable skin or status stops the idle
+phase, pause or block (also a read completing while workers are joined);
+diagnostics use the same checked reader. Camera cleanup keeps `pidof`'s own
+status: a RobotCam pid left after `am force-stop`, or an unconfirmed absence,
+now fails cleanup (shared `coresidency.camera_end_failed`, used by every
+runner). Archived owner evidence had no such case (2,271 thermal rows, 86
+camera end checks).
+
 Use a fresh stem for every invocation, changing it in all three filenames.
 Commands use shell noclobber (`set -C`) to protect stdout/stderr; the runner
 refuses existing JSON/block/warm-up/server evidence. Never truncate, remove
-or reuse evidence. `owner_preflight_p1_fix2` already exists, so this preflight
-uses `owner_preflight_p1_fix3`.
+or reuse evidence. Both steps run the full preflight setup first (the same
+setup as `--preflight`, which already passed as `owner_preflight_p1_fix3`).
 
-1. Preflight, no idle/warm-up/pauses/timed blocks:
+1. Owner rehearsal, **NOT VALID**, about **12 minutes** (estimate, not
+measured: about 4 min of shortened phases plus setup, model builds, camera
+transitions, 37 real diagnostics snapshots of 4–15 s each and cleanup; 10–15 min). Same setup as the
+session (battery ≥ 80%, charger unplugged, screen ON, Termux in front, no
+agents):
 
 ```sh
-(set -C; python -u ~/robot/benchmark/campaign/phase1.py --preflight --output ~/storage/downloads/campaign/owner_preflight_p1_fix3.json > ~/storage/downloads/campaign/owner_preflight_p1_fix3.stdout 2> ~/storage/downloads/campaign/owner_preflight_p1_fix3.stderr)
+(set -C; python -u ~/robot/benchmark/campaign/phase1.py --dry-run --output ~/storage/downloads/campaign/owner_rehearsal_p1_fix3.json > ~/storage/downloads/campaign/owner_rehearsal_p1_fix3.stdout 2> ~/storage/downloads/campaign/owner_rehearsal_p1_fix3.stderr)
 ```
 
-Send `owner_preflight_p1_fix3.json`, `owner_preflight_p1_fix3.stdout`,
-`owner_preflight_p1_fix3.stderr`, `owner_preflight_p1_fix3_llama-server.log`
-(only files actually created). Require `PREFLIGHT ONLY — NO TIMING`,
-`setup_complete: true` and successful cleanup before the session.
+It runs every live path of the session with real root, battery, sensors,
+camera, models and server: full preflight setup; idle 6 s camera OFF, 6 s
+camera OFF, 6 s camera ON (no inference); 20 s L0 warm-up; six 6 s pauses
+(camera OFF, Gemma loaded); blocks L0,L1,L2,L3,L4,L0 of 25 s each (camera ON);
+selector; live M2 slots and the real fallback path, forced on the M2 slot the
+20 s selector reads (L2 at 0 s, L1/L3/L4 at 15 s) so every M2 layout also sends
+a fallback-scene context to the selector; diagnostics snapshots, power/caps/memory/PSS/LMK;
+cleanup and screen restore. Everything is labelled **NOT VALID — REHEARSAL**.
+Short phases make cadence misses likely in L2/L3; that is expected and does
+not stop it. The stdout ends with a `Coverage:` line (also
+`rehearsal_coverage` in the JSON). Pass = final label exactly
+`NOT VALID — OWNER REHEARSAL (live hardware, shortened phases) COMPLETE; inspect rehearsal_coverage`
+and `"rehearsal_pass": true`. That flag requires setup, 3 idle sub-phases,
+the warm-up, 6 pauses and all six blocks without errors, and for each of L1–L4
+at least one live M2 call, one fallback M2 call and one selector call with a
+fallback-scene context. Live M2 calls 0 in a layout means the camera saw
+fewer than two objects: fix the scene before the session. Any other failure:
+send the files and do not start the session.
 
-Preflight and session share setup: native/no-agent/charger/80% battery checks,
+Send these exact files, only those actually created:
+`owner_rehearsal_p1_fix3.json`, `.stdout`, `.stderr`,
+`owner_rehearsal_p1_fix3_llama-server.log`,
+`owner_rehearsal_p1_fix3_warmup_L0.json`, and
+`owner_rehearsal_p1_fix3_block_01_L0.json`, `_block_02_L1.json`,
+`_block_03_L2.json`, `_block_04_L3.json`, `_block_05_L4.json`,
+`_block_06_L0.json`.
+
+2. Full session, only after the rehearsal passed. Recharge to **≥ 80%** if
+needed, then unplug the charger. One command, approximately **85–90 minutes**
+(86 minutes scheduled plus setup, model builds, camera transitions and cleanup):
+
+```sh
+(set -C; python -u ~/robot/benchmark/campaign/phase1.py --output ~/storage/downloads/campaign/owner_session_p1_fix3.json > ~/storage/downloads/campaign/owner_session_p1_fix3.stdout 2> ~/storage/downloads/campaign/owner_session_p1_fix3.stderr)
+```
+
+Send these exact files, only those actually created:
+
+- `owner_session_p1_fix3.json` (includes idle sub-phases and all pauses)
+- `owner_session_p1_fix3.stdout`, `owner_session_p1_fix3.stderr`
+- `owner_session_p1_fix3_llama-server.log`
+- `owner_session_p1_fix3_warmup_L0.json`
+- `owner_session_p1_fix3_block_01_L0.json`
+- `owner_session_p1_fix3_block_02_L1.json`
+- `owner_session_p1_fix3_block_03_L2.json`
+- `owner_session_p1_fix3_block_04_L3.json`
+- `owner_session_p1_fix3_block_05_L4.json`
+- `owner_session_p1_fix3_block_06_L0.json`
+
+Preflight, rehearsal and session share setup: native/no-agent/charger/80% battery checks,
 cores/affinity, root/su/pump masks and policies, thermal/sensor checks,
 artifact/fallback hashes, decoded fallback photo/boxes and scoped diagnostic reads,
 installed RobotCam version, YOLO/M2 workers,
@@ -34,27 +97,7 @@ verified live frame, camera stop, pre-idle checks. Each selected layout is check
 Calling-thread affinity is refreshed/read back before monitor setup and must
 include cores 4–7; Android cpuset restrictions still fail closed.
 
-2. Full session, one command, approximately **85–90 minutes** (86 minutes
-scheduled plus setup, model builds, camera transitions and cleanup):
-
-```sh
-(set -C; python -u ~/robot/benchmark/campaign/phase1.py --output ~/storage/downloads/campaign/owner_session_p1_fix2.json > ~/storage/downloads/campaign/owner_session_p1_fix2.stdout 2> ~/storage/downloads/campaign/owner_session_p1_fix2.stderr)
-```
-
-Send these exact files, only those actually created:
-
-- `owner_session_p1_fix2.json` (includes idle sub-phases and all pauses)
-- `owner_session_p1_fix2.stdout`, `owner_session_p1_fix2.stderr`
-- `owner_session_p1_fix2_llama-server.log`
-- `owner_session_p1_fix2_warmup_L0.json`
-- `owner_session_p1_fix2_block_01_L0.json`
-- `owner_session_p1_fix2_block_02_L1.json`
-- `owner_session_p1_fix2_block_03_L2.json`
-- `owner_session_p1_fix2_block_04_L3.json`
-- `owner_session_p1_fix2_block_05_L4.json`
-- `owner_session_p1_fix2_block_06_L0.json`
-
-Plan: 300 s idle with Gemma loaded, no inference; first 180 s camera OFF,
+Session plan: 300 s idle with Gemma loaded, no inference; first 180 s camera OFF,
 then 60 s camera-OFF diagnostics and 60 s camera-ON without inference.
 Camera stops again. ONE 180 s L0 warm-up is recorded as
 **WARM-UP — NOT A RESULT**. Measured order: L0,L1,L2,L3,L4,L0.
@@ -73,16 +116,9 @@ Thermal/charger/cores/process/sensor/camera/inference/server/cleanup failures
 stop later blocks. Only local cadence failures may continue after successful
 cleanup and no monitor errors.
 
-Optional portable scheduling dry run, about 38 s, **NOT VALID**:
-
-```sh
-(set -C; python -u ~/robot/benchmark/campaign/phase1.py --dry-run --output ~/storage/downloads/campaign/owner_dry_p1_fix2.json > ~/storage/downloads/campaign/owner_dry_p1_fix2.stdout 2> ~/storage/downloads/campaign/owner_dry_p1_fix2.stderr)
-```
-
-Send `owner_dry_p1_fix2.{json,stdout,stderr}`, `owner_dry_p1_fix2_warmup_L0.json`
-and six block files with that stem, from `_block_01_L0.json` to `_block_06_L0.json`.
-All hardware is mocked: short idle/pause phases, 1 s warm-up and six 6 s blocks.
-Watts are null; no root/models/camera/server start. Debian can use
+Portable mock (Coder, proot), about 40 s, **NOT VALID**: `--dry-run --mock`.
+All hardware is mocked: short idle/pause phases, 1 s warm-up and six 6 s
+blocks; watts are null; no root/models/camera/server start. Debian can use
 `/usr/bin/python3` and `/termux-home` paths.
 
 ## Load and diagnostics
@@ -137,12 +173,22 @@ affinity control. LMK windows exclude setup/tails; logcat failures invalidate.
 coverage, adapted for fixed pauses. `self_check_fix2.py` covers fallback
 selection/counting/labels, hashes, temperature boundaries, battery refusal/stop,
 diagnostics parsing, warm-up/subset scheduling and pause read/cleanup wiring
-with mocks. Outputs and **NOT VALID** dry run: `checks/p1_fix2/`.
-No live timed block/session/root preflight was run by the Coder; agents
-resident invalidate timing and proot cannot reach root. Root affinity and
-optional-node discovery, live battery/thermal/cooling/policy/logcat/PSS,
-camera-only cap response, camera restarts, real fallback M2/YOLO overlap,
-selector HTTP/context/timeouts, six 600 s cooling pauses and native cleanup
-still require owner validation.
+with mocks. `self_check_fix3.py` replays the 37 owner camera-OFF memory samples
+(pre-fix fail, fixed pass, camera ON fail), reproduces the base-commit
+`rest()` failure, keeps root/battery/provider/server failures fatal, and
+checks the rehearsal schedule, forced selector-feeding fallback slot, per-layout
+rehearsal_pass, the pidof absence confirmation, late idle/pause reader failures
+(now fatal after the worker joins), NOT VALID labels and
+the unchanged full-session schedule. Outputs and the **NOT VALID** mock dry run:
+`checks/p1_fix3/`. `self_check_fix3b.py` covers the checked thermal reader (rc, error,
+skin/status failures, late completion during joins, camera ON/OFF, block and
+rehearsal_pass) and the camera cleanup pidof checks; FIX3B outputs:
+`checks/p1_fix3b/`.
+No live timed block/session/root preflight/rehearsal was run by the Coder;
+agents resident invalidate timing and proot cannot reach root. The owner
+rehearsal is the first live run of the fix3 code; all live paths (root
+affinity, PSS with the camera off and on, camera restarts, real fallback
+M2/YOLO overlap, selector HTTP/context/timeouts, pauses and native cleanup)
+remain unvalidated until it passes.
 
 Historical owner evidence and source discrepancies: [RUN_INDEX.md](RUN_INDEX.md).

@@ -28,7 +28,7 @@ def synthetic(spec, duration=180):
             'duration_s': duration, 'planned_s': duration, 'reads': reads,
             'heat_stop': {'reached_limit': False, 'limit': None, 'reason': None, 'reading': None,
                           'time_to_limit_s': None},
-            'camera_end': {'capture_stopped': True, 'force_stop_rc': 0},
+            'camera_end': {'capture_stopped': True, 'force_stop_rc': 0, 'pids_after_force_stop': [], 'pidof_root_rc': 0, 'pidof_rc': 1},
             'thermal_start': {'z9': 30000, 'waited_s': 2, 'warm_start': False}, 'thermal_end': {'z9': 50000},
             'cpuinfo_max_khz': dict.fromkeys(pm.POLICIES, 2000000),
             'fast': [{'t': i, 'max': {'policy0': 1000000, 'policy4': 2000000, 'policy6': 1500000}}

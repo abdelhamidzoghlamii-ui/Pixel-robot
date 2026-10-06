@@ -2,6 +2,8 @@
 import math
 import time
 
+import runtime as rt
+
 
 class BatteryStop(RuntimeError):
     pass
@@ -63,7 +65,7 @@ for f in $paths; do read_node "$f"; done
                 raise ValueError('nonfinite')
         except (KeyError, ValueError):
             raise RuntimeError('required diagnostics unreadable: '+path)
-    dump = cr.read_dump()
+    dump = rt.read_dump(cr)
     ended=time.monotonic()
     return dict(t=ended, read_elapsed_s=ended-began, camera_on=camera_on,
                 camera_state_source='requested state; startup/stop checked by runner, no snapshot state readback',

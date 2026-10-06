@@ -1,0 +1,7 @@
+PASS 37 owner camera-OFF samples: pre-fix fail, fixed pass, camera ON fail; root/battery/provider/server/parse and unconfirmed-absence (pidof) failures still fail
+PASS pre-fix reproduction: base 914ce55 rest() camera OFF, app absent -> "pause memory/battery read failed"
+PASS pre-fix reproduction (review r2 F1): base rest() returns normally despite a late MemAvailable failure
+PASS fixed rest(): camera OFF app absent passes, camera ON app absent fails, camera ON app present passes, provider missing/pidof failure/late reader failure fail
+PASS rehearsal forces only the selector-feeding M2 slot (L2 0 s, others 15 s) onto the real fallback path; live M2 and a fallback-context selector both run per layout; session unchanged
+PASS --dry-run = live rehearsal (setup, 3 idle incl. camera ON, warm-up, 6 pauses, 6 blocks, cleanup, coverage); session schedule unchanged; --mock needs --dry-run
+PASS live_block rehearsal: shortened duration reaches cycle/LMK/power/caps, first-fallback flag, NOT VALID label on file

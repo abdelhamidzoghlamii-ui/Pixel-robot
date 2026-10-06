@@ -3,6 +3,7 @@ import gc
 import hashlib
 import contextlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -136,9 +137,31 @@ def require_hashes(v, cr, pm, gemma=True):
     return got
 
 
-def dump_check(cr):
+def thermal_failure(d):
+    """Why a cr.read_dump() row is not a usable reading (it reports failures as data), else None."""
+    skin, status = d.get('skin'), d.get('status')
+    if d.get('rc') != 0 or d.get('error'):
+        return f"rc {d.get('rc')!r}, error {d.get('error')!r}"
+    if type(status) is not int or type(skin) not in (int, float) or not math.isfinite(skin):
+        return f'skin {skin!r}, status {status!r}'
+    return None
+
+
+def read_dump(cr):
+    """Checked thermal reader: a failed or incomplete thermalservice read raises."""
     d = cr.read_dump()
-    if d['skin'] is None or d['status'] is None or d['status'] >= cr.STATUS_STOP:
+    if why := thermal_failure(d):
+        raise RuntimeError('thermal read failed: '+why)
+    return d
+
+
+def thermal_row_failures(rows):
+    return [f"t={r.get('t')}: {why}" for r in rows if (why := thermal_failure(r))]
+
+
+def dump_check(cr):
+    d = read_dump(cr)
+    if d['status'] >= cr.STATUS_STOP:
         raise RuntimeError('skin/status missing or thermal stop')
     return d
 
@@ -160,6 +183,27 @@ def stop_camera(cr):
     if why := cr.camera_end_failed(check):
         raise RuntimeError('camera cleanup: '+why)
     return check
+
+
+def memory_sample(cr, server_pid, camera_on):
+    """MemAvailable plus one root battery/PSS read.
+
+    coresidency.root_sample expects the RobotCam app in every state. With the camera OFF the
+    app is force-stopped, so its absence alone is "not running", not a read failure. Root rc,
+    battery fields, runner/server/provider PSS and a missing app with the camera ON still fail.
+    """
+    s = dict(t=time.monotonic(), **cr.meminfo_mib(), **cr.root_sample(server_pid))
+    # Exact root_sample message when rc is 0 and the app is the only missing process.
+    if not camera_on and s.get('pss_error', '').startswith("su rc 0; PSS missing for ['robotcam_app']: "):
+        # root_sample discards pidof's status, so confirm absence: pidof exits 1 only when nothing matches.
+        rc, out = cr.root('pidof com.pixelrobot.robotcam; echo "pidof_rc=$?"', 'campaign_pidof')
+        if rc == 0 and out.split() == ['pidof_rc=1']:
+            del s['pss_error']
+            s['pss_kb']['robotcam_app'] = None
+            s['robotcam_app'] = 'not running (camera OFF)'
+        else:
+            s['pss_error'] += f'; app absence unconfirmed: rc {rc}, {out[:100]!r}'
+    return s
 
 
 def release(caller):

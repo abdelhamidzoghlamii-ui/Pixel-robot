@@ -47,7 +47,9 @@ def make_env(T):
     b.mkdir(parents=True)
     (b / 'su').write_text('#!/bin/bash\nif [ "$1" = -c ]; then exec bash -c "$2"; fi\nexec bash\n')
     (b / 'dumpsys').write_text(f'#!/bin/bash\n[ "$1" = thermalservice ] || exit 1\ncat {T}/dump.txt\n')
-    (b / 'pidof').write_text(f'#!/bin/bash\ncat {T}/robotcam_pids 2>/dev/null\n')
+    # as real pidof: the pids and exit 0, or nothing and exit 1
+    (b / 'pidof').write_text(f'#!/bin/bash\np=$(cat {T}/robotcam_pids 2>/dev/null)\n'
+                             '[ -n "${p//[[:space:]]/}" ] && { echo "$p"; exit 0; }\nexit 1\n')
     # only the force-stop goes through su; it ends the process STOP leaves cached
     (b / 'am').write_text(f'#!/bin/bash\n[ "$1" = force-stop ] || exit 1\necho "$*" >>{T}/am_root.log\n: >{T}/robotcam_pids\n')
     for x in b.iterdir():
@@ -341,8 +343,10 @@ def unit():
             assert f'  {at} [load] policy6 scaling_max_freq 2850 -> 2400 MHz' in ev and f'(sample {at})' in ev, ev
             run = json.loads((T / 'rep/run.json').read_text())
             ok_cam = {'capture_stopped': True, 'frames_seen': [], 'check_s': 3.1, 'force_stop_rc': 0,
-                      'force_stop_output': '', 'pids_after_force_stop': ['4321']}  # a pid left is recorded, no failure
-            for cam, want in ((ok_cam, None), (dict(ok_cam, capture_stopped=False, frames_seen=[{}] * 30, check_s=15.0),
+                      'force_stop_output': '', 'pids_after_force_stop': [], 'pidof_root_rc': 0, 'pidof_rc': 1}
+            for cam, want in ((ok_cam, None),
+                              (dict(ok_cam, pids_after_force_stop=['4321'], pidof_rc=0), "still running after force-stop (pids ['4321'])"),
+                              (dict(ok_cam, capture_stopped=False, frames_seen=[{}] * 30, check_s=15.0),
                                                'capture not shown stopped 15.0 s after STOP (30 new frames, None unreadable reads)'),
                               (dict(ok_cam, force_stop_rc=1, force_stop_output='Error'), 'am force-stop failed (rc 1')):
                 run['after_stop'] = {'robotcam': cam, 'llama_server_running': False, 'worker_threads_alive': []}

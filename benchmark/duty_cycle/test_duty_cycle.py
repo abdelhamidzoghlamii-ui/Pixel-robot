@@ -334,7 +334,7 @@ def check_main_integration(terminate=False):
     def camera_stop():
         state['camera_running']=False
         state['camera_stopped']=True
-        return dict(capture_stopped=True,force_stop_rc=0)
+        return dict(capture_stopped=True,force_stop_rc=0,pids_after_force_stop=[],pidof_root_rc=0,pidof_rc=1)
     def plan(s,smoke):
         return [('active',.15,0,True),('pause',.2,0,True)] if s['name']!='CONT' else [('active',.35,0,True)]
     def read_frame(*a,**kw):

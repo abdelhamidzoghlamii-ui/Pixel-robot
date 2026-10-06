@@ -148,7 +148,7 @@ def check_runtime():
     with patch.object(rt.subprocess,'run',return_value=NS(returncode=0,stdout='99999 llama-server',stderr='')):rt.clear_processes(99999)
     cr=NS(read_dump=lambda:dict(t=0,skin=30,status=0),SKIN_GATE_C=1.5,STATUS_STOP=4)
     for skin,status in ((None,0),(30,None),(30,4)):
-        cr.read_dump=lambda:dict(skin=skin,status=status);cr.STATUS_STOP=4
+        cr.read_dump=lambda:dict(rc=0,skin=skin,status=status);cr.STATUS_STOP=4
         try:rt.dump_check(cr)
         except RuntimeError:pass
         else:raise AssertionError('thermal missing accepted')
@@ -246,7 +246,7 @@ def check_lag_lifecycle():
                       patch.object(power,'sampler',side_effect=sampler),patch.object(lp.threading,'Thread',InlineThread),
                       patch.object(cr,'monitor_loop',side_effect=lambda period,read,rows,stop:rows.append(read())),
                       patch.object(cr,'fast_sample',return_value={'t':100.,'bat_c':30,'cpu_c':50}),
-                      patch.object(cr,'read_dump',return_value={'t':100.,'skin':30,'status':0}),patch.object(cr,'block_limit',return_value=None)):
+                      patch.object(cr,'read_dump',return_value={'t':100.,'rc':0,'skin':30,'status':0}),patch.object(cr,'block_limit',return_value=None)):
                 stack.enter_context(m)
             if fail=='cleanup':caller.close.side_effect=RuntimeError('cleanup')
             output=Path(tmp)/'lag.json'
@@ -285,7 +285,7 @@ def check_live_block():
                 origin=record['cycle_origin']
                 record.update(duration_s=180,summary={},m2=[],selector=[],yolo=[],reads=[])
                 record['power']=[{'t':-1,'t_start':-1,'battery_w':1},{'t':181,'t_start':181,'battery_w':1}] if fail=='powergap' else [dict(t=i,t_start=i-.01,battery_w=1) for i in range(-1,182)]
-                record['fast']=[{'t':origin,'max':{}}];record['dumps']=[dict(t=origin,skin=30,status=0)]
+                record['fast']=[{'t':origin,'max':{}}];record['dumps']=[dict(t=origin,rc=0,skin=30,status=0)]
                 record['memory']=[dict(t=origin,mem_available_mib=1000,root_rc=0,pss_kb={'llama_server':100},battery_status='Discharging')]
             stack.enter_context(patch.object(p,'run_cycle',side_effect=cycle))
             output=Path(tmp)/'live.json'
@@ -432,7 +432,7 @@ def check_session_transitions():
             server=NS(proc=NS(pid=123),alive=lambda:True,stop=MagicMock())
             def preflight(names,out,result,resources):resources['server']=server
             calls=[]
-            def block(name,path,server,idle):
+            def block(name,path,server,idle,*_):
                 calls.append(name)
                 kind='shared' if failure=='shared' and name=='L1' else 'cadence' if failure=='cadence' and name=='L0' else None
                 record=dict(block=name,validity='NOT VALID — WARM START' if failure=='warm' else 'VALID',failure_kind=kind)
@@ -477,7 +477,7 @@ def check_monitor_workers():
                       patch.object(p,'bounded_selector'),patch.object(cr,'load_cases',return_value=[{}]),patch.object(power,'sample',return_value={'t':0,'t_start':0,'battery_w':1}),
                       patch.object(p.threading,'Thread',Deferred),patch.object(p.threading,'Event',Stop),patch.object(rt,'stop_camera'),patch.object(cr,'lmk_lines',return_value={'ok':True}),
                       patch.object(cr,'block_limit',return_value=None),patch.object(rt,'fast_check',return_value={'t':time.monotonic(),'t_start':time.monotonic(),'max':{}}),
-                      patch.object(cr,'read_dump',return_value={'t':time.monotonic(),'t_start':time.monotonic(),'skin':30,'status':0}),
+                      patch.object(cr,'read_dump',return_value={'t':time.monotonic(),'t_start':time.monotonic(),'rc':0,'skin':30,'status':0}),
                       patch.object(cr,'root_sample',return_value={'root_rc':0,'battery_status':'Discharging','pss_kb':{'llama_server':1}}),
                       patch.object(p.os,'sched_setaffinity'),patch.object(p.os,'sched_getaffinity',return_value={4} if bad_mask else {0}),
                       patch.object(pm,'capped_by_policy',return_value={})):stack.enter_context(m)

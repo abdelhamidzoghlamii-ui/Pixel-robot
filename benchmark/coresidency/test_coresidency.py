@@ -155,6 +155,8 @@ def child(root_dir, runner_args):
             out += '=== camera_provider 777\n        TOTAL PSS:   270,000\n'
             return 0, out
         if tag == 'pidof':
+            if 'pidof_rc' in cmd:  # camera_end_check keeps pidof's own status
+                return 0, ('4321\npidof_rc=0\n' if cam['cached'] else 'pidof_rc=1\n')
             return (0, '4321\n') if cam['cached'] else (1, '')
         if tag == 'forcestop':
             assert cmd == 'am force-stop com.pixelrobot.robotcam', cmd
@@ -327,7 +329,7 @@ def check_lmk_failure():
 
 NO_HEAT = {'reached_limit': False, 'limit': None, 'reason': None, 'time_to_limit_s': None, 'reading': None}
 END_OK = {'capture_stopped': True, 'frames_seen': [], 'check_s': 3.1, 'force_stop_rc': 0, 'force_stop_output': '',
-          'pids_after_force_stop': []}
+          'pids_after_force_stop': [], 'pidof_root_rc': 0, 'pidof_rc': 1}
 LIMIT_READINGS = {'fast': [], 'dumps': [], 'cpuinfo_max_khz': POLICIES}
 
 
@@ -648,14 +650,16 @@ def check_cleanup1():
 
         def fake_root(cmd, tag, timeout=60):
             calls.append((tag, cmd))
-            return (0, '') if tag == 'forcestop' else (0, '4321\n')
+            return (0, '') if tag == 'forcestop' else (0, '4321\npidof_rc=0\n')
         th = threading.Thread(target=writer, args=(2,))  # two more frames after STOP, then capture ends
         th.start()
         r = cr.camera_end_check(fake_root)
         th.join()
         assert r['capture_stopped'] and [x['frame'] for x in r['frames_seen']] == [1, 2] and r['check_s'] >= 3.4, r
-        assert calls == [('forcestop', 'am force-stop com.pixelrobot.robotcam'), ('pidof', 'pidof com.pixelrobot.robotcam')]
-        assert r['pids_after_force_stop'] == ['4321'] and cr.camera_end_failed(r) is None, 'a pid left is recorded only'
+        assert calls == [('forcestop', 'am force-stop com.pixelrobot.robotcam'),
+                         ('pidof', 'pidof com.pixelrobot.robotcam; echo "pidof_rc=$?"')]
+        assert r['pids_after_force_stop'] == ['4321'] and 'still running after force-stop' in cr.camera_end_failed(r), \
+            'a pid left after the force-stop fails the run'
         th = threading.Thread(target=writer, args=(1000,))  # still capturing
         th.start()
         r = cr.camera_end_check(fake_root, quiet_s=3, limit_s=5)

@@ -63,7 +63,7 @@ def check_battery_diagnostics():
         else:raise AssertionError('bad battery accepted')
     cr.root=lambda *a:(0,'25');assert d.battery(cr,25)==25
     text='/battery/capacity\t85\n/battery/temp\t287\n/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq\t1401000\n/sys/class/thermal/thermal_zone99/temp\t23100\n/sys/class/thermal/cooling_device4/cur_state\t2\n/boost/min\tUNREADABLE\n'
-    cr.root=lambda *a:(0,text);cr.read_dump=lambda:dict(status=0,skin=23.)
+    cr.root=lambda *a:(0,text);cr.read_dump=lambda:dict(rc=0,status=0,skin=23.)
     captured=[]
     def capture(command,tag,timeout=60):
         captured.append(command)
@@ -110,7 +110,7 @@ def check_session():
                 events.append(('rest',label,duration,camera_on))
                 record.update(label=label,planned_s=duration)
             starts=iter([20,30,31.5,31.6])
-            def block(name,path,server,idle):
+            def block(name,path,server,idle,*_):
                 events.append(('block',name))
                 return dict(block=name,validity='VALID',skin_start={'skin':next(starts)},
                             failure_kind='shared' if failure=='warm_failure' else None)
@@ -173,7 +173,7 @@ def check_rest():
                       patch.object(pm,'camera_start',return_value={'session':'mock'}),patch.object(rt,'clear_processes'),
                       patch.object(sb,'battery_sample'),patch.object(cr,'check_cores'),patch.object(rt,'dump_check'),
                       patch.object(rt,'fast_check',return_value={'t':100.,'max':{'policy0':1401000}}),
-                      patch.object(cr,'read_dump',return_value={'t':100.,'skin':30,'status':0}),
+                      patch.object(cr,'read_dump',return_value={'t':100.,'rc':0,'skin':30,'status':0}),
                       patch.object(cr,'meminfo_mib',return_value={'mem_available_mib':2500}),
                       patch.object(cr,'root_sample',return_value={'root_rc':0,'battery_status':'Discharging'}),
                       patch.object(cr,'monitor_loop',side_effect=monitor_loop),patch.object(cr,'block_limit',side_effect=block_limit),

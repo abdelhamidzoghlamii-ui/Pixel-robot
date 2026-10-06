@@ -174,20 +174,30 @@ def camera_end_check(rootf=None, quiet_s=3, limit_s=15):
     try:
         rc, text = rootf('am force-stop com.pixelrobot.robotcam', 'forcestop')
         out.update(force_stop_rc=rc, force_stop_output=text.strip()[:200])
-        out['pids_after_force_stop'] = rootf('pidof com.pixelrobot.robotcam', 'pidof')[1].split()
+        # Keep pidof's own status: it exits 1 only when no process matches (0 = pids remain, other = failed).
+        rc, text = rootf('pidof com.pixelrobot.robotcam; echo "pidof_rc=$?"', 'pidof')
+        status = re.search(r'^pidof_rc=(\d+)$', text, re.M)
+        out.update(pidof_root_rc=rc, pidof_rc=int(status.group(1)) if status else None,
+                   pids_after_force_stop=[w for w in text.split() if w.isdigit()])
     except (OSError, subprocess.SubprocessError) as e:
         out.update(force_stop_rc=None, force_stop_output=f'{type(e).__name__}: {e}')
     return out
 
 
 def camera_end_failed(c):
-    """Why a camera_end_check result fails the run (capture kept advancing, force-stop failed), else None."""
+    """Why a camera_end_check result fails the run (capture kept advancing, force-stop failed, RobotCam still
+    running or its absence unconfirmed after the force-stop), else None. Fails closed on a missing pidof status."""
     why = []
     if not c.get('capture_stopped'):
         why.append(f'capture not shown stopped {c.get("check_s")} s after STOP ({len(c.get("frames_seen", []))} '
                    f'new frames, {c.get("unreadable_reads")} unreadable reads)')
     if c.get('force_stop_rc') != 0:
         why.append(f'am force-stop failed (rc {c.get("force_stop_rc")}: {c.get("force_stop_output")!r})')
+    if c.get('pids_after_force_stop'):
+        why.append(f'RobotCam still running after force-stop (pids {c["pids_after_force_stop"]})')
+    elif c.get('force_stop_rc') == 0 and (c.get('pidof_root_rc') != 0 or c.get('pidof_rc') != 1):
+        why.append(f'RobotCam absence after force-stop unconfirmed (root rc {c.get("pidof_root_rc")}, '
+                   f'pidof rc {c.get("pidof_rc")})')
     return '; '.join(why) or None
 
 
