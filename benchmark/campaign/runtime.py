@@ -45,6 +45,37 @@ def imports():
     return v, v.sb, v.sb.pm, v.sb.cr, speed_session
 
 
+def parent_pid(pid):
+    """ppid from /proc/PID/stat (comm may hold spaces or parentheses, so split after the last ')')."""
+    with open(f'/proc/{pid}/stat') as f:
+        return int(f.read().rsplit(')', 1)[1].split()[1])
+
+
+def own_process(pid):
+    """True if pid is this runner or its descendant, by ppid ancestry read now; never by command text.
+
+    Our su clients, root shells, pumps and diagnostics are our children, and their command lines can
+    match the guard pattern (diagnostics' read_node matched 'node'). None: the matched pid itself
+    exited before its ancestry was read, so it is no longer resident. Any other unreadable link
+    (including an ancestor hidden by hidepid) raises: fail closed.
+    """
+    me, chain = os.getpid(), pid
+    for _ in range(4096):
+        if chain == me:
+            return True
+        if chain <= 1:
+            return False
+        try:
+            chain = parent_pid(chain)
+        except (FileNotFoundError, ProcessLookupError) as e:
+            if chain == pid:
+                return None
+            raise RuntimeError(f'process ancestry unreadable: pid {pid} at {chain}: {e}') from e
+        except (OSError, ValueError, IndexError) as e:
+            raise RuntimeError(f'process ancestry unreadable: pid {pid} at {chain}: {e}') from e
+    raise RuntimeError(f'process ancestry unreadable: pid {pid}: chain too long')
+
+
 def clear_processes(server_pid=None):
     pattern = (r'claude|agy|node|codex|llama-server|chat\.py|main\.py|run_mission\.py|'
                r'benchmark/.*\.py|phase1\.py|lag_probe\.py|power_map\.py|coresidency\.py|thermal_char\.py|'
@@ -52,8 +83,15 @@ def clear_processes(server_pid=None):
     result = subprocess.run(['pgrep', '-fa', pattern], capture_output=True, text=True)
     if result.returncode not in (0, 1):
         raise RuntimeError('process enumeration failed: '+result.stderr)
-    allowed = {os.getpid(), server_pid}
-    others = [l for l in result.stdout.splitlines() if int(l.split()[0]) not in allowed]
+    others = []
+    for line in result.stdout.splitlines():
+        pid = int(line.split()[0])
+        try:
+            if pid == server_pid or own_process(pid) is not False:
+                continue
+        except RuntimeError as e:  # fail closed: unproven ancestry counts as resident
+            line += f' [{e}]'
+        others.append(line)
     if others:
         raise RuntimeError('agents/robot/other runners resident: '+'\n'.join(others))
 

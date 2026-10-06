@@ -141,7 +141,7 @@ def check_runtime():
     for rc in (0,1):
         with patch.object(rt.subprocess,'run',return_value=NS(returncode=rc,stdout='',stderr='')):rt.clear_processes()
     for output in ('99999 codex','99999 main.py','99999 llama-server','99999 phase1.py'):
-        with patch.object(rt.subprocess,'run',return_value=NS(returncode=0,stdout=output,stderr='')):
+        with patch.object(rt.subprocess,'run',return_value=NS(returncode=0,stdout=output,stderr='')),patch.object(rt,'parent_pid',return_value=1):
             try:rt.clear_processes()
             except RuntimeError:pass
             else:raise AssertionError('resident accepted')
@@ -417,7 +417,7 @@ def check_root_adapters():
     assert all(abs((b['t']-a['t'])-.37)<1e-6 for a,b in zip(rows[:3],rows[1:4]))
     # Expanded bare-filename process refusal coverage.
     for name in ('power_map.py','coresidency.py','thermal_char.py','duty_cycle.py','camera_power.py','speed_block.py','session.py'):
-        with patch.object(rt.subprocess,'run',return_value=NS(returncode=0,stdout='99999 python '+name,stderr='')) as command:
+        with patch.object(rt.subprocess,'run',return_value=NS(returncode=0,stdout='99999 python '+name,stderr='')) as command,patch.object(rt,'parent_pid',return_value=1):
             try:rt.clear_processes()
             except RuntimeError:pass
             else:raise AssertionError('bare runner accepted')

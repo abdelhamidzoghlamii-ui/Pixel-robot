@@ -1,0 +1,209 @@
+{
+  "block": "L1",
+  "validity": "NOT VALID \u2014 DRY RUN (all hardware mocked)",
+  "mock_only": true,
+  "worker_errors": [],
+  "reads": [
+    {
+      "t": 0.0036696370225399733,
+      "frame": 1,
+      "age_s": 0.1
+    },
+    {
+      "t": 1.0014652520185336,
+      "frame": 2,
+      "age_s": 0.1
+    },
+    {
+      "t": 2.0020470800227486,
+      "frame": 3,
+      "age_s": 0.1
+    },
+    {
+      "t": 3.0012089459924027,
+      "frame": 4,
+      "age_s": 0.1
+    },
+    {
+      "t": 4.001152020995505,
+      "frame": 5,
+      "age_s": 0.1
+    },
+    {
+      "t": 5.000899742008187,
+      "frame": 6,
+      "age_s": 0.1
+    }
+  ],
+  "yolo": [
+    {
+      "slot_s": 0,
+      "started_s": 0.0037099209730513394,
+      "ended_s": 0.00898356200195849,
+      "size": 320,
+      "ms": 5.282023048494011,
+      "n_detections": 2
+    },
+    {
+      "slot_s": 0,
+      "started_s": 0.009066854021511972,
+      "ended_s": 0.014319784007966518,
+      "size": 640,
+      "ms": 5.261108977720141,
+      "n_detections": 2
+    },
+    {
+      "slot_s": 1,
+      "started_s": 1.001520875026472,
+      "ended_s": 1.006835084001068,
+      "size": 320,
+      "ms": 5.324097000993788,
+      "n_detections": 2
+    },
+    {
+      "slot_s": 2,
+      "started_s": 2.002210532024037,
+      "ended_s": 2.00818684999831,
+      "size": 320,
+      "ms": 5.992594000417739,
+      "n_detections": 2
+    },
+    {
+      "slot_s": 3,
+      "started_s": 3.001296469999943,
+      "ended_s": 3.0066625180188566,
+      "size": 320,
+      "ms": 5.3717449773103,
+      "n_detections": 2
+    },
+    {
+      "slot_s": 4,
+      "started_s": 4.001207725028507,
+      "ended_s": 4.00673950399505,
+      "size": 320,
+      "ms": 5.541585967876017,
+      "n_detections": 2
+    },
+    {
+      "slot_s": 5,
+      "started_s": 5.000958051008638,
+      "ended_s": 5.0063406599801965,
+      "size": 320,
+      "ms": 5.388834979385138,
+      "n_detections": 2
+    },
+    {
+      "slot_s": 5,
+      "started_s": 5.0063798039918765,
+      "ended_s": 5.011657310998999,
+      "size": 640,
+      "ms": 5.285360035486519,
+      "n_detections": 2
+    }
+  ],
+  "m2": [
+    {
+      "slot_s": 0,
+      "frame": 1,
+      "started_s": 0.016764120024163276,
+      "ended_s": 0.027020793000701815,
+      "scene": "live",
+      "live_boxes": 2,
+      "input_boxes": 2,
+      "ms": 10.256672976538539,
+      "inference_ms": 10.0,
+      "inference_executed": true,
+      "context": "M2 relations:\n- person [0] next to chair [1]."
+    },
+    {
+      "slot_s": 5,
+      "frame": 6,
+      "started_s": 5.017052737006452,
+      "ended_s": 5.027180788980331,
+      "scene": "live",
+      "live_boxes": 2,
+      "input_boxes": 2,
+      "ms": 10.128051973879337,
+      "inference_ms": 10.0,
+      "inference_executed": true,
+      "context": "M2 relations:\n- person [0] next to chair [1]."
+    }
+  ],
+  "selector": [
+    {
+      "slot_s": 0,
+      "started_s": 0.0030856120283715427,
+      "ended_s": 0.013255616009701043,
+      "context": "M2 relations:\n- none above threshold.",
+      "late_s": 0.0030856120283715427,
+      "ms": 10.0,
+      "prompt_tokens": 100,
+      "miss": false,
+      "timeout": false
+    }
+  ],
+  "frames_due": {
+    "320": 6,
+    "640": 2
+  },
+  "frames_skipped": {
+    "320": 0,
+    "640": 0
+  },
+  "camera_late": 0,
+  "duration_s": 6.001470177026931,
+  "summary": {
+    "yolo": {
+      "320": {
+        "due": 6,
+        "done": 6,
+        "skipped": 0,
+        "median_ms": 5.380289978347719,
+        "p95_ms": 5.992594000417739
+      },
+      "640": {
+        "due": 2,
+        "done": 2,
+        "skipped": 0,
+        "median_ms": 5.27323450660333,
+        "p95_ms": 5.285360035486519
+      }
+    },
+    "camera_frames_delivered": 6,
+    "camera_frames_late": 0,
+    "m2": {
+      "calls": 2,
+      "slots": 2,
+      "live_calls": 2,
+      "fallback_calls": 0,
+      "insufficient_box_slots": 0,
+      "median_ms": 10.192362475208938,
+      "p95_ms": 10.256672976538539,
+      "inference_stats": {
+        "median_ms": 10.0,
+        "p95_ms": 10.0
+      }
+    },
+    "selector": {
+      "calls": 1,
+      "median_ms": 10.0,
+      "p95_ms": 10.0,
+      "prompt_tokens": [
+        100
+      ],
+      "misses": 0,
+      "timeouts": 0
+    }
+  },
+  "power_summary": {
+    "mean_battery_w": null,
+    "covered_s": 0.0,
+    "samples": 0,
+    "gaps": 0,
+    "inside_samples": 0,
+    "outside_samples": 0,
+    "read_overlaps_call_boundary": 0,
+    "period_s": 0.37,
+    "method": "trapezoid over receipt times; lag remains a method limitation"
+  }
+}

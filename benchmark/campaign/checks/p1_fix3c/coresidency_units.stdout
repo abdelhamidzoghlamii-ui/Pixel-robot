@@ -1,0 +1,85 @@
+block limits: status 3 no stop / 4 stop, battery 44.9 / 45.0, CPU 110 in 3 consecutive (fault), skin+status loss 60 s and CPU/battery loss 5 s fail closed: PASS
+  [B1] waiting: skin 36.0 degC, need <= 33.5; z9 33.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin 34.0 degC, need <= 33.5; z9 33.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin 33.6 degC, need <= 33.5; z9 33.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin 33.6 degC, need <= 33.5; z9 33.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin 33.6 degC, need <= 33.5; z9 33.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin 33.6 degC, need <= 33.5; z9 33.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin 33.6 degC, need <= 33.5; z9 33.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin 33.6 degC, need <= 33.5; z9 33.0 degC, need <= 34.0; 1 s
+  [B1] waiting: skin 33.0 degC, need <= 33.5; z9 34.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin 33.0 degC, need <= 33.5; z9 34.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin 33.0 degC, need <= 33.5; z9 34.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin 33.0 degC, need <= 33.5; z9 34.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin 33.0 degC, need <= 33.5; z9 34.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin 33.0 degC, need <= 33.5; z9 34.0 degC, need <= 34.0; 1 s
+  [B1] waiting: skin None degC, need <= 33.5; z9 30.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin None degC, need <= 33.5; z9 30.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin None degC, need <= 33.5; z9 30.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin None degC, need <= 33.5; z9 30.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin None degC, need <= 33.5; z9 30.0 degC, need <= 34.0; 0 s
+  [B1] waiting: skin None degC, need <= 33.5; z9 30.0 degC, need <= 34.0; 1 s
+cooldown gate: skin <= idle + 1.5 and z9 <= idle + 4 reached; else warm start after the limit: PASS
+RobotCam end check: stopped after STOP / still advancing / unreadable reads; force-stop failure INCOMPLETE; cached pid recorded only: PASS
+capped time: pre-block and post-block samples excluded, time-weighted, % of block; unreadable scaling_max INCOMPLETE: PASS
+layout discovery, 1 s sample and dump parsing: PASS
+selector slots = those that start inside the block (smoke 1, full 9): PASS
+limit stop: short stop valid, drift n/a, in-flight call allowed; limit at start and fail-closed stop INCOMPLETE: PASS
+[loads] cold load next: handshake, waiting up to 5 s for /data/data/com.termux/files/usr/tmp/tmpazksq2ou/.drop_done
+[loads] cold load next: handshake, waiting up to 5 s for /data/data/com.termux/files/usr/tmp/tmpazksq2ou/.drop_done
+[loads] cold load next: handshake, waiting up to 5 s for /data/data/com.termux/files/usr/tmp/tmpazksq2ou/.drop_done
+[loads] cold load next: handshake, waiting up to 5 s for /data/data/com.termux/files/usr/tmp/tmpazksq2ou/.drop_done
+cold load: full-cold iff the drop answered ok and no load-file page is cached (mincore): PASS
+failed logcat query reported as failed, not as 0 kills: PASS
+per-pid PSS failure flagged; late sample dropped; gaps from completion times: PASS
+signal during a server load or inside its Popen stops the server; all-failed selector block flagged: PASS
+cores lost during the loads -> CoresLost, no server left; B5 sample error -> INCOMPLETE; old-format run refused by --resume: PASS
+Co-residency benchmark (DECISIONS #124), run run_20261006T005749Z_smoke  [SMOKE: not a measurement]
+block length 8 s; idle z9 90.0 degC, idle skin 35.0 degC; runner sha256 9dd49717f7e2
+
+                                        B1_mix_nollm    B2_only640_nollm        B3_mix_gemma    B4_only640_gemma
+frames processed                                  16                  16                  16                   8
+failed reads by status                          none                none                none                none
+repeat reads (not failures)                        5                   7                   4                   1
+detect320 ms median/P95                 10/11 (n 15)       n/a/n/a (n 0)        10/11 (n 15)       n/a/n/a (n 0)
+detect640 ms median/P95                  31/31 (n 1)        30/31 (n 16)         30/30 (n 1)         30/31 (n 8)
+drift320 first/last 30s                     10 -> 10          n/a -> n/a            10 -> 10          n/a -> n/a
+drift640 first/last 30s                     31 -> 31            30 -> 30            30 -> 30          n/a -> n/a
+read/decode ms median                       3.8/16.2            4.4/16.5            5.0/18.5            3.4/11.9
+frame age s median                              0.08                0.07                0.08                0.10
+selector ms median/P95                             -                   -             257/270             263/278
+selector calls ok/err/correct                  0/0/0               0/0/0               3/0/1               2/0/1
+min MemAvailable MiB                            3456                3451                3320                3335
+max swap used MiB                               2016                2025                1952                2031
+peak PSS runner MiB                              121                 121                 121                 121
+peak PSS llama-server MiB                        n/a                 n/a                 121                 121
+peak PSS RobotCam app MiB                         37                  37                  37                  37
+peak PSS camera provider MiB                     264                 264                 264                 264
+LMK log lines (kill lines)                     3 (2)               3 (2)               3 (2)               3 (2)
+survived RobotCam / llama                    yes / -             yes / -           yes / yes           yes / yes
+zone9 start/end/max degC              90.0/90.0/90.0      90.0/90.0/90.0      90.0/90.0/90.0      90.0/90.0/90.0
+VIRTUAL-SKIN start/end/max degC       35.0/35.0/35.0      35.0/35.0/35.0      35.0/35.0/35.0      35.0/46.6/46.6
+Android status max                                 3                   3                   3                   4
+policy capped s (% of block)                  0 (0%)              0 (0%)              0 (0%)             3 (74%)
+lowest scaling_max MHz 0/4/6          1803/2348/2850      1803/2348/2850      1803/2348/2850      1803/2348/2400
+gate wait s                                        0                   0                   0                   0
+stop limit                                         -                   -                   -      android_status
+time to limit s                                    -                   -                   -                 4.0
+mean battery W                                  1.64                1.64                1.64                1.64
+battery status                           Discharging         Discharging         Discharging         Discharging
+sample errors                                      0                   0                   0                   0
+sample gaps >3s (max s)                      0 (2.0)             0 (2.0)             0 (2.0)             0 (2.0)
+samples past block end (dropped)                   0                   0                   0                   0
+
+Gemma load (spawn to /health ok): cold 0.92 s [weights-cold (posix_fadvise DONTNEED on the GGUF)], warm 1.01 s; gate wait 0 s
+server command: /data/data/com.termux/files/usr/bin/python /data/data/com.termux/files/home/robot/benchmark/coresidency/test_coresidency.py --fake-server 18080 /data/data/com.termux/files/usr/tmp/tmppryvklgp/a/server.pid
+
+MTP snapshot (RobotCam + both detector sessions + Gemma with drafter, after one request): MemAvailable 3439 MiB, swap used 2037 MiB, PSS llama-server 121 MiB, VmHWM 24 MiB, load 0.69 s
+server command: /data/data/com.termux/files/usr/bin/python /data/data/com.termux/files/home/robot/benchmark/coresidency/test_coresidency.py --fake-server 18080 /data/data/com.termux/files/usr/tmp/tmppryvklgp/a/server.pid --model-draft /data/data/com.termux/files/home/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf --spec-type draft-mtp --spec-draft-n-max 3
+
+Notes: detect ms = Detector.detect (resize, inference, NMS); read/decode split read_frame at its BytesIO call; drift = median of the first vs last 30 s; W = -(current_now*voltage_now) from battery sysfs as in camera_heat.py; PSS = root dumpsys meminfo every 5 s; LMK = logcat lines matching lowmemorykiller|lmkd|killinfo in the block window, kills = lowmemorykiller/lmkd lines containing "kill", or killinfo. Every sample runs one su call (dumpsys) in all blocks alike. Block limits, checked between frames: Android thermal status >= 4 (CRITICAL), battery >= 45.0 degC, CPU zone >= 110 degC in 3 consecutive 1 s samples (fault stop); time to limit = when the runner saw it (up to one detection plus the 1 s/5 s reading interval late); the block ends there and counts as run; drift is n/a if it ran under 60 s. Skin/status = `dumpsys thermalservice` every 1 s; capped = time (each in-block 1 s sample counts the time since the previous one) with any policy's scaling_max_freq below its cpuinfo_max_freq, % of the block length. Gate: skin <= idle + 1.5 and z9 <= idle + 4 degC; warm start = not reached in 15 min.
+
+full smoke run: PASS
+SIGTERM during B3: exit 143, RobotCam stopped, server stopped: PASS
+--resume after SIGTERM: PASS
+failed STOP broadcast: force-stop still runs: PASS

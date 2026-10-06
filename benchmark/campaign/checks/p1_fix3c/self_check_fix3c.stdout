@@ -1,0 +1,21 @@
+PASS owner monitor_errors reproduced on base (own su diagnostics client, pattern node <- read_node); fixed: own descendants accepted, identical-text foreign refused, foreign agents refused
+PASS fail closed: unreadable/garbage/vanished-ancestor/hidden/cyclic ancestry refuse; pgrep failure raises
+PASS real /proc: own child 6193 accepted, reparented orphan 6195 with identical text refused, exited pid skipped
+WARNING: saved screen timeout is already 2147483647; restore preserves it
+screen timeout saved 2147483647 ms; set/read back 2147483647
+screen timeout restored/read back 2147483647 ms
+{"source": "diag.battery", "spawned": 1, "matches": [], "example": "su -c { taskset -p f $$ >/dev/null; pin_rc=$?; actual=$(taskset -p $$); read_rc=$?; printf 'CAMPAIGN_ROOT_MASK pid=%s actual=%s\\n' \"$$\" \"$actual\"; [ \"$pin_rc\" ="}
+{"source": "diag.snapshot", "spawned": 1, "matches": ["node"], "example": "su -c { taskset -p f $$ >/dev/null; pin_rc=$?; actual=$(taskset -p $$); read_rc=$?; printf 'CAMPAIGN_ROOT_MASK pid=%s actual=%s\\n' \"$$\" \"$actual\"; [ \"$pin_rc\" ="}
+{"source": "rt.camera_version", "spawned": 1, "matches": [], "example": "su -c { taskset -p f $$ >/dev/null; pin_rc=$?; actual=$(taskset -p $$); read_rc=$?; printf 'CAMPAIGN_ROOT_MASK pid=%s actual=%s\\n' \"$$\" \"$actual\"; [ \"$pin_rc\" ="}
+{"source": "rt.memory_sample (root_sample + pidof)", "spawned": 1, "matches": [], "example": "su -c { taskset -p f $$ >/dev/null; pin_rc=$?; actual=$(taskset -p $$); read_rc=$?; printf 'CAMPAIGN_ROOT_MASK pid=%s actual=%s\\n' \"$$\" \"$actual\"; [ \"$pin_rc\" ="}
+{"source": "cr.read_dump", "spawned": 1, "matches": [], "example": "su -c { taskset -p f $$ >/dev/null; pin_rc=$?; actual=$(taskset -p $$); read_rc=$?; printf 'CAMPAIGN_ROOT_MASK pid=%s actual=%s\\n' \"$$\" \"$actual\"; [ \"$pin_rc\" ="}
+{"source": "cr.lmk_lines", "spawned": 1, "matches": [], "example": "su -c { taskset -p f $$ >/dev/null; pin_rc=$?; actual=$(taskset -p $$); read_rc=$?; printf 'CAMPAIGN_ROOT_MASK pid=%s actual=%s\\n' \"$$\" \"$actual\"; [ \"$pin_rc\" ="}
+{"source": "cr.camera_end_check", "spawned": 2, "matches": [], "example": "su -c { taskset -p f $$ >/dev/null; pin_rc=$?; actual=$(taskset -p $$); read_rc=$?; printf 'CAMPAIGN_ROOT_MASK pid=%s actual=%s\\n' \"$$\" \"$actual\"; [ \"$pin_rc\" ="}
+{"source": "sb.battery_sample", "spawned": 1, "matches": [], "example": "su -c { taskset -p f $$ >/dev/null; pin_rc=$?; actual=$(taskset -p $$); read_rc=$?; printf 'CAMPAIGN_ROOT_MASK pid=%s actual=%s\\n' \"$$\" \"$actual\"; [ \"$pin_rc\" ="}
+{"source": "sb.Screen start/restore", "spawned": 7, "matches": [], "example": "termux-wake-lock"}
+{"source": "pm.camera_start (am)", "spawned": 1, "matches": [], "example": "am start -n com.pixelrobot.robotcam/.StartActivity --es mode B --ei rate 1"}
+{"source": "cr.camera_stop (am)", "spawned": 1, "matches": [], "example": "am broadcast -n com.pixelrobot.robotcam/.ControlReceiver -a com.pixelrobot.robotcam.STOP"}
+{"source": "cr.RootShell (pumps, persistent monitor shell)", "spawned": 1, "matches": [], "example": "su"}
+{"source": "cr.server_cmd (llama-server Popen argv)", "spawned": 1, "matches": ["llama-server"], "example": "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 "}
+PASS audit: of 13 spawn sources only diagnostics (node) and the owned llama-server match; both are direct children of the runner (subprocess.run/Popen), excluded by ancestry/server pid
+PASS CAMPAIGN_P1_FIX3C self-check (offline; agents resident; proot; NOT VALID for timing)

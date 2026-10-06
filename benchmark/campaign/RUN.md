@@ -1,4 +1,4 @@
-# CAMPAIGN_P1_FIX3 owner steps
+# CAMPAIGN_P1_FIX3C owner steps
 
 M2 fp32 is a benchmark candidate, not deployed. This screens speed, memory,
 heat and power; **selector accuracy with relation context is NOT evaluated**.
@@ -24,6 +24,14 @@ now fails cleanup (shared `coresidency.camera_end_failed`, used by every
 runner). Archived owner evidence had no such case (2,271 thermal rows, 86
 camera end checks).
 
+Fix3c: the process guard no longer flags the runner's own processes. `owner_rehearsal_p1_fix3` stopped
+after the warm-up because its own `su -c` diagnostics client (pid 1312, a direct child) contained
+`read_node`, which matched the guard alternative `node`. Matches are now excluded only when
+`/proc/PID/stat` ppid ancestry, read at check time, reaches the runner pid (or it is the owned
+server pid); command text is never trusted. A matching process outside our tree, even with an
+identical command line, is still refused, and unreadable ancestry is refused too (fail closed).
+A matched pid that has already exited when its ancestry is read is no longer resident and is skipped.
+
 Use a fresh stem for every invocation, changing it in all three filenames.
 Commands use shell noclobber (`set -C`) to protect stdout/stderr; the runner
 refuses existing JSON/block/warm-up/server evidence. Never truncate, remove
@@ -37,7 +45,7 @@ session (battery ≥ 80%, charger unplugged, screen ON, Termux in front, no
 agents):
 
 ```sh
-(set -C; python -u ~/robot/benchmark/campaign/phase1.py --dry-run --output ~/storage/downloads/campaign/owner_rehearsal_p1_fix3.json > ~/storage/downloads/campaign/owner_rehearsal_p1_fix3.stdout 2> ~/storage/downloads/campaign/owner_rehearsal_p1_fix3.stderr)
+(set -C; python -u ~/robot/benchmark/campaign/phase1.py --dry-run --output ~/storage/downloads/campaign/owner_rehearsal_p1_fix3c.json > ~/storage/downloads/campaign/owner_rehearsal_p1_fix3c.stdout 2> ~/storage/downloads/campaign/owner_rehearsal_p1_fix3c.stderr)
 ```
 
 It runs every live path of the session with real root, battery, sensors,
@@ -60,10 +68,10 @@ fewer than two objects: fix the scene before the session. Any other failure:
 send the files and do not start the session.
 
 Send these exact files, only those actually created:
-`owner_rehearsal_p1_fix3.json`, `.stdout`, `.stderr`,
-`owner_rehearsal_p1_fix3_llama-server.log`,
-`owner_rehearsal_p1_fix3_warmup_L0.json`, and
-`owner_rehearsal_p1_fix3_block_01_L0.json`, `_block_02_L1.json`,
+`owner_rehearsal_p1_fix3c.json`, `.stdout`, `.stderr`,
+`owner_rehearsal_p1_fix3c_llama-server.log`,
+`owner_rehearsal_p1_fix3c_warmup_L0.json`, and
+`owner_rehearsal_p1_fix3c_block_01_L0.json`, `_block_02_L1.json`,
 `_block_03_L2.json`, `_block_04_L3.json`, `_block_05_L4.json`,
 `_block_06_L0.json`.
 
@@ -72,21 +80,21 @@ needed, then unplug the charger. One command, approximately **85–90 minutes**
 (86 minutes scheduled plus setup, model builds, camera transitions and cleanup):
 
 ```sh
-(set -C; python -u ~/robot/benchmark/campaign/phase1.py --output ~/storage/downloads/campaign/owner_session_p1_fix3.json > ~/storage/downloads/campaign/owner_session_p1_fix3.stdout 2> ~/storage/downloads/campaign/owner_session_p1_fix3.stderr)
+(set -C; python -u ~/robot/benchmark/campaign/phase1.py --output ~/storage/downloads/campaign/owner_session_p1_fix3c.json > ~/storage/downloads/campaign/owner_session_p1_fix3c.stdout 2> ~/storage/downloads/campaign/owner_session_p1_fix3c.stderr)
 ```
 
 Send these exact files, only those actually created:
 
-- `owner_session_p1_fix3.json` (includes idle sub-phases and all pauses)
-- `owner_session_p1_fix3.stdout`, `owner_session_p1_fix3.stderr`
-- `owner_session_p1_fix3_llama-server.log`
-- `owner_session_p1_fix3_warmup_L0.json`
-- `owner_session_p1_fix3_block_01_L0.json`
-- `owner_session_p1_fix3_block_02_L1.json`
-- `owner_session_p1_fix3_block_03_L2.json`
-- `owner_session_p1_fix3_block_04_L3.json`
-- `owner_session_p1_fix3_block_05_L4.json`
-- `owner_session_p1_fix3_block_06_L0.json`
+- `owner_session_p1_fix3c.json` (includes idle sub-phases and all pauses)
+- `owner_session_p1_fix3c.stdout`, `owner_session_p1_fix3c.stderr`
+- `owner_session_p1_fix3c_llama-server.log`
+- `owner_session_p1_fix3c_warmup_L0.json`
+- `owner_session_p1_fix3c_block_01_L0.json`
+- `owner_session_p1_fix3c_block_02_L1.json`
+- `owner_session_p1_fix3c_block_03_L2.json`
+- `owner_session_p1_fix3c_block_04_L3.json`
+- `owner_session_p1_fix3c_block_05_L4.json`
+- `owner_session_p1_fix3c_block_06_L0.json`
 
 Preflight, rehearsal and session share setup: native/no-agent/charger/80% battery checks,
 cores/affinity, root/su/pump masks and policies, thermal/sensor checks,
@@ -184,9 +192,14 @@ the unchanged full-session schedule. Outputs and the **NOT VALID** mock dry run:
 skin/status failures, late completion during joins, camera ON/OFF, block and
 rehearsal_pass) and the camera cleanup pidof checks; FIX3B outputs:
 `checks/p1_fix3b/`.
+`self_check_fix3c.py` reproduces the owner failure on the base guard with the archived
+monitor_errors line, passes it after the fix, refuses identical text outside our tree, fails
+closed on unreadable/hidden/cyclic ancestry, checks real `/proc` ancestry with an own child and a
+reparented orphan, and audits every command line the runner spawns (only diagnostics `node` and
+the owned llama-server match; both are direct children). FIX3C outputs: `checks/p1_fix3c/`.
 No live timed block/session/root preflight/rehearsal was run by the Coder;
 agents resident invalidate timing and proot cannot reach root. The owner
-rehearsal is the first live run of the fix3 code; all live paths (root
+rehearsal is the first live run of the fix3c code; all live paths (root
 affinity, PSS with the camera off and on, camera restarts, real fallback
 M2/YOLO overlap, selector HTTP/context/timeouts, pauses and native cleanup)
 remain unvalidated until it passes.

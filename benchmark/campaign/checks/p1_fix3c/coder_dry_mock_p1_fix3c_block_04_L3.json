@@ -1,0 +1,197 @@
+{
+  "block": "L3",
+  "validity": "NOT VALID \u2014 DRY RUN (all hardware mocked)",
+  "mock_only": true,
+  "worker_errors": [],
+  "reads": [
+    {
+      "t": 0.005914672976359725,
+      "frame": 1,
+      "age_s": 0.1
+    },
+    {
+      "t": 2.001815715979319,
+      "frame": 2,
+      "age_s": 0.1
+    },
+    {
+      "t": 3.001722698973026,
+      "frame": 3,
+      "age_s": 0.1
+    },
+    {
+      "t": 4.002702558005694,
+      "frame": 4,
+      "age_s": 0.1
+    },
+    {
+      "t": 5.0016426219954155,
+      "frame": 5,
+      "age_s": 0.1
+    }
+  ],
+  "yolo": [
+    {
+      "slot_s": 0,
+      "started_s": 0.005923054995946586,
+      "ended_s": 0.011295736010652035,
+      "size": 320,
+      "ms": 5.377523018978536,
+      "n_detections": 2
+    },
+    {
+      "slot_s": 0,
+      "started_s": 0.011320434976369143,
+      "ended_s": 0.016495605988893658,
+      "size": 640,
+      "ms": 5.1817220519296825,
+      "n_detections": 2
+    },
+    {
+      "slot_s": 2,
+      "started_s": 2.001899985014461,
+      "ended_s": 2.0073891209904104,
+      "size": 320,
+      "ms": 5.5044759646989405,
+      "n_detections": 2
+    },
+    {
+      "slot_s": 3,
+      "started_s": 3.001812583010178,
+      "ended_s": 3.0072416600305587,
+      "size": 320,
+      "ms": 5.439900967758149,
+      "n_detections": 2
+    },
+    {
+      "slot_s": 4,
+      "started_s": 4.002833782986272,
+      "ended_s": 4.008994468022138,
+      "size": 320,
+      "ms": 6.172241002786905,
+      "n_detections": 2
+    },
+    {
+      "slot_s": 5,
+      "started_s": 5.001741416985169,
+      "ended_s": 5.007550376991276,
+      "size": 320,
+      "ms": 5.823934043291956,
+      "n_detections": 2
+    },
+    {
+      "slot_s": 5,
+      "started_s": 5.0076329369912855,
+      "ended_s": 5.013375247013755,
+      "size": 640,
+      "ms": 5.759156018029898,
+      "n_detections": 2
+    }
+  ],
+  "m2": [
+    {
+      "slot_s": 0,
+      "frame": 1,
+      "started_s": 0.019533040991518646,
+      "ended_s": 1.2210597340017557,
+      "scene": "live",
+      "live_boxes": 2,
+      "input_boxes": 2,
+      "ms": 1201.526693010237,
+      "inference_ms": 10.0,
+      "inference_executed": true,
+      "context": "M2 relations:\n- person [0] next to chair [1]."
+    },
+    {
+      "slot_s": 5,
+      "frame": 5,
+      "started_s": 5.02023767400533,
+      "ended_s": 6.221104088996071,
+      "scene": "live",
+      "live_boxes": 2,
+      "input_boxes": 2,
+      "ms": 1200.8664149907418,
+      "inference_ms": 10.0,
+      "inference_executed": true,
+      "context": "M2 relations:\n- person [0] next to chair [1]."
+    }
+  ],
+  "selector": [
+    {
+      "slot_s": 0,
+      "started_s": 0.005737141997087747,
+      "ended_s": 0.01584033202379942,
+      "context": "M2 relations:\n- none above threshold.",
+      "late_s": 0.005737141997087747,
+      "ms": 10.0,
+      "prompt_tokens": 100,
+      "miss": false,
+      "timeout": false
+    }
+  ],
+  "frames_due": {
+    "320": 6,
+    "640": 2
+  },
+  "frames_skipped": {
+    "320": 1,
+    "640": 0
+  },
+  "camera_late": 0,
+  "duration_s": 6.222450077009853,
+  "cadence_missed": true,
+  "summary": {
+    "yolo": {
+      "320": {
+        "due": 6,
+        "done": 5,
+        "skipped": 1,
+        "median_ms": 5.5044759646989405,
+        "p95_ms": 6.172241002786905
+      },
+      "640": {
+        "due": 2,
+        "done": 2,
+        "skipped": 0,
+        "median_ms": 5.4704390349797904,
+        "p95_ms": 5.759156018029898
+      }
+    },
+    "camera_frames_delivered": 5,
+    "camera_frames_late": 0,
+    "m2": {
+      "calls": 2,
+      "slots": 2,
+      "live_calls": 2,
+      "fallback_calls": 0,
+      "insufficient_box_slots": 0,
+      "median_ms": 1201.1965540004894,
+      "p95_ms": 1201.526693010237,
+      "inference_stats": {
+        "median_ms": 10.0,
+        "p95_ms": 10.0
+      }
+    },
+    "selector": {
+      "calls": 1,
+      "median_ms": 10.0,
+      "p95_ms": 10.0,
+      "prompt_tokens": [
+        100
+      ],
+      "misses": 0,
+      "timeouts": 0
+    }
+  },
+  "power_summary": {
+    "mean_battery_w": null,
+    "covered_s": 0.0,
+    "samples": 0,
+    "gaps": 0,
+    "inside_samples": 0,
+    "outside_samples": 0,
+    "read_overlaps_call_boundary": 0,
+    "period_s": 0.37,
+    "method": "trapezoid over receipt times; lag remains a method limitation"
+  }
+}
