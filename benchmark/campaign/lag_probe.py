@@ -30,7 +30,8 @@ def main(argv=None):
     rt.dump_check(cr)
     datum,_,image=sb.load_speed_input()
     boxes=datum['detections']
-    result=dict(label=LABEL,hashes=hashes,power=[],fast=[],dumps=[],errors=[],calls=[],quiet_before_s=20,load_s=10,quiet_after_s=20,root_mask_verification_period_s=1.)
+    result=dict(label=LABEL,hashes=hashes,power=[],fast=[],dumps=[],errors=[],calls=[],quiet_before_s=20,load_s=10,quiet_after_s=20,root_mask_verification_period_s=1.,
+             thermal_retries=rt.THERMAL_RETRIES)
     stop=threading.Event(); threads=[]; monitors=[]; caller=head=None; root_scope=None; screen=sb.Screen()
     lock_path=rt.HOME/'.cache/campaign_p1.lock'; lock_path.parent.mkdir(parents=True,exist_ok=True)
     with lock_path.open('a') as lock:
@@ -56,7 +57,7 @@ def main(argv=None):
                 result['power'],result['errors'],lambda:rt.verify_monitor(sb,monitor,{6,7}),0,True),daemon=True)
             threads.append(thread); thread.start()
             for period,read,rows in ((1,lambda:cr.fast_sample(fast_monitor[0],cr.fast_keys(fast_monitor[3])),result['fast']),
-                                     (5,cr.read_dump,result['dumps'])):
+                                     (5,lambda:rt.read_dump(cr),result['dumps'])):
                 thread=threading.Thread(target=worker,args=(period,read,rows),daemon=True); threads.append(thread); thread.start()
             def guard():
                 cr.check_cores('lag probe')

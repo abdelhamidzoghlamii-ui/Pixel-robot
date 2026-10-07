@@ -146,6 +146,7 @@ def check_audit():
         'rt.camera_version': lambda: rt.camera_version(cr),
         'rt.memory_sample (root_sample + pidof)': lambda: rt.memory_sample(cr, 4242, False),
         'cr.read_dump': cr.read_dump,
+        'rt.read_dump (campaign thermal, per-thread tag)': lambda: rt.read_dump(cr),
         'cr.lmk_lines': lambda: cr.lmk_lines(0.),
         'cr.camera_end_check': lambda: cr.camera_end_check(rootf=cr.root, quiet_s=0, limit_s=0),
         'sb.battery_sample': sb.battery_sample,

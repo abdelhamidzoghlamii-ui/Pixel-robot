@@ -1,4 +1,4 @@
-# CAMPAIGN_P1_FIX3C owner steps
+# CAMPAIGN_P1_FIX3D owner steps
 
 M2 fp32 is a benchmark candidate, not deployed. This screens speed, memory,
 heat and power; **selector accuracy with relation context is NOT evaluated**.
@@ -32,20 +32,41 @@ server pid); command text is never trusted. A matching process outside our tree,
 identical command line, is still refused, and unreadable ancestry is refused too (fail closed).
 A matched pid that has already exited when its ancestry is read is no longer resident and is skipped.
 
+Fix3d: `owner_session_p1_fix3c2` stopped in the camera-ON idle sub-phase because one checked thermal read
+returned rc 0 with no skin and no status. `owner_session_p1_fix3c` stopped 5 s into the first idle
+sub-phase with the same signature, from the thermal worker. The likely cause: the thermal worker and the
+main thread's checks wrote the same root output file (`coresidency_thermalservice.txt`), so one read
+could `cat` the file just after the other had truncated it. Each thread now uses its own file
+(`campaign_thermal_<tid>`). Also, a read with rc 0 but missing or unparsable skin or status is retried:
+at most 3 attempts, 0.5 s apart. A retry is started and accepted only within 2 s of the end of the first
+read. Its `su` timeout is the time left, and a retry that ends later (a slow retry, or a slow process
+launch the timeout does not cover) counts as incomplete and fails closed. At the measured 0.2 s per
+read, 3 attempts end 1.6 s after the start. Retries add at most 2 s to an accepted read. A failing read
+can take longer, by at most the launch/cleanup time of the last retry and an OS oversleep of the
+last pause. The first read keeps its existing 30 s timeout. Worker slots stay on their 4.87 s grid;
+any read longer than the period skips a slot (a 4.87 s gap, never bunched), which is the existing
+behaviour for slow reads. The 0.12–0.20 s reads measured so far never come close.
+A partial read showing a stop status (≥ 4) is never retried. rc ≠ 0, a reader error, or a read
+still incomplete after the attempts or the window stop the phase (fail closed).
+Each thermal row records `attempts`. Each incomplete attempt keeps its raw output (1 KB): in the row
+(`incomplete_attempts`), in the JSON's `thermal_retries` for every caller, or, when no read completes,
+in the error. The lag probe's thermal worker now uses the same checked reader and also saves
+`thermal_retries`.
+
 Use a fresh stem for every invocation, changing it in all three filenames.
 Commands use shell noclobber (`set -C`) to protect stdout/stderr; the runner
 refuses existing JSON/block/warm-up/server evidence. Never truncate, remove
 or reuse evidence. Both steps run the full preflight setup first (the same
 setup as `--preflight`, which already passed as `owner_preflight_p1_fix3`).
 
-1. Owner rehearsal, **NOT VALID**, about **12 minutes** (estimate, not
+1. Optional owner rehearsal, **NOT VALID**, about **12 minutes** (estimate, not
 measured: about 4 min of shortened phases plus setup, model builds, camera
 transitions, 37 real diagnostics snapshots of 4–15 s each and cleanup; 10–15 min). Same setup as the
 session (battery ≥ 80%, charger unplugged, screen ON, Termux in front, no
 agents):
 
 ```sh
-(set -C; python -u ~/robot/benchmark/campaign/phase1.py --dry-run --output ~/storage/downloads/campaign/owner_rehearsal_p1_fix3c.json > ~/storage/downloads/campaign/owner_rehearsal_p1_fix3c.stdout 2> ~/storage/downloads/campaign/owner_rehearsal_p1_fix3c.stderr)
+(set -C; python -u ~/robot/benchmark/campaign/phase1.py --dry-run --output ~/storage/downloads/campaign/owner_rehearsal_p1_fix3d.json > ~/storage/downloads/campaign/owner_rehearsal_p1_fix3d.stdout 2> ~/storage/downloads/campaign/owner_rehearsal_p1_fix3d.stderr)
 ```
 
 It runs every live path of the session with real root, battery, sensors,
@@ -68,33 +89,35 @@ fewer than two objects: fix the scene before the session. Any other failure:
 send the files and do not start the session.
 
 Send these exact files, only those actually created:
-`owner_rehearsal_p1_fix3c.json`, `.stdout`, `.stderr`,
-`owner_rehearsal_p1_fix3c_llama-server.log`,
-`owner_rehearsal_p1_fix3c_warmup_L0.json`, and
-`owner_rehearsal_p1_fix3c_block_01_L0.json`, `_block_02_L1.json`,
+`owner_rehearsal_p1_fix3d.json`, `.stdout`, `.stderr`,
+`owner_rehearsal_p1_fix3d_llama-server.log`,
+`owner_rehearsal_p1_fix3d_warmup_L0.json`, and
+`owner_rehearsal_p1_fix3d_block_01_L0.json`, `_block_02_L1.json`,
 `_block_03_L2.json`, `_block_04_L3.json`, `_block_05_L4.json`,
 `_block_06_L0.json`.
 
-2. Full session, only after the rehearsal passed. Recharge to **≥ 80%** if
+2. Full session. The fix3c rehearsal already ran every phase with no errors; only live M2 calls were
+missing, because the phone lay on its back. With the phone upright and facing the table, you may start
+the session directly or run step 1 first. Recharge to **≥ 80%** if
 needed, then unplug the charger. One command, approximately **85–90 minutes**
 (86 minutes scheduled plus setup, model builds, camera transitions and cleanup):
 
 ```sh
-(set -C; python -u ~/robot/benchmark/campaign/phase1.py --output ~/storage/downloads/campaign/owner_session_p1_fix3c.json > ~/storage/downloads/campaign/owner_session_p1_fix3c.stdout 2> ~/storage/downloads/campaign/owner_session_p1_fix3c.stderr)
+(set -C; python -u ~/robot/benchmark/campaign/phase1.py --output ~/storage/downloads/campaign/owner_session_p1_fix3d.json > ~/storage/downloads/campaign/owner_session_p1_fix3d.stdout 2> ~/storage/downloads/campaign/owner_session_p1_fix3d.stderr)
 ```
 
 Send these exact files, only those actually created:
 
-- `owner_session_p1_fix3c.json` (includes idle sub-phases and all pauses)
-- `owner_session_p1_fix3c.stdout`, `owner_session_p1_fix3c.stderr`
-- `owner_session_p1_fix3c_llama-server.log`
-- `owner_session_p1_fix3c_warmup_L0.json`
-- `owner_session_p1_fix3c_block_01_L0.json`
-- `owner_session_p1_fix3c_block_02_L1.json`
-- `owner_session_p1_fix3c_block_03_L2.json`
-- `owner_session_p1_fix3c_block_04_L3.json`
-- `owner_session_p1_fix3c_block_05_L4.json`
-- `owner_session_p1_fix3c_block_06_L0.json`
+- `owner_session_p1_fix3d.json` (includes idle sub-phases and all pauses)
+- `owner_session_p1_fix3d.stdout`, `owner_session_p1_fix3d.stderr`
+- `owner_session_p1_fix3d_llama-server.log`
+- `owner_session_p1_fix3d_warmup_L0.json`
+- `owner_session_p1_fix3d_block_01_L0.json`
+- `owner_session_p1_fix3d_block_02_L1.json`
+- `owner_session_p1_fix3d_block_03_L2.json`
+- `owner_session_p1_fix3d_block_04_L3.json`
+- `owner_session_p1_fix3d_block_05_L4.json`
+- `owner_session_p1_fix3d_block_06_L0.json`
 
 Preflight, rehearsal and session share setup: native/no-agent/charger/80% battery checks,
 cores/affinity, root/su/pump masks and policies, thermal/sensor checks,
@@ -197,9 +220,22 @@ monitor_errors line, passes it after the fix, refuses identical text outside our
 closed on unreadable/hidden/cyclic ancestry, checks real `/proc` ancestry with an own child and a
 reparented orphan, and audits every command line the runner spawns (only diagnostics `node` and
 the owned llama-server match; both are direct children). FIX3C outputs: `checks/p1_fix3c/`.
+`self_check_fix3d.py` uses the real `dump_once` and parser behind a fake `cr.root`. It checks: one empty
+read then success (passes, attempts 2, raw kept); partial/oversized raw (truncated); three empty reads
+(fails closed, 3 raws in the error); rc ≠ 0, timeout and OSError (fail at once, no retry); a partial
+status-4 read (fails at once, in the reader, the `rest()` check and the worker); and the retry window.
+For the window, retries start and are accepted only within 2 s of the first read's end, for first reads
+of 0.01–29 s, retries of 0.01–29.9 s, a 0/3 s launch outside the timeout and an OS oversleep of
+0/0.3/3 s. A late complete retry fails closed; the round-2 code accepted it. It also checks the 4.87 s
+worker grid: a 2.2 s read skips no slot, and a 5.0 s read skips exactly one. `self_check.py`'s
+lag-probe lifecycle covers its checked thermal worker.
+It also reproduces the shared-file race with cr.root's exact su form and a fake su/dumpsys in a forced
+interleaving (shared tag: rc 0, no skin, no status; per-thread tags: both complete). Finally, it covers
+the real `dump_check` in `rest()` (camera OFF and ON, last in-phase check) and at `live_block()`
+skin_end (session and rehearsal). FIX3D outputs: `checks/p1_fix3d/`.
 No live timed block/session/root preflight/rehearsal was run by the Coder;
 agents resident invalidate timing and proot cannot reach root. The owner
-rehearsal is the first live run of the fix3c code; all live paths (root
+session (or optional rehearsal) is the first live run of the fix3d code; all live paths (root
 affinity, PSS with the camera off and on, camera restarts, real fallback
 M2/YOLO overlap, selector HTTP/context/timeouts, pauses and native cleanup)
 remain unvalidated until it passes.

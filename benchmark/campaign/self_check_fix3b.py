@@ -20,27 +20,37 @@ BAD = {'rc=1': dict(GOOD, rc=1), 'rc None': dict(GOOD, rc=None), 'error': dict(G
 
 
 def check_reader():
-    cr = NS(read_dump=lambda: dict(GOOD), STATUS_STOP=4)
-    assert rt.read_dump(cr) == GOOD and rt.dump_check(cr) == GOOD and rt.thermal_row_failures([GOOD]) == []
+    cr = NS(STATUS_STOP=4)
+    def reads(row):
+        return patch.object(rt, 'dump_once', side_effect=lambda cr, timeout=30: dict(row)), patch.object(rt, 'DUMP_PAUSE_S', 0)
+    with contextlib.ExitStack() as stack:
+        for m in reads(GOOD):stack.enter_context(m)
+        assert rt.read_dump(cr) == dict(GOOD, attempts=1) and rt.dump_check(cr) == dict(GOOD, attempts=1)
+        assert rt.thermal_row_failures([GOOD]) == []
     for name, row in BAD.items():
-        cr.read_dump = lambda row=row: dict(row)
-        for reader in (rt.read_dump, rt.dump_check):
-            try:reader(cr)
-            except RuntimeError as e:assert 'thermal read failed' in str(e), (name, e)
-            else:raise AssertionError(f'{name} accepted by {reader.__name__}')
+        with contextlib.ExitStack() as stack:
+            for m in reads(row):stack.enter_context(m)
+            for reader in (rt.read_dump, rt.dump_check):
+                try:reader(cr)
+                except RuntimeError as e:assert 'thermal read failed' in str(e), (name, e)
+                else:raise AssertionError(f'{name} accepted by {reader.__name__}')
         assert len(rt.thermal_row_failures([GOOD, row])) == 1, name
-    cr.read_dump = lambda: dict(GOOD, status=4)
-    try:rt.dump_check(cr)
-    except RuntimeError as e:assert 'thermal stop' in str(e)
-    else:raise AssertionError('thermal stop accepted')
+    with contextlib.ExitStack() as stack:
+        for m in reads(dict(GOOD, status=4)):stack.enter_context(m)
+        try:rt.dump_check(cr)
+        except RuntimeError as e:assert 'thermal stop' in str(e)
+        else:raise AssertionError('thermal stop accepted')
     # Diagnostics read the same checked reader.
     text = '/battery/capacity\t85\n/battery/temp\t287\n/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq\t1401000\n'
-    cr = NS(BATTERY='/battery', root=lambda *a, **k: (0, text), read_dump=lambda: dict(GOOD))
-    assert d.snapshot(cr, True)['skin'] == 30.5
-    cr.read_dump = lambda: dict(BAD['rc=1'])
-    try:d.snapshot(cr, False)
-    except RuntimeError as e:assert 'thermal read failed' in str(e)
-    else:raise AssertionError('diagnostics accepted a failed thermal read')
+    cr = NS(BATTERY='/battery', root=lambda *a, **k: (0, text))
+    with contextlib.ExitStack() as stack:
+        for m in reads(GOOD):stack.enter_context(m)
+        assert d.snapshot(cr, True)['skin'] == 30.5
+    with contextlib.ExitStack() as stack:
+        for m in reads(BAD['rc=1']):stack.enter_context(m)
+        try:d.snapshot(cr, False)
+        except RuntimeError as e:assert 'thermal read failed' in str(e)
+        else:raise AssertionError('diagnostics accepted a failed thermal read')
     print('PASS checked thermal reader: rc=1/None/missing, error, skin None/nan, status None/str rejected by read_dump, dump_check and diagnostics; thermal stop kept')
 
 
@@ -59,15 +69,17 @@ def check_rest_late_thermal():
     print('PASS rest() camera OFF and ON: late failed thermal reads (rc=1, error, skin None, status None) during join stop the phase; coverage excludes it')
 
 
-def live_record(dry, rows):
-    """live_block with the fix3 harness shape; run_cycle mock leaves `rows` as the collected thermal rows."""
+def live_record(dry, rows, reads=None):
+    """live_block with the fix3 harness shape; run_cycle mock leaves `rows` as the collected thermal rows.
+    reads: rt.dump_once replacement, with the real rt.dump_check (FIX3D)."""
     v, sb, pm, cr, _ = rt.imports()
     with tempfile.TemporaryDirectory() as tmp, contextlib.ExitStack() as stack:
         monitor = (NS(close=MagicMock()), {0}, 10, {'policies': {'policy0': 1}, 'cpu_zones': {}})
         for m in (patch.object(rt, 'prepare', return_value=monitor), patch.object(pm, 'build_detector', return_value=(NS(close=MagicMock()), {'worker_tids': [], 'caller_tid': 1})),
                   patch.object(v, 'build', return_value=(None, NS(close=MagicMock()), [])), patch.object(rt, 'clear_processes'), patch.object(cr, 'check_cores'),
                   patch.object(sb, 'battery_sample'), patch.object(rt, 'fast_check', return_value={}), patch.object(pm, 'camera_start', return_value={'session': 's'}),
-                  patch.object(rt, 'dump_check', return_value={'skin': 30, 'status': 0}), patch.object(p, 'bounded_selector'), patch.object(cr, 'load_cases', return_value=[{}]),
+                  patch.object(rt, 'dump_check', **({'wraps': rt.dump_check} if reads else {'return_value': {'skin': 30, 'status': 0}})),
+                  patch.object(rt, 'dump_once', side_effect=reads), patch.object(p, 'bounded_selector'), patch.object(cr, 'load_cases', return_value=[{}]),
                   patch.object(p.power, 'sample', return_value={'t': 0, 't_start': 0, 'battery_w': 1}),
                   patch.object(p.threading, 'Thread', return_value=NS(start=lambda: None, join=lambda timeout=None: None, is_alive=lambda: False)),
                   patch.object(rt, 'stop_camera'), patch.object(cr, 'lmk_lines', return_value={'ok': True, 'n_kills': 0}), patch.object(cr, 'block_limit', return_value=None),

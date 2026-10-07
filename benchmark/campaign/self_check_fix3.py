@@ -87,10 +87,11 @@ def check_memory_sample():
     print('PASS 37 owner camera-OFF samples: pre-fix fail, fixed pass, camera ON fail; root/battery/provider/server/parse and unconfirmed-absence (pidof) failures still fail')
 
 
-def rest_harness(module, camera_on, text, pidof=NO_APP, late_failure=False, late_dump=None, late_row=None):
+def rest_harness(module, camera_on, text, pidof=NO_APP, late_failure=False, late_dump=None, late_row=None, reads=None):
     """self_check_fix2.check_rest wiring, with the real root_sample parser behind a mocked root.
     late_dump: the thermal reader runs once more during its join and returns this row (FIX3B);
-    late_row: this row is appended to the thermal rows during the join, bypassing the reader."""
+    late_row: this row is appended to the thermal rows during the join, bypassing the reader;
+    reads: rt.dump_once replacement, with the real rt.dump_check (FIX3D)."""
     v, sb, pm, cr, _ = rt.imports()
     with contextlib.ExitStack() as stack:
         clock = [100.]; pending = []; joining = []
@@ -125,9 +126,10 @@ def rest_harness(module, camera_on, text, pidof=NO_APP, late_failure=False, late
                   patch.object(rt, 'root_mask_scope', return_value=contextlib.nullcontext()), patch.object(d, 'battery', return_value=85),
                   patch.object(d, 'snapshot', side_effect=lambda cr, on: dict(camera_on=on)), patch.object(rt, 'stop_camera'),
                   patch.object(pm, 'camera_start', return_value={'session': 'mock'}), patch.object(rt, 'clear_processes'),
-                  patch.object(sb, 'battery_sample'), patch.object(cr, 'check_cores'), patch.object(rt, 'dump_check'),
+                  patch.object(sb, 'battery_sample'), patch.object(cr, 'check_cores'),
+                  patch.object(rt, 'dump_check', **({'wraps': rt.dump_check} if reads else {})),
                   patch.object(rt, 'fast_check', return_value={'t': 100., 'max': {'policy0': 1803000}}),
-                  patch.object(cr, 'read_dump', side_effect=lambda: dict(dump[0])),
+                  patch.object(rt, 'dump_once', side_effect=reads or (lambda cr, timeout=30: dict(dump[0]))),
                   patch.object(cr, 'meminfo_mib', side_effect=meminfo),
                   patch.object(cr, 'root', side_effect=rooted((0, text), pidof)),
                   patch.object(cr, 'monitor_loop', side_effect=monitor_loop), patch.object(cr, 'block_limit', side_effect=block_limit),

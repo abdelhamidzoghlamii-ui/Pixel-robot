@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import threading
 import time
 
 HERE = Path(__file__).resolve().parent
@@ -185,12 +186,64 @@ def thermal_failure(d):
     return None
 
 
+DUMP_ATTEMPTS, DUMP_RETRY_S, DUMP_PAUSE_S, RAW_KEEP = 3, 2.0, 0.5, 1024
+# Copy of every complete read that needed a retry, from any caller, t in raw monotonic s (phase1 'thermal_retries').
+THERMAL_RETRIES = []
+
+
+def dump_once(cr, timeout=30):
+    """cr.read_dump's read and parse, plus the raw output (key 'raw').
+
+    The tag (file) is per thread: the idle/pause/block thermal worker and the main thread's checks
+    shared coresidency_thermalservice.txt, so one read could cat it while the other truncated it
+    (rc 0, no skin/status; the likely cause in owner_session_p1_fix3c/fix3c2).
+    """
+    start = time.monotonic()
+    try:
+        rc, text = cr.root('dumpsys thermalservice', f'campaign_thermal_{threading.get_native_id()}', timeout=timeout)
+        d = {'rc': rc, **{k: v for k, v in cr.parse_dump(text).items() if k in ('status', 'skin')}}
+    except (OSError, subprocess.SubprocessError) as e:
+        text, d = '', {'rc': None, 'error': f'{type(e).__name__}: {e}', 'status': None, 'skin': None}
+    return {'t': time.monotonic(), 't_start': start, **d, 'raw': text}
+
+
 def read_dump(cr):
-    """Checked thermal reader: a failed or incomplete thermalservice read raises."""
-    d = cr.read_dump()
-    if why := thermal_failure(d):
-        raise RuntimeError('thermal read failed: '+why)
-    return d
+    """Checked thermal reader; returns the first complete read with its attempt count.
+
+    Only an incomplete read (rc 0, no error, skin or status missing/unparsable, no stop status) is
+    retried: at most DUMP_ATTEMPTS reads, DUMP_PAUSE_S apart, within DUMP_RETRY_S after the first read
+    ended. A retry starts and is accepted only inside that window (its su timeout is the time left; a
+    retry ending later, e.g. after a slow launch, counts as incomplete). Each incomplete attempt keeps its raw
+    output (RAW_KEEP chars) in the row and THERMAL_RETRIES or, when no read completes, in the error.
+    rc != 0, an error or a parsed status >= cr.STATUS_STOP raises at once; a persistent incomplete
+    read raises when the attempts or the window run out.
+    """
+    began, incomplete, deadline = time.monotonic(), [], None
+    for attempt in range(1, DUMP_ATTEMPTS+1):
+        start = time.monotonic()
+        d = dump_once(cr) if deadline is None else dump_once(cr, timeout=deadline-start)
+        raw = d.pop('raw', '')
+        why = thermal_failure(d)
+        if not why and deadline is not None and time.monotonic() > deadline:
+            why = f'retry ended after the {DUMP_RETRY_S} s window'
+        if not why:
+            d['attempts'] = attempt
+            if incomplete:
+                d['incomplete_attempts'] = incomplete
+                THERMAL_RETRIES.append(dict(d))
+            return d
+        incomplete.append(dict(attempt=attempt, start_offset_s=start-began, elapsed_s=time.monotonic()-start,
+                               why=why, raw=raw[:RAW_KEEP]))
+        status = d.get('status')
+        if (d.get('rc') != 0 or d.get('error') or (type(status) is int and status >= cr.STATUS_STOP)
+                or attempt == DUMP_ATTEMPTS):
+            break
+        if deadline is None:
+            deadline = time.monotonic() + DUMP_RETRY_S
+        time.sleep(min(DUMP_PAUSE_S, max(0., deadline-time.monotonic())))
+        if time.monotonic() >= deadline:
+            break
+    raise RuntimeError(f'thermal read failed: {why} (attempts {len(incomplete)}: {incomplete!r})')
 
 
 def thermal_row_failures(rows):

@@ -146,12 +146,12 @@ def check_runtime():
             except RuntimeError:pass
             else:raise AssertionError('resident accepted')
     with patch.object(rt.subprocess,'run',return_value=NS(returncode=0,stdout='99999 llama-server',stderr='')):rt.clear_processes(99999)
-    cr=NS(read_dump=lambda:dict(t=0,skin=30,status=0),SKIN_GATE_C=1.5,STATUS_STOP=4)
+    cr=NS(SKIN_GATE_C=1.5,STATUS_STOP=4)
     for skin,status in ((None,0),(30,None),(30,4)):
-        cr.read_dump=lambda:dict(rc=0,skin=skin,status=status);cr.STATUS_STOP=4
-        try:rt.dump_check(cr)
-        except RuntimeError:pass
-        else:raise AssertionError('thermal missing accepted')
+        with patch.object(rt,'dump_once',side_effect=lambda cr,timeout=30:dict(rc=0,skin=skin,status=status)),patch.object(rt,'DUMP_PAUSE_S',0):
+            try:rt.dump_check(cr)
+            except RuntimeError:pass
+            else:raise AssertionError('thermal missing accepted')
     cr.root=lambda *a:(0,'versionCode=42 versionName=1.2')
     assert rt.camera_version(cr)==dict(versionCode='42',versionName='1.2')
     cr.root=lambda *a:(0,'no version')
@@ -220,9 +220,12 @@ class InlineThread:
 
 def check_lag_lifecycle():
     v,sb,pm,cr,_=rt.imports()
-    for fail in (None,'sampler','inference','cleanup'):
+    for fail in (None,'sampler','inference','cleanup','thermal','thermal_retry'):
+        ok=fail in (None,'thermal_retry')
+        rt.THERMAL_RETRIES.clear()
         with tempfile.TemporaryDirectory() as tmp,contextlib.ExitStack() as stack:
             clock=[100.]
+            dumps=[dict(rc=0,skin=None,status=None)]*(3 if fail=='thermal' else 1 if fail=='thermal_retry' else 0)
             stack.enter_context(patch.object(lp.time,'monotonic',side_effect=lambda:clock[0]))
             stack.enter_context(patch.object(lp.time,'sleep',side_effect=lambda dt:clock.__setitem__(0,clock[0]+dt)))
             shell=NS(close=MagicMock())
@@ -246,22 +249,26 @@ def check_lag_lifecycle():
                       patch.object(power,'sampler',side_effect=sampler),patch.object(lp.threading,'Thread',InlineThread),
                       patch.object(cr,'monitor_loop',side_effect=lambda period,read,rows,stop:rows.append(read())),
                       patch.object(cr,'fast_sample',return_value={'t':100.,'bat_c':30,'cpu_c':50}),
-                      patch.object(cr,'read_dump',return_value={'t':100.,'rc':0,'skin':30,'status':0}),patch.object(cr,'block_limit',return_value=None)):
+                      patch.object(rt,'dump_once',side_effect=lambda cr,timeout=30:dict(dumps.pop(0) if dumps else {'t':100.,'rc':0,'skin':30,'status':0})),
+                      patch.object(cr,'block_limit',return_value=None)):
                 stack.enter_context(m)
             if fail=='cleanup':caller.close.side_effect=RuntimeError('cleanup')
             output=Path(tmp)/'lag.json'
             stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
             try:lp.main(['--output',str(output)])
-            except (RuntimeError,SystemExit):assert fail
-            else:assert not fail
+            except (RuntimeError,SystemExit):assert not ok
+            else:assert ok
             result=json.loads(output.read_text())
             assert result['label']==lp.LABEL
-            assert result['complete']==(fail is None)
-            if not fail:
+            assert result['complete']==ok
+            if fail=='thermal':assert 'thermal read failed' in str(result['errors']) and not result['dumps']
+            if fail=='thermal_retry':assert result['dumps'][0]['attempts']==2 and len(result['thermal_retries'])==1
+            if ok:
                 assert 10<=result['load_end_s']-result['load_start_s']<11 and result['achieved_hz']>0
                 assert result['step_response']['current_avg_uA']['step_uA'] is None
             caller.close.assert_called_once()
-    print('PASS lag probe full quiet/load/quiet lifecycle, BIG/0-3 masks, current_avg absent, sampler/inference/cleanup failure (mocks)')
+    print('PASS lag probe full quiet/load/quiet lifecycle, BIG/0-3 masks, current_avg absent, sampler/inference/cleanup failure, '
+          'checked thermal worker (persistent incomplete fails; one incomplete then complete: attempts 2, thermal_retries saved) (mocks)')
 
 
 def check_live_block():
@@ -477,7 +484,7 @@ def check_monitor_workers():
                       patch.object(p,'bounded_selector'),patch.object(cr,'load_cases',return_value=[{}]),patch.object(power,'sample',return_value={'t':0,'t_start':0,'battery_w':1}),
                       patch.object(p.threading,'Thread',Deferred),patch.object(p.threading,'Event',Stop),patch.object(rt,'stop_camera'),patch.object(cr,'lmk_lines',return_value={'ok':True}),
                       patch.object(cr,'block_limit',return_value=None),patch.object(rt,'fast_check',return_value={'t':time.monotonic(),'t_start':time.monotonic(),'max':{}}),
-                      patch.object(cr,'read_dump',return_value={'t':time.monotonic(),'t_start':time.monotonic(),'rc':0,'skin':30,'status':0}),
+                      patch.object(rt,'dump_once',side_effect=lambda cr,timeout=30:{'t':time.monotonic(),'t_start':time.monotonic(),'rc':0,'skin':30,'status':0}),
                       patch.object(cr,'root_sample',return_value={'root_rc':0,'battery_status':'Discharging','pss_kb':{'llama_server':1}}),
                       patch.object(p.os,'sched_setaffinity'),patch.object(p.os,'sched_getaffinity',return_value={4} if bad_mask else {0}),
                       patch.object(pm,'capped_by_policy',return_value={})):stack.enter_context(m)

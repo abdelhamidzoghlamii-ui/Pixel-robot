@@ -1,0 +1,19 @@
+ok: parse_dump and every stop condition at its edge
+ok: persistent root shell, discovery, 1 s sample parsing, timeout recovery, slow read stamped at completion, missing CPU zone refused
+ok: interrupted request keeps its 5 streamed tokens; without a load stop it is a load failure
+ok: a slow thermalservice dump is stamped at completion (start kept)
+ok: duration: stop "planned load duration 8 s reached" after 8.1 s of load, exit 0
+ok: skin: stop "VIRTUAL-SKIN 48.0 >= 48.0 degC" after 3.3 s of load, exit 0
+ok: battery: stop "battery 45.0 >= 45.0 degC" after 3.3 s of load, exit 0
+ok: status: stop "Android thermal status 5 >= 5 (EMERGENCY)" after 3.3 s of load, exit 0
+ok: cpu: stop "CPU zone >= 110 degC in 3 consecutive 1 s samples (max [110.0, 110.0, " after 3.8 s of load, exit 0
+ok: noskin: stop "fail closed: no VIRTUAL-SKIN and Android status reading for 5 s" after 5.0 s of load, exit 1
+ok: skinlost: stop "fail closed: no VIRTUAL-SKIN and Android status reading for 5 s" after 5.0 s of load, exit 1
+ok: sensorfail: stop "fail closed: no battery temperature reading for 6 s" after 6.4 s of load, exit 1
+ok: noframes: stop "load failed: no new RobotCam frame for 2 s" after 4.5 s of load, exit 1
+ok: serverdie: stop "load failed: llama-server request failed: RuntimeError: stream ended w" after 3.0 s of load, exit 1
+ok: cores: stop "cores 4-7 lost (allowed [0, 1, 2, 3, 4, 5])" after 3.0 s of load, exit 1
+ok: startup: stop "during startup: VIRTUAL-SKIN 48.5 >= 48.0 degC", exit 1
+ok: detectfail: stop "load failed: frame/detect loop failed: ValueError: fake detector failu" after 3.0 s of load, exit 1
+ok: sigterm: stop "aborted: SystemExit: 143" after 2.0 s of load, exit 143
+ALL OK

@@ -720,7 +720,8 @@ def main(argv=None):
     result=dict(label='NOT VALID — DRY RUN (all hardware mocked)' if mock else REHEARSAL if rehearsal else 'SESSION STARTING',
         plan=names,minimum_s=minimum,continuation_rule=CONTINUATION,blocks=[],pauses=[],idle_phases=[],unrun_blocks=names[:],
         detector_note='Explicit task: 320 EVERY frame plus 640 every 5 s; #128 SizePolicy replaced 320 on 640 frames.',
-        context_example='M2 relations:\n- person [0] next to chair [1].',context_accuracy='NOT EVALUATED')
+        context_example='M2 relations:\n- person [0] next to chair [1].',context_accuracy='NOT EVALUATED',
+        thermal_retries=rt.THERMAL_RETRIES)
     prefix='NOT VALID — REHEARSAL: ' if rehearsal else ''
     resources={}
     lock_path=rt.HOME/'.cache/campaign_p1.lock' if not mock else Path(tempfile.gettempdir())/'campaign_p1_dry.lock'

@@ -71,5 +71,6 @@ for f in $paths; do read_node "$f"; done
                 camera_state_source='requested state; startup/stop checked by runner, no snapshot state readback',
                 battery_level=int(nodes[cr.BATTERY+'/capacity']),
                 battery_temperature_c=float(nodes[cr.BATTERY+'/temp'])/10,
-                android_thermal_status=dump['status'], skin=dump['skin'], nodes=nodes,
+                android_thermal_status=dump['status'], skin=dump['skin'], thermal_attempts=dump['attempts'],
+                thermal_incomplete_attempts=dump.get('incomplete_attempts', []), nodes=nodes,
                 raw_node_output=text)
