@@ -149,11 +149,15 @@ def check_audit():
         'rt.read_dump (campaign thermal, per-thread tag)': lambda: rt.read_dump(cr),
         'cr.lmk_lines': lambda: cr.lmk_lines(0.),
         'cr.camera_end_check': lambda: cr.camera_end_check(rootf=cr.root, quiet_s=0, limit_s=0),
-        'sb.battery_sample': sb.battery_sample,
+        'rt.battery_sample (campaign su battery read)': lambda: rt.battery_sample(sb),
         'sb.Screen start/restore': lambda: (lambda s: (s.start(), s.restore()))(sb.Screen()),
         'pm.camera_start (am)': lambda: pm.camera_start(1),
         'cr.camera_stop (am)': cr.camera_stop,
         'cr.RootShell (pumps, persistent monitor shell)': cr.RootShell,
+        # FIX4: L6, the guard's own pgrep (it matches its own pattern text); H5 screen state; H2 pid re-check.
+        'rt.clear_processes (pgrep)': rt.clear_processes,
+        'rt.screen_state (dumpsys power/activity)': lambda: rt.screen_state(cr),
+        'rt.robotcam_pidof (re-check after force-stop)': lambda: rt.robotcam_pidof(cr),
     }
     ok = {'status': 'ok', 'session': 1, 'frame': 1}
     with patch.object(cr.subprocess, 'run', side_effect=record), patch.object(cr.subprocess, 'Popen', Popen), \
@@ -173,10 +177,17 @@ def check_audit():
         report.append(dict(source=name, spawned=len(cmds), matches=hits, example=cmds[0][:160]))
     for r in report:print(json.dumps(r))
     matching = {r['source']: r['matches'] for r in report if r['matches']}
+    pgrep_hits = matching.pop('rt.clear_processes (pgrep)')
+    assert {'claude', 'agy', 'node', 'codex', 'llama-server'} <= set(pgrep_hits), pgrep_hits
     assert matching == {'diag.snapshot': ['node'], 'cr.server_cmd (llama-server Popen argv)': ['llama-server']}, matching
     assert all(r['spawned'] for r in report), report
-    print('PASS audit: of', len(report), 'spawn sources only diagnostics (node) and the owned llama-server match; '
-          'both are direct children of the runner (subprocess.run/Popen), excluded by ancestry/server pid')
+    # A pgrep overlapping another (shared-check worker and main thread) is our direct child: excluded by ancestry.
+    me = os.getpid()
+    assert refused(rt, f'4242 pgrep -fa {pattern()}', {4242: me}) is None
+    assert refused(rt, f'4242 pgrep -fa {pattern()}', {4242: 1}).startswith('RuntimeError: agents/robot/other runners resident: 4242 pgrep')
+    print('PASS audit: of', len(report), 'spawn sources only diagnostics (node), the owned llama-server and the guard\'s own pgrep '
+          '(its pattern text) match; all are direct children of the runner (subprocess.run/Popen), excluded by ancestry/server pid; '
+          'a foreign pgrep with the same text is refused')
 
 
 if __name__ == '__main__':

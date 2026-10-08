@@ -2,6 +2,8 @@
 
 Archived unchanged from owner Downloads, SHA-256 verified against each source. Includes Git-ignored `_llama-server.log` files, explicitly listed in the frozen manifest and commit proposal (force-add only after the human gate). Original inventory: [archive_sha256.json](runs/archive_sha256.json); session A/fix2 inventory: [archive_sha256_p1_fix2.json](runs/archive_sha256_p1_fix2.json); fix3 inventory: [archive_sha256_p1_fix3.json](runs/archive_sha256_p1_fix3.json); fix3c inventory: [archive_sha256_p1_fix3c.json](runs/archive_sha256_p1_fix3c.json); fix3d inventory: [archive_sha256_p1_fix3d.json](runs/archive_sha256_p1_fix3d.json).
 
+Read-only audit of the FIX3D commit 5629699 (findings H1–H5, M1–M9, L1–L8), archived unchanged from owner Downloads as [AUDIT1_REPORT.md](AUDIT1_REPORT.md), SHA-256 `d30d2bcb82d0cd469a1e4656b0e1399284c323c0a1f8c3654e0e88bfa4e8c7be` (35,215 bytes); fixed in CAMPAIGN_P1_FIX4 ([RUN.md](RUN.md)). No new owner run is archived by FIX4.
+
 | Stem | Fixed label | Evidence |
 |---|---|---|
 | [owner_lag_p1](runs/owner_lag_p1.json) | POWER LAG PROBE — method check, not a benchmark | Complete, 11.5 Hz. current_now rise 50 % 0.25 s, 90 % 0.55 s, fall 50 % 0.29 s; current_avg slow (rise 50 % 3.0 s, 90 % 6.5 s): current_now is the valid power source. |

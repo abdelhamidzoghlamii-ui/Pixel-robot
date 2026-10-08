@@ -51,7 +51,7 @@ class Screen:
         return output.strip()
 
     def start(self):
-        subprocess.run(['termux-wake-lock'], check=True)
+        subprocess.run(['termux-wake-lock'], check=True, timeout=30)
         self.locked = True
         old = self.setting('settings get system screen_off_timeout')
         if not re.fullmatch(r'[0-9]+', old):
@@ -73,7 +73,7 @@ class Screen:
                 print('screen timeout restored/read back ' + self.old + ' ms', flush=True)
         finally:
             if self.locked:
-                subprocess.run(['termux-wake-unlock'], check=True)
+                subprocess.run(['termux-wake-unlock'], check=True, timeout=30)
 
 
 def battery_sample():

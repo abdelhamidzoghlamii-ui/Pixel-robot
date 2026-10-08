@@ -20,13 +20,19 @@ def parse(text):
 
 
 def battery(cr, minimum):
-    rc, text = cr.root(f'cat {cr.BATTERY}/capacity', 'campaign_capacity')
-    try:
-        level = int(text.strip())
-    except ValueError:
-        raise RuntimeError('battery capacity unreadable')
-    if rc or not 0 <= level <= 100:
-        raise RuntimeError('battery capacity unreadable')
+    def read():
+        rc, text = cr.root(f'cat {cr.BATTERY}/capacity', 'campaign_capacity')
+        if rt.nothing(cr, text):  # an answer without output: the only re-read (H2, FIX4C)
+            raise rt.Blip(f'empty capacity answer: rc {rc}')
+        # Base parser and checks (5629699), unchanged.
+        try:
+            level = int(text.strip())
+        except ValueError:
+            raise RuntimeError('battery capacity unreadable')
+        if rc or not 0 <= level <= 100:
+            raise RuntimeError('battery capacity unreadable')
+        return level
+    level = rt.reread('battery capacity', read)
     if level < minimum:
         error = BatteryStop if minimum==25 else RuntimeError
         raise error(f'battery {level}% below {minimum}%')
@@ -53,24 +59,31 @@ paths=$(find /sys/devices/platform /sys/devices/system/cpu /sys/kernel /sys/powe
 printf 'optional_discovery\\tbest effort: readable boost min/max and power-hint nodes\\n'
 for f in $paths; do read_node "$f"; done
 '''
-    # cr.root appends '; }': a trailing newline before that semicolon cannot parse.
-    rc, text = cr.root(script.strip(), 'campaign_diagnostics')
-    if rc:
-        raise RuntimeError('diagnostics root read failed')
-    nodes = parse(text)
-    for path in (cr.BATTERY+'/capacity', cr.BATTERY+'/temp',
-                 '/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq'):
-        try:
-            if not math.isfinite(float(nodes[path])):
-                raise ValueError('nonfinite')
-        except (KeyError, ValueError):
-            raise RuntimeError('required diagnostics unreadable: '+path)
+    def read():
+        # cr.root appends '; }': a trailing newline before that semicolon cannot parse.
+        rc, text = cr.root(script.strip(), 'campaign_diagnostics')
+        if rt.nothing(cr, text):  # an answer without output: the only re-read (H2, FIX4C)
+            raise rt.Blip(f'empty diagnostics answer: rc {rc}')
+        # Base parser and checks (5629699), unchanged.
+        if rc:
+            raise RuntimeError('diagnostics root read failed')
+        nodes = parse(text)
+        for path in (cr.BATTERY+'/capacity', cr.BATTERY+'/temp',
+                     '/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq'):
+            try:
+                if not math.isfinite(float(nodes[path])):
+                    raise ValueError('nonfinite')
+            except (KeyError, ValueError):
+                raise RuntimeError('required diagnostics unreadable: '+path)
+        return text, nodes
+    text, nodes = rt.reread('diagnostics', read)
     dump = rt.read_dump(cr)
+    screen = rt.screen_state(cr)
     ended=time.monotonic()
     return dict(t=ended, read_elapsed_s=ended-began, camera_on=camera_on,
                 camera_state_source='requested state; startup/stop checked by runner, no snapshot state readback',
                 battery_level=int(nodes[cr.BATTERY+'/capacity']),
                 battery_temperature_c=float(nodes[cr.BATTERY+'/temp'])/10,
                 android_thermal_status=dump['status'], skin=dump['skin'], thermal_attempts=dump['attempts'],
-                thermal_incomplete_attempts=dump.get('incomplete_attempts', []), nodes=nodes,
+                thermal_incomplete_attempts=dump.get('incomplete_attempts', []), screen=screen, nodes=nodes,
                 raw_node_output=text)

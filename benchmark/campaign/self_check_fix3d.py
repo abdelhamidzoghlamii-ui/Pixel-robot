@@ -219,39 +219,37 @@ def scripted(main_outputs, worker_outputs=()):
 
 
 def check_rest():
+    """FIX4 M3 removed rest()'s main-loop dump_check (the owner_session_p1_fix3c2 stop site): the thermal worker
+    is the only thermal read in idle phases and pauses, with the same checked reader and retry rule."""
     for camera_on in (False, True):
         text = root_text(app=camera_on)
         reads, calls = scripted({})
         rt.THERMAL_RETRIES.clear()
         error, record = rest_harness(p, camera_on, text, reads=reads)
-        assert error is None and calls['main'] > 1 and calls['worker'] >= 1, (error, calls)
+        assert error is None and calls['main'] == 0 and calls['worker'] >= 1, (error, calls)
         assert all(r['attempts'] == 1 for r in record['dumps']) and not rt.THERMAL_RETRIES
-        last = calls['main']
-        # End-of-phase: the last main-loop check reads empty once, then completes.
-        reads, calls = scripted({last: [(0, ''), (0, FULL)]})
+        # The worker's read is empty once, then completes: the phase passes, retry + raw in THERMAL_RETRIES.
+        reads, calls = scripted({}, [(0, ''), (0, FULL)])
         with patch.object(rt.time, 'sleep'):error, record = rest_harness(p, camera_on, text, reads=reads)
-        assert error is None and record.get('error') is None and calls['main'] == last, (error, record.get('error'))
+        assert error is None and record.get('error') is None and calls['main'] == 0, (error, record.get('error'))
         (retry,) = rt.THERMAL_RETRIES
-        assert retry['attempts'] == 2 and retry['incomplete_attempts'][0]['raw'] == '', retry
+        assert retry['attempts'] == 2 and retry['incomplete_attempts'][0]['raw'] == '' and record['dumps'][0]['attempts'] == 2, retry
         rt.THERMAL_RETRIES.clear()
-        # Three empty reads at that check: fails closed, raw in the phase error.
-        reads, calls = scripted({last: [(0, '')] * 3})
+        # Three empty reads: fails closed, raw in the phase error.
+        reads, calls = scripted({}, [(0, '')] * 3)
         with patch.object(rt.time, 'sleep'):error, record = rest_harness(p, camera_on, text, reads=reads)
-        assert error and 'thermal read failed: skin None, status None (attempts 3' in record['error'], (error, record.get('error'))
+        assert error and 'thermal read failed: skin None, status None (attempts 3' in str(record['monitor_errors']), (error, record.get('monitor_errors'))
         # rc != 0: fails at once.
-        reads, calls = scripted({last: [(1, FULL), (0, FULL)]})
+        reads, calls = scripted({}, [(1, FULL), (0, FULL)])
         error, record = rest_harness(p, camera_on, text, reads=reads)
-        assert error and 'thermal read failed: rc 1' in record['error'] and '(attempts 1' in record['error'], record.get('error')
-        # Partial stop status: main-loop check and worker read both fail at once (review r1 F1).
-        reads, calls = scripted({last: [(0, PARTIAL_STOP), (0, FULL)]})
-        error, record = rest_harness(p, camera_on, text, reads=reads)
-        assert error and 'skin None, status 4 (attempts 1' in record['error'], record.get('error')
+        assert error and 'thermal read failed: rc 1' in str(record['monitor_errors']) and '(attempts 1' in str(record['monitor_errors'])
+        # Partial stop status: fails at once (review r1 F1).
         reads, calls = scripted({}, [(0, PARTIAL_STOP), (0, FULL)])
         error, record = rest_harness(p, camera_on, text, reads=reads)
         assert error and 'skin None, status 4 (attempts 1' in str(record['monitor_errors']), (error, record.get('monitor_errors'))
-    print('PASS rest() camera OFF and ON, real dump_check/dump_once: last in-phase check empty once -> phase passes, '
-          'retry + raw in THERMAL_RETRIES, worker rows attempts 1; three empty -> phase fails with 3 raws; rc 1 -> fails, 1 attempt; '
-          'partial status-4 read in the main check or the worker -> phase fails at once')
+    print('PASS rest() camera OFF and ON (M3: no main-loop dump_check, 0 main reads), real dump_once in the thermal worker: '
+          'empty once -> phase passes, attempts 2 + raw in THERMAL_RETRIES; three empty -> fails with 3 raws; rc 1 -> fails, '
+          '1 attempt; partial status-4 read -> fails at once')
 
 
 def check_live_block():

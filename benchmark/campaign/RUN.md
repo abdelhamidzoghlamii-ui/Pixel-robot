@@ -1,12 +1,30 @@
-# CAMPAIGN_P1_FIX3D owner steps
+# CAMPAIGN_P1_FIX4 / FIX4D owner steps
 
 M2 fp32 is a benchmark candidate, not deployed. This screens speed, memory,
 heat and power; **selector accuracy with relation context is NOT evaluated**.
-Motors OFF. Phone upright in its mount facing a cluttered table with 3–4
-objects, lights ON, nothing moving, battery **at least 80%**, charger unplugged.
-Keep the screen ON and stay in native Termux in the foreground throughout.
-Exit Codex, Claude, AGY, node and every robot/benchmark/model-server process
-before either command. The runner owns one Gemma server. No motion API is used.
+Motors OFF. No motion API is used. The runner owns one Gemma server.
+
+## OWNER CHECKLIST (before the rehearsal and again before the session)
+
+- [ ] Airplane mode ON (the server is 127.0.0.1; no calls, no network updates).
+- [ ] Do Not Disturb ON, **alarms and timers OFF**, and no alarm due in the next 2.5 h.
+- [ ] Automatic system and app updates paused (Play Store, system update).
+- [ ] Magisk superuser notifications (toasts) set to none.
+- [ ] 3–10 objects in view of the camera, no shelves, lights ON, nothing moving.
+- [ ] Phone upright in its mount, facing the table.
+- [ ] Battery ≥ 80 %, charger unplugged.
+- [ ] Exit Codex, Claude, AGY, node, editors and every robot/benchmark/model-server process.
+- [ ] Screen ON, native Termux in the foreground; then **hands off** until the final label prints.
+
+## How to start (M9)
+
+Open **one** native Termux session and paste **exactly** the command below — **no wrapper**: not
+`oneshot.sh`, not `script`, not `timeout`, not `sh -c "…"`, not a `run_*.sh` file. Do not open another
+Termux session, `less`, `vim` or any editor on the campaign files while it runs: the process guard refuses
+any matching process outside the runner's own tree (a wrapper or an open `phase1.py` matches), and a
+refusal mid-session ends it. Use a fresh stem for every invocation, changing it in all filenames.
+Commands use shell noclobber (`set -C`) to protect stdout/stderr; the runner refuses existing
+JSON/block/pause/idle/warm-up/server evidence. Never truncate, remove or reuse evidence.
 
 Fix3: with the camera OFF the RobotCam app is force-stopped, so its PSS is now
 recorded as `robotcam_app: "not running (camera OFF)"` (PSS null) instead of
@@ -53,71 +71,141 @@ Each thermal row records `attempts`. Each incomplete attempt keeps its raw outpu
 in the error. The lag probe's thermal worker now uses the same checked reader and also saves
 `thermal_retries`.
 
-Use a fresh stem for every invocation, changing it in all three filenames.
-Commands use shell noclobber (`set -C`) to protect stdout/stderr; the runner
-refuses existing JSON/block/warm-up/server evidence. Never truncate, remove
-or reuse evidence. Both steps run the full preflight setup first (the same
-setup as `--preflight`, which already passed as `owner_preflight_p1_fix3`).
 
-1. Optional owner rehearsal, **NOT VALID**, about **12 minutes** (estimate, not
-measured: about 4 min of shortened phases plus setup, model builds, camera
-transitions, 37 real diagnostics snapshots of 4–15 s each and cleanup; 10–15 min). Same setup as the
-session (battery ≥ 80%, charger unplugged, screen ON, Termux in front, no
-agents):
+Fix4 (audit `AUDIT1_REPORT.md`, owner decisions D1/D2):
+- H1: in every idle phase and pause the second root shell is built before the power bracket; the
+  bracket, the time origin and all monitor threads then start together (as in blocks), so the first
+  power gap is no longer about 1 s of the 1.5 s budget.
+- H2: every root/sysfs/dumpsys/pidof/ps/pgrep/battery/power/mask/fast/PSS/logcat/am/health read gets
+  at most **one** re-read 0.3 s later, and only when the answer carried nothing (FIX4C/FIX4D): no output at all
+  (stdout AND su's stderr blank), a su/am/pgrep launch failure (or a failure exit with no output on either stream), a transient mask readback with an empty mask, or
+  an HTTP timeout. Every answer with output — complete, partial, malformed or bad — is judged once by the reader's
+  own checks exactly as before FIX4 and is never re-read. `/health` fails only on 2 consecutive failures; a
+  RobotCam pid still present after force-stop is re-checked once after 0.5 s. If the re-read carries nothing again
+  the read fails (or, for evidence-only reads such as the screen state, an error is
+  recorded, never raised). Every re-read is recorded (`read_retries` in the JSON, per phase including
+  `setup` and the capacity check just before each pause or block, and `retries` per row); more than 3 in
+  one phase makes that phase or block **NOT VALID — READ RETRIES** (the session continues; the rehearsal
+  fails; the lag probe is incomplete). Cleanup failures keep their first two causes and fail rehearsal_pass. The thermal reader keeps its FIX3D rule (3 attempts
+  within 2 s for an incomplete read; rc ≠ 0 fails at once).
+- H3: more than 32 live boxes: M2 uses the 32 highest-confidence boxes (detector order kept) and
+  records `live_boxes` (n live) and `truncated_boxes`; each block records `max_live_boxes`
+  (largest YOLO-640 box count) and prints it.
+- H4: a missing (or repeated) frame is polled until 1.35 s; if none arrives the slot is skipped
+  (`camera_misses`, counted late, a cadence miss) and the block goes on. 3 failed slots in a row,
+  or a `bad`/`other_session` frame, stop the session.
+- H5: every diagnostics snapshot and every failing phase records the screen state
+  (`dumpsys power` wakefulness/display lines and the resumed activity), so a lock or a lost
+  foreground is visible in the files.
+- M1: JSON files are written atomically (temp file, fsync, rename). The session JSON says
+  `IN PROGRESS — NOT VALID` until the final label. Each idle sub-phase and pause also has its own file.
+- M3: the pause loop no longer makes its own battery and thermal reads; the power sampler, memory rows
+  and thermal worker (with the block limits) cover them.
+- M4/L3: errors carry their first causes; stdout prints one line at each phase start and end
+  (elapsed time, re-read and thermal-retry counts; for blocks camera lateness, skipped camera slots,
+  live/fallback M2 calls and `max_live_boxes`).
+- M5: a main-loop heartbeat older than 15 s during a block makes the runner SIGTERM itself (normal
+  cleanup runs); pgrep (10 s) and termux-wake-lock/unlock (30 s) have timeouts; the selector's 15 s
+  transport bound applies from its first tokenize request.
+- L4/L5: a second Ctrl-C/signal during the final cleanup is ignored; a cleanup error never replaces
+  a battery-stop or cores-lost cause.
+- L7: after setup the main thread is pinned to the monitor cores; cores 4–7 are still checked (on a
+  dedicated unpinned thread).
+- FIX4C (narrowed re-read): the FIX4B per-value judging is removed; each reader is its pre-FIX4 parser plus the
+  empty-answer re-read above. The camera end check still runs once (a "capture not stopped" result stays) and a
+  force-stop that ran keeps its own result; only a force-stop that did not run, or a pidof that answered nothing,
+  is redone.
+- FIX4D (su stderr kept): su's own stderr (e.g. "su: permission denied") is part of the answer. `coresidency.root`
+  keeps it per thread (`root_stderr()`) and `RootShell` keeps each command's stderr (`last_stderr`); an answer with
+  any stdout or stderr is judged once by the reader's own checks and never re-read. Only an OSError raised while
+  starting su/am/pgrep counts as a launch failure (for the camera start: only its first `am start`); any other error
+  stands as the reader's own.
+- D1: L1 runs M2 after every **second** 640 frame (every 10 s, 18 calls per 180 s block); other layouts unchanged.
+- D2: after each fixed 600 s pause, once T_ref exists, a start skin more than 1.5 °C above T_ref keeps
+  the pause going (same checks, still sampled) for up to 300 s more until it is within T_ref + 1.5 °C;
+  the pause records `cooling.extra_s`. The decision uses the pause's newest thermal-worker skin
+  (`cooling.end_skin_age_s`, normally ≤ 4.87 s, more if a read overran); the block's own start skin still
+  decides comparability. An extended pause must have power coverage over its whole sampled interval
+  (`power_summary_with_cooling`); `power_summary` stays the fixed 600 s. Still outside: the block runs and is labelled
+  **NOT COMPARABLE — START TEMP**. A skin more than 1.5 °C below T_ref is labelled NOT COMPARABLE
+  without waiting.
+
+1. Owner rehearsal — **MANDATORY before the session**, **NOT VALID**, about **12 minutes** (estimate;
+up to 30 s more of D2 cooling). Same checklist and start rule as the session:
 
 ```sh
-(set -C; python -u ~/robot/benchmark/campaign/phase1.py --dry-run --output ~/storage/downloads/campaign/owner_rehearsal_p1_fix3d.json > ~/storage/downloads/campaign/owner_rehearsal_p1_fix3d.stdout 2> ~/storage/downloads/campaign/owner_rehearsal_p1_fix3d.stderr)
+(set -C; python -u ~/robot/benchmark/campaign/phase1.py --dry-run --output ~/storage/downloads/campaign/owner_rehearsal_p1_fix4d.json > ~/storage/downloads/campaign/owner_rehearsal_p1_fix4d.stdout 2> ~/storage/downloads/campaign/owner_rehearsal_p1_fix4d.stderr)
 ```
 
 It runs every live path of the session with real root, battery, sensors,
 camera, models and server: full preflight setup; idle 6 s camera OFF, 6 s
 camera OFF, 6 s camera ON (no inference); 20 s L0 warm-up; six 6 s pauses
-(camera OFF, Gemma loaded); blocks L0,L1,L2,L3,L4,L0 of 25 s each (camera ON);
+(camera OFF, Gemma loaded, D2 extension at most 6 s); blocks L0,L1,L2,L3,L4,L0 of 25 s each (camera ON);
 selector; live M2 slots and the real fallback path, forced on the M2 slot the
-20 s selector reads (L2 at 0 s, L1/L3/L4 at 15 s) so every M2 layout also sends
+20 s selector reads (L2 at 0 s, L1 at 10 s, L3/L4 at 15 s) so every M2 layout also sends
 a fallback-scene context to the selector; diagnostics snapshots, power/caps/memory/PSS/LMK;
 cleanup and screen restore. Everything is labelled **NOT VALID — REHEARSAL**.
 Short phases make cadence misses likely in L2/L3; that is expected and does
 not stop it. The stdout ends with a `Coverage:` line (also
-`rehearsal_coverage` in the JSON). Pass = final label exactly
+`rehearsal_coverage` in the JSON).
+
+**Go / no-go: start the session only if** the final label is exactly
 `NOT VALID — OWNER REHEARSAL (live hardware, shortened phases) COMPLETE; inspect rehearsal_coverage`
-and `"rehearsal_pass": true`. That flag requires setup, 3 idle sub-phases,
-the warm-up, 6 pauses and all six blocks without errors, and for each of L1–L4
-at least one live M2 call, one fallback M2 call and one selector call with a
-fallback-scene context. Live M2 calls 0 in a layout means the camera saw
-fewer than two objects: fix the scene before the session. Any other failure:
-send the files and do not start the session.
+**and** `"rehearsal_pass": true`. That flag requires setup, 3 idle sub-phases, the warm-up, 6 pauses
+and all six blocks without errors; for each of L1–L4 at least one **live** M2 call, one fallback M2
+call and one selector call with a fallback-scene context; `max_live_boxes` reported for every block;
+and no phase over the re-read cap (`read_retry_over_cap` empty). Live M2 calls 0 in a layout means the
+camera saw fewer than two objects; a `max_live_boxes` near or above 32 means too much clutter: fix the
+scene (3–10 objects, no shelves) and rehearse again. Any other failure: send the files and do not
+start the session.
 
 Send these exact files, only those actually created:
-`owner_rehearsal_p1_fix3d.json`, `.stdout`, `.stderr`,
-`owner_rehearsal_p1_fix3d_llama-server.log`,
-`owner_rehearsal_p1_fix3d_warmup_L0.json`, and
-`owner_rehearsal_p1_fix3d_block_01_L0.json`, `_block_02_L1.json`,
+`owner_rehearsal_p1_fix4d.json`, `.stdout`, `.stderr`,
+`owner_rehearsal_p1_fix4d_llama-server.log`, `owner_rehearsal_p1_fix4d_idle_1.json`, `_idle_2.json`,
+`_idle_3.json`, `owner_rehearsal_p1_fix4d_warmup_L0.json`,
+`owner_rehearsal_p1_fix4d_pause_01_L0.json` … `_pause_06_L0.json` (one per block, named like the block),
+and `owner_rehearsal_p1_fix4d_block_01_L0.json`, `_block_02_L1.json`,
 `_block_03_L2.json`, `_block_04_L3.json`, `_block_05_L4.json`,
 `_block_06_L0.json`.
 
-2. Full session. The fix3c rehearsal already ran every phase with no errors; only live M2 calls were
-missing, because the phone lay on its back. With the phone upright and facing the table, you may start
-the session directly or run step 1 first. Recharge to **≥ 80%** if
-needed, then unplug the charger. One command, approximately **85–90 minutes**
-(86 minutes scheduled plus setup, model builds, camera transitions and cleanup):
+2. Full session, only after a passing rehearsal. Recharge to **≥ 80 %** if needed, unplug the charger,
+run the checklist again. One command, about **95–100 minutes** (86 minutes scheduled plus setup, model
+builds, camera transitions and cleanup), **plus up to 25 min of D2 cooling** (at most 300 s after each
+of the five pauses that follow the first measured block):
 
 ```sh
-(set -C; python -u ~/robot/benchmark/campaign/phase1.py --output ~/storage/downloads/campaign/owner_session_p1_fix3d.json > ~/storage/downloads/campaign/owner_session_p1_fix3d.stdout 2> ~/storage/downloads/campaign/owner_session_p1_fix3d.stderr)
+(set -C; python -u ~/robot/benchmark/campaign/phase1.py --output ~/storage/downloads/campaign/owner_session_p1_fix4d.json > ~/storage/downloads/campaign/owner_session_p1_fix4d.stdout 2> ~/storage/downloads/campaign/owner_session_p1_fix4d.stderr)
 ```
+
+Progress: `tail -n 3 ~/storage/downloads/campaign/owner_session_p1_fix4d.stdout` is safe **after** the
+run; during the run do not open a second session (see "How to start"). Each phase prints START/END lines.
 
 Send these exact files, only those actually created:
 
-- `owner_session_p1_fix3d.json` (includes idle sub-phases and all pauses)
-- `owner_session_p1_fix3d.stdout`, `owner_session_p1_fix3d.stderr`
-- `owner_session_p1_fix3d_llama-server.log`
-- `owner_session_p1_fix3d_warmup_L0.json`
-- `owner_session_p1_fix3d_block_01_L0.json`
-- `owner_session_p1_fix3d_block_02_L1.json`
-- `owner_session_p1_fix3d_block_03_L2.json`
-- `owner_session_p1_fix3d_block_04_L3.json`
-- `owner_session_p1_fix3d_block_05_L4.json`
-- `owner_session_p1_fix3d_block_06_L0.json`
+- `owner_session_p1_fix4d.json` (includes idle sub-phases and all pauses)
+- `owner_session_p1_fix4d.stdout`, `owner_session_p1_fix4d.stderr`
+- `owner_session_p1_fix4d_llama-server.log`
+- `owner_session_p1_fix4d_idle_1.json`, `_idle_2.json`, `_idle_3.json`
+- `owner_session_p1_fix4d_warmup_L0.json`
+- `owner_session_p1_fix4d_pause_01_L0.json`, `_pause_02_L1.json`, `_pause_03_L2.json`,
+  `_pause_04_L3.json`, `_pause_05_L4.json`, `_pause_06_L0.json`
+- `owner_session_p1_fix4d_block_01_L0.json`, `_block_02_L1.json`, `_block_03_L2.json`,
+  `_block_04_L3.json`, `_block_05_L4.json`, `_block_06_L0.json`
+
+## RECOVERY (M8) — only if the runner was killed or hung and never printed its final label
+
+A hard kill (out-of-memory kill, force-closing Termux, a battery cut) skips the runner's cleanup. From
+**native Termux**, after any runner process is gone (`pgrep -fa phase1.py` prints nothing):
+
+```sh
+su -c 'settings put system screen_off_timeout SAVED_MS'   # SAVED_MS = the number printed in the .stdout as "screen timeout saved SAVED_MS ms"
+su -c 'am force-stop com.pixelrobot.robotcam'
+pkill -f llama-server
+termux-wake-unlock
+```
+
+If the saved value printed was already 2147483647, use your normal timeout (for example 60000).
+Keep the files as they are and send them; do not rerun under the same stem.
 
 Preflight, rehearsal and session share setup: native/no-agent/charger/80% battery checks,
 cores/affinity, root/su/pump masks and policies, thermal/sensor checks,
@@ -133,8 +221,8 @@ then 60 s camera-OFF diagnostics and 60 s camera-ON without inference.
 Camera stops again. ONE 180 s L0 warm-up is recorded as
 **WARM-UP — NOT A RESULT**. Measured order: L0,L1,L2,L3,L4,L0.
 Every measured block has a preceding **fixed 600 s pause**, camera OFF,
-YOLO/M2/selector stopped, Gemma loaded. No skin gate. Skin/status, caps,
-power and memory remain sampled through idle phases and pauses.
+YOLO/M2/selector stopped, Gemma loaded, extended by D2 cooling only as above (at most 300 s).
+Skin/status, caps, power and memory remain sampled through idle phases and pauses, extensions included.
 
 First measured start skin sets `T_ref_c`. Later blocks more than 1.5 °C
 away are **NOT COMPARABLE — START TEMP**; other validity rules remain.
@@ -144,7 +232,8 @@ subset) retains the L0 warm-up and all preceding pauses. Below 80% battery
 refuses setup. Below 25% before any warm-up, block, idle phase or pause
 stops cleanly and leaves remaining layouts in `unrun_blocks`.
 Thermal/charger/cores/process/sensor/camera/inference/server/cleanup failures
-stop later blocks. Only local cadence failures may continue after successful
+stop later blocks (after the single H2 re-read where it applies). Only local cadence failures
+(including skipped camera slots) and the re-read cap may continue after successful
 cleanup and no monitor errors.
 
 Portable mock (Coder, proot), about 40 s, **NOT VALID**: `--dry-run --mock`.
@@ -162,7 +251,7 @@ threads/batch 4, parallel 1, swa-full, cache-ram 0; no MTP. Seven external
 artifact hashes remain in `expected_hashes.json`.
 
 L0 has no M2/context, including warm-up. L1: LITTLE 0–3 / four threads after
-each 640. L2: BIG 6–7 / two threads before each selector using latest completed
+every second 640 (every 10 s, 18 calls per 180 s; D1). L2: BIG 6–7 / two threads before each selector using latest completed
 640. L3: MID 4–5 / two threads after each 640; skipped YOLO slots while M2 runs
 are counted, never queued. L4: BIG 6–7 / two threads after each 640.
 At most one M2 request runs at a time; overload is recorded.
@@ -172,15 +261,16 @@ slot performs real inference on committed
 `benchmark/relate_anything/desk2/speed_photo.jpg` and precomputed yolo11s boxes
 in `speed_input.json`. Both SHA-256 values are hard-coded and verified in
 setup and fallback loading; the existing PIL loader checks image size/box count.
-More than 32 live boxes fails closed, never truncated. Per call: `scene`,
-`live_boxes`, `input_boxes`, wall/ORT inference times and context. Per block:
-`live_calls`, `fallback_calls`, calls and slots. Fallback context starts with
+More than 32 live boxes: the 32 highest-confidence boxes, in detector order (H3). Per call: `scene`,
+`live_boxes`, `input_boxes`, `truncated_boxes`, wall/ORT inference times and context. Per block:
+`live_calls`, `fallback_calls`, `truncated_slots`, calls, slots and `max_live_boxes`. Fallback context starts with
 **(fallback scene)**, including later selector appends. Threshold-passing
 top-five relation formatting stays unchanged. Context accuracy is not graded.
 
 Each block/pause records start/end battery level/temperature, every discovered
 thermal-zone type/temp, cooling-device type/cur_state, policy0 scaling_max_freq,
-readable boost min/max and power-hint nodes, camera state and Android status.
+readable boost min/max and power-hint nodes, camera state, Android status and screen state
+(wakefulness/display lines and resumed activity; also recorded on every phase failure).
 Optional discovery is best effort: unreadable nodes are explicit; absent nodes
 do not prove absent hints. Discovery is limited to depth five within the stated
 sysfs/cpuctl roots, and `read_elapsed_s` records each snapshot's duration.
@@ -233,9 +323,26 @@ It also reproduces the shared-file race with cr.root's exact su form and a fake 
 interleaving (shared tag: rc 0, no skin, no status; per-thread tags: both complete). Finally, it covers
 the real `dump_check` in `rest()` (camera OFF and ON, last in-phase check) and at `live_block()`
 skin_end (session and rehearsal). FIX3D outputs: `checks/p1_fix3d/`.
+`self_check_fix4.py` covers the FIX4 changes: H1 (the audited `rest()` loses a pause with a 1.6 s
+second-shell setup; fixed order and zero bracket-to-thread gap with 0.4/1.6/5 s setups), the H2 helper
+(re-read success, persistent failure with both errors, other errors not re-read, `/health` 2 of 2,
+per-row and per-phase records, the > 3 cap making a block or pause NOT VALID without a stop), H3 (40 boxes → top 32), H4 (single miss, repeat, 2+2, 3 in a row, bad/other_session,
+polling), D1 (18 L1 calls), D2 (no T_ref, cooled within, 300 s exhausted, below the band, the band edge,
+a sensor stop during the extension), M1 (atomic write, per-phase files, IN PROGRESS label), M3, M4, M5
+(stale heartbeat → SIGTERM, transport bound before tokenize, timeouts), H5, L3, L4, L5, L7 and this
+file's checklist/recovery text. `self_check_fix3c.py` now also audits the guard's own pgrep (L6).
+Existing self-checks were adapted where FIX4 intentionally changed behaviour (D1 counts, M3, M4
+messages, H2 pid re-check, L7 stubs).
+`self_check_fix4c.py` (FIX4C): for every reader wrapped by the re-read helper, through its own parser with only
+the transport mocked, a non-empty answer (good, partial, malformed or bad) is read exactly once, and an empty answer
+is re-read once and fails closed when the re-read is empty or bad; it also re-runs every probe of the six FIX4/FIX4B
+review rounds (table) and checks that the thermal reader is unchanged. `self_check_fix4d.py` (FIX4D): the same rule
+through the REAL `cr.root` (subprocess stdout and stderr mocked) and the REAL `RootShell` (a fake `su`): a stderr-only su
+failure is read once and fails closed; a blank stdout+stderr answer is re-read once; it re-runs every earlier probe
+table. Outputs: `checks/p1_fix4d/`.
 No live timed block/session/root preflight/rehearsal was run by the Coder;
 agents resident invalidate timing and proot cannot reach root. The owner
-session (or optional rehearsal) is the first live run of the fix3d code; all live paths (root
+rehearsal (mandatory) is the first live run of the fix4 code; all live paths (root
 affinity, PSS with the camera off and on, camera restarts, real fallback
 M2/YOLO overlap, selector HTTP/context/timeouts, pauses and native cleanup)
 remain unvalidated until it passes.

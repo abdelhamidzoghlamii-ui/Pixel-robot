@@ -7,13 +7,14 @@ from pathlib import Path
 import subprocess
 import tempfile
 import threading
+import time
 from types import SimpleNamespace as NS
 from unittest.mock import MagicMock, patch
 
 import diagnostics as d
 import phase1 as p
 import runtime as rt
-from self_check import FastOps
+from self_check import FastOps, phase_stubs
 
 HERE = Path(__file__).resolve().parent
 OWNER = HERE/'runs/owner_session_p1_fix2.json'
@@ -126,7 +127,7 @@ def rest_harness(module, camera_on, text, pidof=NO_APP, late_failure=False, late
                   patch.object(rt, 'root_mask_scope', return_value=contextlib.nullcontext()), patch.object(d, 'battery', return_value=85),
                   patch.object(d, 'snapshot', side_effect=lambda cr, on: dict(camera_on=on)), patch.object(rt, 'stop_camera'),
                   patch.object(pm, 'camera_start', return_value={'session': 'mock'}), patch.object(rt, 'clear_processes'),
-                  patch.object(sb, 'battery_sample'), patch.object(cr, 'check_cores'),
+                  patch.object(rt, 'battery_sample'), patch.object(sb, 'battery_sample'), patch.object(cr, 'check_cores'),  # sb: the base loop
                   patch.object(rt, 'dump_check', **({'wraps': rt.dump_check} if reads else {})),
                   patch.object(rt, 'fast_check', return_value={'t': 100., 'max': {'policy0': 1803000}}),
                   patch.object(rt, 'dump_once', side_effect=reads or (lambda cr, timeout=30: dict(dump[0]))),
@@ -135,7 +136,8 @@ def rest_harness(module, camera_on, text, pidof=NO_APP, late_failure=False, late
                   patch.object(cr, 'monitor_loop', side_effect=monitor_loop), patch.object(cr, 'block_limit', side_effect=block_limit),
                   patch.object(module.power, 'sample', return_value={'t': -1, 't_start': -1, 'battery_w': 1}),
                   patch.object(module.power, 'sampler', side_effect=sampler), patch.object(module.os, 'sched_setaffinity'),
-                  patch.object(module.os, 'sched_getaffinity', return_value={0}), patch.object(pm, 'capped_by_policy', return_value={})):
+                  patch.object(module.os, 'sched_getaffinity', return_value={0}), patch.object(pm, 'capped_by_policy', return_value={}),
+                  *phase_stubs()):
             stack.enter_context(m)
         record = {}
         try:module.rest('IDLE', 180, NS(proc=NS(pid=31733), alive=lambda: True), record, camera_on)
@@ -166,35 +168,60 @@ def check_rest_camera_states():
         print('PASS pre-fix reproduction (review r2 F1): base rest() returns normally despite a late MemAvailable failure')
     error, record = rest_harness(p, False, root_text())
     assert error is None and record['memory'] and all(r['robotcam_app'] == 'not running (camera OFF)' for r in record['memory']), (error, record.get('memory'))
-    assert rest_harness(p, True, root_text())[0] == 'pause memory/battery read failed'
+    assert rest_harness(p, True, root_text())[0].startswith('pause memory/battery read failed: ')
     assert rest_harness(p, True, root_text(app=True))[0] is None
-    assert rest_harness(p, False, root_text(provider=False))[0] == 'pause memory/battery read failed'
-    assert rest_harness(p, False, root_text(), (0, 'pidof_rc=2\n'))[0] == 'pause memory/battery read failed'
+    assert rest_harness(p, False, root_text(provider=False))[0].startswith('pause memory/battery read failed: ')
+    assert rest_harness(p, False, root_text(), (0, 'pidof_rc=2\n'))[0].startswith('pause memory/battery read failed: ')
     for camera_on in (False, True):
         error, record = rest_harness(p, camera_on, root_text(app=camera_on), late_failure=True)
-        assert error == 'pause monitor failed' and 'after deadline' in record['error'], (error, record.get('error'))
+        assert error.startswith('pause monitor failed') and 'after deadline' in record['error'], (error, record.get('error'))
         assert p.coverage(dict(idle_phases=[record], pauses=[], blocks=[], plan=[]))['idle_phases_done'] == 0
     print('PASS fixed rest(): camera OFF app absent passes, camera ON app absent fails, camera ON app present passes, provider missing/pidof failure/late reader failure fail')
 
 
+SCALE = 10  # virtual s per real s: 1 virtual s = 100 ms
+
+
+class SlowOps(FastOps):
+    """FastOps with 1 virtual s = 100 ms and a live M2 call of 3 virtual s (the phone's take 4-5 s). Flake at base
+    (3 of 4 runs in proot, where every syscall is traced): 1 virtual s = 1 ms, and the instant live M2 launched
+    at slot 20 could store its context before the slot-20 selector read the forced fallback one."""
+    def now(self):return (time.monotonic()-self.base)*SCALE
+    def relate(self, image, boxes):
+        if image != 'fixed':time.sleep(3/SCALE)
+        return [], 1
+
+
 def check_forced_fallback():
     original = threading.Event.wait
-    def fast_wait(event, timeout=None):return original(event, None if timeout is None else max(0, timeout/1000))
+    def fast_wait(event, timeout=None):return original(event, None if timeout is None else max(0, timeout/SCALE))
+    def conclusive(name, target, record):
+        """The run reached the forced 640 frame and the slot-20 selector read came before a later live M2 ended;
+        a scheduling stall in proot can skip a slot (correct catch-up behaviour), which proves nothing here."""
+        reached = name == 'L2' or any(r['size'] == 640 and r['slot_s'] == target for r in record['yolo'])
+        read = next((r['started_s'] for r in record['selector'] if r['slot_s'] == 20), None)
+        later = [r['ended_s'] for r in record['m2'] if r['slot_s'] > target and r['scene'] == 'live']
+        return reached and (name == 'L2' or read is not None and all(read < end for end in later))
     for name in ('L1', 'L2', 'L3', 'L4'):
-        target = 0 if name == 'L2' else 15
+        target = 0 if name == 'L2' else 10 if name == 'L1' else 15  # D1: L1 runs M2 at 0/10/20 s
         for forced in (False, True):
-            ops = FastOps(name);ops.detect = lambda image, size: [{}]*3
-            ops.fallback = MagicMock(return_value=('fixed', [{}, {}]))
-            if forced:ops.force_fallback_slot = target
-            record = {}
-            with patch.object(threading.Event, 'wait', fast_wait):p.run_cycle(name, 25, ops, record)
+            for attempt in range(5):
+                ops = SlowOps(name);ops.detect = lambda image, size: [{}]*3
+                ops.fallback = MagicMock(return_value=('fixed', [{}, {}]))
+                if forced:ops.force_fallback_slot = target
+                record = {}
+                with patch.object(threading.Event, 'wait', fast_wait):p.run_cycle(name, 25, ops, record)
+                if conclusive(name, target, record):
+                    break
+            else:raise AssertionError(f'{name} forced={forced}: 5 inconclusive runs (scheduling stalls)')
             fallback = [r['slot_s'] for r in record['m2'] if r['scene'] == 'fallback']
             assert fallback == ([target] if forced else []), (name, forced, fallback)
             assert all(r.get('fallback_forced', False) == (r['scene'] == 'fallback') for r in record['m2'])
             assert record['summary']['m2']['live_calls'] >= 1
             fallback_contexts = [r['slot_s'] for r in record['selector'] if r['context'].startswith('(fallback scene)')]
             assert fallback_contexts == ([target if name == 'L2' else 20] if forced else []), (name, forced, fallback_contexts)
-    print('PASS rehearsal forces only the selector-feeding M2 slot (L2 0 s, others 15 s) onto the real fallback path; live M2 and a fallback-context selector both run per layout; session unchanged')
+    print('PASS rehearsal forces only the selector-feeding M2 slot (L2 0 s, L1 10 s, L3/L4 15 s) onto the real fallback path; '
+          'live M2 and a fallback-context selector both run per layout; session unchanged')
 
 
 def run_main(argv, block_failure=None, no_live=None):
@@ -202,21 +229,21 @@ def run_main(argv, block_failure=None, no_live=None):
     calls = []; server = NS(stop=MagicMock()); screen = NS(restore=MagicMock())
     def preflight(names, out, result, resources):
         calls.append(('preflight',));resources.update(server=server, screen=screen)
-    def rest(label, duration, srv, record, camera_on=False, dry=False):
+    def rest(label, duration, srv, record, camera_on=False, dry=False, **d2):
         calls.append(('rest', label, duration, camera_on, dry))
         record.update(label=label, duration_s=duration)
-    def block(name, path, srv, idle, dry=False, duration=180):
+    def block(name, path, srv, idle, dry=False, duration=180, **mark):
         calls.append(('block', name, dry, duration))
         m2 = name != 'L0' and name != no_live
         record = dict(block=name, validity=p.REHEARSAL if dry else 'VALID', skin_start={'skin': 30},
-                      summary={'m2': {'live_calls': 4 if m2 else 0, 'fallback_calls': 1} if name != 'L0' else {}},
+                      summary={'m2': {'live_calls': 4 if m2 else 0, 'fallback_calls': 1} if name != 'L0' else {}, 'max_live_boxes': 7},
                       selector=[{'context': None if name == 'L0' else '(fallback scene)\nM2 relations:'}, {'context': 'x'}])
         if name == block_failure:record.update(error='RuntimeError: mock', failure_kind='shared')
         p.write(path, record);return record
     with tempfile.TemporaryDirectory() as tmp, contextlib.ExitStack() as stack:
         for m in (patch.object(p, 'preflight', side_effect=preflight), patch.object(p, 'rest', side_effect=rest),
                   patch.object(p, 'live_block', side_effect=block), patch.object(d, 'battery', return_value=85),
-                  patch.object(rt, 'HOME', Path(tmp)), contextlib.redirect_stdout(io.StringIO())):
+                  patch.object(rt, 'HOME', Path(tmp)), contextlib.redirect_stdout(io.StringIO()), *phase_stubs()):
             stack.enter_context(m)
         output = Path(tmp)/'out.json'
         try:p.main(argv+['--output', str(output)])
@@ -252,7 +279,7 @@ def check_modes():
     calls, result = run_main(['--dry-run'], block_failure='L2')
     assert [b['block'] for b in result['rehearsal_coverage']['blocks']] == ['L0', 'L1', 'L2'] and result['unrun_blocks'] == ['L3', 'L4', 'L0']
     assert result['rehearsal_coverage']['rehearsal_pass'] is False
-    assert result['rehearsal_coverage']['errors'] == ['L2: RuntimeError: mock', 'session: RuntimeError: block invalidates later blocks']
+    assert result['rehearsal_coverage']['errors'] == ['L2: RuntimeError: mock', 'session: RuntimeError: block invalidates later blocks: RuntimeError: mock']
     try:p.main(['--mock', '--output', '/nonexistent/x.json'])
     except SystemExit as e:assert e.code == 2
     else:raise AssertionError('--mock without --dry-run accepted')
@@ -267,13 +294,13 @@ def check_live_block_rehearsal():
             seen = {}
             for m in (patch.object(rt, 'prepare', return_value=monitor), patch.object(pm, 'build_detector', return_value=(NS(close=MagicMock()), {'worker_tids': [], 'caller_tid': 1})),
                       patch.object(v, 'build', return_value=(None, NS(close=MagicMock()), [])), patch.object(rt, 'clear_processes'), patch.object(cr, 'check_cores'),
-                      patch.object(sb, 'battery_sample'), patch.object(rt, 'fast_check', return_value={}), patch.object(pm, 'camera_start', return_value={'session': 's'}),
+                      patch.object(rt, 'battery_sample'), patch.object(rt, 'fast_check', return_value={}), patch.object(pm, 'camera_start', return_value={'session': 's'}),
                       patch.object(rt, 'dump_check', return_value={'skin': 30, 'status': 0}), patch.object(p, 'bounded_selector'), patch.object(cr, 'load_cases', return_value=[{}]),
                       patch.object(p.power, 'sample', return_value={'t': 0, 't_start': 0, 'battery_w': 1}),
                       patch.object(p.threading, 'Thread', return_value=NS(start=lambda: None, join=lambda timeout=None: None, is_alive=lambda: False)),
                       patch.object(rt, 'stop_camera'), patch.object(cr, 'lmk_lines', return_value={'ok': True, 'n_kills': 0}), patch.object(cr, 'block_limit', return_value=None),
                       patch.object(d, 'snapshot', return_value={}), patch.object(rt, 'fallback_input', return_value=('img', [{}, {}])),
-                      patch.object(pm, 'capped_by_policy', side_effect=lambda b: seen.setdefault('caps', b['duration_s']))):
+                      patch.object(pm, 'capped_by_policy', side_effect=lambda b: seen.setdefault('caps', b['duration_s'])), *phase_stubs()):
                 stack.enter_context(m)
             def cycle(name, length, ops, record):
                 seen.update(length=length, forced=ops.force_fallback_slot)

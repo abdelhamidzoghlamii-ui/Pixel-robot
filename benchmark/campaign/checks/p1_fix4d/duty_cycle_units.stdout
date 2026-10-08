@@ -1,0 +1,21 @@
+PARTS/CYCLE/smoke block lists and active-only 20 s selector clock: PASS
+restart passes request CLOCK_BOOTTIME; actual reader rejects pre-restart capture: PASS
+energy above baseline and per-call interpolation/missing coverage; proc stat parser: PASS
+CAM/YOLO/YOLO_NOSPIN/Active rate 1: exactly one read and JPEG decode per second, work included in period: PASS
+LOAD spawn/health/call CPU split, GGUF cold/warm, stop on interruption, worker joined: PASS
+[CONT] selector drain 0.052s; RuntimeError: failed limit query
+[CONT] selector drain 0.054s; SystemExit: 143
+[CONT] selector drain 0.053s; CoresLost: body core loss
+[CONT] selector drain 122.000s; RuntimeError: selector drain exceeded 120 s; request cancelled
+[CONT] selector drain 122.000s; SystemExit: 143
+[CONT] selector drain 122.000s; SystemExit: 129
+[CONT] selector drain 122.000s; SystemExit: 130
+[CONT] selector drain 122.000s; KeyboardInterrupt: 
+SystemExit TERM/HUP/INT and KeyboardInterrupt override retained CoresLost in final join, after joining: PASS
+selector drain: arbitrary error, signal, unwinding CoresLost and timeout cancellation all join before propagation: PASS
+both ORT spinning options retained; rejection produces INCOMPLETE without fallback: PASS
+synthetic report/invalid battery; atomic resume preserves finished blocks and redoes HEATCOOL; proot refusal: PASS
+core loss during pending selector drain: request finished before retry; discarded-block drain time recorded: PASS
+mocked main + real block loops: interrupt/resume preserves CONT, redoes HEATCOOL, no COOL gate, final cleanup: PASS
+pending selector + core loss + actual SIGTERM: call finished, exit 143, no retry, RobotCam/server stopped: PASS
+DUTY1 offline checks: PASS

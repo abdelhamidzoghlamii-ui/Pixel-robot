@@ -138,8 +138,12 @@ def check_runtime():
     try:rt.verify_monitor(sb,sb.prepare_monitor({4,5}),{4,5})
     except RuntimeError:pass
     else:raise AssertionError('root affinity accepted')
-    for rc in (0,1):
-        with patch.object(rt.subprocess,'run',return_value=NS(returncode=rc,stdout='',stderr='')):rt.clear_processes()
+    with patch.object(rt.subprocess,'run',return_value=NS(returncode=1,stdout='',stderr='')):rt.clear_processes()
+    # FIX4 review r1: rc 0 (matches) with no output is no enumeration: re-read once, then fail closed.
+    with patch.object(rt.subprocess,'run',return_value=NS(returncode=0,stdout='',stderr='')),patch.object(rt.time,'sleep'):
+        try:rt.clear_processes()
+        except RuntimeError as e:assert 'process enumeration failed' in str(e)
+        else:raise AssertionError('empty successful pgrep accepted')
     for output in ('99999 codex','99999 main.py','99999 llama-server','99999 phase1.py'):
         with patch.object(rt.subprocess,'run',return_value=NS(returncode=0,stdout=output,stderr='')),patch.object(rt,'parent_pid',return_value=1):
             try:rt.clear_processes()
@@ -172,7 +176,7 @@ def check_preflight():
             monitor=(NS(close=lambda:None),{0},10,{'policies':{'policy0':1,'policy4':1,'policy6':1},'cpu_zones':{'BIG':'9','MID':'10','LITTLE':'11'}})
             mocks=[patch.object(rt,'clear_processes',side_effect=bad('agents')),
                    patch.object(cr,'require_native'),patch.object(cr,'check_cores',side_effect=bad('cores')),
-                   patch.object(sb,'battery_sample',side_effect=bad('charger')),
+                   patch.object(rt,'battery_sample',side_effect=bad('charger')),
                    patch.object(rt,'require_hashes',side_effect=bad('hashes'),return_value={}),
                    patch.object(rt,'camera_version',return_value={}),patch.object(rt,'dump_check',return_value={'skin':30,'status':0}),
                    patch.object(sb,'Screen'),patch.object(rt,'prepare',side_effect=lambda sb_arg,measured: (_ for _ in ()).throw(bad('root') or bad('policies')) if bad('root') or bad('policies') else (monitor[0],set(range(8))-measured,monitor[2],monitor[3])),
@@ -185,9 +189,12 @@ def check_preflight():
             handles=[stack.enter_context(m) for m in mocks]
             trace=MagicMock()
             for i,handle in enumerate(handles):trace.attach_mock(handle,f'call_{i}')
-            # Stop the session exactly at the idle boundary: no real idle/block.
-            handles[-2].side_effect=RuntimeError('mock idle boundary')
+            # Stop the session exactly at the idle boundary: no real idle/block. A READ_PAUSE_S sleep is an H2 re-read.
+            def idle_boundary(seconds):
+                if seconds!=rt.READ_PAUSE_S:raise RuntimeError('mock idle boundary')
+            handles[-2].side_effect=idle_boundary
             stack.enter_context(patch.object(rt,'fast_check',return_value={}))
+            stack.enter_context(patch.object(rt,'screen_state',return_value={'mock':True}))
             stack.enter_context(patch.object(p.diag,'snapshot',side_effect=bad('diagnostics'),return_value={}))
             stack.enter_context(patch.object(p.diag,'battery',side_effect=bad('battery80'),return_value=90))
             stack.enter_context(patch.object(rt,'fallback_input',side_effect=bad('fallback'),return_value=(NS(size=(482,640)),[{},{}])))
@@ -197,7 +204,7 @@ def check_preflight():
             try:p.main((['--preflight'] if mode=='preflight' else [])+['--output',str(out)])
             except RuntimeError as e:assert refusal or (mode=='session' and str(e)=='mock idle boundary')
             else:assert refusal is None and mode=='preflight'
-            if mode=='preflight' or refusal:handles[-2].assert_not_called()
+            if mode=='preflight' or refusal:assert all(c.args==(rt.READ_PAUSE_S,) for c in handles[-2].call_args_list)
             calls=[repr(c).replace(str(out.parent),'TMP') for c in trace.mock_calls if not repr(c).startswith('call.call_18(')]
             if mode=='preflight':traces[refusal]=calls
             else:assert calls==traces[refusal],(refusal,calls,traces[refusal])
@@ -242,13 +249,13 @@ def check_lag_lifecycle():
                 rows.extend(dict(t=t,t_start=t-.01,current_now_uA=-100 if t<20 or t>32 else -200,
                                  current_avg_uA=None,battery_w=1,voltage_now_uV=4000000) for t in range(52))
             for m in (patch.object(cr,'require_native'),patch.object(rt,'clear_processes'),patch.object(cr,'check_cores'),
-                      patch.object(sb,'battery_sample'),patch.object(rt,'require_hashes',return_value={}),
+                      patch.object(rt,'battery_sample'),patch.object(rt,'require_hashes',return_value={}),
                       patch.object(rt,'dump_check'),patch.object(sb,'load_speed_input',return_value=({'detections':[{},{}]},None,None)),
                       patch.object(sb,'Screen'),patch.object(rt,'stop_camera'),patch.object(rt,'prepare',return_value=monitor),
                       patch.object(v,'build',return_value=(None,caller,[])),patch.object(sb,'check_pinning'),
                       patch.object(power,'sampler',side_effect=sampler),patch.object(lp.threading,'Thread',InlineThread),
                       patch.object(cr,'monitor_loop',side_effect=lambda period,read,rows,stop:rows.append(read())),
-                      patch.object(cr,'fast_sample',return_value={'t':100.,'bat_c':30,'cpu_c':50}),
+                      patch.object(cr,'fast_sample',return_value={'t':100.,'bat_c':30,'cpu_c':50,'cpu':{},'max':{}}),
                       patch.object(rt,'dump_once',side_effect=lambda cr,timeout=30:dict(dumps.pop(0) if dumps else {'t':100.,'rc':0,'skin':30,'status':0})),
                       patch.object(cr,'block_limit',return_value=None)):
                 stack.enter_context(m)
@@ -280,12 +287,12 @@ def check_live_block():
             if fail=='cleanup':caller.close.side_effect=RuntimeError('cleanup')
             for m in (patch.object(rt,'prepare',return_value=monitor),patch.object(pm,'build_detector',return_value=(detector,{'worker_tids':[],'caller_tid':1})),
                       patch.object(v,'build',return_value=(None,caller,[])),patch.object(rt,'clear_processes'),patch.object(cr,'check_cores'),
-                      patch.object(sb,'battery_sample'),patch.object(rt,'fast_check',return_value={}),
+                      patch.object(rt,'battery_sample'),patch.object(rt,'fast_check',return_value={}),
                       patch.object(pm,'camera_start',side_effect=RuntimeError('camera') if fail=='camera' else None,return_value={'session':'s'}),
                       patch.object(rt,'dump_check',return_value={'skin':30,'status':0}),patch.object(p,'bounded_selector'),patch.object(cr,'load_cases',return_value=[{}]),
                       patch.object(power,'sample',return_value={'t':0,'t_start':0,'battery_w':1}),patch.object(p.threading,'Thread',return_value=NS(start=lambda:None,join=lambda timeout=None:None,is_alive=lambda:False)),
                       patch.object(rt,'stop_camera'),patch.object(cr,'lmk_lines',return_value={'ok':True,'n_kills':0}),patch.object(cr,'block_limit',return_value=None),
-                      patch.object(pm,'capped_by_policy',return_value={})):
+                      patch.object(pm,'capped_by_policy',return_value={}),*phase_stubs()):
                 stack.enter_context(m)
             def cycle(name,duration,ops,record):
                 if fail=='inference':raise RuntimeError('inference')
@@ -336,11 +343,12 @@ def check_live_adapters():
     cr.read_frame=lambda *a,**k:dict(status='old');assert ops.frame(1)['status']=='old'
     # Bounded S1O transport: the existing prompt/scoring object, fixed 15 s per request.
     selector=NS(url='http://fake')
-    cr.make_selector=lambda:selector
+    cr.make_selector=lambda post:setattr(selector,'_post',post) or selector
+    cr.PORT=8080
     response=MagicMock();response.__enter__.return_value.read.return_value=b'{"ok":true}'
     with patch('urllib.request.urlopen',return_value=response) as request:
         bound=p.bounded_selector(cr);assert bound._post('/completion',{'prompt':[1]})=={'ok':True}
-        assert request.call_args.kwargs['timeout']==15
+        assert request.call_args.kwargs['timeout']==15 and request.call_args.args[0].full_url=='http://127.0.0.1:8080/completion'
     with patch('urllib.request.urlopen',side_effect=TimeoutError('timeout')):
         try:bound._post('/completion',{})
         except TimeoutError:pass
@@ -351,13 +359,13 @@ def check_live_adapters():
 def check_extra_scheduling():
     original_wait=threading.Event.wait
     def fast_wait(event,timeout=None):return original_wait(event,None if timeout is None else max(0,timeout/1000))
-    for name in ('L1','L4'):
+    for name,slow,full in (('L1',.012,18),('L4',.008,36)):
         ops=FastOps(name)
-        def slow_relate(*a):time.sleep(.008);return [],1
+        def slow_relate(*a,slow=slow):time.sleep(slow);return [],1
         ops.relate=slow_relate
         record={}
         with patch.object(threading.Event,'wait',fast_wait):p.run_cycle(name,180,ops,record)
-        assert record['cadence_missed'] and len(record['m2'])<36
+        assert record['cadence_missed'] and len(record['m2'])<full
     for error in (TimeoutError('timeout'),OSError('socket')):
         ops=FastOps('L0');record={}
         ops.select=lambda *a:(_ for _ in ()).throw(error)
@@ -439,15 +447,15 @@ def check_session_transitions():
             server=NS(proc=NS(pid=123),alive=lambda:True,stop=MagicMock())
             def preflight(names,out,result,resources):resources['server']=server
             calls=[]
-            def block(name,path,server,idle,*_):
+            def block(name,path,server,idle,*_,**mark):
                 calls.append(name)
                 kind='shared' if failure=='shared' and name=='L1' else 'cadence' if failure=='cadence' and name=='L0' else None
                 record=dict(block=name,validity='NOT VALID — WARM START' if failure=='warm' else 'VALID',failure_kind=kind)
                 p.write(path,record);return record
             sleep=stack.enter_context(patch.object(p.time,'sleep'))
             for m in (patch.object(p,'preflight',side_effect=preflight),patch.object(p,'live_block',side_effect=block),
-                      patch.object(rt,'clear_processes'),patch.object(sb,'battery_sample'),patch.object(cr,'check_cores'),
-                      patch.object(rt,'dump_check',return_value={'skin':30,'status':0}),contextlib.redirect_stdout(io.StringIO())):
+                      patch.object(rt,'clear_processes'),patch.object(rt,'battery_sample'),patch.object(cr,'check_cores'),
+                      patch.object(rt,'dump_check',return_value={'skin':30,'status':0}),contextlib.redirect_stdout(io.StringIO()),*phase_stubs()):
                 stack.enter_context(m)
             output=Path(tmp)/'session.json'
             try:p.main(['--blocks','L0,L1,L2','--output',str(output)])
@@ -479,7 +487,7 @@ def check_monitor_workers():
             shell=NS(close=lambda:None);monitor=(shell,{0},10,{'policies':{'policy0':1,'policy4':1,'policy6':1}})
             for m in (patch.object(rt,'prepare',return_value=monitor),patch.object(pm,'build_detector',return_value=(NS(close=lambda:None),{'worker_tids':[],'caller_tid':1})),
                       patch.object(v,'build',return_value=(None,NS(close=lambda:None),[])),patch.object(rt,'clear_processes'),patch.object(cr,'check_cores'),
-                      patch.object(sb,'battery_sample'),
+                      patch.object(rt,'battery_sample'),
                       patch.object(pm,'camera_start',return_value={'session':'s'}),patch.object(rt,'dump_check',return_value={'skin':30,'status':0}),
                       patch.object(p,'bounded_selector'),patch.object(cr,'load_cases',return_value=[{}]),patch.object(power,'sample',return_value={'t':0,'t_start':0,'battery_w':1}),
                       patch.object(p.threading,'Thread',Deferred),patch.object(p.threading,'Event',Stop),patch.object(rt,'stop_camera'),patch.object(cr,'lmk_lines',return_value={'ok':True}),
@@ -487,7 +495,7 @@ def check_monitor_workers():
                       patch.object(rt,'dump_once',side_effect=lambda cr,timeout=30:{'t':time.monotonic(),'t_start':time.monotonic(),'rc':0,'skin':30,'status':0}),
                       patch.object(cr,'root_sample',return_value={'root_rc':0,'battery_status':'Discharging','pss_kb':{'llama_server':1}}),
                       patch.object(p.os,'sched_setaffinity'),patch.object(p.os,'sched_getaffinity',return_value={4} if bad_mask else {0}),
-                      patch.object(pm,'capped_by_policy',return_value={})):stack.enter_context(m)
+                      patch.object(pm,'capped_by_policy',return_value={}),*phase_stubs()):stack.enter_context(m)
             def monitor_loop(period,read,rows,stop):
                 rows.append(read());stop.set()
             stack.enter_context(patch.object(cr,'monitor_loop',side_effect=monitor_loop))
@@ -556,7 +564,7 @@ def check_round3_regressions():
         ops.detect=detect
         record={}
         with patch.object(threading,'Thread',side_effect=factory),patch.object(threading.Event,'wait',fast_wait):p.run_cycle(name,180,ops,record)
-        assert len(record['m2'])==sum(r['size']==640 for r in record['yolo'])
+        assert len(record['m2'])==sum(r['size']==640 and r['slot_s']%p.M2_EVERY[name]==0 for r in record['yolo'])
     assert all(abs(5/x-round(5/x))>.001 for x in (4.87,5.13,5.23))
     print('PASS de-phased telemetry periods, fastest-probe 1 Hz verification, LMK block window/error handling, busy recheck after YOLO')
 
@@ -616,7 +624,12 @@ def check_setup_affinity_fix():
             assert done.returncode and existing.read_text()=='original evidence'
     print('PASS pre-fix L1 empty-mask reproduction, campaign refresh, continuing cpuset refusal, detailed diagnostics and executed transient wrapper')
 
-def mock_rest(label,duration,server,record,camera_on=False,dry=False):
+def phase_stubs():
+    """L7 sentinel cores check and main-thread pin, H5 screen state: stubbed where threads/affinity are mocks."""
+    return (patch.object(rt,'check_cores'),patch.object(rt,'pin_main'),patch.object(rt,'screen_state',return_value={'mock':True}))
+
+
+def mock_rest(label,duration,server,record,camera_on=False,dry=False,**d2):
     p.time.sleep(duration)
     record.update(label=label,planned_s=duration,camera_on=camera_on)
     return record

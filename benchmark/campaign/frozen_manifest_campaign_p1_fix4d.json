@@ -1,0 +1,393 @@
+{
+ "task": "CAMPAIGN_P1_FIX4D",
+ "base": "56296995ea780141d757ba74ee768e07e27c2979",
+ "review_round": 2,
+ "note": "FIX4 candidate, narrowed H2 re-read (FIX4C) and su stderr kept (FIX4D): only an answer whose stdout AND su stderr are blank (or a launch failure: an OSError raised while starting su/am/pgrep, an HTTP timeout, an empty transient readback) is re-read once; every non-empty answer is judged by the reader's 5629699 parser. Shared modules: coresidency.py (root keeps su stderr per thread via root_stderr(); RootShell keeps each command's stderr in last_stderr; root_sample/lmk_lines answer_blank; make_selector post transport) and speed_block.py (termux-wake timeouts). checks/p1_fix4d/ are this candidate's outputs. Superseded untracked intermediates (checks/p1_fix4, p1_fix4b, p1_fix4c, their manifests, self_check_fix4b.py) are not part of the candidate. No live/timed/root validation; agents resident; proot.",
+ "files": [
+  {
+   "path": "benchmark/campaign/AUDIT1_REPORT.md",
+   "bytes": 35215,
+   "sha256": "d30d2bcb82d0cd469a1e4656b0e1399284c323c0a1f8c3654e0e88bfa4e8c7be"
+  },
+  {
+   "path": "benchmark/campaign/RUN.md",
+   "bytes": 25804,
+   "sha256": "fb98d7678d14aa09b66b53154a4e04bc132fbdebca69ec1e95b426af71d932a7"
+  },
+  {
+   "path": "benchmark/campaign/RUN_INDEX.md",
+   "bytes": 8496,
+   "sha256": "a9ead4c8366f832c46dc40e3a7048c6075c49efefe88bb52e088e99be14c0a98"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/camera_power_units.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/camera_power_units.stdout",
+   "bytes": 2748,
+   "sha256": "e579fba5e6a0dc50b21b605195425f76a4b1844eb33d8590433eaf131f57a5de"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d.json",
+   "bytes": 37514,
+   "sha256": "140742a62208febe0008dc39ee2475073e6bacf7c810a31cdc0d64ec2b2559ab"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_block_01_L0.json",
+   "bytes": 3824,
+   "sha256": "d41f8ba87d32e86addf8811afb878acf771c9ac14110f025e838298cad34ae1b"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_block_02_L1.json",
+   "bytes": 4279,
+   "sha256": "9d5340fde5a8c3bcfdb2e77c23103b4927bc56a3ea649eaf8d9242a93a2eb491"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_block_03_L2.json",
+   "bytes": 4278,
+   "sha256": "160148a6279f3643003b3a4b7dced17077741e9039ad2dd90cf128a2fd375ce0"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_block_04_L3.json",
+   "bytes": 4419,
+   "sha256": "00a8ad8af39bcc742ac832829ab01c1e005cf6c52f3bb2471a720ce8d5b42588"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_block_05_L4.json",
+   "bytes": 4660,
+   "sha256": "4a08bdcde10f7ba341425c1e85454caf1c63077a329057f0fbfc2172f448d5b3"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_block_06_L0.json",
+   "bytes": 3823,
+   "sha256": "74934ec93f957bb83704954a52bfb78d9eef6b6e01d831b842bcec996e1372ae"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_idle_1.json",
+   "bytes": 241,
+   "sha256": "cf09a465f3fc7d92001e1c7dd29740beac244d94469ba98afe4fc6edd277b658"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_idle_2.json",
+   "bytes": 252,
+   "sha256": "de576d20adfa7de344d01e877ab4d9977b04606ff8d1e8861c739352b211cf24"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_idle_3.json",
+   "bytes": 270,
+   "sha256": "5a400a4d6c2618537f08285190c721fdd4be88b329775630cb3b637084b3f13c"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_pause_01_L0.json",
+   "bytes": 248,
+   "sha256": "31cdc9a8224e76c0145bbda2abd097370ee139e62aff54fe971b8cbae1dcbfb9"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_pause_02_L1.json",
+   "bytes": 248,
+   "sha256": "31cdc9a8224e76c0145bbda2abd097370ee139e62aff54fe971b8cbae1dcbfb9"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_pause_03_L2.json",
+   "bytes": 248,
+   "sha256": "31cdc9a8224e76c0145bbda2abd097370ee139e62aff54fe971b8cbae1dcbfb9"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_pause_04_L3.json",
+   "bytes": 248,
+   "sha256": "31cdc9a8224e76c0145bbda2abd097370ee139e62aff54fe971b8cbae1dcbfb9"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_pause_05_L4.json",
+   "bytes": 248,
+   "sha256": "31cdc9a8224e76c0145bbda2abd097370ee139e62aff54fe971b8cbae1dcbfb9"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_pause_06_L0.json",
+   "bytes": 248,
+   "sha256": "31cdc9a8224e76c0145bbda2abd097370ee139e62aff54fe971b8cbae1dcbfb9"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coder_dry_mock_p1_fix4d_warmup_L0.json",
+   "bytes": 2096,
+   "sha256": "e03417700184d5c8e852a98b1eb3a5492253fc6519813600d2391876c0aa1996"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coresidency_units.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/coresidency_units.stdout",
+   "bytes": 9349,
+   "sha256": "7085a2d91d0d665fcfe294ae8d83d5906e84ef9de24450739f62e94f94b3102f"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/cycle_units.stderr",
+   "bytes": 1094,
+   "sha256": "94f4149d53a7cc53f4e8fc090d2d5e61ec22cefe644b41d8b8c77f35526987e9"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/cycle_units.stdout",
+   "bytes": 1406,
+   "sha256": "39e5dc67c11b2a8723359b2d4c7ea1a3176de4bc6bbf5739e1b61e8a4fc1fe4f"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/desk2_self_check.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/desk2_self_check.stdout",
+   "bytes": 631,
+   "sha256": "9ccd2cfcb3aac6016422c13b612314d79915126163ce04c1025a344f9ae9b914"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/detector_units.stderr",
+   "bytes": 344,
+   "sha256": "03cb58228ae179dff443f486804ab62e29bb104585529444951d4bdc7335aa97"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/detector_units.stdout",
+   "bytes": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/dry_run_mock.stderr",
+   "bytes": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/dry_run_mock.stdout",
+   "bytes": 5014,
+   "sha256": "a9b13f64a1d016cf515dc70e79888775c4105aea957fa6c3dcd36f27a395f8a0"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/duty_cycle_units.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/duty_cycle_units.stdout",
+   "bytes": 1710,
+   "sha256": "0f17fea8c85319f9e9065fe25a2ac5ce0ffde2325a87651d422313082239552f"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/mission_units.stderr",
+   "bytes": 340,
+   "sha256": "a0e2fd23abebc7aee1667904927f1d745064f0c3923cfc9d0c75e032bcb99d09"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/mission_units.stdout",
+   "bytes": 427,
+   "sha256": "43e428df5d6c63b7270b71d0c661f5e98aed5dd3d990e87d19b9014c06b9fa19"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/power_map_units.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/power_map_units.stdout",
+   "bytes": 682,
+   "sha256": "8d0e09a0c075b729e6901c701e7c7be00054b1f2ae7b23f7db109f4240ae9ecd"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/results.json",
+   "bytes": 5389,
+   "sha256": "9454a534ca0388f56ab69d4985e244223baa67c248d540a493a5a1f74d96e1a7"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check.stdout",
+   "bytes": 1731,
+   "sha256": "be5a1156cb1de129408423d2ed436eec8cfc13d0486b9b2e8c4e8bbf86db88d6"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix2.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix2.stdout",
+   "bytes": 468,
+   "sha256": "72b5497f24e5c05ceb274ad7b79d5b2d30eac825648e4a2b90be4f1254619be9"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix3.stderr",
+   "bytes": 418,
+   "sha256": "39399adabbce205a835f74d9594ef6060a8016fc2d3f34eb2848adf473b61cfa"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix3.stdout",
+   "bytes": 1020,
+   "sha256": "b0cf074b62a3049794da3296eae12022dcda43fdf2d88128b9a81fdff6ed51da"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix3b.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix3b.stdout",
+   "bytes": 701,
+   "sha256": "574566700a0943ab132efa3b9dcecd9b23cb583bcc41752e92c402075d890240"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix3c.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix3c.stdout",
+   "bytes": 5049,
+   "sha256": "4042ed65bdae4dfe03b6785c6a7d0d146d3d6415866331e187bca608a5919519"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix3d.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix3d.stdout",
+   "bytes": 1487,
+   "sha256": "b41436917664ab50d0a369284477a102737ec20b5f7b391f5eb2f9963369f3e2"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix4.stderr",
+   "bytes": 429,
+   "sha256": "1e5c237be9ff97cbeba350b8dabd07b481bab722fef9e42e0e8e0aba22ba6036"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix4.stdout",
+   "bytes": 4283,
+   "sha256": "ce2902f6e8d101844ea480292a72a8c1eff896df96e64ac478fc6eaf897cb032"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix4c.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix4c.stdout",
+   "bytes": 13312,
+   "sha256": "29b9457402c290662bcdce33ee56a521f1629e610a49d9d3ad848f8db5914ecc"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix4d.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/self_check_fix4d.stdout",
+   "bytes": 12223,
+   "sha256": "d4a768e47abbdffc4c652369b157edc7403b9a6c7ccaf9d65a1b478872147303"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/speed1_self_check.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/speed1_self_check.stdout",
+   "bytes": 1460,
+   "sha256": "23a0ebd105898fb9bce5e12cf077ef28f5d6d0c371032b00383e183de31d411e"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/thermal_char_units.stderr",
+   "bytes": 239,
+   "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+  },
+  {
+   "path": "benchmark/campaign/checks/p1_fix4d/thermal_char_units.stdout",
+   "bytes": 1695,
+   "sha256": "7398137c815cbcc750aa59de075fd8457f0f3c606a1384b4a477b8623eff25b9"
+  },
+  {
+   "path": "benchmark/campaign/diagnostics.py",
+   "bytes": 3845,
+   "sha256": "f61956305385e71926b9a8f34c10645b0eeae3738aa35ba7b2ca9a1682260017"
+  },
+  {
+   "path": "benchmark/campaign/lag_probe.py",
+   "bytes": 6141,
+   "sha256": "28fbe65cd843a16693523215ae41b366b7ffef878e55266c2c6e066a5dd1aa66"
+  },
+  {
+   "path": "benchmark/campaign/phase1.py",
+   "bytes": 55886,
+   "sha256": "0dba4cd6ce6618fba3387b2b73dacd62aa44d74ecb43adabebfb9f8b597f6b53"
+  },
+  {
+   "path": "benchmark/campaign/power.py",
+   "bytes": 6306,
+   "sha256": "9babcb652efb60925cc623f6b32700993fabcbf3c970339b9e1d1089d800bc1b"
+  },
+  {
+   "path": "benchmark/campaign/runtime.py",
+   "bytes": 33866,
+   "sha256": "a91990297ec8851056958d3829e4b8baad0deb0333b52d54b39538147ccb18d0"
+  },
+  {
+   "path": "benchmark/campaign/self_check.py",
+   "bytes": 43126,
+   "sha256": "bb0b274e883fbd2c1fd2664c9251ea176952c1fac6689d99beba36f7686a3559"
+  },
+  {
+   "path": "benchmark/campaign/self_check_fix2.py",
+   "bytes": 11674,
+   "sha256": "6ca5d3e99a9e833e181d813d80b80cfc3370fea95caa52a11282f51c4dd02b2e"
+  },
+  {
+   "path": "benchmark/campaign/self_check_fix3.py",
+   "bytes": 22928,
+   "sha256": "f709a82a9dc311a31d90fe7989255c775663f219fd501cce4dc310200ee3273d"
+  },
+  {
+   "path": "benchmark/campaign/self_check_fix3b.py",
+   "bytes": 12567,
+   "sha256": "4a93fc1bdeae597068b9a6242cdebb94b341dc2b4a643a161816fa1559a9cc3a"
+  },
+  {
+   "path": "benchmark/campaign/self_check_fix3c.py",
+   "bytes": 11470,
+   "sha256": "f87d0fe6ce584784467fc5a81d4797d7ec72647128fab87f332a5bcef0eb27e0"
+  },
+  {
+   "path": "benchmark/campaign/self_check_fix3d.py",
+   "bytes": 17312,
+   "sha256": "00c9d7a0e598e314d76ca020a7eba719932e1945c977ce45a3cabacbd15b5188"
+  },
+  {
+   "path": "benchmark/campaign/self_check_fix4.py",
+   "bytes": 55001,
+   "sha256": "22adb823730fc75e1823135e945311a094a5a5a49b59b2854b2640cb65efdfe8"
+  },
+  {
+   "path": "benchmark/campaign/self_check_fix4c.py",
+   "bytes": 38933,
+   "sha256": "752103dc069f6eb8b70bde779bdb6bd755f59b74f416cc2f9cff94ef673c4164"
+  },
+  {
+   "path": "benchmark/campaign/self_check_fix4d.py",
+   "bytes": 17630,
+   "sha256": "57b231f4646005db0f58492234a2279859836d61f00c10ddea9530696b1c0e6f"
+  },
+  {
+   "path": "benchmark/coresidency/coresidency.py",
+   "bytes": 69973,
+   "sha256": "a6b0d65454c0c060927f744194a8cbb9f2a419a59e39fc82b0a510b9f92ed177"
+  },
+  {
+   "path": "benchmark/relate_anything/desk2/speed_block.py",
+   "bytes": 24930,
+   "sha256": "22734f2a581fe910832de3c1a28b55ed1331b8f8cdabc38a58dcc393355adea7"
+  }
+ ]
+}

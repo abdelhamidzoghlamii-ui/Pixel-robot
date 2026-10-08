@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import diagnostics as d
 import phase1 as p
 import runtime as rt
-from self_check import FastOps
+from self_check import FastOps, phase_stubs
 
 
 def check_fallback():
@@ -66,7 +66,7 @@ def check_battery_diagnostics():
     cr.root=lambda *a:(0,text);dump=patch.object(rt,'dump_once',side_effect=lambda cr,timeout=30:dict(rc=0,status=0,skin=23.));dump.start()
     captured=[]
     def capture(command,tag,timeout=60):
-        captured.append(command)
+        if tag=='campaign_diagnostics':captured.append(command)
         return 0,text
     cr.root=capture
     row=d.snapshot(cr,False)
@@ -107,11 +107,11 @@ def check_session():
                 limit=4 if failure=='pause_battery' else 5 if failure=='block_battery' else None
                 if limit and sum(e[0]=='battery' for e in events)==limit:raise d.BatteryStop('battery 24% below 25%')
                 return 85
-            def rest(label,duration,server,record,camera_on=False,dry=False):
+            def rest(label,duration,server,record,camera_on=False,dry=False,**d2):
                 events.append(('rest',label,duration,camera_on))
                 record.update(label=label,planned_s=duration)
             starts=iter([20,30,31.5,31.6])
-            def block(name,path,server,idle,*_):
+            def block(name,path,server,idle,*_,**mark):
                 events.append(('block',name))
                 return dict(block=name,validity='VALID',skin_start={'skin':next(starts)},
                             failure_kind='shared' if failure=='warm_failure' else None)
@@ -172,7 +172,7 @@ def check_rest():
                       patch.object(rt,'root_mask_scope',return_value=contextlib.nullcontext()),patch.object(d,'battery',return_value=85),
                       patch.object(d,'snapshot',side_effect=lambda cr,on:dict(camera_on=on)),patch.object(rt,'stop_camera'),
                       patch.object(pm,'camera_start',return_value={'session':'mock'}),patch.object(rt,'clear_processes'),
-                      patch.object(sb,'battery_sample'),patch.object(cr,'check_cores'),patch.object(rt,'dump_check'),
+                      patch.object(rt,'battery_sample'),patch.object(cr,'check_cores'),patch.object(rt,'dump_check'),
                       patch.object(rt,'fast_check',return_value={'t':100.,'max':{'policy0':1401000}}),
                       patch.object(rt,'dump_once',side_effect=lambda cr,timeout=30:{'t':100.,'rc':0,'skin':30,'status':0}),
                       patch.object(cr,'meminfo_mib',return_value={'mem_available_mib':2500}),
@@ -180,7 +180,8 @@ def check_rest():
                       patch.object(cr,'monitor_loop',side_effect=monitor_loop),patch.object(cr,'block_limit',side_effect=block_limit),
                       patch.object(p.power,'sample',return_value={'t':-1,'t_start':-1,'battery_w':1}),
                       patch.object(p.power,'sampler',side_effect=sampler),patch.object(p.os,'sched_setaffinity'),
-                      patch.object(p.os,'sched_getaffinity',return_value={0}),patch.object(pm,'capped_by_policy',return_value={'policy0':{'percent':100}})):
+                      patch.object(p.os,'sched_getaffinity',return_value={0}),patch.object(pm,'capped_by_policy',return_value={'policy0':{'percent':100}}),
+                      *phase_stubs()):
                 stack.enter_context(m)
             record={};p.rest('FIXED PAUSE',600,NS(proc=NS(pid=3),alive=lambda:True),record,camera_on)
             assert clock[0]==700 and record['power_summary']['mean_battery_w']==1

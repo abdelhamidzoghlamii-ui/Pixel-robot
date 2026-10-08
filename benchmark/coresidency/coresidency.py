@@ -119,12 +119,23 @@ def sha256(path):
 
 # ---------------------------------------------------------------- root and Android
 
+_root_local = threading.local()
+
+
 def root(cmd, tag, timeout=60):
-    """DECISIONS #123 form: su -c "<cmd> </dev/null >FILE 2>&1", then the file is read. Returns (rc, text)."""
+    """DECISIONS #123 form: su -c "<cmd> </dev/null >FILE 2>&1", then the file is read. Returns (rc, text).
+    su's own stderr (e.g. a refused su) is kept for this thread: root_stderr()."""
     path = f'/data/local/tmp/coresidency_{tag}.txt'
+    _root_local.stderr = ''
     r = subprocess.run(['su', '-c', f'{{ {cmd}; }} </dev/null >{path} 2>&1; rc=$?; cat {path}; exit $rc'],
                        stdin=DEVNULL, capture_output=True, text=True, timeout=timeout)
+    _root_local.stderr = r.stderr or ''
     return r.returncode, r.stdout
+
+
+def root_stderr():
+    """su's stderr of this thread's last root() call ('' if none or if that call raised)."""
+    return getattr(_root_local, 'stderr', '')
 
 
 def am(*args):
@@ -227,7 +238,8 @@ def root_sample(server_pid):
     rc, out = root(script, 'sample')
     parts = re.split(r'^=== (\S+) (\d+)$', out, flags=re.M)
     head = parts[0].split()
-    s = {'root_rc': rc, 'root_s': round(time.monotonic() - began, 2), 'pss_kb': {}, 'pss_pids': {}}
+    s = {'root_rc': rc, 'root_s': round(time.monotonic() - began, 2), 'pss_kb': {}, 'pss_pids': {},
+         'answer_blank': not out.strip() and not root_stderr().strip()}  # stdout and su's stderr carried nothing
     try:
         s['battery_w'] = -(int(head[0]) * int(head[1])) / 1e12
         s['battery_status'] = head[2]
@@ -263,7 +275,7 @@ def lmk_lines(since_epoch):
     lines = [l for l in found.splitlines() if LMK_RE.search(l)]
     return {'lines': lines, 'n_lines': len(lines), 'n_kills': sum(bool(LMK_KILL_RE.search(l)) for l in lines),
             'logcat_rc': int(m.group(1)) if m else None, 'ok': m is not None and m.group(1) == '0',
-            'raw_head': head[:400]}
+            'raw_head': head[:400], 'answer_blank': not out.strip() and not root_stderr().strip()}
 
 
 # ---------------------------------------------------------------- thermal and cold load (from ladder.py)
@@ -464,15 +476,18 @@ class Server:
         self.log.close()
 
 
-def make_selector():
+def make_selector(post=None):
     """adapters.S1O (the ladder's s1o letter scoring) pointed at our server: S1O.__init__ would start its own
-    llama-server on port 8091, so its connection setup is repeated here; decide/completion_probs are S1O's."""
+    llama-server on port 8091, so its connection setup is repeated here; decide/completion_probs are S1O's.
+    post: optional (path, body) transport replacing S1O._post before the first request."""
     sys.path[:0] = [str(V3), str(S1O_SRC)]
     from adapters import S1O
     from s1.schema import Example, Q, LETTERS, build
     s = S1O.__new__(S1O)
     s.Example, s.Q, s.LETTERS, s.build = Example, Q, LETTERS, build
     s.url = f'http://127.0.0.1:{PORT}'
+    if post:
+        s._post = post
     with_bos = s._post('/tokenize', {'content': '', 'add_special': True})['tokens']
     s.bos_token_id = with_bos[0] if with_bos else None
     s.letter_ids = [s.encode(L)[0] for L in LETTERS]
@@ -574,29 +589,40 @@ class RootShell:
     END = '__coresidency_end_'
 
     def __init__(self):
-        self.p = subprocess.Popen(['su'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=DEVNULL, text=True,
+        self.p = subprocess.Popen(['su'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                   bufsize=1, start_new_session=True)
-        self.lines, self.n = queue.Queue(), 0
+        self.lines, self.errors, self.n = queue.Queue(), queue.Queue(), 0
+        self.last_stderr = []  # su's stderr lines of the last run() (run() still returns stdout only)
         threading.Thread(target=self._pump, daemon=True).start()
+        threading.Thread(target=self._pump, args=(self.p.stderr, self.errors), daemon=True).start()
 
-    def _pump(self):
-        for line in self.p.stdout:
-            self.lines.put(line.rstrip('\n'))
-        self.lines.put(None)
+    def _pump(self, stream=None, lines=None):
+        stream = self.p.stdout if stream is None else stream
+        lines = self.lines if lines is None else lines
+        for line in stream:
+            lines.put(line.rstrip('\n'))
+        lines.put(None)
 
     def run(self, script, timeout=5):
-        """Output lines of script; raises RuntimeError on timeout or a dead shell."""
+        """Output lines of script; raises RuntimeError on timeout or a dead shell. Its stderr: last_stderr."""
         self.n += 1
         end = f'{self.END}{self.n}__'
+        self.last_stderr = []
         try:
-            self.p.stdin.write(f'{script}\necho {end}\n')
+            self.p.stdin.write(f'{script}\necho {end}\necho {end} >&2\n')
             self.p.stdin.flush()
         except OSError as e:
             raise RuntimeError(f'root shell: {e}') from e
-        out, deadline = [], time.monotonic() + timeout
+        deadline = time.monotonic() + timeout
+        out = self._until(self.lines, end, deadline, timeout)
+        self.last_stderr = self._until(self.errors, end, deadline, timeout)
+        return out
+
+    def _until(self, lines, end, deadline, timeout):
+        out = []
         while True:
             try:
-                line = self.lines.get(timeout=max(0.01, deadline - time.monotonic()))
+                line = lines.get(timeout=max(0.01, deadline - time.monotonic()))
             except queue.Empty:
                 raise RuntimeError(f'root shell: no answer in {timeout} s') from None
             if line is None:

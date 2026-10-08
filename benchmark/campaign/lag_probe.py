@@ -24,15 +24,16 @@ def main(argv=None):
     a=ap.parse_args(argv)
     if a.output.exists():ap.error('output exists; choose a fresh stem')
     a.output.parent.mkdir(parents=True,exist_ok=True)
+    mark=len(rt.READ_RETRIES)  # H2: the probe's re-reads from its first read on
     v,sb,pm,cr,_=rt.imports()
-    cr.require_native(); rt.clear_processes(); cr.check_cores('lag preflight'); sb.battery_sample()
+    cr.require_native(); rt.clear_processes(); cr.check_cores('lag preflight'); rt.battery_sample(sb)
     hashes=rt.require_hashes(v,cr,pm,gemma=False)
     rt.dump_check(cr)
     datum,_,image=sb.load_speed_input()
     boxes=datum['detections']
     result=dict(label=LABEL,hashes=hashes,power=[],fast=[],dumps=[],errors=[],calls=[],quiet_before_s=20,load_s=10,quiet_after_s=20,root_mask_verification_period_s=1.,
              thermal_retries=rt.THERMAL_RETRIES)
-    stop=threading.Event(); threads=[]; monitors=[]; caller=head=None; root_scope=None; screen=sb.Screen()
+    stop=threading.Event(); threads=[]; monitors=[]; caller=head=None; root_scope=None; screen=rt.screen(sb)
     lock_path=rt.HOME/'.cache/campaign_p1.lock'; lock_path.parent.mkdir(parents=True,exist_ok=True)
     with lock_path.open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
@@ -56,7 +57,7 @@ def main(argv=None):
             thread=threading.Thread(target=power.sampler,args=(monitor[0],cr.BATTERY,t0,monitor[1],{6,7},stop,
                 result['power'],result['errors'],lambda:rt.verify_monitor(sb,monitor,{6,7}),0,True),daemon=True)
             threads.append(thread); thread.start()
-            for period,read,rows in ((1,lambda:cr.fast_sample(fast_monitor[0],cr.fast_keys(fast_monitor[3])),result['fast']),
+            for period,read,rows in ((1,lambda:rt.counted(lambda:rt.fast_check(cr,fast_monitor)),result['fast']),
                                      (5,lambda:rt.read_dump(cr),result['dumps'])):
                 thread=threading.Thread(target=worker,args=(period,read,rows),daemon=True); threads.append(thread); thread.start()
             def guard():
@@ -100,6 +101,7 @@ def main(argv=None):
             if 'load_end_s' in result:
                 result['step_response']={key:power.lag_response(rows,result['load_start_s'],result['load_end_s'],key)
                                          for key in ('current_now_uA','current_avg_uA')}
+            if rt.retry_check(result,mark):result['errors'].append(result['read_retry_check'])  # H2 cap for the probe
             if result['errors']:result['complete']=False
             write(a.output,result)
             print(LABEL,'complete:',result.get('complete',False),'rate:',result['achieved_hz'],'Hz; files:',a.output,flush=True)

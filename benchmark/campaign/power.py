@@ -4,6 +4,8 @@ import os
 import threading
 import time
 
+import runtime as rt
+
 PERIOD = .37
 
 
@@ -15,24 +17,29 @@ def safe_mask(allowed, measured):
 
 
 def sample(shell, battery, t0, average=False):
-    start = time.monotonic() - t0
     fields = ['current_now', 'voltage_now', 'status']
     script = 'for f in ' + ' '.join(battery+'/'+f for f in fields)
     script += '; do v=; read -r v <"$f"; printf "%s\\n" "$v"; done'
     if average:
         script += f'; if [ -e {battery}/current_avg ]; then v=; read -r v <{battery}/current_avg; echo "$v"; else echo ABSENT; fi'
-    values = shell.run(script)
-    receipt = time.monotonic() - t0
-    if len(values) != 3 + int(average) or values[2] != 'Discharging':
-        raise RuntimeError('power read missing/charger connected: '+repr(values))
-    current, voltage = map(int, values[:2])
-    if voltage <= 0:
-        raise RuntimeError('invalid battery voltage')
-    row = dict(t_start=start, t=receipt, current_now_uA=current, voltage_now_uV=voltage,
-               battery_w=-current*voltage/1e12, battery_status=values[2])
-    if average:
-        row['current_avg_uA'] = None if values[3] == 'ABSENT' else int(values[3])
-    return row
+    def read():
+        start = time.monotonic() - t0
+        values = shell.run(script)
+        receipt = time.monotonic() - t0
+        if rt.shell_nothing(shell, values):  # no stdout and no su stderr: the only re-read (H2, FIX4C/FIX4D)
+            raise rt.Blip('empty power answer: '+repr(values))
+        # Base parser and checks (5629699), unchanged.
+        if len(values) != 3 + int(average) or values[2] != 'Discharging':
+            raise RuntimeError('power read missing/charger connected: '+repr(values))
+        current, voltage = map(int, values[:2])
+        if voltage <= 0:
+            raise RuntimeError('invalid battery voltage')
+        row = dict(t_start=start, t=receipt, current_now_uA=current, voltage_now_uV=voltage,
+                   battery_w=-current*voltage/1e12, battery_status=values[2])
+        if average:
+            row['current_avg_uA'] = None if values[3] == 'ABSENT' else int(values[3])
+        return row
+    return rt.reread('power', read)
 
 
 def weighted(rows, lo, hi, max_gap=1.5):
@@ -78,16 +85,22 @@ def sampler(shell, battery, t0, mask, measured, stop, rows, errors, verify, peri
         next_verify = -math.inf
         while not stop.is_set():
             now = time.monotonic()
+            mark = len(rt.READ_RETRIES)
             if period or now >= next_verify:
                 verify()  # cadence mode: each read; fastest probe: once per second
                 next_verify = now + 1.
-            rows.append(sample(shell, battery, t0, average))
+            row = sample(shell, battery, t0, average)
+            row['retries'] = rt.retries_since(mark)
+            rows.append(row)
             if period:
                 k = max(k+1, math.ceil((time.monotonic()-t0)/period))
                 if stop.wait(max(0., t0+k*period-time.monotonic())):
                     break
+        mark = len(rt.READ_RETRIES)
         verify()
-        rows.append(sample(shell, battery, t0, average))  # end bracket, same reader owns shell
+        row = sample(shell, battery, t0, average)  # end bracket, same reader owns shell
+        row['retries'] = rt.retries_since(mark)
+        rows.append(row)
     except BaseException as e:
         errors.append(f'{type(e).__name__}: {e}')
         stop.set()
