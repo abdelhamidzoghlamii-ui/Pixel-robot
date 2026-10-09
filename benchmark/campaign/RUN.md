@@ -380,9 +380,11 @@ From native Termux, with no agent resident:
 (set -C; python -u ~/robot/benchmark/campaign/phase23.py --dry-run --output ~/storage/downloads/campaign/owner_rehearsal_p23_01.json > ~/storage/downloads/campaign/owner_rehearsal_p23_01.stdout 2> ~/storage/downloads/campaign/owner_rehearsal_p23_01.stderr)
 ```
 
-About 12–15 min, allowing setup and camera transitions: idle 30 s / gate at most 30 s before each mode;
-endurance 180 s; fixed 3 wall-clock cycles of 40 s active slot / 20 s pause slot; adaptive 240 s, with recorded
+About 16–19 min, allowing setup and camera transitions: idle 30 s / gate at most 30 s before each mode;
+endurance 180 s; fixed 3 wall-clock cycles of 40 s active slot / 20 s pause slot; adaptive 480 s, with recorded
 T_hi = final gate skin + 1.0 C and the session's minimum active 60 s / minimum camera-OFF pause 30 s.
+For each rehearsal adaptive pause, restart at the checked high-switch trigger skin minus 2.0 C, recorded as `switch_trigger_skin_c` and `low_threshold_c`; this keeps the sessions' 2 C hysteresis size. With the archived L2 overshoot, restart no longer depends on cooling below the gate reading. Measured sessions keep restart at T_hi minus 2.0 C (35.0 C at the default T_hi of 37.0 C).
+The longer adaptive window allows cooling: archived Phase-1 `owner_session_p1_fix4d_*` dumps show L2 skin rising about 3 C in the first 60 s, while camera-OFF pauses fall only 1.97–2.97 C in 120 s and 2.75–4.29 C in 300 s.
 This is live hardware rehearsal, **NOT VALID as results**. It uses all normal readers, inference,
 monitoring, fallback and cleanup paths. Mock tests cover emergency, refusal, warm-start gate timeout
 and clean battery-stop paths, plus full-length camera drift and fractional end slots;

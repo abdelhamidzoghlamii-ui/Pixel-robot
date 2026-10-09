@@ -1,5 +1,6 @@
 """Offline campaign P23 regression checks. No hardware, root, motors, weights or valid timings."""
 import ast
+from bisect import bisect_right
 import contextlib
 import copy
 import io
@@ -91,13 +92,13 @@ def check_rules():
     assert q.stop_reason('endurance',4,100,1800).startswith('EMERGENCY')
     assert q.stop_reason('endurance',3,100,1800,('battery',45)).startswith('EMERGENCY')
     assert q.stop_reason('fixed',3,100,2160) is None
-    assert not q.switch('adaptive',True,59,38,37,s)
-    assert q.switch('adaptive',True,60,37,37,s)
-    assert not q.switch('adaptive',False,29,34,37,s)
-    assert not q.switch('adaptive',False,30,35.1,37,s)
-    assert q.switch('adaptive',False,30,35,37,s)
-    assert not q.switch('fixed',True,119,30,37,s) and q.switch('fixed',True,120,30,37,s)
-    assert not q.switch('fixed',False,59,30,37,s) and q.switch('fixed',False,60,30,37,s)
+    assert not q.switch('adaptive',True,59,38,37,35.,s)
+    assert q.switch('adaptive',True,60,37,37,35.,s)
+    assert not q.switch('adaptive',False,29,34,37,35.,s)
+    assert not q.switch('adaptive',False,30,35.1,37,35.,s)
+    assert q.switch('adaptive',False,30,35,37,35.,s)
+    assert not q.switch('fixed',True,119,30,37,35.,s) and q.switch('fixed',True,120,30,37,35.,s)
+    assert not q.switch('fixed',False,59,30,37,35.,s) and q.switch('fixed',False,60,30,37,35.,s)
     retries=[dict(t=t) for t in (0,1,2,180,181,182)]
     assert q.retry_windows(retries,0,360)['ok']
     retries.append(dict(t=3));assert not q.retry_windows(retries,0,360)['ok']
@@ -481,6 +482,125 @@ def check_cli():
         assert not data['rehearsal_coverage']['rehearsal_pass'] and all('BATTERY BELOW 25%' in r['result_validity'] for r in data['runs'])
 
 
+def check_measured_unchanged():
+    base=NS(__name__='phase23_base',__file__=q.__file__)
+    source=subprocess.check_output(['git','show','49bc13b:benchmark/campaign/phase23.py'])
+    exec(compile(source,'phase23_base.py','exec'),base.__dict__)
+    for mode in ('fixed','adaptive'):
+        for active in (False,True):
+            for elapsed in (29,30,59,60,119,120):
+                for skin in (34.9,35.,35.1,37.,40.):
+                    assert q.switch(mode,active,elapsed,skin,37.,35.,q.FULL)==base.switch(mode,active,elapsed,skin,37.,base.FULL)
+        evidence=[]
+        for module in (base,q):
+            with tempfile.TemporaryDirectory() as tmp,contextlib.redirect_stdout(io.StringIO()):
+                session=module.MockSession(None,{});session.start();out=result()
+                module.run_mode(mode,session,out,module.FULL,37.,lambda suffix:Path(tmp)/('run'+suffix))
+                evidence.append((out,{p.name:p.read_bytes() for p in Path(tmp).glob('*.json')}))
+        assert evidence[0]==evidence[1], (mode,'measured controller output changed from 49bc13b')
+        assert all(r['threshold_c']==(37. if r['from_active'] else 35.) for r in evidence[1][0]['runs'][0]['switches'])
+    class Overshoot(q.MockSession):
+        def camera(self,on):
+            if on:self.on_at=self.now()
+            elif self.camera_on:self.off_at=self.now()+2.
+            return super().camera(on)
+        def skin(self):
+            if self.camera_on:return 40. if self.now()-self.on_at>=60 else 36.
+            return (37.5 if self.now()-self.off_at<90 else 34.5) if hasattr(self,'off_at') else 36.
+        def reading(self):return dict(super().reading(),skin=self.skin())
+    for dry,expected in ((False,35.),(True,38.)):
+        with tempfile.TemporaryDirectory() as tmp,contextlib.redirect_stdout(io.StringIO()):
+            session=Overshoot(None,{});session.start();out=result()
+            q.run_mode('adaptive',session,out,dict(q.SHORT,idle=0,gate=0),37.,lambda suffix:Path(tmp)/('run'+suffix),dry=dry)
+        row=out['runs'][0];pause=row['pauses'][0]
+        assert row['t_hi_c']==37. and row['switches'][0]['skin_c']==40.
+        restart=next(r for r in row['switches'] if not r['from_active'])
+        assert restart['threshold_c']==expected and restart['skin_c']<=expected
+        if dry:
+            assert pause['switch_trigger_skin_c']==40. and pause['low_threshold_c']==38.
+            assert q.coverage(out)['adaptive_low_restart']
+            for pause in row['pauses']:pause['low_threshold_c']=30.
+            assert not q.coverage(out)['adaptive_low_restart']
+        else:assert 'low_threshold_c' not in pause and 'switch_trigger_skin_c' not in pause
+    class ChangingTrigger(Overshoot):
+        def skin(self):
+            skin=super().skin()
+            if skin==40.:
+                self.high_reads=getattr(self,'high_reads',0)+1
+                return 40. if self.high_reads==1 else 41.
+            return skin
+    with tempfile.TemporaryDirectory() as tmp,contextlib.redirect_stdout(io.StringIO()):
+        session=ChangingTrigger(None,{});session.start();out=result()
+        q.run_mode('adaptive',session,out,dict(q.SHORT,idle=0,gate=0,adaptive=180),37.,lambda suffix:Path(tmp)/('run'+suffix),dry=True)
+    row=out['runs'][0]
+    assert row['switches'][0]['skin_c']==row['pauses'][0]['switch_trigger_skin_c']==40.
+    assert row['pauses'][0]['low_threshold_c']==38. and session.high_reads>1
+    print('PASS P23B-R2: fixed/adaptive measured FULL controller outputs and all JSON bytes identical to 49bc13b; boundary decisions/thresholds unchanged; overshoot rehearsal trigger40->low38 vs measured high37->low35; per-pause coverage')
+
+
+def check_adaptive_feasibility():
+    """Estimate from shifted archived curves; NOT VALID as a hardware result."""
+    assert q.SHORT['adaptive']==480 and q.FULL['adaptive']==2160
+    archive=rt.HERE/'runs'
+    blocks=sorted(archive.glob('owner_session_p1_fix4d_block_0*.json'))
+    pauses=sorted(archive.glob('owner_session_p1_fix4d_pause_0*.json'))
+    assert len(blocks)==len(pauses)==6
+    print('Adaptive feasibility ESTIMATE from shifted curves; NOT VALID as a hardware result.')
+    print('Step-held dumps, first dump at t=0; G=30 C; mock 3 s start / 2 s stop; OFF curve begins at confirmed OFF, shifted to high-switch skin; no extrapolation. Archived heating starts with camera already on.')
+    print('ASSERT only L2 heating x six pauses, new rule, 480 s. All other matrix rows REPORT ONLY.')
+    print('| Heating | Pause | Rule | Window s | High-switch s | Low-restart s | Remaining s | Result |')
+    print('|---|---|---|---:|---:|---:|---:|---|')
+    failures=[];counts={};worst={}
+    for block in blocks:
+        heating=json.loads(block.read_text())['dumps']
+        for path in pauses:
+            cooling=json.loads(path.read_text())['dumps']
+            class Curves(q.MockSession):
+                def __init__(self):
+                    super().__init__(None,{})
+                    self.temp=30.;self.curve=None
+                def value(self,t):
+                    if self.curve is None:return 30.
+                    elapsed=t-self.curve_origin
+                    assert elapsed<=self.curve[-1]['t']-self.curve[0]['t'], 'archived curve exhausted'
+                    index=max(0,bisect_right(self.times,elapsed)-1)
+                    return self.curve_skin+self.curve[index]['skin']-self.curve[0]['skin']
+                def wait(self,seconds):
+                    first=len(self.data['dumps'])
+                    super().wait(seconds)
+                    for row in self.data['dumps'][first:]:row['skin']=self.value(row['t'])
+                    self.temp=self.value(self.now())
+                def camera(self,on):
+                    skin=self.skin()
+                    if on:
+                        self.curve=heating;self.curve_origin=self.now();self.curve_skin=skin
+                        self.times=[r['t']-heating[0]['t'] for r in heating]
+                    answer=super().camera(on)
+                    if not on and self.curve is heating:
+                        self.curve=cooling;self.curve_origin=self.now();self.curve_skin=skin
+                        self.times=[r['t']-cooling[0]['t'] for r in cooling]
+                        self.temp=skin
+                    return answer
+            for dry,rule in ((True,'trigger-2'),(False,'old G-1')):
+                for window in (240,q.SHORT['adaptive']):
+                    with tempfile.TemporaryDirectory() as tmp,contextlib.redirect_stdout(io.StringIO()):
+                        session=Curves();session.start();out=result()
+                        q.run_mode('adaptive',session,out,dict(q.SHORT,idle=0,gate=0,adaptive=window),31.,lambda suffix:Path(tmp)/('curve'+suffix),dry=dry)
+                    row=out['runs'][0]
+                    high=next((r for r in row['switches'] if r['from_active']),None)
+                    low=next((r for r in row['switches'] if not r['from_active']),None)
+                    remaining=window-low['at_s'] if low else None
+                    passed=bool(high and low and row['totals']['camera_restarts'] and remaining>=q.SHORT['min_active']+1.)
+                    key=(rule,window);counts[key]=counts.get(key,0)+int(passed)
+                    if passed:worst[key]=max(worst.get(key,0),low['at_s'])
+                    show=lambda value: '—' if value is None else f'{value:.1f}'
+                    print(f"| {block.stem.split('fix4d_')[1]} | {path.stem.split('fix4d_')[1]} | {rule} | {window} | {show(high['at_s'] if high else None)} | {show(low['at_s'] if low else None)} | {show(remaining)} | {'PASS' if passed else 'FAIL'} |")
+                    if block.name.endswith('block_03_L2.json') and dry and window==480 and not passed:failures.append(path.name)
+    for key,count in counts.items():print(f'MATRIX REPORT ONLY: {key[0]}, {key[1]} s: {count}/36 restart; worst successful restart {worst.get(key)} s')
+    assert not failures, ('L2 480 s shifted-curve estimates failed',failures)
+    print('PASS shifted-curve feasibility: REAL run_mode/switch and restart reserve; all six L2 480 s estimates restart with >=61 s left; remaining matrix report only')
+
+
 def check_round2():
     required={'server_manager.py','benchmark/relate_anything/speed1/session.py',
         'benchmark/strategic_selector/ladder/measure.py','benchmark/strategic_selector/ladder/cases/ladder_cases_v1.jsonl'}
@@ -529,5 +649,5 @@ def check_round2():
 
 
 if __name__=='__main__':
-    check_gate();check_replacement();check_rules();check_controller();check_windows();check_m3_timing();check_fixed_rehearsal();check_live();check_cli();check_readers();check_review_regressions();check_round2()
+    check_gate();check_replacement();check_rules();check_controller();check_windows();check_m3_timing();check_fixed_rehearsal();check_live();check_cli();check_readers();check_review_regressions();check_round2();check_measured_unchanged();check_adaptive_feasibility()
     print('PASS CAMPAIGN_P23 self-check (offline mocks only; agents resident; proot; NOT VALID for timing)')

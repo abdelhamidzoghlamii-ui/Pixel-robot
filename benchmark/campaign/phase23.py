@@ -27,16 +27,16 @@ REHEARSAL = 'NOT VALID — OWNER REHEARSAL'
 TIMING_FIELDS = ('camera_start_s','inference_s','camera_stop_s','camera_off_s','camera_on_without_inference_s')
 FULL = dict(idle=300, gate=900, endurance=1800, fixed=2160, adaptive=2160,
             active=120, pause=60, min_active=60, min_pause=30)
-SHORT = dict(idle=30, gate=30, endurance=180, fixed=180, adaptive=240,
+SHORT = dict(idle=30, gate=30, endurance=180, fixed=180, adaptive=480,
              active=40, pause=20, min_active=60, min_pause=30)
 
 
-def switch(mode, active, elapsed, skin, high, spec):
+def switch(mode, active, elapsed, skin, high, low, spec):
     if mode == 'fixed':
         return elapsed >= spec['active' if active else 'pause']
     if mode == 'adaptive':
         return elapsed >= spec['min_active' if active else 'min_pause'] and (
-            skin >= high if active else skin <= high-2.)
+            skin >= high if active else skin <= low)
     return False
 
 
@@ -439,6 +439,11 @@ def run_mode(mode,session,result,spec,high,stem,dry=False):
             if mode=='fixed':phase['origin']=row['origin']+(cycle-1)*(spec['active']+spec['pause'])+(0 if active else spec['active'])
             planned_end=min(deadline,row['origin']+(cycle-1)*(spec['active']+spec['pause'])+spec['active']+(0 if active else spec['pause'])) if mode=='fixed' else deadline
             phase['planned_end']=planned_end
+            low=high-2.
+            if dry and mode=='adaptive' and not active:
+                trigger=row['active_phases'][-1]['stop_decision']['skin_c']
+                low=trigger-2.
+                phase.update(switch_trigger_skin_c=trigger,low_threshold_c=low)
             print(f'START {mode} {phase["phase"]} at +{phase["origin"]-row["origin"]:.1f} s',flush=True)
             try:
                 if active:
@@ -450,8 +455,9 @@ def run_mode(mode,session,result,spec,high,stem,dry=False):
                         session.guard()
                         elapsed=session.now()-row['origin']
                         reason=reason or stop_reason(mode,session.status(),elapsed,maximum)
-                        ending=bool(reason or (session.now()>=planned_end if mode=='fixed' else switch(mode,True,session.now()-phase['camera_start_at'],session.skin(),high,spec)))
-                        if ending:phase.setdefault('stop_decision',dict(at_s=elapsed,skin_c=session.skin(),status=session.status(),reason=reason or ('ACTIVE SLOT END' if mode=='fixed' else 'HIGH THRESHOLD')))
+                        trigger_skin=session.skin() if dry and mode=='adaptive' else None
+                        ending=bool(reason or (session.now()>=planned_end if mode=='fixed' else switch(mode,True,session.now()-phase['camera_start_at'],trigger_skin if trigger_skin is not None else session.skin(),high,low,spec)))
+                        if ending:phase.setdefault('stop_decision',dict(at_s=elapsed,skin_c=trigger_skin if trigger_skin is not None else session.skin(),status=session.status(),reason=reason or ('ACTIVE SLOT END' if mode=='fixed' else 'HIGH THRESHOLD')))
                         return ending
                     remaining=planned_end-session.now()
                     if remaining<=0:raise RuntimeError('camera startup consumed active interval')
@@ -465,7 +471,7 @@ def run_mode(mode,session,result,spec,high,stem,dry=False):
                     finally:phase['camera_stop_end_at']=session.now()
                     phase['camera_off_at']=session.now()
                     while session.now()<planned_end:
-                        if switch(mode,False,session.now()-phase['camera_off_at'],session.skin(),high,spec) and (mode!='adaptive' or deadline-session.now()>=spec['min_active']+1.):break
+                        if switch(mode,False,session.now()-phase['camera_off_at'],session.skin(),high,low,spec) and (mode!='adaptive' or deadline-session.now()>=spec['min_active']+1.):break
                         session.wait(min(.2,planned_end-session.now()))
                 phase['skin_end']=session.reading()
                 session.guard()
@@ -482,7 +488,7 @@ def run_mode(mode,session,result,spec,high,stem,dry=False):
             if mode=='endurance':break
             if session.now()>=deadline:break
             decision=phase.get('stop_decision',{}) if active else {}
-            row['switches'].append(dict(at_s=decision.get('at_s',session.now()-row['origin']),from_active=active,skin_c=decision.get('skin_c',session.skin()),threshold_c=high if active else high-2.))
+            row['switches'].append(dict(at_s=decision.get('at_s',session.now()-row['origin']),from_active=active,skin_c=decision.get('skin_c',session.skin()),threshold_c=high if active else low))
             active=not active
         reason=reason or 'TIME LIMIT'
         row['stop_reason']=reason
@@ -555,7 +561,8 @@ def coverage(result):
     paths=dict(modes=modes,live_m2_calls=live,fallback_m2_calls=fallback,selector_fallback_contexts=contexts,
         fixed_pauses=len(next((r for r in rows if r['mode']=='fixed'),{}).get('pauses',[])),
         adaptive_high_switch=any(r['from_active'] and r['skin_c']>=adaptive.get('t_hi_c',math.inf) for r in switches),
-        adaptive_low_restart=any(not r['from_active'] and r['skin_c']<=adaptive.get('t_hi_c',-math.inf)-2 for r in switches),
+        adaptive_low_restart=any(r['skin_c']<=pause.get('low_threshold_c',-math.inf)
+            for r,pause in zip((s for s in switches if not s['from_active']),adaptive.get('pauses',[]))),
         adaptive_camera_restarts=adaptive.get('totals',{}).get('camera_restarts',0),
         camera_restarts=sum(r.get('totals',{}).get('camera_restarts',0) for r in rows),
         camera_failed_attempts=sum(r.get('totals',{}).get('camera_failures',0) for r in rows),
