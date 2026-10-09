@@ -66,16 +66,27 @@ def can_continue(b):
             and not b.get('monitor_errors'))
 
 
-def run_cycle(name, duration, ops, record):
+def run_cycle(name, duration, ops, record, replacement=False, stop_when=None):
     """Same scheduling engine for mocks/live. Async M2 after 640; L2 M2 synchronously precedes selection."""
     t0 = getattr(ops, "origin", None)
     if t0 is None:
         t0 = ops.now()
     stop, ready, lock = threading.Event(), threading.Event(), threading.Lock()
-    shared = dict(frame=None, boxes=None, triplets=[], scene='live', m2_thread=None)
+    shared = dict(frame=None, boxes=None, triplets=[], scene='live', m2_thread=None,first_ready_s=None)
     errors = record.setdefault('worker_errors', [])
+    battery_errors = []
+    policy = None
+    if replacement:
+        sys.path.insert(0, str(rt.ROBOT))
+        from detector_size_policy import SizePolicy
+        policy = SizePolicy(interval_s=5)
+        policy.last_large = t0  # CONFIRM: first 640 at 5 s; exactly one inference per slot.
+    # P23 starts only complete service slots; partial tails are explicitly unscheduled.
+    frame_budget = FRAME_WAIT_S+2. if replacement else 0.
+    selector_slots = range(0, max(0, math.floor(duration/20))*20, 20) if replacement else range(0, math.ceil(duration), 20)
+    record['slot_plan']=dict(frame_finish_budget_s=frame_budget,selector_slots=list(selector_slots),partial_tails_unscheduled=replacement)
     record.update(reads=[], yolo=[], m2=[], selector=[], frames_due={'320':0,'640':0},
-                  frames_skipped={'320':0,'640':0}, camera_late=0, camera_misses=[])
+                  frames_skipped={'320':0,'640':0}, camera_late=0, camera_misses=[],frame_slots=[],selector_slots_started=[])
     def stamp():
         return ops.now()-t0
     def m2(image, boxes, frame, slot):
@@ -108,22 +119,34 @@ def run_cycle(name, duration, ops, record):
                 record['m2'].append(row)
             return rows
         except BaseException as e:
+            if isinstance(e,diag.BatteryStop):battery_errors.append(e)
             errors.append(f'M2 {type(e).__name__}: {e}')
             stop.set()
             return None
     def selectors():
         try:
-            for slot in range(0, math.ceil(duration), 20):
+            for slot in selector_slots:
                 if slot >= duration or stop.wait(max(0., t0+slot-ops.now())):
                     return
                 # 15 s: a skipped slot-0 frame (H4) is covered by the slot-5 one
-                if name == 'L2' and not ready.wait(timeout=15):
-                    raise RuntimeError('L2 no 640 frame ready')
+                if name == 'L2':
+                    deadline=ops.now()+15
+                    while not ready.is_set() and not stop.is_set() and ops.now()<deadline:
+                        ready.wait(timeout=.02)
+                    if stop.is_set():return
+                    if not ready.is_set():raise RuntimeError('L2 no 640 frame ready')
                 with lock:
                     image, boxes, frame = shared['frame'] or (None,None,None)
+                if stop.is_set():return
+                if stop_when:ops.guard()
+                record['selector_slots_started'].append(slot)
                 if name == 'L2':
                     if m2(image, boxes, frame, slot) is None:
                         return
+                if stop.is_set():
+                    record.setdefault('cancelled_selector_slots',[]).append(slot)
+                    return
+                if stop_when:ops.guard()
                 with lock:
                     text = None if name == 'L0' else context(shared['triplets'])
                     if text is not None and shared['scene']=='fallback':
@@ -142,34 +165,47 @@ def run_cycle(name, duration, ops, record):
                     record['selector'][-1]['miss'] = True
                     record['cadence_missed'] = True
         except BaseException as e:
+            if isinstance(e,diag.BatteryStop):battery_errors.append(e)
             errors.append(f'selector {type(e).__name__}: {e}')
             stop.set()
     selector_thread = threading.Thread(target=selectors, daemon=True)
     selector_thread.start()
     slot, last, camera_failed = 0, None, 0  # consecutive slots without a new frame (H4)
+    cut = duration
     try:
-        while slot < duration and not stop.is_set():
+        while (slot+frame_budget <= duration if replacement else slot < duration):
+            if stop.is_set():break
             ops.guard()
             now = stamp()
-            skipped, slot = due_frames(now, slot, duration)
+            if stop_when and stop_when():
+                cut = now
+                record['controlled_end'] = True
+                record['stop_requested_s']=cut
+                stop.set()
+                break
+            skipped, slot = due_frames(now, slot, duration-frame_budget+1e-9 if replacement else duration)
             for missed in skipped:
-                record['frames_due']['320'] += 1
-                record['frames_skipped']['320'] += 1
-                if missed % 5 == 0:
+                size = policy.next_size(t0+missed) if policy else 320
+                record['frame_slots'].append(dict(slot_s=missed,size=size,skipped=True))
+                record['frames_due'][str(size)] += 1
+                record['frames_skipped'][str(size)] += 1
+                if not replacement and missed % 5 == 0:
                     record['frames_due']['640'] += 1
                     record['frames_skipped']['640'] += 1
-            if slot >= duration:
+            if (slot+frame_budget > duration if replacement else slot >= duration):
                 break
             if stop.wait(max(0., t0+slot-ops.now())):
                 break
-            large = slot % 5 == 0
-            record['frames_due']['320'] += 1
-            record['frames_due']['640'] += int(large)
+            size = policy.next_size(t0+slot) if policy else 320
+            record['frame_slots'].append(dict(slot_s=slot,size=size))
+            large = size == 640 if replacement else slot % 5 == 0
+            record['frames_due'][str(size)] += 1
+            if not replacement:record['frames_due']['640'] += int(large)
             with lock:
                 busy = shared['m2_thread'] is not None and shared['m2_thread'].is_alive()
             if name == 'L3' and busy:
-                record['frames_skipped']['320'] += 1
-                record['frames_skipped']['640'] += int(large)
+                record['frames_skipped'][str(size)] += 1
+                if not replacement:record['frames_skipped']['640'] += int(large)
                 slot += 1
                 continue
             r = ops.frame(last)
@@ -178,8 +214,8 @@ def run_cycle(name, duration, ops, record):
                 camera_failed += 1
                 record['camera_misses'].append(dict(slot_s=slot, status='repeat' if r['status'] == 'ok' else r['status']))
                 record['camera_late'] += 1
-                record['frames_skipped']['320'] += 1
-                record['frames_skipped']['640'] += int(large)
+                record['frames_skipped'][str(size)] += 1
+                if not replacement:record['frames_skipped']['640'] += int(large)
                 record['cadence_missed'] = True
                 if camera_failed >= CAMERA_MISS_STOP:
                     raise RuntimeError(f'camera failed: no new frame in {camera_failed} consecutive slots: {record["camera_misses"][-camera_failed:]}')
@@ -189,9 +225,10 @@ def run_cycle(name, duration, ops, record):
                 raise RuntimeError('camera failed/repeated frame: '+r['status'])
             camera_failed = 0
             last = r['frame']
+            next_frame=max(slot+1.,stamp()-r['age_s']+1.) if replacement else slot+1
             record['reads'].append(dict(t=stamp(), frame=last, age_s=r['age_s']))
             record['camera_late'] += int(r['age_s'] > 1.35 or stamp()-slot > .35)
-            for size in ([320,640] if large else [320]):
+            for size in ([size] if replacement else [320,640] if large else [320]):
                 a = stamp()
                 boxes = ops.detect(r['image'], size)
                 record['yolo'].append(dict(slot_s=slot, started_s=a, ended_s=stamp(),
@@ -199,6 +236,7 @@ def run_cycle(name, duration, ops, record):
                 if size == 640:
                     with lock:
                         shared['frame'] = (r['image'], boxes, last)
+                        if shared['first_ready_s'] is None:shared['first_ready_s']=stamp()
                     ready.set()
                     if name in M2_EVERY and slot % M2_EVERY[name] == 0:
                         with lock:
@@ -210,29 +248,52 @@ def run_cycle(name, duration, ops, record):
                         with lock:
                             shared['m2_thread'] = thread
                         thread.start()
-            slot += 1
-        if not stop.is_set():
-            stop.wait(max(0., t0+duration-ops.now()))
+            slot = next_frame
+        if not stop.is_set() and not record.get('controlled_end'):
+            if replacement:
+                while stamp()<duration:
+                    ops.guard()
+                    if stop_when and stop_when():
+                        cut=stamp();record.update(controlled_end=True,stop_requested_s=cut);stop.set();break
+                    stop.wait(min(.2,max(0.,duration-stamp())))
+            else:stop.wait(max(0., t0+duration-ops.now()))
         record['duration_s'] = stamp()
     finally:
         stop.set()
-        selector_thread.join(timeout=25)
+        def drain(worker,timeout):
+            heartbeat=getattr(ops,'drain_heartbeat',None)
+            if heartbeat is None:
+                worker.join(timeout=timeout)
+                return
+            deadline=time.monotonic()+timeout
+            while worker.is_alive() and time.monotonic()<deadline:
+                heartbeat()
+                worker.join(timeout=min(.2,max(0.,deadline-time.monotonic())))
+        drain(selector_thread,25)
         with lock:
             thread = shared['m2_thread']
         if thread:
-            thread.join(timeout=120)
+            drain(thread,120)
         if selector_thread.is_alive() or thread and thread.is_alive():
             raise RuntimeError('worker still running; session must stop')
         record['duration_s'] = stamp()
+    if battery_errors:raise battery_errors[0]
     if errors:
         raise RuntimeError('; '.join(errors))
     # Calls crossing the block boundary are cadence failures, never silent valid timing.
     if any(r['ended_s'] > duration for r in record['m2']+record['selector']+record['yolo']):
         record['cadence_missed'] = True
-    expected_m2 = 0 if name == 'L0' else math.ceil(duration/20) if name == 'L2' else math.ceil(duration/M2_EVERY[name])
+    required=set(selector_slots)
+    if replacement and record.get('controlled_end'):
+        required={s for s in selector_slots if s+1<cut and (s>0 or shared['first_ready_s'] is not None and shared['first_ready_s']+1<cut)}
+        required.update(record['selector_slots_started'])
+    actual={r['slot_s'] for r in record['selector']}
+    cancelled=set(record.get('cancelled_selector_slots',[]))
+    if any(s not in actual and s not in cancelled for s in required):record['cadence_missed']=True
+    expected_m2 = 0 if name == 'L0' else len(required) if name == 'L2' else math.ceil(duration/M2_EVERY[name])
     if len(record['m2']) != expected_m2:
         record['cadence_missed'] = True
-    if len(record['selector']) != math.ceil(duration/20):
+    if len(record['selector'])+len(cancelled) != len(required):
         record['cadence_missed'] = True
     if name != 'L3' and sum(record['frames_skipped'].values()):
         record['cadence_missed'] = True
@@ -423,7 +484,6 @@ def live_block(name, out, server, idle, dry=False, duration=180, mark=None):
         cam=rt.camera_start(pm)
         record['camera']=cam
         record['diagnostics_start']=diag.snapshot(cr,True)
-        record['skin_start']=rt.dump_check(cr)
         selector=bounded_selector(cr)
         cases=cr.load_cases()
         t0=time.monotonic()
@@ -455,8 +515,17 @@ def live_block(name, out, server, idle, dry=False, duration=180, mark=None):
         ops.force_fallback_slot=(0 if name=='L2' else 10 if name=='L1' else 15) if dry else None
         # Use exactly the same origin for cadence and power receipt accounting.
         ops.now=lambda:time.monotonic()
+        # Setup heat is excluded; the final gate read also drives compare_start, with no setup between it and t=0.
+        sampling_origin=t0
+        reference, cool_max = (idle.get('reference'), idle.get('cool_max',0)) if idle else (None, 0)
+        record['skin_start'], record['cooling'] = start_gate(
+            lambda: rt.dump_check(cr), lambda seconds: stop.wait(seconds), guard,
+            reference, cool_max, START_BAND_C)
+        t0=time.monotonic()
         ops.origin=t0
         record['cycle_origin']=t0
+        lmk_since=time.time()
+        record['lmk_window_epoch_s']=[lmk_since,lmk_since+duration]
         run_cycle(name,duration,ops,record)
         beat[0]=None
         guard()
@@ -495,6 +564,9 @@ def live_block(name, out, server, idle, dry=False, duration=180, mark=None):
         if root_scope:
             root_scope.__exit__(None,None,None)
         origin=record.get('cycle_origin',began)
+        if 'sampling_origin' in locals():
+            for row in record['power']:
+                row['t']-=origin-sampling_origin; row['t_start']-=origin-sampling_origin
         for key in ('gate','skin_start','skin_end'):
             if key in record:
                 for stamp_key in ('t','t_start'):
@@ -569,6 +641,22 @@ def write(path,data):
 
 
 START_BAND_C = 1.5  # start skin comparability band around T_ref (also the D2 cooling target)
+
+
+def start_gate(read, wait, guard, reference, maximum, band, now=None):
+    """Return the SAME final reading for the cooling decision and active start; no parser/retry of our own."""
+    now = time.monotonic if now is None else now
+    began = now()
+    target = None if reference is None else reference+band
+    while True:
+        guard()
+        row = read()
+        elapsed = now()-began
+        reached = target is None or row['skin'] <= target
+        if reached or elapsed >= maximum:
+            return row, dict(target_skin_c=target, extra_s=elapsed, max_extra_s=maximum,
+                             reached=reached, end_skin_c=row['skin'], reading=row)
+        wait(min(5., maximum-elapsed))
 
 
 def compare_start(record, reference):
@@ -924,8 +1012,8 @@ def main(argv=None):
                 mark=len(rt.READ_RETRIES)
                 if not mock:diag.battery(cr,25)
                 row={};result['pauses'].append(row)
-                # D2: once T_ref exists, a pause ending above T_ref+1.5 C extends by at most times['cool'] s.
-                pause_phase(prefix+'FIXED PAUSE',pause_path,row,times['pause'],server,dry=mock,t_ref=reference,cool_max=times['cool'],mark=mark)
+                # The extension now follows block setup; its final reading is also the comparability reading.
+                pause_phase(prefix+'FIXED PAUSE',pause_path,row,times['pause'],server,dry=mock,mark=mark)
                 write(a.output,result)
                 mark=len(rt.READ_RETRIES)
                 if not mock:diag.battery(cr,25)
@@ -936,7 +1024,7 @@ def main(argv=None):
                     b['power_summary']=power.summary([],[],times['block'])
                     write(path,b)
                 else:
-                    b=live_block(name,path,server,None,rehearsal,times['block'],mark=mark)
+                    b=live_block(name,path,server,dict(reference=reference,cool_max=times['cool']),rehearsal,times['block'],mark=mark)
                     if 'skin_start' in b:reference=compare_start(b,reference)
                     result['T_ref_c']=reference
                     write(path,b)

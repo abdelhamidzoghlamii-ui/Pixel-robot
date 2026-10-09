@@ -375,7 +375,7 @@ def run_main(argv, rest_fail=None, battery_stop=False, server_stop_error=None, p
             raise RuntimeError('pause sampler stopped: mock cause')
     starts = iter([20., 30., 30.5, 33., 31., 29., 30.])  # warm-up, then six measured blocks (T_ref 30)
     def block(name, path, srv, idle, dry=False, duration=180, **mark):
-        calls.append(('block', name, mark))
+        calls.append(('block', name, dict(mark,idle=idle)))
         record = dict(block=name, validity=p.REHEARSAL if dry else 'VALID', skin_start={'skin': next(starts)},
                       summary=dict(camera_frames_late=2, camera_slots_skipped=1, max_live_boxes=9,
                                    m2=dict(live_calls=3, fallback_calls=1)),
@@ -402,8 +402,10 @@ def check_main():
     calls, result, out, files, seen = run_main([])
     assert seen['first_label'] == 'IN PROGRESS — NOT VALID' and result['label'] == 'SESSION COMPLETE; inspect individual validity'
     pauses = [c[2] for c in calls if c[0] == 'rest'][3:]
-    # D2: the first pause has no T_ref; later ones carry T_ref (set by the first measured block, 30 C) and 300 s.
-    assert [dict(t_ref=d['t_ref'], cool_max=d['cool_max']) for d in pauses] == [dict(t_ref=None, cool_max=300)]+[dict(t_ref=30., cool_max=300)]*5, pauses
+    # P23: cooling follows setup in live_block; pauses are fixed and cannot decide comparability early.
+    assert all('t_ref' not in d and 'cool_max' not in d for d in pauses)
+    gates=[c[2]['idle'] for c in calls if c[0]=='block'][1:]
+    assert gates==[dict(reference=None,cool_max=300)]+[dict(reference=30.,cool_max=300)]*5,gates
     assert all(isinstance(d['mark'], int) for d in pauses)  # H2: the capacity check before each pause counts in it
     assert [b['validity'] for b in result['blocks']] == ['VALID', 'VALID', 'NOT COMPARABLE — START TEMP', 'VALID', 'VALID', 'VALID']
     assert files == sorted(['s.json', 's_warmup_L0.json']+[f's_idle_{i}.json' for i in (1, 2, 3)]
@@ -426,7 +428,8 @@ def check_main():
     assert result['error'] == 'cleanup failed: server: RuntimeError: stop failed'  # M4: a cleanup-only failure has a cause
     # Rehearsal: D2 at most 6 s; rehearsal_pass needs max_live_boxes for every block and no phase over the re-read cap.
     calls, result, out, files, seen = run_main(['--dry-run'])
-    assert [c[2].get('cool_max') for c in calls if c[0] == 'rest'][3:] == [6]*6
+    gates=[c[2]['idle'] for c in calls if c[0]=='block'][1:]
+    assert [g['cool_max'] for g in gates]==[6]*6
     assert result['rehearsal_coverage']['rehearsal_pass'] is True, result['rehearsal_coverage']
     cov = dict(result, blocks=[dict(b, summary=dict(b['summary'], max_live_boxes=None)) if i == 2 else b for i, b in enumerate(result['blocks'])])
     assert p.coverage(cov)['rehearsal_pass'] is False

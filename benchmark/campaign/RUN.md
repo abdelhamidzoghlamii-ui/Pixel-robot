@@ -121,12 +121,12 @@ Fix4 (audit `AUDIT1_REPORT.md`, owner decisions D1/D2):
   starting su/am/pgrep counts as a launch failure (for the camera start: only its first `am start`); any other error
   stands as the reader's own.
 - D1: L1 runs M2 after every **second** 640 frame (every 10 s, 18 calls per 180 s block); other layouts unchanged.
-- D2: after each fixed 600 s pause, once T_ref exists, a start skin more than 1.5 °C above T_ref keeps
-  the pause going (same checks, still sampled) for up to 300 s more until it is within T_ref + 1.5 °C;
-  the pause records `cooling.extra_s`. The decision uses the pause's newest thermal-worker skin
-  (`cooling.end_skin_age_s`, normally ≤ 4.87 s, more if a read overran); the block's own start skin still
-  decides comparability. An extended pause must have power coverage over its whole sampled interval
-  (`power_summary_with_cooling`); `power_summary` stays the fixed 600 s. Still outside: the block runs and is labelled
+- D2 (P23 start-temperature fix): after the fixed 600 s camera-OFF pause, block setup completes
+  (including model builds and camera start). With inference still idle, monitoring runs and a fresh
+  checked skin reading gates the measured interval at T_ref + 1.5 °C, for at most 300 s more.
+  The block records `cooling.extra_s`; its **same final gate reading** is `skin_start` and decides
+  comparability. Setup/cooling heat is excluded from measured power and cadence by the common origin.
+  The camera is ON during this post-setup extension. Still outside: the block runs and is labelled
   **NOT COMPARABLE — START TEMP**. A skin more than 1.5 °C below T_ref is labelled NOT COMPARABLE
   without waiting.
 
@@ -348,3 +348,198 @@ M2/YOLO overlap, selector HTTP/context/timeouts, pauses and native cleanup)
 remain unvalidated until it passes.
 
 Historical owner evidence and source discrepancies: [RUN_INDEX.md](RUN_INDEX.md).
+
+## CAMPAIGN_P23 — L2 only, one mode per session
+
+Phases 2/3 use M2 relsgg-vits16 fp32 on BIG cpus 6–7 / 2 threads, immediately before each
+20 s selector call, on the latest completed YOLO-640 frame. YOLO follows the #128 CONFIRM setting:
+1 frame/s, yolo11s on MID cpus 4–5 / 2 threads; `SizePolicy(interval_s=5)` replaces 320 with 640,
+with the first 640 at +5 s after camera readiness. There is one inference per frame slot.
+M2 fallback (<2 boxes), top-32 selection and explicit fallback contexts retain the Phase-1 rules.
+Selector accuracy is NOT EVALUATED. Motors OFF throughout; never connect or command motors.
+
+### Owner checklist and start rule
+
+Use the OWNER CHECKLIST above: airplane mode; Do Not Disturb; alarms/timers off; updates paused;
+Magisk toasts off; upright mount and 3–10 stationary objects, lights on, no shelves;
+battery >= 80 %, charger unplugged; native Termux foreground and screen ON, hands off.
+Exit all agents, model servers, robot/benchmark processes and editors. Start exactly the command below,
+**no wrapper** and no second Termux session. A fresh stem is mandatory; change every filename together.
+The screen timeout saved/restored and wake lock are handled as in Phase 1. Ctrl-C requests normal cleanup;
+a second signal during cleanup is ignored. Hard-kill recovery uses the RECOVERY block above, after
+`pgrep -fa phase23.py` shows that the runner is gone. Keep all incomplete files.
+
+**recharge to >= 80 % and let the phone rest >= 30 min between sessions**.
+This also applies between the rehearsal and the first measured session.
+
+### Mandatory rehearsal — one command for all three modes
+
+From native Termux, with no agent resident:
+
+```sh
+(set -C; python -u ~/robot/benchmark/campaign/phase23.py --dry-run --output ~/storage/downloads/campaign/owner_rehearsal_p23_01.json > ~/storage/downloads/campaign/owner_rehearsal_p23_01.stdout 2> ~/storage/downloads/campaign/owner_rehearsal_p23_01.stderr)
+```
+
+About 12–15 min, allowing setup and camera transitions: idle 30 s / gate at most 30 s before each mode;
+endurance 180 s; fixed 3 wall-clock cycles of 40 s active slot / 20 s pause slot; adaptive 240 s, with recorded
+T_hi = final gate skin + 1.0 C and the session's minimum active 60 s / minimum camera-OFF pause 30 s.
+This is live hardware rehearsal, **NOT VALID as results**. It uses all normal readers, inference,
+monitoring, fallback and cleanup paths. Mock tests cover emergency, refusal, warm-start gate timeout
+and clean battery-stop paths, plus full-length camera drift and fractional end slots;
+the owner must never deliberately heat the phone to provoke an emergency.
+
+Proceed only if `rehearsal_coverage.rehearsal_pass` is true: setup and all three modes completed;
+live M2 ran in every mode (forced fallback is only the first active phase's first selector);
+all 3 fixed pauses ran; adaptive crossed both hysteresis thresholds
+and restarted its camera; camera restarts ran without failures; no reader-cap or other failure.
+The threshold depends on the real cooling curve: if adaptive never pauses or never cools enough
+to restart before its deadline, rehearsal_pass is false. Send the files and do not start a session.
+The runner requires `--rehearsal` for each measured session and rejects mock/failed/other-code evidence.
+
+Send **every file actually created** with this stem:
+
+- `owner_rehearsal_p23_01.json`, `.stdout`, `.stderr`, `_llama-server.log`.
+- For each suffix `endurance`, `fixed`, `adaptive`: `owner_rehearsal_p23_01_SUFFIX.json`,
+  `owner_rehearsal_p23_01_SUFFIX_idle.json`, `owner_rehearsal_p23_01_SUFFIX_gate.json`.
+- `owner_rehearsal_p23_01_endurance_active_01.json`.
+- Fixed: `owner_rehearsal_p23_01_fixed_active_01.json` … `_active_03.json`,
+  and `owner_rehearsal_p23_01_fixed_pause_01.json` … `_pause_03.json`.
+- Adaptive: every `owner_rehearsal_p23_01_adaptive_active_NN.json` and
+  `owner_rehearsal_p23_01_adaptive_pause_NN.json` (count follows the measured thresholds).
+- For every mode, all `owner_rehearsal_p23_01_SUFFIX_samples_NNNN.json` checkpoint files.
+
+Offline check only: `python benchmark/campaign/phase23.py --dry-run --mock --output /tmp/FRESH_p23_mock.json`.
+It is NOT VALID, cannot set rehearsal_pass true, and cannot authorize a measured session.
+
+### Three measured sessions — separate invocations
+
+Optional preflight checks all owner protections without a measured run:
+`python -u ~/robot/benchmark/campaign/phase23.py --mode endurance --preflight --output ~/storage/downloads/campaign/owner_preflight_p23_01.json`.
+Preflight is not a rehearsal pass. Its fresh-stem JSON and `_llama-server.log` are the evidence.
+
+1. Endurance: L2 from a cold start, maximum 30 min of active time; stop earlier at Android SEVERE
+   (status >=3), or at any #127 emergency. Expected about 37–40 min including setup and 5 min idle,
+   plus up to 15 min cold-gate waiting; SEVERE/emergency can end it earlier.
+
+```sh
+(set -C; python -u ~/robot/benchmark/campaign/phase23.py --mode endurance --rehearsal ~/storage/downloads/campaign/owner_rehearsal_p23_01.json --output ~/storage/downloads/campaign/owner_endurance_p23_01.json > ~/storage/downloads/campaign/owner_endurance_p23_01.stdout 2> ~/storage/downloads/campaign/owner_endurance_p23_01.stderr)
+```
+
+2. Fixed (owner M3): 2160 s measured wall-clock grid, 12 cycles of 180 s with a 120 s active slot
+   and a 60 s pause slot. Camera start/stop and bookkeeping consume the slots; actual inference
+   and confirmed camera-OFF durations vary. Expected about 43–46 min
+   including setup and idle, plus up to 15 min cold gate.
+
+```sh
+(set -C; python -u ~/robot/benchmark/campaign/phase23.py --mode fixed --rehearsal ~/storage/downloads/campaign/owner_rehearsal_p23_01.json --output ~/storage/downloads/campaign/owner_fixed_p23_01.json > ~/storage/downloads/campaign/owner_fixed_p23_01.stdout 2> ~/storage/downloads/campaign/owner_fixed_p23_01.stderr)
+```
+
+3. Adaptive: 36 min; active until skin >= T_hi (default 37.0 C), pause until skin <= T_hi - 2.0 C;
+   minimum active 60 s and minimum camera-OFF pause 30 s. `--t-hi` is recorded and accepts 25..43 C.
+    Expected about 43–46 min plus up to 15 min cold gate. The final segment is truncated by the 36 min limit.
+    If a pause reaches its low threshold with less than 60 s remaining, stay camera OFF to the deadline.
+
+```sh
+(set -C; python -u ~/robot/benchmark/campaign/phase23.py --mode adaptive --t-hi 37.0 --rehearsal ~/storage/downloads/campaign/owner_rehearsal_p23_01.json --output ~/storage/downloads/campaign/owner_adaptive_p23_01.json > ~/storage/downloads/campaign/owner_adaptive_p23_01.stdout 2> ~/storage/downloads/campaign/owner_adaptive_p23_01.stderr)
+```
+
+For each session send all files actually created:
+`STEM.json`, `STEM.stdout`, `STEM.stderr`, `STEM_llama-server.log`, `STEM_MODE.json`,
+`STEM_MODE_idle.json`, `STEM_MODE_gate.json`, and every `STEM_MODE_active_NN.json` /
+`STEM_MODE_pause_NN.json`. Endurance normally has only `_active_01.json`; fixed normally has
+12 active and 12 pause files; adaptive counts vary. STEM is exactly `owner_endurance_p23_01`,
+`owner_fixed_p23_01` or `owner_adaptive_p23_01`, and MODE is its corresponding command's mode.
+Also send every `STEM_MODE_samples_NNNN.json`: atomic raw-sample checkpoints at most 60 s apart,
+with 2 s overlap. They retain completed windows if the current active phase is hard-killed.
+
+### Measurement and validity rules
+
+After setup, camera-OFF idle lasts 300 s with llama-server loaded (YOLO/M2 sessions remain resident,
+inference stopped). The camera-OFF cold gate then waits up to 900 s for skin <= idle-start skin + 1.0 C.
+Its SAME final checked reading is both the gate decision and the active-start reading. If still hot,
+run anyway as **WARM START — heat-timing results NOT VALID**. Camera start follows that reading and
+its heat/time belongs to the active interval; detector/selector slot origins begin at camera readiness.
+Every camera restart similarly belongs to active time. Fixed deadlines remain on the 180 s cycle grid;
+the stop-camera transition consumes the beginning of the nominal pause and its actual OFF timestamp is
+recorded. Fixed measured slots end at their grid boundaries, with the whole mode ending at +2160 s;
+evidence completion and cleanup lag are recorded outside that measurement. This is not a claim of
+120 s of inference or 60 s of confirmed OFF time. Adaptive's 60 s minimum active is counted from
+camera-start invocation, including startup; its minimum pause counts 30 s only after stop is confirmed.
+The 36 min deadline may truncate a terminal pause; no restart occurs with less than 60 s remaining.
+Inference calls drain before camera stop; any call crossing a fixed active-slot boundary is a cadence
+failure and its overrun is recorded in the pause slot's inference time. Gemma stays loaded. Sensor/status/caps/power/
+memory sampling continues through every transition and pause. Actual phase/cycle seconds are recorded.
+Every measured phase, cycle and the totals record `camera_start_s`, `inference_s`, `camera_stop_s`,
+confirmed `camera_off_s` and `camera_on_without_inference_s`. Transition timestamps are retained.
+The times are clipped to the measured phase/slot: `inference_s` is the interval from camera readiness
+through the last completed YOLO/M2/selector call, including inter-call waits, rather than summed
+parallel CPU execution times. Confirmed OFF time ends when the next camera-start invocation begins.
+Camera-on-without-inference includes startup, stop and boundary idle; start/stop times are subsets
+of it. Inference + confirmed OFF + camera-on-without-inference equals measured wall time.
+`duty_fraction` uses `inference_s / measured wall seconds` for phases, cycles and totals;
+`duty_description` explicitly describes the slots and variable actual inference/OFF durations.
+
+P23 frame deadlines track the completed frame's capture time plus 1 s, preventing accumulation of the
+camera's slightly-longer-than-1 s period. `SizePolicy(5)` still selects exactly one size per due frame.
+Only complete service slots are planned: a YOLO slot needs 1.35 s H4 wait plus 2 s terminal inference budget
+before the active deadline; a selector needs its complete 20 s slot. Partial terminal slots are explicitly
+unscheduled in `slot_plan`, rather than reported as missing. Every planned slot remains required;
+real skipped slots, missing selector/M2 calls or deadline overruns invalidate the phase.
+There is no separate per-call YOLO duration limit; the budget only reserves the terminal tail.
+An early stop is latched on the main thread. In-flight work drains, with its duration recorded;
+later temperatures/status cannot erase the stop or conceal earlier missing calls.
+
+60 s windows report due/done/skipped YOLO and ms, M2 calls/inference ms, selector calls/ms/misses,
+time-weighted current_now watts (0.37 s sampler), skin/status, caps for each policy, memory/PSS, re-reads.
+`read_re_reads` includes both the FIX4D empty-answer re-reads and FIX3D thermal retries;
+`empty_answer_re_reads` and `thermal_re_reads` retain their separate counts.
+Events use seconds since the first active start, including pauses: first policy4/policy6 window >=10 %
+capped, first skin crossings 35/37/39/41/43 C, all sampled Android status changes, stop reason.
+Caps retain power_map's later-sample ownership and no tail credit; `cap_tail_unknown_s` exposes the tail.
+
+Cadence misses (including skipped slots and calls overrunning deadlines) invalidate results.
+H4 is unchanged: wait 1.35 s for a new frame; skip a missing/repeated slot; stop at 3 consecutive misses
+or any bad/other-session frame. Root/sensor/charger/process/cores/affinity/camera/inference/server,
+memory, power-coverage, LMK or cleanup failure invalidates and ends the session. Battery below 25 %
+stops through normal cleanup. #127 CRITICAL, battery >=45 C, CPU >=110 C in three 1 s samples retain
+precedence. **All emergency stops are NOT VALID**; none is accepted here as a measured performance result.
+Endurance SEVERE alone is a regular **VALID — STOPPED AT SEVERE**, subject to every other validity check.
+
+Read re-read cap: at most 3 in EACH contiguous 180 s interval (short final interval has the same cap)
+within idle, gate and the measured mode, including separate mode/final cleanup windows; setup retains
+Phase 1's cap of 3. A burst cannot be hidden by
+averaging it over a long run. Exceeding the cap invalidates evidence and fails rehearsal_pass.
+This cap applies to the FIX4D empty-answer ledger, as in Phase 1; thermal retries retain
+their existing FIX3D attempt/time bounds and are recorded separately without a new allowance.
+FIX4D is unchanged: only an answer carrying nothing (stdout AND su stderr blank, a Popen launch failure,
+or HTTP timeout) gets one re-read. Every non-empty answer goes once to its base parser. Thermal keeps
+FIX3D, /health keeps 2-of-2, and the successful pidof still listing a camera pid keeps its owner re-check.
+
+Only owner runs with all agents exited can produce timings. Preparation/mocks inside proot cannot reach
+root and are NOT VALID. No DOC DIFF is prepared now; E4 defers documentation until after Phases 2/3.
+The changed Phase-1 start gate also requires a new Phase-1 rehearsal before any future Phase-1 reuse;
+the archived FIX4D results remain unchanged and do not validate the new gate wiring on hardware.
+
+
+P23 review clarifications: selectors plan `floor(camera-ready remaining active seconds / 20)` complete
+slots. With a 3 s camera start, a normal fixed active slot plans 5 calls (60 across 12 cycles), and a
+40 s rehearsal active slot plans 1 (3 total); `slot_plan` records the actual count. Offline mock camera
+transitions take 3 s START / 2 s STOP and use the same complete-slot formulas. Rehearsal still requires
+live M2 and fallback M2/selector coverage in every mode; only the first active phase forces fallback.
+
+Adaptive reserves 1 s beyond the minimum active duration before restarting, avoiding a short final
+active due to bookkeeping between the restart decision and camera start. Final termination may cut
+the last OFF pause; every restart requires at least 30 s confirmed OFF. A bracket emergency replaces
+the stop reason and stop event, and invalidates the mode even if the active loop had reached SEVERE.
+
+Memory/PSS reads wait for camera transitions under the camera-state lock; other sensor/power/safety
+monitors continue. Main-thread bounded worker drain renews the heartbeat; worker threads cannot renew
+it. BatteryStop from selector/M2 remains a clean battery stop. Camera failures include recovered empty
+`am start` launch re-reads as well as camera wrapper retries; any failed attempt prevents rehearsal pass.
+
+Atomic numbered 60 s checkpoints retain completed inference work as well as sensor samples, with
+2 s overlap. Individual normal-session phase files retain IN PROGRESS labels; mode JSON and the final
+main JSON are the authoritative final validity. Additional signals are ignored only during main's
+final resource cleanup, not earlier per-phase cleanup. SEVERE stop, emergency stops, near-deadline
+adaptive restart suppression and camera launch failures are tested offline; the live rehearsal covers
+all normal active/pause paths and adaptive switching, not these forced failure scenarios.

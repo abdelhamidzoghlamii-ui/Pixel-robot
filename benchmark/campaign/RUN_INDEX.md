@@ -31,3 +31,26 @@ through L0/L1 and stays around 2.93 GB late in L1 and throughout L2; observation
 only. Source-derived details: [owner_findings.json](checks/p1_fix2/owner_findings.json).
 Live 640 box counts were below two for every L1/L2 M2 slot; camera orientation
 cannot be established from these JSON files alone.
+
+## FIX4D owner archive (CAMPAIGN_P23)
+
+All 40 files copied unchanged and SHA-256 verified: [inventory](runs/archive_sha256_p1_fix4d.json).
+
+| Stem | Fixed label | Verified evidence |
+|---|---|---|
+| [owner_rehearsal_p1_fix4d](runs/owner_rehearsal_p1_fix4d.json) | REHEARSAL PASS — NOT VALID as results. | All phases, 6 pauses and 6 blocks ran; live M2 in L1-L4; 0 read re-reads, 0 thermal retries. |
+| [owner_session_p1_fix4d](runs/owner_session_p1_fix4d.json) | SESSION COMPLETE | About 96 min (last block END +5767.3 s), 0 errors, 0 re-reads, Android status 0, 0 LMK kills. Warm-up NOT A RESULT. L0 VALID, L1 VALID, L3 VALID; L2, L4 and final L0 NOT COMPARABLE — START TEMP (+1.92, +2.02, +1.86 C over T_ref 29.54 C). D2 checked at pause end, before block setup; comparability read followed setup. Owner chose L2 for Phases 2-3. |
+
+180 s blocks; power is time-weighted current_now, 0.37 s sampling; M2 is inference median/P95:
+
+| Block | Fixed runner label | YOLO-320 done/due | M2 ms | Selector median ms | W |
+|---|---|---|---|---|---|
+| First L0 | VALID | 180/180 | — | 1733 | 4.10 |
+| L1 | VALID | 180/180 | 4919/6451 | 2819 | 4.99 |
+| L2 | NOT COMPARABLE — START TEMP | 180/180 | 1176 | 2129 | 4.72 |
+| L3 | VALID | 109/180 (71 skipped by design) | 1313 | 2956 | 5.10 |
+| L4 | NOT COMPARABLE — START TEMP | 180/180 | 871/2001 | 3686 | 5.41 |
+| Final L0 | NOT COMPARABLE — START TEMP | 180/180 | — | 1775 | 4.04 |
+
+L4 policy6 capped 43.9 %. Camera-ON idle policy0 capped 98.5 % vs 0 % camera OFF.
+Original JSONs, phase JSONs, stdout, stderr and llama-server logs remain byte-identical to owner files.
