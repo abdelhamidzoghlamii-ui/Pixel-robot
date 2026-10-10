@@ -372,12 +372,14 @@ a second signal during cleanup is ignored. Hard-kill recovery uses the RECOVERY 
 **recharge to >= 80 % and let the phone rest >= 30 min between sessions**.
 This also applies between the rehearsal and the first measured session.
 
+Before the first idle origin of each invocation, setup waits up to 60 s for 10 consecutive power samples whose receipt intervals are all <= 1.5 s, with the last sample <= 1.5 s old at that origin. `setup.power_settle` records `settle_s`, sample count and maximum interval; timeout is a setup failure (NOT VALID), with no measured phase. This wait is outside every measured window and does not change any phase duration or power-coverage rule. Preflight-only has no sampler or idle origin, so it does not settle.
+
 ### Mandatory rehearsal — one command for all three modes
 
 From native Termux, with no agent resident:
 
 ```sh
-(set -C; python -u ~/robot/benchmark/campaign/phase23.py --dry-run --output ~/storage/downloads/campaign/owner_rehearsal_p23_01.json > ~/storage/downloads/campaign/owner_rehearsal_p23_01.stdout 2> ~/storage/downloads/campaign/owner_rehearsal_p23_01.stderr)
+(set -C; python -u ~/robot/benchmark/campaign/phase23.py --dry-run --output ~/storage/downloads/campaign/owner_rehearsal_p23_02.json > ~/storage/downloads/campaign/owner_rehearsal_p23_02.stdout 2> ~/storage/downloads/campaign/owner_rehearsal_p23_02.stderr)
 ```
 
 About 16–19 min, allowing setup and camera transitions: idle 30 s / gate at most 30 s before each mode;
@@ -400,15 +402,15 @@ The runner requires `--rehearsal` for each measured session and rejects mock/fai
 
 Send **every file actually created** with this stem:
 
-- `owner_rehearsal_p23_01.json`, `.stdout`, `.stderr`, `_llama-server.log`.
-- For each suffix `endurance`, `fixed`, `adaptive`: `owner_rehearsal_p23_01_SUFFIX.json`,
-  `owner_rehearsal_p23_01_SUFFIX_idle.json`, `owner_rehearsal_p23_01_SUFFIX_gate.json`.
-- `owner_rehearsal_p23_01_endurance_active_01.json`.
-- Fixed: `owner_rehearsal_p23_01_fixed_active_01.json` … `_active_03.json`,
-  and `owner_rehearsal_p23_01_fixed_pause_01.json` … `_pause_03.json`.
-- Adaptive: every `owner_rehearsal_p23_01_adaptive_active_NN.json` and
-  `owner_rehearsal_p23_01_adaptive_pause_NN.json` (count follows the measured thresholds).
-- For every mode, all `owner_rehearsal_p23_01_SUFFIX_samples_NNNN.json` checkpoint files.
+- `owner_rehearsal_p23_02.json`, `.stdout`, `.stderr`, `_llama-server.log`.
+- For each suffix `endurance`, `fixed`, `adaptive`: `owner_rehearsal_p23_02_SUFFIX.json`,
+  `owner_rehearsal_p23_02_SUFFIX_idle.json`, `owner_rehearsal_p23_02_SUFFIX_gate.json`.
+- `owner_rehearsal_p23_02_endurance_active_01.json`.
+- Fixed: `owner_rehearsal_p23_02_fixed_active_01.json` … `_active_03.json`,
+  and `owner_rehearsal_p23_02_fixed_pause_01.json` … `_pause_03.json`.
+- Adaptive: every `owner_rehearsal_p23_02_adaptive_active_NN.json` and
+  `owner_rehearsal_p23_02_adaptive_pause_NN.json` (count follows the measured thresholds).
+- For every mode, all `owner_rehearsal_p23_02_SUFFIX_samples_NNNN.json` checkpoint files.
 
 Offline check only: `python benchmark/campaign/phase23.py --dry-run --mock --output /tmp/FRESH_p23_mock.json`.
 It is NOT VALID, cannot set rehearsal_pass true, and cannot authorize a measured session.
@@ -424,7 +426,7 @@ Preflight is not a rehearsal pass. Its fresh-stem JSON and `_llama-server.log` a
    plus up to 15 min cold-gate waiting; SEVERE/emergency can end it earlier.
 
 ```sh
-(set -C; python -u ~/robot/benchmark/campaign/phase23.py --mode endurance --rehearsal ~/storage/downloads/campaign/owner_rehearsal_p23_01.json --output ~/storage/downloads/campaign/owner_endurance_p23_01.json > ~/storage/downloads/campaign/owner_endurance_p23_01.stdout 2> ~/storage/downloads/campaign/owner_endurance_p23_01.stderr)
+(set -C; python -u ~/robot/benchmark/campaign/phase23.py --mode endurance --rehearsal ~/storage/downloads/campaign/owner_rehearsal_p23_02.json --output ~/storage/downloads/campaign/owner_endurance_p23_01.json > ~/storage/downloads/campaign/owner_endurance_p23_01.stdout 2> ~/storage/downloads/campaign/owner_endurance_p23_01.stderr)
 ```
 
 2. Fixed (owner M3): 2160 s measured wall-clock grid, 12 cycles of 180 s with a 120 s active slot
@@ -433,7 +435,7 @@ Preflight is not a rehearsal pass. Its fresh-stem JSON and `_llama-server.log` a
    including setup and idle, plus up to 15 min cold gate.
 
 ```sh
-(set -C; python -u ~/robot/benchmark/campaign/phase23.py --mode fixed --rehearsal ~/storage/downloads/campaign/owner_rehearsal_p23_01.json --output ~/storage/downloads/campaign/owner_fixed_p23_01.json > ~/storage/downloads/campaign/owner_fixed_p23_01.stdout 2> ~/storage/downloads/campaign/owner_fixed_p23_01.stderr)
+(set -C; python -u ~/robot/benchmark/campaign/phase23.py --mode fixed --rehearsal ~/storage/downloads/campaign/owner_rehearsal_p23_02.json --output ~/storage/downloads/campaign/owner_fixed_p23_01.json > ~/storage/downloads/campaign/owner_fixed_p23_01.stdout 2> ~/storage/downloads/campaign/owner_fixed_p23_01.stderr)
 ```
 
 3. Adaptive: 36 min; active until skin >= T_hi (default 37.0 C), pause until skin <= T_hi - 2.0 C;
@@ -442,7 +444,7 @@ Preflight is not a rehearsal pass. Its fresh-stem JSON and `_llama-server.log` a
     If a pause reaches its low threshold with less than 60 s remaining, stay camera OFF to the deadline.
 
 ```sh
-(set -C; python -u ~/robot/benchmark/campaign/phase23.py --mode adaptive --t-hi 37.0 --rehearsal ~/storage/downloads/campaign/owner_rehearsal_p23_01.json --output ~/storage/downloads/campaign/owner_adaptive_p23_01.json > ~/storage/downloads/campaign/owner_adaptive_p23_01.stdout 2> ~/storage/downloads/campaign/owner_adaptive_p23_01.stderr)
+(set -C; python -u ~/robot/benchmark/campaign/phase23.py --mode adaptive --t-hi 37.0 --rehearsal ~/storage/downloads/campaign/owner_rehearsal_p23_02.json --output ~/storage/downloads/campaign/owner_adaptive_p23_01.json > ~/storage/downloads/campaign/owner_adaptive_p23_01.stdout 2> ~/storage/downloads/campaign/owner_adaptive_p23_01.stderr)
 ```
 
 For each session send all files actually created:

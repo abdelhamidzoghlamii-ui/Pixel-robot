@@ -361,7 +361,24 @@ def phase_evidence(session,row,active,limit=None):
     row['read_retry_windows']=retry_windows(rt.READ_RETRIES,row['origin'],row['wall_duration_s'])
 
 
-def run_mode(mode,session,result,spec,high,stem,dry=False):
+def settle_power(session,record):
+    """Setup only: ten consecutive receipt times, with a fresh last sample."""
+    began=session.now()
+    while True:
+        session.guard()
+        tail=list(session.data['power'][-10:])
+        now=session.now()
+        intervals=[b['t']-a['t'] for a,b in zip(tail,tail[1:])]
+        record.update(settle_s=now-began,sample_count=len(tail),total_samples=len(session.data['power']),
+            max_interval_s=max(intervals,default=None),settled=False)
+        if now-began<=60 and len(tail)==10 and all(0<dt<=1.5 for dt in intervals) and 0<=now-tail[-1]['t']<=1.5:
+            record.update(settled=True,origin=now,last_sample_age_s=now-tail[-1]['t'])
+            return now
+        if now-began>=60:raise RuntimeError('power sampler did not settle within 60 s')
+        session.wait(min(.05,60-(now-began)))
+
+
+def run_mode(mode,session,result,spec,high,stem,dry=False,setup_mark=0):
     row=dict(mode=mode,label='IN PROGRESS — NOT VALID',active_phases=[],pauses=[],cycles=[],switches=[])
     camera_starts=session.data.get('camera_starts',0)
     camera_failures=session.data.get('camera_failures',0)
@@ -384,7 +401,12 @@ def run_mode(mode,session,result,spec,high,stem,dry=False):
             sample_files.append(path.name);saved[0]=end
     session.checkpoint=checkpoint
     checkpoint(True)
-    idle=dict(label=evidence_label,phase='IDLE CAMERA OFF',origin=session.now())
+    origin=session.now()
+    if not result.get('setup_complete'):
+        origin=settle_power(session,result['setup'].setdefault('power_settle',{}))
+        rt.retry_check(result['setup'],setup_mark)
+        result['setup_complete']=True
+    idle=dict(label=evidence_label,phase='IDLE CAMERA OFF',origin=origin)
     row['idle']=idle
     try:
         session.camera(False)
@@ -635,10 +657,11 @@ def main(argv=None):
             result['setup']={};mark=len(rt.READ_RETRIES)
             if not a.mock:p.preflight(['L2'],a.output,result,resources)
             rt.retry_check(result['setup'],mark)
-            result['setup_complete']=True
             if a.preflight:
+                result['setup_complete']=True  # No sampler or idle origin in preflight-only mode.
                 result['label']='PREFLIGHT ONLY — NO TIMING'
                 return
+            result['setup_complete']=False
             session=(MockSession if a.mock else LiveSession)(resources.get('server'),data)
             session.start()
             rt.retry_check(result['setup'],mark)
@@ -646,13 +669,15 @@ def main(argv=None):
             modes=MODES if a.dry_run else (a.mode,)
             for mode in modes:
                 run_mode(mode,session,result,SHORT if a.dry_run else FULL,a.t_hi,
-                    lambda suffix,mode=mode:stem('_'+mode+suffix),dry=a.dry_run)
+                    lambda suffix,mode=mode:stem('_'+mode+suffix),dry=a.dry_run,setup_mark=mark)
                 p.write(a.output,result)
             result['label']=MOCK_LABEL if a.mock else REHEARSAL if a.dry_run else result['runs'][0]['label']
         except diag.BatteryStop as e:
             result.update(error=str(e),label=MOCK_LABEL if a.mock else 'SESSION STOPPED — BATTERY BELOW 25% — NOT VALID')
         except BaseException as e:
-            result.update(error=f'{type(e).__name__}: {e}',label=MOCK_LABEL if a.mock else 'NOT VALID — SESSION INCOMPLETE')
+            result.update(error=f'{type(e).__name__}: {e}',label=MOCK_LABEL if a.mock else
+                'NOT VALID — SETUP FAILURE' if not result.get('setup_complete') else 'NOT VALID — SESSION INCOMPLETE')
+            if not result.get('setup_complete'):result['failure_kind']='setup'
             if not a.mock:result['screen_state_at_failure']=rt.screen_state(rt.imports()[3])
             raise
         finally:

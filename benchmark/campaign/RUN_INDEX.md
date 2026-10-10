@@ -54,3 +54,11 @@ All 40 files copied unchanged and SHA-256 verified: [inventory](runs/archive_sha
 
 L4 policy6 capped 43.9 %. Camera-ON idle policy0 capped 98.5 % vs 0 % camera OFF.
 Original JSONs, phase JSONs, stdout, stderr and llama-server logs remain byte-identical to owner files.
+
+## P23 first owner rehearsal (P23C archive)
+
+All 48 files present copied unchanged from owner Downloads: [bytes and SHA-256 inventory](runs/archive_sha256_p23_01.json).
+
+| Stem | Fixed label | Verified evidence |
+|---|---|---|
+| [owner_rehearsal_p23_01](runs/owner_rehearsal_p23_01.json) | NOT VALID — OWNER REHEARSAL | Power coverage (sampler start-up stall): first endurance idle covered 35.479149 of 35.593175 s, 0 internal gaps; first post-startup power receipt is 0.114026 s after its origin. rehearsal_pass=false; sole error power coverage. All 3 modes completed; live M2 calls endurance/fixed/adaptive 7/2/11; fallback M2 and selector fallback contexts in every mode; 3 fixed pauses; adaptive 4 high switches and 3 low restarts, 3 adaptive restarts; 5 total camera restarts, 0 failed attempts; 0 read re-reads or thermal retries. |
