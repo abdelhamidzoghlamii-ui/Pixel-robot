@@ -25,6 +25,7 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | Language | English-only speech input and replies are acceptable; English-only components are eligible. | #117 |
 | Detection and co-residency | yolo11s 320/640 mix kept over 640-only (less power, fewer caps, steadier detect ms); RobotCam + detector + resident Gemma fit in RAM with no LMK kills. | #121, #125 |
 | Power and camera candidates | Power-map choice: 1 frame/s, 640 every 5 s, MID cores (4–5); benchmark choice, not deployed config. Manual-exposure 2 fps mode A remains an unadopted candidate on `robotcam-camera-power` (`90ef439`); torch work and mission validation remain pending. | #128, #129; STATUS Pending |
+| RelateAnything and heat schedules | M2 (our relsgg-vits16 export) passes parity; standalone BIG median 646 ms; owner chose L2 (BIG, before each picker call); continuous L2 shows substantial capping and picker slowdown after ~15 min; fixed 120/60 s and adaptive 37/35 °C peak at 38.02/37.43 °C with overall inference duty 0.63; schedule choice pending. | #130–#133 |
 
 ## Corrections worth knowing before citing an older entry
 

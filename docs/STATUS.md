@@ -390,7 +390,8 @@ observations and follow-up are retained in
   stays on the dotprod b1609 build.
 - Repo root cleaned 2026-09-27 (#118, commit `78b1cc5`): untracked scratch
   files deleted; #105 vision files archived in `benchmark/qwen_vision/` (edited
-  harness not re-reviewed, result files unlocated) and the #108 verification
+  harness not re-reviewed; the only recovered result is an aborted
+  battery-precondition attempt, no successful run, #133) and the #108 verification
   output in `benchmark/failclosed_108/`.
 - benchmark/llm_objective_setting/ was published with the docs/WORKFLOW.md
   independent review WAIVED by human decision; the waiver is recorded in its
@@ -401,11 +402,15 @@ observations and follow-up are retained in
 - Implement the #127 heat rules and the #129 pause design (camera off,
   sensor-only moves, Gemma resident, torch in the dark) in `main.py`
   (navigation work); needs independent review and a mission thermal trace.
+  Measured candidates (#132): fixed 120/60 s and adaptive 37/35 °C; owner
+  choice of schedule pending (Local AI recommends adaptive).
 - RobotCam manual-exposure 2 fps (mode A) is a candidate on unmerged branch
   `robotcam-camera-power` (90ef439); not adopted; torch untested (#128, #129).
 - RobotCam screen-off capture is untested; frame loss ends a mission
   (fail-closed, no retry by design).
-- Evaluate RelateAnything speed, RAM and weight licence after co-residency (#124).
+- RelateAnything M2 (relsgg-vits16, our fp32 export): speed, RAM and co-residency
+  measured (#130–#132); benchmark candidate, not deployed; weight licence for
+  shipped use not evaluated.
 - Gemma fine-tuning restarts from scratch; old LoRA notebooks discarded (#124).
 
 ## Work priorities
