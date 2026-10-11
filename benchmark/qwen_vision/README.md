@@ -46,3 +46,13 @@ robot; they start `llama-server` and load multi-GB model weights.
   the Qwen3.5-2B proof cell, the stopped 4B sweep) are stored is **UNKNOWN**.
 - The edited `qwen_vision_bench.py` was not re-reviewed.
 - The projector and model files are not archived (only their hashes, in the sourcing report).
+
+## P23D recovery
+
+The earlier "no results" status above describes the original source archive. P23D recovered [results.json](runs/results.json) and [summary.txt](runs/summary.txt) unchanged from `/termux-home/qwen_vision_bench.json/`; hashes are in [ARTIFACTS.md](ARTIFACTS.md) and [sweep decisions](../campaign/checks/p23d/sweep_decisions.json). This does not recover every #105 experiment or re-review the edited harness. See [RUN_INDEX.md](RUN_INDEX.md) for recovered labels.
+
+## Rerun command and raw-data location
+
+Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.
+
+Recovered JSON dates the attempt 2026-09-15T00:03:34Z–00:03:35Z: `rows=[]`, and `run_error` records a battery precondition refusal at 91% (required 50–80%). The summary is an empty-result grid, not successful vision inference. No missing successful #105 result was recovered by this sweep ([results.json](runs/results.json), [summary.txt](runs/summary.txt)).

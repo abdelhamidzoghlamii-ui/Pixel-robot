@@ -43,3 +43,7 @@ No weights, ONNX graphs, venvs or HF caches are archived. [ARTIFACTS.md](ARTIFAC
 - The laya-micro ONNX builds and pruned checkpoints were deleted from the phone on 2026-09-26
   (human decision), after `raw/` was archived; their hashes stay in `raw/laya-micro/build*_sha256.txt`.
 - The ladder cases in `../ladder/` are a development bench, not the final exam.
+
+## Rerun command and raw-data location
+
+Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: UNVERIFIED; consult the existing evidence paths in [RUN_INDEX.md](RUN_INDEX.md); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

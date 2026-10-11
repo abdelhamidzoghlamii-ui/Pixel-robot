@@ -106,3 +106,7 @@ shows that the runner and launcher work on the phone; its numbers are not measur
 
 [RUN_INDEX.md](RUN_INDEX.md) lists the runs, including the two not archived; [ARTIFACTS.md](ARTIFACTS.md) hashes
 every file and lists the redactions.
+
+## Rerun command and raw-data location
+
+Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

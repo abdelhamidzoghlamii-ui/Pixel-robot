@@ -132,3 +132,49 @@ b567ef9c0070ac32a7f6236e1316b3e191be2b65a501f036b8bf48f7bca80a67  runs/thermal.l
 fca2eacd4880ddc98fe4846cc67719826e5952539e2dffee59b742ed7a48ec45  test_coresidency.py
 bccd170dfe71bccdb316aaf86b555defed3bf528dfaef9b854d231c7289f4e19  test_oneshot.sh
 ```
+
+## P23D current inventory
+
+Historical sections above retain their exact original archive-time records; some describe older code or documentation bytes. The table below is the current file inventory, including required ignored artifacts explicitly force-added for review. It excludes this manifest, Python caches and the new frozen manifest to avoid self-reference.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `existing repository / P23D generated documentation or offline evidence` | 7718 | `6acebcdeb2598778a2a5d94e70eae204c8ebc7a8b5c44ef807b2a833a423fd25` |
+| `RUN_INDEX.md` | `existing repository / P23D generated documentation or offline evidence` | 1858 | `223d18865f7a100050a5068f79050f535c5d4c70846d9aca9ddfa0e65b0e968c` |
+| `SMOKE.md` | `existing repository / P23D generated documentation or offline evidence` | 3566 | `6526b06fa99347aa2218f3bca9cdf27822aff95f59bff269e26d63327de2b468` |
+| `coresidency.py` | `existing repository / P23D generated documentation or offline evidence` | 69973 | `a6b0d65454c0c060927f744194a8cbb9f2a419a59e39fc82b0a510b9f92ed177` |
+| `oneshot.sh` | `existing repository / P23D generated documentation or offline evidence` | 7351 | `efb3939d2a0a24d7e7a7abc2384f6e608b252ff12b2ca539f8bf8753146d41a2` |
+| `reports/CLEANUP1_REPORT.md` | `existing repository / P23D generated documentation or offline evidence` | 105688 | `4a132c50512ccde40423694779f132f437520f01d6174d523cb8af91c80d3b6d` |
+| `reports/CORESIDENCY_CODER_REPORT.md` | `existing repository / P23D generated documentation or offline evidence` | 45258 | `85b45b1d385889eabd8b129fb8e938cc6b978e620a90d36f59548374cf3498ce` |
+| `reports/CORESIDENCY_FIX1_REPORT.md` | `existing repository / P23D generated documentation or offline evidence` | 51103 | `87932e0cf7a941849b642dfe497f27545b9479e66d092297a4940aa64503ad61` |
+| `run_coresidency.sh` | `existing repository / P23D generated documentation or offline evidence` | 426 | `dba86f4de4011a2bf6abd5745f3ac709633e717e5a72ff31a721dae0470962b0` |
+| `runs/block_B1_mix_nollm.json` | `/termux-home/coresidency/run_20261001T041743Z/block_B1_mix_nollm.json` | 110782 | `474c6aeb161ca904c70d896e0adb690bacedb0740dbadf11e2632329189ae047` |
+| `runs/block_B2_only640_nollm.json` | `/termux-home/coresidency/run_20261001T041743Z/block_B2_only640_nollm.json` | 108483 | `cd24bf8622c2e207a4b64efffc8beee333045c724d764794cb65672dd4f8d119` |
+| `runs/block_B3_mix_gemma.json` | `/termux-home/coresidency/run_20261001T041743Z/block_B3_mix_gemma.json` | 113841 | `d586a14116879cae3672787603971046212f2c214fdb75a90e22eab54e592930` |
+| `runs/coresidency_run_20260930T150019Z_smoke_report.txt` | `/termux-home/storage/downloads/coresidency_run_20260930T150019Z_smoke_report.txt` | 4953 | `cddaae96b6875dd353321541779995aea21aa0bdde51b7fbd607a3189eb7d9ef` |
+| `runs/coresidency_run_20260930T182618Z_report.txt` | `/termux-home/storage/downloads/coresidency_run_20260930T182618Z_report.txt` | 5033 | `e3ec8bb3018f1d0c74b67b93a1e99f0262b74adc8ff680854fabdd8bfc1ec152` |
+| `runs/oneshot_console_20261001T040014Z.log` | `existing repository / P23D generated documentation or offline evidence` | 7846 | `e0ad1c5be49cc56d8b52cc5d1e5d9c76cafff63154188086a1eaf17820b1df0f` |
+| `runs/oneshot_console_20261001T041235Z.log` | `existing repository / P23D generated documentation or offline evidence` | 18677 | `312df09b6f278c2243ad4031d32442b0d52d9e51d13598c12d025b59e22a8101` |
+| `runs/run_20261001T040522Z_smoke/block_B1_mix_nollm.json` | `existing repository / P23D generated documentation or offline evidence` | 15206 | `2c8a151c2de1abdac909d394ca4587ed34ebc7ca7783856582f52166f12c202e` |
+| `runs/run_20261001T040522Z_smoke/block_B2_only640_nollm.json` | `existing repository / P23D generated documentation or offline evidence` | 15158 | `5f34ce5a753aeee5c3d6e85ad8276847c7b11e1aa93e503e68cb794e8987fb47` |
+| `runs/run_20261001T040522Z_smoke/block_B3_mix_gemma.json` | `existing repository / P23D generated documentation or offline evidence` | 15666 | `d007bdcd8c7de3714b8a585aa3562155c2c48ac4f422a7de6daeb93c1a26e8fd` |
+| `runs/run_20261001T040522Z_smoke/block_B4_only640_gemma.json` | `existing repository / P23D generated documentation or offline evidence` | 15182 | `40bd663355926315bd61d8905d2a0ecaf189c0d03a31f98d6668cbf1ec79623c` |
+| `runs/run_20261001T040522Z_smoke/block_B5_mtp_ram_snapshot.json` | `existing repository / P23D generated documentation or offline evidence` | 1872 | `cf3329030656bf2a99b2c5853c0dda729aa91a98eb40c15f94e5e4f7da63bce0` |
+| `runs/run_20261001T040522Z_smoke/llama-server-mtp.log` | `existing repository / P23D generated documentation or offline evidence` | 3691 | `fd6ec1f4b83c78e34d644a69f58eb98bfacde425bf820650bca61ceb3cefa5d9` |
+| `runs/run_20261001T040522Z_smoke/llama-server.log` | `existing repository / P23D generated documentation or offline evidence` | 5348 | `81d9196c1c92b80456b6bbf4af36d7081e6b67f7861c7383ebf715954d6bd993` |
+| `runs/run_20261001T040522Z_smoke/loads.json` | `existing repository / P23D generated documentation or offline evidence` | 835 | `b9aed73721a8a8e9033c7d7ce8ac8d6d0181b06aa11bb083095baa1b891de2cc` |
+| `runs/run_20261001T040522Z_smoke/report.txt` | `existing repository / P23D generated documentation or offline evidence` | 6035 | `72523d49dfdc520feda5a4a0f353eab62e01c3a8b68ca5393aba3a028cf55b70` |
+| `runs/run_20261001T040522Z_smoke/run.json` | `existing repository / P23D generated documentation or offline evidence` | 2847 | `45a3f00c5364d5c7b84d9fb94c791702075d250e34bccd6122df648143ba6ed9` |
+| `runs/run_20261001T041743Z/block_B1_mix_nollm.json` | `existing repository / P23D generated documentation or offline evidence` | 110788 | `ee2185bc2aaf031dd48972868551d75d95d5b214ebe716852f676d18cb45e5a9` |
+| `runs/run_20261001T041743Z/block_B2_only640_nollm.json` | `existing repository / P23D generated documentation or offline evidence` | 108495 | `4d1f9204969753c39612159d63c63bc303afc8c06c8b621187d0178e38a63e50` |
+| `runs/run_20261001T041743Z/block_B3_mix_gemma.json` | `existing repository / P23D generated documentation or offline evidence` | 113853 | `74f79b4d02d15aa677336bc23445e2985e4778b173e19df29650fd6873d41732` |
+| `runs/run_20261001T041743Z/block_B4_only640_gemma.json` | `existing repository / P23D generated documentation or offline evidence` | 105044 | `3a6e15c6b2ebdffc217a2f62bbfa89d447987e6cd63db5ca56f08a1d9d922a82` |
+| `runs/run_20261001T041743Z/block_B5_mtp_ram_snapshot.json` | `existing repository / P23D generated documentation or offline evidence` | 1884 | `5b6754978736b3dea8cfe1fa2fcc084229da177b2089a08465dea2c715b5c203` |
+| `runs/run_20261001T041743Z/llama-server-mtp.log` | `existing repository / P23D generated documentation or offline evidence` | 3691 | `ef6d27353b0bd158ef54dc805238014dd4753ef82a0f5a47eb3191813c653eac` |
+| `runs/run_20261001T041743Z/llama-server.log` | `existing repository / P23D generated documentation or offline evidence` | 18264 | `74cb5186aeb3131ffbdc33b70b5d0c40944763abc8d8cc5676066245f0b5094c` |
+| `runs/run_20261001T041743Z/loads.json` | `existing repository / P23D generated documentation or offline evidence` | 835 | `c86c4085cd23d337a95a50c1661d1e20bd26f46065287175435d43ae810edf74` |
+| `runs/run_20261001T041743Z/report.txt` | `existing repository / P23D generated documentation or offline evidence` | 6005 | `e710e77c93150c7030274dd0d956cf0fc0a36edd5ca17d281dfe29d59f1a3c15` |
+| `runs/run_20261001T041743Z/run.json` | `existing repository / P23D generated documentation or offline evidence` | 2849 | `e7e91fef766d64b3c6dd30b466512ab025baa11fddf0e50e651b3864cebcc4f0` |
+| `runs/thermal.log` | `existing repository / P23D generated documentation or offline evidence` | 38562 | `b567ef9c0070ac32a7f6236e1316b3e191be2b65a501f036b8bf48f7bca80a67` |
+| `test_coresidency.py` | `existing repository / P23D generated documentation or offline evidence` | 49598 | `bbeea8c7bb503fd3585a09b7d987d00d0e4d48927c1bbf80d60298a7337de0d9` |
+| `test_oneshot.sh` | `existing repository / P23D generated documentation or offline evidence` | 8056 | `bccd170dfe71bccdb316aaf86b555defed3bf528dfaef9b854d231c7289f4e19` |

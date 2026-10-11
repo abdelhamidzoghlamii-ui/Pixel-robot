@@ -1,0 +1,51 @@
+**Review: CAMPAIGN_P1_FIX** (reviewer: Claude Code CLI, claude-opus-5-5, Ponytail off). I only read files. I ran no commands, edited nothing and started no other agents.
+
+## Causal confidence
+
+- **Proven:** the immediate failure. The traceback in `runs/owner_session_p1a2.stderr:10-19` stops at base `speed_block.py:203`. There `previous - cpus` came out empty during the L1 prepare, before any root shell existed. That rules out root/su readback, cached shells and wrappers as the cause. I agree with this.
+- **Probable only:** the upstream cause, a cpuset or stale-mask restriction from Android. The owner evidence can't prove it. There is extra in-run evidence that the coder didn't use (optional item 1).
+- **No mode difference in code:** confirmed. `phase1.py:517-547` does the same thing for session and preflight until after `preflight()` returns. The only branch is at `:549`.
+- **The bounded fix is acceptable without live validation.** The core gate still refuses a cpuset restriction that persists. It does not claim to override the kernel. Nothing is retried inside a measured interval: both `rt.prepare` calls at `phase1.py:337,354` and `lag_probe.py:42-43` run before `t0`. The other main-thread work is unaffected, since PinnedDetector and the workers pin themselves. Whether a real session now succeeds still depends on Android state and has not been validated.
+
+## Blocking
+
+**B1. The freeze and archive leave out three owner server logs.**
+- `runs/archive_sha256.json:38-43,62-67,86-91` lists `runs/owner_preflight_p1{,b,c}_llama-server.log` as archived and SHA-verified.
+- `final_verification.stdout` says "all 21 owner files rehashed". 21 = 18 + 3 logs.
+- None of the three logs appear in `frozen_manifest_campaign_p1_fix.json`, in the inventory I was given, or in the snapshot (no `benchmark/campaign/**/*.log` exists).
+- The task requires all available owner files archived, verified and frozen. As it stands, either the frozen candidate leaves out required evidence, or the archive inventory points at files that won't be committed (for example if `*.log` is ignored).
+- **Fix:**
+  - Add the three logs to the manifest with their sizes and hashes.
+  - Confirm they are present in the candidate tree and will be part of the commit list, even if `.gitignore` excludes `*.log`.
+  - Optionally mention them in the RUN_INDEX preflight rows.
+
+## Optional, non-blocking
+
+1. **Root-cause note (`checks/p1_fix/root_cause.md`).** It lists the `finally` in `prepare_monitor` only as clearing it of a pin leak. That `finally` (`speed_block.py:215-216`) actually rewrites `previous` as an explicit thread mask, so a narrowed mask captured during a temporary restriction stays in place. That is a concrete mechanism for candidate 2. Two more facts from the evidence:
+   - `check_cores('preflight')` at `phase1.py:472` passed in both sessions, so CPUs 6–7 were lost during setup.
+   - p1a still had 6–7 at the L0 prepare (`owner_session_p1a.json:36-42`). p1a2 had already lost them (`owner_session_p1a2.json:36-41`).
+
+   This sharpens the "probable" ranking but doesn't change the fix.
+2. **`runtime.py:75-77`.** When `setup_affinity` refuses, the error shows before/requested/actual, process and read method, but not the measured CPUs. This is now the first refusal path for the observed failure. Pass `measured` in for completeness.
+3. **`runtime.py:85`.** `campaign_setup_affinity` is assigned outside the `try` at `:86`. If that assignment ever raised, the shell would leak. It's only theoretical; moving the line inside the `try` would close it.
+4. **Wording.** `os.cpu_count()` (`runtime.py:69`) counts configured CPUs, not online ones as RUN.md says. It's harmless because the kernel intersects the mask with the cpuset.
+5. **Live-block evidence.** Block records don't store `setup_affinity` the way `layout_checks` do (`phase1.py:493-494`). Storing it would make future refusals or drift diagnosable.
+6. **A possible safe alternative:** a bounded `cr.wait_cores` (`coresidency.py:301`) during setup only, before monitor preparation. This could ride out a short top-app loss instead of refusing. It is not required.
+
+## Verified as correct
+
+- **Shared setup:** `phase1.py:546-551`. The preflight and session traces are compared over success and eight refusals, with only the excluded `sleep` call at index 18 differing (`self_check.py:171-209`).
+- **Reproduction:** the old L1 empty-mask refusal is reproduced through the real `sb.prepare_monitor`. It then passes after the refresh, and a continuing restriction is refused without starting root (`self_check.py:555-583`).
+- **Diagnostics:** desk2 changes are diagnostic only. The existing positional callers still work, and `threading` is imported (`speed_block.py:14`). Campaign checks report actual/measured/allowed/process/read method for the persistent shell, su and the pump (`runtime.py:46-60`).
+- **Transient wrapper:** it prints the readback line before refusing, strips it on success, and was exercised in a plain shell with a fake taskset.
+- **Same-stem reruns:** `set -C` in a subshell plus fresh `_p1_fix` stems is a sound choice, and the reason given for not adding a Python log-size check is correct. The noclobber self-check covers both redirect files.
+- **RUN.md:** it gives fresh preflight, session part A, session part B and dry-run commands, and lists the exact files for each.
+- **RUN_INDEX:**
+  - It uses the three required labels.
+  - The lag values match `owner_lag_p1.json:6235-6254`: 11.48 Hz, current_now 0.252/0.553/0.288 s, current_avg 3.00/6.53 s.
+  - The p1a overwrite and the p1a2 full traceback are documented.
+- **Check runs:** the power_map and coresidency failures on the first attempt are preserved, and both passed on the sequential retry. Neither imports the changed production logic.
+
+## Final verdict: CHANGES REQUESTED
+
+The only reason is B1: the freeze doesn't cover the archived server logs. The code fix, diagnostics, self-checks and RUN.md are otherwise acceptable. No commit or push is authorized.

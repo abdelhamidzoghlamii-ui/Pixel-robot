@@ -133,3 +133,7 @@ frame duration; post-RAW boost is copied when supported/reported, with requested
 and RESULT values logged. The 30 s AE re-convergence remains. Hardware cadence,
 brightness, power and template behaviour require another human smoke run.
 Do not resume CAMPOWER1 outputs after this code change; preserve their evidence.
+
+## Rerun command and raw-data location
+
+Rerun command: `bash ~/robot/benchmark/camera_power/oneshot.sh --smoke` ([source](README.md)). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

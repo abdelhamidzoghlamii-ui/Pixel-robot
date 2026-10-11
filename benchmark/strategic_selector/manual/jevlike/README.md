@@ -40,3 +40,7 @@ chmod +x /data/data/com.termux/files/usr/bin/robot-jevlike
 ```
 
 Parser check: `python3 test_jevlike.py`.
+
+## Rerun command and raw-data location
+
+Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: UNVERIFIED; consult the existing evidence paths in [RUN_INDEX.md](RUN_INDEX.md); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

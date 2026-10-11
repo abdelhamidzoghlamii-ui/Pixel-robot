@@ -1,0 +1,38 @@
+VERDICT: APPROVED
+
+No blocking correctness finding identified.
+
+1. **LOW — `benchmark/campaign/self_check_fix3b.py:72`: live-block late-completion coverage is indirect.** The harness disables workers and joins, then inserts failed rows during the mocked cycle. It verifies post-join row validation, but does not exercise a thermal reader completing during a live-block join. The rest harness does exercise late completion for camera OFF and ON. Also, the `error` fixture at line 17 has `rc=None`, so it does not independently test rejection of an error with `rc=0`.
+
+2. **LOW — `benchmark/coresidency/test_coresidency.py:693`: stale success message.** “cached pid recorded only” contradicts the updated assertion that remaining PIDs fail cleanup. The assertion is correct; the archived stdout repeats the stale wording.
+
+**Q0. Previous FIX3 round-3 HIGH resolved?**  
+Yes. Returned thermal failure rows now raise through the checked reader, and collected rows receive post-join validation. The former deadline escape is closed in both rest and live-block code.
+
+**Q1. Checked thermal reader and late failures?**  
+Yes. `runtime.py:140` rejects nonzero/missing rc, reader errors, missing or invalid skin/status, and nonfinite skin. Rest workers, live-block workers and diagnostics use it; `dump_check()` also checks rc before applying the thermal-stop threshold. Late failures invalidate the phase/block, stop subsequent work and make `rehearsal_pass=false`. The testing limitations are described in finding 1.
+
+**Q2. Camera cleanup, callers and fixtures?**  
+Yes. `coresidency.py:178` retains root and pidof statuses. Remaining PIDs fail; absent or unsuccessful enumeration fails closed. Ordinary absence—root rc 0, pidof rc 1, no PIDs—passes. I found no new caller regression in power_map, duty_cycle, camera_power, thermal_char or campaign. The five approved fixture edits encode the new rule without weakening the other assertions.
+
+The frozen check records report:
+
+| Suite | Recorded result |
+|---|---|
+| Campaign self_check, fix2, fix3, fix3b | All exit 0 |
+| Coresidency | Exit 0 |
+| Power map | Exit 0 |
+| Duty cycle | Exit 0 |
+| Camera power | Exit 0 |
+| Thermal characterization | Exit 0 |
+| RelateAnything speed1 and desk2 | Both exit 0 |
+
+**Q3. Underlying FIX3 still correct?**  
+Yes. Camera-OFF RobotCam absence requires status-checked confirmation; camera-ON absence and genuine memory/read failures remain fatal. I found no additional state-dependent false failure. Rehearsal traverses the scheduled setup, idle states, warm-up, pauses, layouts, fallback/context and cleanup paths. It does not guarantee every fault branch, later selector case or live-context consumption. Full-session scheduling remains unchanged apart from the fixes.
+
+**Q4. New false failures, archives and labels?**  
+No new false failure identified. Valid thermal readings and normal pidof absence remain accepted; failed/incomplete readings and remaining PIDs intentionally stop execution. Transient behavior remains unvalidated on hardware.
+
+All **94 frozen entries** match recorded sizes and SHA-256 hashes. The three owner archive inventories—**21, 15 and 8 entries**—also match their hashes. Requested archive labels and diagnostic-only caps wording remain intact; RUN.md orders rehearsal before session.
+
+This review used source inspection and independent hash/size verification. Python execution attempts returned status 182, so I did not independently rerun the suites. No files were changed or created; no hardware commands or agents were invoked.

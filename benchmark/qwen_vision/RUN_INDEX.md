@@ -11,3 +11,7 @@ mtimes (UTC) unless a file states its own date.
 | AGY review of the frozen harness, reviewed hashes | 2026-09-14 23:53 (mtime) | `qwen_vision_bench_review.md`, `qwen_vision_bench.sha256` | PASS on the frozen version |
 | harness, edited after review (health-timeout fix) | 2026-09-16 15:26 (mtime) | `qwen_vision_bench.py` | not re-reviewed; differs from reviewed `de8e60ce…` |
 | benchmark runs (#105) | unknown | none archived | result location UNKNOWN |
+
+## P23D recovered result files
+
+[results.json](runs/results.json) and [summary.txt](runs/summary.txt) were recovered unchanged from `/termux-home/qwen_vision_bench.json/`. The source JSON and summary retain their own failures and incomplete results; no success is inferred. These are partial #105 evidence; attribution to other Gemma/projector/stopped-sweep outputs remains UNVERIFIED. Exact source/destination hashes: [sweep_decisions.json](../campaign/checks/p23d/sweep_decisions.json).

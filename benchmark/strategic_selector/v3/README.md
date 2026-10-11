@@ -80,3 +80,7 @@ WITH CAVEATS**.
 - All timings are provisional (agent resident, cpuset changes, thermal state varies).
 - The held-out split is unscored; generator-derived data does not decide the winner (DECISIONS #113).
 - The ladder cases in `../ladder/` are a development bench, not the final exam.
+
+## Rerun command and raw-data location
+
+Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

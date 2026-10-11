@@ -1,0 +1,35 @@
+VERDICT: CHANGES REQUESTED
+
+1. **HIGH — `benchmark/campaign/phase1.py:580`: idle/pause reader failures arriving near the deadline can be ignored.**  
+   `rest()` checks `monitor_errors` inside its timed loop, but never checks them after the end diagnostics and worker joins. If an in-flight memory read raises after the last loop check, earlier valid samples satisfy the final memory predicate and the phase returns successfully. This violates the requirement that real read failures stop the session.
+
+   I reproduced this with read-only, in-memory mocks: an initial valid memory sample followed by a `KeyError('MemAvailable')` completing during the join produced:
+   `phase returned True; monitor_errors ["'MemAvailable'"]; valid memory rows 1; phase error None`.
+
+   Recheck worker errors after joining and make them fatal. Add a regression for late memory/root-reader exceptions. Also ensure `coverage()` rejects these phase errors: at **`phase1.py:668`**, it counts a phase containing `monitor_errors` as completed; a complete synthetic rehearsal with that error still returned `rehearsal_pass: true`.
+
+**Q0. Are round-1 findings 1–3 resolved?**  
+Yes. Absence requires a separate status-checked root confirmation; live/fallback M2 and fallback-context selector coverage are checked per layout; RUN.md gives the exact completion label.
+
+**Q1. Is the RobotCam fix correct and fail-closed?**  
+The absence classification is correct. Camera OFF accepts only confirmed absence; camera ON with the app missing remains fatal. Failed confirmation, malformed app PSS, nonzero sample root status, missing battery fields and missing required PSS remain failures. However, the session is **not fail-closed for every reader exception**, because of finding 1.
+
+**Q2. Any other state-dependent false failure?**  
+I found no additional state-dependent false failure across camera states, resident server, M2/no-M2 layouts, warm-up, pauses and idle sub-phases. Runner/server/provider PSS remain required; M2 runs within the runner.
+
+The previously reported cleanup limitation remains: `coresidency.py:177` discards enumeration status, and `camera_end_failed()` at line 183 ignores remaining PIDs. It is unchanged and outside the permitted edit directory.
+
+**Q3. Does rehearsal cover every live path, and is full-session behavior unchanged?**  
+It reaches every scheduled phase and layout using the live setup/readers, with per-layout live M2, fallback M2 and fallback-context selector coverage. It does **not guarantee every branch**:
+
+- Busy/skip, timeout, refusal and other fault paths are not deliberately exercised.
+- Later selector cases are omitted.
+- L1/L3/L4 do not require a selector to consume completed **live** M2 context; their second selector is intended to consume fallback context.
+- Finding 1 allows an idle/pause reader failure to escape the coverage gate.
+
+The estimate remains 10–15 minutes, above the requested 5–10-minute target. Full-session scheduling and normal behavior remain unchanged apart from the PSS fix; forced fallback applies only to rehearsal.
+
+**Q4. Archive integrity, labels and instructions?**  
+All **47 frozen-manifest entries** and **eight new owner archive entries** match their recorded sizes and SHA-256 hashes. Source Downloads equality is supported by the inventory, not independently verified here. RUN_INDEX preserves the requested labels, failure cause, no-warm-up/no-block statement and diagnostic-only 0% caps observation. RUN.md correctly orders rehearsal before a fresh-stem session, and its artifact lists match generated filenames.
+
+I independently ran the read-only memory/fallback regressions, camera-state rest mocks and syntax parsing. Archived results report all 11 checks successful, explicitly offline/NOT VALID. I did not rerun suites that create temporary files. No files were modified or created; no hardware or agents were invoked.

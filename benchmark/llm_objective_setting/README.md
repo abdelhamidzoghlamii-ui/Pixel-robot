@@ -129,3 +129,7 @@ Coder's report to the human, outside this archive. Coder report: `reports/CODER_
 Evidence gaps: `conv_speed.py` imports the repo's `server_manager.py` as it stood at commit `341bde6`
 (dotprod path, no `--cache-ram`; the driver adds the flag itself); rerunning it after that file changes
 does not reproduce the archived command exactly. The memory check did not record `VmSwap`.
+
+## Rerun command and raw-data location
+
+Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

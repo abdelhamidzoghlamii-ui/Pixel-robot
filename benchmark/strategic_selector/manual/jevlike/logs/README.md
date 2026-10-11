@@ -9,3 +9,7 @@ The logs predate the 2026-09-26 cleanup, so they still include the `laya_micro` 
 that were removed from the jevlike menu after their model files were deleted. `laya_multi.log` and
 `s1o.log` are empty in the original. Not reviewed when recorded. [ARTIFACTS.md](ARTIFACTS.md) hashes
 every file.
+
+## Rerun command and raw-data location
+
+Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: UNVERIFIED; consult the existing evidence paths in [RUN_INDEX.md](RUN_INDEX.md); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

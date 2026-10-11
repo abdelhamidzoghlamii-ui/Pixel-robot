@@ -96,3 +96,7 @@ The fixed launcher (DECISIONS #123 screen-timeout form, `codex` in the agent che
   be rerun as-is.
 - `s1o_dp_q40_20260927T224301Z` records the cases hash but not the runner hash; `ladder.py` `c7e6d3c9…`
   is inferred (live file last modified 2026-09-27 22:21Z, before the 22:43Z start; later runs record it).
+
+## Rerun command and raw-data location
+
+Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

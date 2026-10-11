@@ -1,0 +1,50 @@
+I'm approving round 2. I only read files: I ran no commands, edited nothing, wrote no plan file and started no other agents.
+
+## Round-1 blocking item B1: resolved
+
+- **The three server logs are now frozen.** All three are in `frozen_manifest_campaign_p1_fix.json`:
+  - `owner_preflight_p1_llama-server.log` (`:238-240`)
+  - `owner_preflight_p1b_llama-server.log` (`:258-260`)
+  - `owner_preflight_p1c_llama-server.log` (`:278-280`)
+
+  Each entry has size 2270 and the same SHA-256 as the inventory and `runs/archive_sha256.json:38-43,62-67,86-91`.
+- **They are in the snapshot.** The `runs/` listing shows all three, and the 21 files there match the "all 21 owner files rehashed" line in `final_verification.stdout`.
+- **The Git-ignore issue is documented.** `RUN_INDEX.md:3` says the logs are ignored by Git and will need force-adding only after the human commit gate. `root_cause.md` (round-1 section) says the same, and `.gitignore` was not changed.
+- **The commit list must include them.** It should contain every manifest path, with these three logs added by `git add -f`.
+
+## Round-1 optional items
+
+| # | Item | Status |
+|---|---|---|
+| 1 | Stale-mask mechanism in `prepare_monitor` | Added to `root_cause.md` as the code path for candidate 2. Also records that `check_cores('preflight')` passed and that p1a still had CPUs 6–7 at L0 while p1a2 had lost them. |
+| 2 | Measured CPUs missing from the refusal | Fixed: `runtime.py:75-78` now prints before, requested, actual, measured, allowed, process and read method. |
+| 3 | Metadata assignment outside `try` | Fixed: `runtime.py:86-87`, so `close()` covers it. |
+| 4 | `cpu_count` wording | Clarified ("configured device CPUs", RUN.md). |
+| 5 | Live blocks didn't record setup affinity | Fixed: `phase1.py:339,356` now records it for both the primary and fast monitors. |
+| 6 | Bounded wait | Deliberately not added. That's acceptable: it was optional, and a restriction that persists still refuses safely. |
+
+## Regression check on the round-2 changes
+
+- **Lag probe:** `lag_probe.py:42-43` goes through `rt.prepare`, so it runs the refresh too. Both calls happen before any measured interval.
+- **No retry inside a measured window:** in `live_block`, both `rt.prepare` calls (`phase1.py:337,355`) come before `t0` (`:368`).
+- **No new exposure from the refresh:**
+  - The refresh only widens the main thread's mask.
+  - The M2 workers and caller built at `:351` pin themselves and are not affected.
+  - The main thread's mask already overlapped the measured cores in the base code (`previous` minus `cpus` was non-empty).
+- **Self-check:** the round-3 run passes, including the reproduction of the old failure and the shared-path trace comparison (`self_check.py:171-209,555-607`).
+
+## Causal confidence
+
+- **Proven:** the immediate failure. Base `speed_block.py:203` computed an empty safe mask for the calling thread on the L1 prepare, before any root shell existed. That rules out root/su readback, cached shells and wrappers.
+- **No session-versus-preflight difference in the code:** proven. Both run the same `preflight()` call with no mode argument; the only branch comes after it returns (`phase1.py:548-553`).
+- **Probable only:** the upstream cause. Either Android moved Termux out of top-app (losing CPUs 6–7), or a temporary restriction left a narrowed mask in place through `prepare_monitor`'s `finally`. The owner evidence can't tell these apart.
+- **The bounded fix is acceptable without live validation.** It resets the calling thread's mask to all configured CPUs, reads it back and re-runs the core check. A restriction that persists still refuses before any root shell starts, and nothing is retried inside a measured interval. Whether a real session now succeeds still depends on Android state and has not been validated; nothing in the evidence claims it has.
+
+## Findings
+
+- **Blocking:** none.
+- **Optional:** none new.
+
+No commit or push is authorized. The coder should propose the exact file list under the title "benchmark: campaign phase-1 session start fix, lag probe and preflight archive", including the three force-added logs, and wait for "yes commit". Pushing needs a separate "yes push".
+
+## Final verdict: APPROVED

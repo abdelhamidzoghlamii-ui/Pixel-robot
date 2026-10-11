@@ -129,3 +129,7 @@ Dry-run intentionally skips agent/charger/idle/skin gates and sensor sampling so
 it can verify inference from this agent-resident proot session using native Python.
 Root is unavailable in proot; production refuses proot and requires native root.
 M2's required STOP takes precedence over its requested dry-run.
+
+## Rerun command and raw-data location
+
+Rerun command: `python -u ~/robot/benchmark/relate_anything/desk2/speed_block.py --model relsgg-vits16plus --output ~/storage/downloads/relate_fix1/owner_speed_m1_fix1.json` ([source](RUN.md)). Owner hardware gates in the cited instructions still apply. Raw data: UNVERIFIED; consult the existing evidence paths in [RUN_INDEX.md](RUN_INDEX.md); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

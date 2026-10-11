@@ -100,3 +100,7 @@ the report work on the phone. Its numbers are not measurements.
 | `HEAT_EVIDENCE.md` | the heat register |
 
 [RUN_INDEX.md](RUN_INDEX.md) lists the runs; [ARTIFACTS.md](ARTIFACTS.md) hashes every file.
+
+## Rerun command and raw-data location
+
+Rerun command: `bash ~/robot/benchmark/thermal_char/oneshot.sh --smoke --note "room 23 degC, phone on the robot, no case"` ([source](RUN.md)). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

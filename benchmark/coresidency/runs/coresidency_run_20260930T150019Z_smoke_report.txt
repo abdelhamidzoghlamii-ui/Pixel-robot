@@ -1,0 +1,40 @@
+Co-residency benchmark (DECISIONS #124), run run_20260930T150019Z_smoke  [SMOKE: not a measurement]
+block length 20 s; idle z9 34.0 degC; runner sha256 ef622037a659
+INCOMPLETE: B3_mix_gemma: selector cadence missed: 1/2 successful calls, started >5 s late at slots [], ended after the block at slots []
+INCOMPLETE: B4_only640_gemma: selector cadence missed: 1/2 successful calls, started >5 s late at slots [], ended after the block at slots []
+
+                                        B1_mix_nollm    B2_only640_nollm        B3_mix_gemma    B4_only640_gemma
+frames processed                                  40                  40                  40                  37
+failed reads by status                          none                none                none                none
+repeat reads (not failures)                        1                   0                   0                   0
+detect320 ms median/P95               101/154 (n 37)       n/a/n/a (n 0)      101/471 (n 37)       n/a/n/a (n 0)
+detect640 ms median/P95                493/543 (n 3)      369/497 (n 40)       496/590 (n 3)     360/1110 (n 37)
+drift320 first/last 30s                   101 -> 101          n/a -> n/a          101 -> 101          n/a -> n/a
+drift640 first/last 30s                   493 -> 493          369 -> 369          496 -> 496          360 -> 360
+read/decode ms median                        2.4/5.9             2.5/5.2             2.4/5.8             2.2/5.2
+frame age s median                              0.33                0.35                0.48                0.34
+selector ms median/P95                             -                   -           1962/1962           2253/2253
+selector calls ok/err/correct                  0/0/0               0/0/0               1/0/1               1/0/1
+min MemAvailable MiB                            2962                2957                2114                2059
+max swap used MiB                               1990                1920                2200                2014
+peak PSS runner MiB                              308                 308                 282                 291
+peak PSS llama-server MiB                        n/a                 n/a                3245                3115
+peak PSS RobotCam app MiB                         39                  39                  41                  41
+peak PSS camera provider MiB                     259                 261                 256                 257
+LMK log lines (kill lines)                     3 (0)               1 (0)               1 (0)               0 (0)
+survived RobotCam / llama                    yes / -             yes / -           yes / yes           yes / yes
+zone9 start/end/max degC              44.0/54.0/54.0     54.0/82.0/102.0      81.0/66.0/86.0      66.0/72.0/81.0
+gate wait s                                        0                   0                   0                   0
+mean battery W                                  4.19                9.71                4.65                7.02
+battery status                           Discharging         Discharging         Discharging         Discharging
+sample errors                                      0                   0                   0                   0
+sample gaps >7.5s (max s)                    0 (5.2)             0 (5.0)             0 (5.0)             0 (5.1)
+samples past block end (dropped)                   1                   1                   1                   1
+
+Gemma load (spawn to /health ok): cold 5.71 s [weights-cold (posix_fadvise DONTNEED on the GGUF)], warm 4.45 s
+server command: /data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1
+
+MTP snapshot (RobotCam + both detector sessions + Gemma with drafter, after one request): MemAvailable 2167 MiB, swap used 2025 MiB, PSS llama-server 3672 MiB, VmHWM 3738 MiB, load 7.78 s
+server command: /data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1 --model-draft /data/data/com.termux/files/home/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf --spec-type draft-mtp --spec-draft-n-max 3
+
+Notes: detect ms = Detector.detect (resize, inference, NMS); read/decode split read_frame at its BytesIO call; drift = median of the first vs last 30 s; W = -(current_now*voltage_now) from battery sysfs as in camera_heat.py; PSS = root dumpsys meminfo every 5 s; LMK = logcat lines matching lowmemorykiller|lmkd|killinfo in the block window, kills = lowmemorykiller/lmkd lines containing "kill", or killinfo. Every sample runs one su call (dumpsys) in all blocks alike.

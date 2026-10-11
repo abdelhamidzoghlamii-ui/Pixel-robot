@@ -1,0 +1,94 @@
+# CAMPAIGN_P23 round 3 (redo): independent review
+
+Reviewer: Claude Code CLI, claude-opus-5-5, Ponytail off.
+
+**Verdict: APPROVED.** All round-1 and round-2 findings are resolved and the owner's M3 decision is implemented as stated. I found four new Low items; none blocks approval.
+
+**Scope.** Everything I did was read-only: `Read`/`Grep`/`Glob`, plus in-memory `python3 -I -B -c` hashing, AST comparison and JSON reads. I could not re-run the offline checks myself. I judged them from the actual log bytes in `checks/p23`.
+
+## Integrity checks
+- **Patch:** 119995 bytes, SHA-256 `d1af37b6…a8bc0`, matching the request.
+- **Patched files:** the git blob ids of all 6 match the patch `index` lines.
+- **Base is FIX4D:** I rebuilt the base in memory by reverse-applying the hunks. `phase1.py` (`0dba4cd6…`), `self_check_fix4.py`, `RUN.md` and `RUN_INDEX.md` match `frozen_manifest_campaign_p1_fix4d.json`.
+- **Unchanged modules:** `runtime.py`, `power.py`, `diagnostics.py` and `coresidency.py` are byte-identical to FIX4D. The only FIX4D manifest mismatches are the 4 patched files.
+- **AST comparison:** only `run_cycle`, `live_block`, `start_gate` (new) and `main` changed. `LiveOps`, `bounded_selector`, `preflight`, `memory_row_bad` and `lmk_window` are AST-identical.
+- **Frozen manifest:** all 127 entries in `frozen_manifest_campaign_p23.json` match; all 121 `checks/p23` and `runs/*p1_fix4d*` files are covered. Spot hashes match the request (mock JSON, session JSON, `results.json`, archive inventory).
+- **Part A:** all 40 archived files equal their owner sources in `~/storage/downloads/campaign` (source and destination SHA-256). I recomputed from the block bytes:
+  - T_ref 29.5405 °C; start deltas +1.92 / +2.02 / +1.86 °C; labels VALID ×3 and NOT COMPARABLE — START TEMP ×3.
+  - Watts 4.10 / 4.99 / 4.72 / 5.10 / 5.41 / 4.04; YOLO-320 180/180 except L3 109/180.
+  - M2 inference median/P95: L1 4919/6451, L2 1176/1323, L3 1313/1760, L4 871/2001 ms.
+  - Selector medians match; L4 policy6 capped 43.9 %; 0 re-reads; 0 LMK kills.
+- **Checks:** `results.json` lists the 20 commands, all exit 0. The `campaign_self_check_p23.stdout` log shows every PASS line. Stderr holds only the ORT warning and the expected argparse refusals.
+- **Mock evidence:** every coder mock file is labelled `NOT VALID — DRY RUN`, and `rehearsal_pass` is false.
+
+## Explicit answers
+1. **Can any re-read replace any non-empty answer?** No.
+   - `phase23.py` adds no transport, parser, re-read or retry. Every reader it uses is an unchanged FIX4D wrapper (`read_dump`, `fast_check`, `memory_sample`, `power.sample/sampler`, `server_ok`, `diag.battery`, `camera_start`, `stop_camera`, `lmk_window`).
+   - `start_gate` only polls again after a valid, parsed reading. A reader error propagates on the first read (`check_gate` asserts exactly one call).
+   - `read_dump` raises at status ≥ `STATUS_STOP=4` and keeps FIX3D. /health stays 2-of-2, and the pidof re-check is unchanged.
+   - The second `camera(False)` in `close()` is a separate cleanup attempt. Any earlier failure stays in `cleanup_errors`, so the run stays NOT VALID.
+2. **Is Part B correct in both runners?** Yes.
+   - **P23:** one reading object serves as the gate decision, `skin_start` and `gate.reading`. The origin is taken right after it (`phase23.py:403-404`). Camera start belongs to active time, and slots start at camera readiness (`phase23.py:265-267`). Models are built before idle.
+   - **P1:** setup and camera start come before the gate. The gate waits with the camera on and inference idle, while monitors run. `t0` follows the final reading, power rows are re-based, and the LMK window is re-anchored (`phase1.py:519-528,567-569`).
+3. **Does the mandatory rehearsal cover every required normal session path?** Yes, in shortened form:
+   - setup, idle, cold gate, endurance time limit;
+   - 3 fixed cycles with pauses and camera restarts;
+   - adaptive high and low switching plus its own camera restart;
+   - live and fallback M2 and selector contexts, drain, cleanup, LMK.
+
+   Mock-only paths, stated at `RUN.md:386-389,543-545`: SEVERE, emergencies, refusals, warm start, battery stop, near-deadline restart suppression, camera retries, and full-length drift. The 30–36 min heat regime can only be seen in the real sessions.
+4. **Is M3 implemented as stated?** Yes.
+   - Fixed mode uses an absolute 12 × 180 s grid within 2160 s (`phase23.py:439-440`).
+   - `phase_timing` (`phase23.py:68-81`) clips intervals to each slot. Camera start and stop fall inside the slots.
+   - The five fields plus `duty_fraction = inference_s/wall` are present for phases, cycles and totals, and they add up to wall time.
+   - `duty_description` and RUN.md make no "exactly 120/60" claim (`RUN.md:466`).
+   - Adaptive keeps a 60 s minimum active counted from START and a 30 s minimum from confirmed OFF.
+5. **Is every old and new finding resolved?** Yes; see the tables below.
+
+## Round-1 status
+| Item | Status | Evidence |
+|---|---|---|
+| H1 | RESOLVED | Complete-slot planning (`phase1.py:85-86,176,186`) and capture-time pacing (`phase1.py:228`). Real `LiveSession.cycle` test covers 4.6 / 8.1 / 41.4 / 1800.3 s with a 1.0007 s camera period. |
+| H2 | RESOLVED | Stop-aware readiness wait (`phase1.py:133-137`); no adaptive restart with less than 61 s left (`phase23.py:426,468`). |
+| M1 | RESOLVED | `stop_when` runs only on the main thread (`phase1.py:180,256`); the selector only guards; required/started/cancelled accounting at `phase1.py:286-297`. |
+| M2 | RESOLVED | `reason or …` latch (`phase23.py:452,472`); EMERGENCY makes the run NOT VALID (`phase23.py:526`); CriticalRace test. |
+| M3 | RESOLVED | As in answer 4. |
+| M4 | RESOLVED | `phase1.py:527-528`; test asserts the [1400, 1580] window. |
+| M5 | RESOLVED (code) | Drift removed; no per-call limit. A slot is skipped only once a call reaches about 2 s, the same as Phase 1. |
+| L1 | RESOLVED | `except Exception` (`phase23.py:353`); SystemExit test. |
+| L2 | RESOLVED | Labels on every phase and checkpoint file (`phase23.py:369`). |
+| L3 | RESOLVED | Watchdog armed after setup and paused during camera transitions (`phase23.py:181,238-254`). |
+| L4 | RESOLVED | Adaptive's own restart is required; extra attempts and recovered launches count as failures. |
+| L5 | RESOLVED | 18 module hashes (`phase23.py:571-577`). |
+| L6 | RESOLVED | Mode and final cleanup windows are capped; battery stop keeps its label. |
+| L7 | RESOLVED | No stale logs; correct new-file headers. |
+| L8 | RESOLVED | The inventory has P95 1323 / 1760 ms (but see new item R3-2). |
+| L9 | RESOLVED | Atomic 60 s checkpoints including completed work. |
+
+## Round-2 status
+| Item | Status | Evidence |
+|---|---|---|
+| N1 | RESOLVED | The per-call >1 s rule is gone (`phase1.py:231-235`). Only the 3.35 s terminal budget remains, plus the skip, deadline and count rules. Regressions at 1.01 / 1.5 / 1.9 s pass. |
+| N2 | RESOLVED | The mock uses the same formulas with a 3 s START / 2 s STOP (`phase23.py:309-334`). RUN.md states 5 selectors per cycle (60 total) and 1 per rehearsal phase (3 total); only the first active forces fallback. |
+| N3 | RESOLVED | 60 + 1 s reserve at both check points (`phase23.py:426,468`); NearDeadline test. |
+| N4 | RESOLVED | The bracket exception sets `evidence_stop_reason` and that becomes the stop reason (`phase23.py:355,480,500-501`); test. |
+| N5 | RESOLVED | `server_manager`, `session`, `measure` and the cases file are hashed; the test asserts 18 entries. |
+| N6 | RESOLVED | Memory lock disclosed (`RUN.md:535`); main-thread-only drain heartbeat; `BatteryStop` keeps its type (`phase1.py:280`). |
+| N7 | RESOLVED | Incremental checkpoints of completed work; recovered `am` launch counted as a failure; authority and signal wording (`RUN.md:540-545`). |
+
+## New findings (all Low; none blocks approval)
+- **R3-1 — Low.** `phase23.py:484-485`: the pause→active switch records `skin_c` from the post-pause `skin_end` reading, not from the reading that met the low threshold. `coverage()` (`phase23.py:558`) relies on that value.
+  - Trigger: a slight sensor uptick between the two readings sets `adaptive_low_restart` false. The rehearsal then fails even though the restart really happened. It fails closed, but it could cost a rehearsal.
+- **R3-2 — Low (documentation).** `RUN_INDEX.md:50-51`: the L2 and L3 M2 cells show only medians, although the table says median/P95. The byte-derived P95 values are 1323 and 1760 ms.
+- **R3-3 — Low.** `phase23.py:494-497`: in the rehearsal, a camera-stop failure at the end of a mode is recorded but doesn't end the session. The next mode's idle tries the stop again, and only fails the session if that second stop also fails. The evidence stays NOT VALID and `rehearsal_pass` stays false, so this only slightly contradicts `RUN.md:502-503`.
+- **R3-4 — Low (labelling).** `phase23.py:355`: any non-battery failure during the evidence bracket is labelled `EMERGENCY: evidence bracket`, including a plain monitor failure. The run is still NOT VALID. Also, fixed-mode `switches` rows carry adaptive `threshold_c` values, which is cosmetic.
+
+## Material uncertainties
+- **Rehearsal feasibility:** in the shortened adaptive mode, the phone has to cool below the final gate reading minus 1 °C with at least 61 s left. That depends on the real cooling curve (disclosed). If it doesn't, the rehearsal must be rerun.
+- **Capped 640 calls:** if a YOLO-640 call reaches about 2 s while capped near SEVERE, the next slot is skipped and the run becomes NOT VALID under the same Phase 1 rule. Only the measured sessions can show whether this happens.
+- **Phase 1 gate on hardware:** the changed P1 gate is not validated on hardware; a new P1 rehearsal is needed before any P1 reuse (disclosed).
+- **My verification:** all checks ran offline in proot with agents resident. I couldn't run git or the tests, so I relied on the logs plus my own hash and AST reconstruction.
+
+Approval is not commit authorization: commit needs an explicit yes, and push a separate yes. Any code change after this review needs a new owner workflow and review. No DOC DIFF.
+
+APPROVED

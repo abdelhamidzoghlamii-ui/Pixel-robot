@@ -156,3 +156,53 @@ dfc9b1e453cc770ec431cffb53b82cd5d9673d6dc358ccfc201d30d9046944b9  runs/camera_he
 7b66c640c4bb2a0bc01cedd0c902aa27f587e58648994f0bc3aadade7c66ba32  runs/camera_heat_20260929T022511Z_16984/sensors.jsonl
 72d5f2d481c2bc70371cb8b3cfc33214a2b9a2163f9a2fa69e0ff0c89bf7b6b8  runs/oneshot_console_20260929T022511Z.log
 ```
+
+## P23D current inventory
+
+Historical sections above retain their exact original archive-time records; some describe older code or documentation bytes. The table below is the current file inventory, including required ignored artifacts explicitly force-added for review. It excludes this manifest, Python caches and the new frozen manifest to avoid self-reference.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `existing repository / P23D generated documentation or offline evidence` | 4719 | `05a0d1fc978ad2e6d6b44ca68bf2ed7f0b5f39bd0fb1c72b601cf3171b1491d1` |
+| `RUN_INDEX.md` | `existing repository / P23D generated documentation or offline evidence` | 1469 | `4f3c62a2baccb6980c548e7d7074dea5888db0cd86b93291e9a6e06808891576` |
+| `camera_heat.py` | `existing repository / P23D generated documentation or offline evidence` | 13655 | `63275fa0f967e0905c662d1a2daad21bc1b0fed9e39270d85c6ce6906eb95059` |
+| `reports/CODER_REPORT_camera_heat.md` | `existing repository / P23D generated documentation or offline evidence` | 8438 | `50ee90250721658564b9a77c4fbdd5b3decc3f2f18ececfff75cf5624fb46f55` |
+| `run_camera_heat.sh` | `existing repository / P23D generated documentation or offline evidence` | 556 | `4058b71094f408b2fd901dff6865f7d7e87f9ab7309ab8ce8c86e361881e4dae` |
+| `runs/camera_heat_20260929T022511Z_16984/request_0.json` | `existing repository / P23D generated documentation or offline evidence` | 18 | `2bcc337a33841b5a2c00408b09d907a8ee77f6a65fc8dfde007d2d6bccc839dd` |
+| `runs/camera_heat_20260929T022511Z_16984/request_1.json` | `existing repository / P23D generated documentation or offline evidence` | 30 | `96b5ac94b95f55e202cc443ff6347d46679f1814a0b3ef6fbfb1ff8f2bf4a71c` |
+| `runs/camera_heat_20260929T022511Z_16984/request_10.json` | `existing repository / P23D generated documentation or offline evidence` | 18 | `2bcc337a33841b5a2c00408b09d907a8ee77f6a65fc8dfde007d2d6bccc839dd` |
+| `runs/camera_heat_20260929T022511Z_16984/request_11.json` | `existing repository / P23D generated documentation or offline evidence` | 40 | `b8aec640591491fa01a0d507eb087be88e7deb3940742055c3521583141e3f34` |
+| `runs/camera_heat_20260929T022511Z_16984/request_12.json` | `existing repository / P23D generated documentation or offline evidence` | 21 | `ea02414e3003528ffc259ca509b1b1ff6550c5f8b1f3e2e56c4726cf38d28ba5` |
+| `runs/camera_heat_20260929T022511Z_16984/request_13.json` | `existing repository / P23D generated documentation or offline evidence` | 22 | `b45d6ab904612d8fca2024bed9fbdb24316e020854a62ac69064612914f82746` |
+| `runs/camera_heat_20260929T022511Z_16984/request_14.json` | `existing repository / P23D generated documentation or offline evidence` | 18 | `2bcc337a33841b5a2c00408b09d907a8ee77f6a65fc8dfde007d2d6bccc839dd` |
+| `runs/camera_heat_20260929T022511Z_16984/request_15.json` | `existing repository / P23D generated documentation or offline evidence` | 20 | `8059753f3ff5ed2ff069ebc93150579fb5c79c40d35cb53653515ac110a3a97d` |
+| `runs/camera_heat_20260929T022511Z_16984/request_2.json` | `existing repository / P23D generated documentation or offline evidence` | 66 | `163c69c16ad71067bf184e9449e754f615bdf5eec8250a41b8102d6ffb45b597` |
+| `runs/camera_heat_20260929T022511Z_16984/request_3.json` | `existing repository / P23D generated documentation or offline evidence` | 21 | `ea02414e3003528ffc259ca509b1b1ff6550c5f8b1f3e2e56c4726cf38d28ba5` |
+| `runs/camera_heat_20260929T022511Z_16984/request_4.json` | `existing repository / P23D generated documentation or offline evidence` | 48 | `c9ed5b463ac62f093f5f8f40831b5bd45adaae237c9d6aebdccda881c497cc96` |
+| `runs/camera_heat_20260929T022511Z_16984/request_5.json` | `existing repository / P23D generated documentation or offline evidence` | 18 | `2bcc337a33841b5a2c00408b09d907a8ee77f6a65fc8dfde007d2d6bccc839dd` |
+| `runs/camera_heat_20260929T022511Z_16984/request_6.json` | `existing repository / P23D generated documentation or offline evidence` | 30 | `c379fcf17c3f11cfb84d61ceee4e0a96dc829581a182eed1d2bf7be057d5eb60` |
+| `runs/camera_heat_20260929T022511Z_16984/request_7.json` | `existing repository / P23D generated documentation or offline evidence` | 66 | `3d00fd414f13c693e0df1f0438c4466f043f235bb013d28a9fbdc6f41e9d0937` |
+| `runs/camera_heat_20260929T022511Z_16984/request_8.json` | `existing repository / P23D generated documentation or offline evidence` | 21 | `ea02414e3003528ffc259ca509b1b1ff6550c5f8b1f3e2e56c4726cf38d28ba5` |
+| `runs/camera_heat_20260929T022511Z_16984/request_9.json` | `existing repository / P23D generated documentation or offline evidence` | 48 | `8ac9b4a4cc464f438f5d3b37580c6a1fc3d9c877a3f7a0e3181c9fa50c6e1050` |
+| `runs/camera_heat_20260929T022511Z_16984/response_0.json` | `existing repository / P23D generated documentation or offline evidence` | 12 | `6bc0da1f42f96fc37b8bd7ed20ba57606d2a0da5cda2b135c7854fbdc985b8a3` |
+| `runs/camera_heat_20260929T022511Z_16984/response_1.json` | `existing repository / P23D generated documentation or offline evidence` | 12 | `6bc0da1f42f96fc37b8bd7ed20ba57606d2a0da5cda2b135c7854fbdc985b8a3` |
+| `runs/camera_heat_20260929T022511Z_16984/response_10.json` | `existing repository / P23D generated documentation or offline evidence` | 12 | `6bc0da1f42f96fc37b8bd7ed20ba57606d2a0da5cda2b135c7854fbdc985b8a3` |
+| `runs/camera_heat_20260929T022511Z_16984/response_11.json` | `existing repository / P23D generated documentation or offline evidence` | 12 | `6bc0da1f42f96fc37b8bd7ed20ba57606d2a0da5cda2b135c7854fbdc985b8a3` |
+| `runs/camera_heat_20260929T022511Z_16984/response_12.json` | `existing repository / P23D generated documentation or offline evidence` | 238 | `5e9798c1d7c9d6a2dcdc731f43e023248e8d19094e82b2ad20d56218282060ad` |
+| `runs/camera_heat_20260929T022511Z_16984/response_13.json` | `existing repository / P23D generated documentation or offline evidence` | 25 | `a59ffa48206df48b656a28855b5b701bd9f31b3e0d58d1b74141917b1fa6099c` |
+| `runs/camera_heat_20260929T022511Z_16984/response_14.json` | `existing repository / P23D generated documentation or offline evidence` | 12 | `6bc0da1f42f96fc37b8bd7ed20ba57606d2a0da5cda2b135c7854fbdc985b8a3` |
+| `runs/camera_heat_20260929T022511Z_16984/response_15.json` | `existing repository / P23D generated documentation or offline evidence` | 12 | `6bc0da1f42f96fc37b8bd7ed20ba57606d2a0da5cda2b135c7854fbdc985b8a3` |
+| `runs/camera_heat_20260929T022511Z_16984/response_2.json` | `existing repository / P23D generated documentation or offline evidence` | 12 | `6bc0da1f42f96fc37b8bd7ed20ba57606d2a0da5cda2b135c7854fbdc985b8a3` |
+| `runs/camera_heat_20260929T022511Z_16984/response_3.json` | `existing repository / P23D generated documentation or offline evidence` | 238 | `b9415c69eea368854679ef1f5cc35e1909360c511cbe6e79fbc8a5f0354adafc` |
+| `runs/camera_heat_20260929T022511Z_16984/response_4.json` | `existing repository / P23D generated documentation or offline evidence` | 59 | `db2b80df7dcd2c06a0397edaf5268cb807003ec6bed0576a09e5d043171df31a` |
+| `runs/camera_heat_20260929T022511Z_16984/response_5.json` | `existing repository / P23D generated documentation or offline evidence` | 12 | `6bc0da1f42f96fc37b8bd7ed20ba57606d2a0da5cda2b135c7854fbdc985b8a3` |
+| `runs/camera_heat_20260929T022511Z_16984/response_6.json` | `existing repository / P23D generated documentation or offline evidence` | 12 | `6bc0da1f42f96fc37b8bd7ed20ba57606d2a0da5cda2b135c7854fbdc985b8a3` |
+| `runs/camera_heat_20260929T022511Z_16984/response_7.json` | `existing repository / P23D generated documentation or offline evidence` | 12 | `6bc0da1f42f96fc37b8bd7ed20ba57606d2a0da5cda2b135c7854fbdc985b8a3` |
+| `runs/camera_heat_20260929T022511Z_16984/response_8.json` | `existing repository / P23D generated documentation or offline evidence` | 238 | `dfc9b1e453cc770ec431cffb53b82cd5d9673d6dc358ccfc201d30d9046944b9` |
+| `runs/camera_heat_20260929T022511Z_16984/response_9.json` | `existing repository / P23D generated documentation or offline evidence` | 59 | `0a0b9cb31205d53a44cea7eaac0412b0fd8606ffea9cdee420ad50bc1073829c` |
+| `runs/camera_heat_20260929T022511Z_16984/results.json` | `existing repository / P23D generated documentation or offline evidence` | 1943 | `5228da0e1578fdc07e51fb7167464c1669711714f9648a169177e29fa6849bcd` |
+| `runs/camera_heat_20260929T022511Z_16984/robotcam_1.reader.txt` | `existing repository / P23D generated documentation or offline evidence` | 15636 | `83fecea28dc3325e5cd68d6de2414dc88ad3381681ff93114c8d70bd4e83f3a4` |
+| `runs/camera_heat_20260929T022511Z_16984/robotcam_2.reader.txt` | `existing repository / P23D generated documentation or offline evidence` | 31046 | `58069446bd3d7673aaea0226241676db5a4516464861a5a7a4a246f40b696a39` |
+| `runs/camera_heat_20260929T022511Z_16984/sensors.jsonl` | `existing repository / P23D generated documentation or offline evidence` | 37874 | `7b66c640c4bb2a0bc01cedd0c902aa27f587e58648994f0bc3aadade7c66ba32` |
+| `runs/camera_heat_active.json` | `/termux-home/ladder/camera_heat_active.json` | 78 | `17026e3e875ae491d4ca8af0cf4db02d7074424073b7e570b6505261b0cfada6` |
+| `runs/oneshot_console_20260929T022511Z.log` | `existing repository / P23D generated documentation or offline evidence` | 2620 | `72d5f2d481c2bc70371cb8b3cfc33214a2b9a2163f9a2fa69e0ff0c89bf7b6b8` |

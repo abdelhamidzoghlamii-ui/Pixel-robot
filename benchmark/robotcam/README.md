@@ -15,3 +15,7 @@ python benchmark/robotcam/robotcam_test.py -n 60 --out ~/robotcam_test.json
 
 Runs: none yet. Timed runs follow `docs/WORKFLOW.md` ("Timed benchmarks on the
 phone") and are archived here per `benchmark/INDEX.md`.
+
+## Rerun command and raw-data location
+
+Rerun command: `python benchmark/robotcam/robotcam_test.py -n 60 --out ~/robotcam_test.json` ([source](README.md)). Owner hardware gates in the cited instructions still apply. Raw data: UNVERIFIED; consult the existing evidence paths in [RUN_INDEX.md](RUN_INDEX.md); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

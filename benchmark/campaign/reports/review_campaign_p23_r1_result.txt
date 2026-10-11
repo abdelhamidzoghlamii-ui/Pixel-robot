@@ -1,0 +1,102 @@
+# CAMPAIGN_P23 r1 — Independent review (Claude Code CLI, claude-opus-5-5, Ponytail off)
+
+Scope: I reviewed the full patch, which matches the stated SHA-256 and byte count. The git blob ids of `phase23.py`, `self_check_p23.py`, `phase1.py`, `self_check_fix4.py`, `RUN.md` and `RUN_INDEX.md` match the patch index lines. I read the surrounding source, the supplied check logs, the coder's mock evidence and the archived owner bytes. Nothing was written or executed beyond read-only hashing and JSON reads. This is not a git checkout, so I could not re-run the `git show`-based sweep; I re-established what it checks with hashes instead (see Verified).
+
+## Verified OK
+- **Part A archive:** all 40 owner `p1_fix4d` files match the supplied SHA-256 values and `archive_sha256_p1_fix4d.json`. The frozen manifest's 131 entries all match. I recomputed the labels and numbers from the bytes and they match RUN_INDEX:
+  - T_ref 29.5405 °C; start deltas 1.92 / 2.02 / 1.86 °C.
+  - Watts 4.10 / 4.99 / 4.72 / 5.10 / 5.41 / 4.04.
+  - YOLO-320 done/due 180/180, and 109/180 for L3.
+  - L4 policy6 capped 43.9 %; camera-ON idle policy0 capped 98.5 %.
+  - 0 re-reads, 0 thermal retries, 0 LMK kills, session end at +5767.3 s.
+  - D2 cooling ran at pause end (e.g. 70.6 s extra before block 6).
+- **Unchanged readers:** `runtime.py`, `power.py`, `diagnostics.py` and `coresidency.py` are byte-identical to `frozen_manifest_campaign_p1_fix4d.json`. The phase1 hunks touch only `run_cycle`, `live_block`, `start_gate` and `main`. `LiveOps`, `bounded_selector`, `preflight`, `memory_row_bad` and `lmk_window` are untouched. `docs/` and models are untouched.
+- **Configuration matches the request:**
+  - M2 runs on BIG cpus 6–7 with 2 threads (`variants.CLUSTERS['BIG']`) and is checked by `check_pinning(tids,{6,7})`.
+  - YOLO uses `build_detector('mid')` and `camera_start(rate=1)`; `SizePolicy(5)` replaces 320 with 640 (`phase1.py:78-82,183-214`).
+  - L2 runs M2 on the latest completed 640 frame, then the selector, with the same fallback and top-32 rules.
+- **Part B (P23):** `start_gate` returns the same reading object that is used for the gate decision, `skin_start` and `gate.json`. The origin is set immediately after it (`phase23.py:329-331`). Camera start is inside active time, and slot origins begin at camera readiness (`phase23.py:227-228`).
+
+## Findings
+
+**H1 — High: the unchanged end-boundary rule makes most measured runs NOT VALID — cadence misses.**
+`phase1.py:250` (unchanged) flags any YOLO/M2/selector row with `ended_s > duration`. P23 now passes non-integer and drifting durations: `remaining = planned_end − now` after camera start (`phase23.py:363-365`).
+
+Measured inputs from the owner P1 bytes:
+- RobotCam frame period is 1.00037–1.00075 s in every block (from `t − age_s` of the reads).
+- YOLO-320 finishes 0.18–0.38 s after its slot; a lone 640 about 0.57 s after.
+
+Concrete triggers:
+- **Fixed:** the last slot of each roughly 117.x s active ends at `floor(D)+0.2` (320) or `+0.6` (640). It crosses whenever `frac(D)` is smaller. That is about 25 % per active, about 95 % over 12 actives.
+- **Endurance to TIME LIMIT:** the slot origin is set right after the first frame, so frame lag grows by `(T−1)·k`, reaching about 0.67–1.35 s at 1800 s. The last slot's frame therefore arrives after D, so a crossing is nearly certain. A 30-min endurance can only end VALID if it stops at SEVERE (controlled end).
+- **Adaptive:** the final active segment, truncated by the deadline, has the same problem (its last selector or YOLO crosses about 20–40 % of the time).
+
+This is untested. `MockSession.cycle` (`phase23.py:272-286`) bypasses `run_cycle`. `check_replacement` uses an integer 60 s and instant frames. The 180 s rehearsal endurance cannot show the drift.
+
+Fix: use integer or explicitly bounded slot planning. Don't start slots whose frame or call can't finish by the planned end, but still require every slot due before the end. Add mocks that run the real `run_cycle` through `LiveSession.cycle` with fractional D and a 1.0007 s frame period.
+
+**H2 — Medium: short final adaptive actives (or any very short active) fail the whole session.**
+- `remaining ≤ 0` raises "camera startup consumed active interval" (`phase23.py:363-364`).
+- A remaining time under about 5.6 s leaves the slot-0 selector in `ready.wait(timeout=15)`, which ignores `stop` (`phase1.py:127-128`). It then raises "L2 no 640 frame ready".
+- Under about 9 s, slot-0 M2 plus the selector crosses the boundary.
+
+Trigger: the adaptive pause meets its switch condition within about 10 s of the 36-min deadline.
+Fix: don't start an active phase below a minimum remaining time; make the readiness wait stop-aware.
+
+**M1 — Medium: a controlled end can falsely accept missing selector/M2 calls.**
+The selector thread evaluates `stop_when` itself and returns silently (`phase1.py:131-138`). The main loop evaluates it separately (`phase1.py:166-169`). If the condition flaps, the selector thread stops while YOLO continues; examples are adaptive skin around T_hi between dumps, or endurance status going 3→2. A later controlled end then skips every count and boundary check (`phase1.py:250-257`). `scheduled_end` is computed but has no effect under a controlled end.
+Fix: latch the stop decision once on the main thread, have the selector check only the latch, and require one selector/M2 per 20 s slot started before the latch.
+
+**M2 — Medium: an emergency can be labelled VALID (race).**
+`stop_reason` returns "EMERGENCY: Android CRITICAL…" as an ordinary controlled-end reason (`phase23.py:42-48,361`). Trigger: a status-4 row arrives between `guard()` and `status()`, and the post-phase reading shows status below 4.
+- Fixed/adaptive then compute 'VALID'.
+- Endurance overwrites the reason with 'SEVERE' (`phase23.py:374,425`).
+
+Fix: any reason starting with EMERGENCY must be NOT VALID and must never be overwritten.
+
+**M3 — Medium (owner decision): fixed timing is not exactly 12 × 120/60.**
+The 180 s grid and 2160 s total are exact, but:
+- Camera-OFF time per pause is about 60 − stop (about 3.6 s per #128) − evidence/bracket (0.37 s or more), so about 55–56 s.
+- Inference time per active is about 120 − camera start (about 1–2 s, up to about 26 s with retries) − the previous phase's overhead.
+- The camera stays ON with no inference between the active's end and the pause's stop, and that time is booked as pause.
+- `totals` and `cycles` report wall-clock phase time only; there is no `camera_off_s` or `inference_s`.
+- Adaptive's 60 s minimum active includes camera start.
+
+Do not accept the RUN.md disclaimer in place of an owner decision. If the owner keeps the grid, record per-cycle and total camera-OFF and inference seconds.
+
+**M4 — Medium: Phase 1 regression in the changed `live_block` — LMK window misaligned.**
+`lmk_since` is taken before `start_gate` (`phase1.py:458-459`), which can run up to 300 s. The window `[lmk_since, lmk_since+180]` (`phase1.py:515`) can then miss the measured block. In-block kills would land in `outside_block_lines`, so `n_kills` would read 0. No test covers this.
+Fix: take the window from the new t0.
+
+**M5 — Medium (material uncertainty): 30-min frame drift.**
+At a 1.0007 s period the lag reaches about 1.2–1.35 s by 1800 s. The slot is skipped once lag + detect ≥ 2 s, which a capped 640 (0.65 s or more, likely above 37 °C) can reach late in endurance. No live or mock test covers this.
+
+**Low findings**
+- **L1:** `phase_evidence` catches `BaseException` (`phase23.py:297-298`). A Ctrl-C or SIGTERM (`SystemExit`) arriving during the bracket is swallowed and the run continues. Catch `Exception` instead.
+- **L2:** the idle, gate, active and pause files carry no NOT VALID / rehearsal / mock label. Mock mode rows contain `result_validity: 'VALID'` (`coder_mock_p23_r1_fixed.json`). Phase 1 labelled rehearsal block files.
+- **L3:** the heartbeat stays armed through camera transitions and drains. A slow camera start with retries can take more than 15 s and trigger the self-SIGTERM (`phase23.py:182-193,210-221`).
+- **L4:** `adaptive_low_restart` doesn't require adaptive's own camera restart, because `camera_restarts` is summed across modes (`phase23.py:442-446`). Camera-start attempts above 1 aren't counted as failures.
+- **L5:** `code_hashes` omit reused modules: `coresidency.py`, `power_map.py`, speed1/variants, `detector_size_policy.py`, `robotcam_reader.py`.
+- **L6:** re-reads after the mode's end (final camera stop, close, LMK, screen restore) are not capped. Battery below 25 % is labelled a monitor failure, not Phase 1's clean battery stop.
+- **L7:** `checks/p23` holds stale failing logs that are not in `results.json`:
+  - `benchmark_*.stderr`: PIL ImportError, or "NO TESTS RAN".
+  - `run_cycle_safety_test.stderr`: PIL ImportError.
+  - `speed_block_self_check.stderr`: script path does not exist.
+
+  Also, the new-file headers in the patch read `abenchmark/…` and `bbenchmark/…`, missing the `/`.
+- **L8:** the inventory lists `m2_p95_ms` as null for L2/L3, but the bytes contain 1323.1 and 1759.7 ms.
+- **L9:** raw samples exist only in the main JSON, which is written at mode end, so a hard kill loses them.
+
+## Explicit answers
+- **Can a re-read replace any non-empty answer?** No, as far as I can see. The reader modules are byte-identical to FIX4D, and `phase23.py` adds no reread, retry, transport or parser. `start_gate` only polls after a valid parsed reading (a gate wait) and passes reader errors straight up. H4 frame polling, the pidof owner re-check, /health 2-of-2 and the FIX3D thermal rule are unchanged. Caveat: I could not re-run the git-based sweep.
+- **Is Part B correct for both runners?** P23: yes. P1: the same-reading semantics are correct, but M4 is a regression.
+- **Does the rehearsal cover every session path?** Every live path, in shortened form. Correctly mock-only: SEVERE, #127 emergencies and refusals. Warm-start (unreached gate) and battery stop are also mock-only but RUN.md doesn't say so. Not covered by any test: H1(b) and M5 (full-length drift), H2 and M1.
+- **Are fixed/adaptive timing, emergency handling and evidence validity correct?** No (H1, H2, M1, M2, M3).
+- **Is hardware validation beyond the owner rehearsal needed?** Yes:
+  - Any fix changes the code hashes, so a fresh rehearsal is mandatory.
+  - 30-min drift and boundary behaviour cannot be shown in 180 s, so it needs either deterministic handling plus mocks, or an owner test.
+  - The Phase 1 `live_block` change needs its own P1 rehearsal before any reuse.
+
+Approval is not commit authorization; any code change needs a new review.
+
+CHANGES REQUESTED

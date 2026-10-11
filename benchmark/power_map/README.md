@@ -18,3 +18,7 @@ See [RUN_INDEX.md](RUN_INDEX.md) for fixed validity labels, run/log matches and 
 - run_20261002T083606Z_R3: VALID. MID chosen; LITTLE out (149/180 frames). Default block 2.83 W vs 2.10 W in R2: run-to-run noise ~0.7 W, first-block bias suspected.
 - run_20261002T090821Z_CONFIRM: VALID. 20 min; policy4/6 capping starts ~min 17 at skin ~37 C; skin still rising.
 - Open across power_map: absolute watts contradict #122 (unexplained).
+
+## Rerun command and raw-data location
+
+Rerun command: `bash ~/robot/benchmark/power_map/oneshot.sh --set R1 --smoke` ([source](RUN.md)). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

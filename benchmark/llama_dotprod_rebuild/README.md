@@ -50,3 +50,7 @@ Coder report: `reports/CODER_REPORT_llama_dotprod_rebuild.md`.
 - "Speed only, not behaviour" holds for voice parsing but not strictly for s1o (2/120 changed).
 - Check c had no thermal gate (proot cannot read thermal zones).
 - The build trees and binaries are not archived (only logs, hashes and instruction counts).
+
+## Rerun command and raw-data location
+
+Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: UNVERIFIED; consult the existing evidence paths in [RUN_INDEX.md](RUN_INDEX.md); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

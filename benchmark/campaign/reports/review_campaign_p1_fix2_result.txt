@@ -1,0 +1,56 @@
+**Verdict: APPROVED (round 2).** One condition applies at the commit gate: the owner must resolve F6 before the commit proposal is accepted. This is a review only. I made no edits and ran no commands. Everything below comes from reading files in the frozen copy, including `benchmark/campaign/frozen_manifest_campaign_p1_fix2.json`.
+
+## Round-1 fixes checked against the source
+
+- **F1 (diagnostics script parses):** fixed. `cr.root` passes the command as an argument to `su -c` with no extra layer of quoting, so the single quotes in `printf` are safe. With `script.strip()`, the script ends in `done; }`, which the shell accepts. The `sh -n` test in `self_check_fix2.py` covers both the new form and the round-1 form that failed.
+- **F2 (preflight checks):** fixed. `preflight()` checks battery ≥80, checks both fallback hashes, decodes the photo through `load_speed_input` (482×640, 2–32 boxes), and takes a diagnostics snapshot inside the masked root wrapper for every layout. L0 is always included, so `--blocks` subsets still check the warm-up layout. The mocked refusal tests now include fallback, diagnostics and battery80.
+- **F3:** fixed. Discovery uses `find -maxdepth 5` and each snapshot records `read_elapsed_s`.
+- **F4:** fixed. The printed plan is 180 s OFF + 60 s OFF + 60 s ON, and the estimate is 300+180+780×6 = 86 min scheduled.
+- **F5:** fixed. `camera_state_source` and RUN.md both say the snapshot records the requested camera state. `pm.camera_start` waits for a real frame before returning (`power_map.py:168`), and `rt.stop_camera` checks that capture ended.
+
+## Requirement coverage
+1. **Fallback (met).**
+   - Live input is used when there are at least 2 boxes; otherwise the fixed photo and committed boxes are used, after re-verifying both hashes (`runtime.py:31`).
+   - The box format matches the existing `speed_block` caller (`box_xyxy`, `class_name`).
+   - `inference_ms <= 0` now fails closed, and `LiveOps.relate` refuses fewer than 2 boxes.
+   - Each call records `scene`, `live_boxes` and `input_boxes`; each block records `live_calls` and `fallback_calls`.
+   - Fallback context is labelled `(fallback scene)`, including selector appends. More than 32 boxes still fails closed, and L0 is unchanged.
+2. **Schedule (met).**
+   - The order is idle phases, then the L0 warm-up, then a fixed 600 s pause before every measured block.
+   - The warm-up is relabelled `WARM-UP — NOT A RESULT`, with its original label kept in `result_validity`.
+   - The skin gate is removed. `compare_start` sets T_ref from the first measured block and marks a delta over 1.5 °C as `NOT COMPARABLE — START TEMP`; boundaries are tested.
+   - Setup refuses below 80%. A clean `BatteryStop` below 25% is checked before the warm-up, before each pause, inside each rest phase and before each block, and leaves the rest in `unrun_blocks`.
+3. **Diagnostics (met, read-only).** Battery level and temperature, every thermal zone, cooling `cur_state`, policy0 min/max, optional boost and power-hint nodes, and Android status are recorded at start and end of each phase and block. Each idle sub-phase keeps its own `caps_by_policy`. Nothing is written to caps.
+4. **Archive (met, except the F6 label).** All 15 files in `runs/archive_sha256_p1_fix2.json` match the manifest hashes. The session and block labels in RUN_INDEX match the requested wording.
+5. **Mocks, RUN.md and manifest (met).** Mock coverage is present, RUN.md gives one fresh preflight (`_p1_fix3`) and one full-session command with the exact files to send, and the manifest is frozen.
+
+## Findings
+
+**F6 — owner-evidence contradiction (unresolved, owner action needed).** I confirmed the Coder's claim from the bytes:
+- `owner_preflight_p1_fix.json` has `"label": "PREFLIGHT ONLY — NO TIMING"` and `"setup_complete": true`.
+- The stdout ends with `PREFLIGHT ONLY — NO TIMING Evidence: …`.
+- The stderr (239 bytes, same hash as the other runs) contains only the ONNX platform warning.
+
+There is no refusal reason to quote. Writing the requested `NOT VALID — REFUSED at start (reason …)` label would invent evidence. The Coder's RUN_INDEX row is the only honest option: it labels what the source shows, quotes the requested label and states the discrepancy. This blocks the commit gate, not the code: the owner must confirm either (a) the refused charger attempt used a different stem that was never supplied, or (b) the source label should stand.
+
+**Minor observations (none block approval):**
+- **N1 — brief mislabelling window.** `live_block` writes the warm-up file (and each block file) with its own label before `main` rewrites it with `WARM-UP — NOT A RESULT` or the comparability label. If the process is killed between those two writes, `_warmup_L0.json` could be left showing `VALID`. The session JSON and the filename still identify it, so the risk is low.
+- **N2 — estimate may be optimistic.** Each block, pause and idle phase takes a start and end snapshot (about 38 snapshots in total). Each one runs `find` over `/sys/kernel` (including tracing/debugfs events) and `/sys/devices/platform` at depth 5. Together with 7 model builds and camera stop checks, real time could exceed 90 minutes. `read_elapsed_s` will show this. A slow read hits the 60 s `cr.root` timeout and stops the session safely; it does not produce bad data.
+- **N3 — no end snapshot on failed blocks.** `diagnostics_end` is not recorded when a block fails, so failed blocks have only start diagnostics.
+- **N4 — small gaps between idle phases.** The 300 s idle runs as three separate rest phases, each re-preparing its monitors, so there are short gaps between them. This is acceptable.
+
+## Live paths still only mock-tested (owner validation needed)
+- Root `su` and the transient-shell taskset/readback wrapper running the new multi-line diagnostics script; real `find` time and optional-node discovery.
+- Real battery capacity reads, the 80% refusal and a real 25% clean stop.
+- Thermal-zone, cooling, policy0 and boost/power-hint reads, including zones that error on read.
+- Camera-OFF and camera-ON idle phases and whether the camera alone causes policy0 capping; camera restarts across 16 phases and blocks.
+- Fallback M2 inference with the real photo and boxes on LITTLE, BIG and MID, its overlap with YOLO-640, and L3 skip behaviour.
+- Selector HTTP with the `(fallback scene)` context appended, and timeouts.
+- Six real 600 s pauses with Gemma resident: power coverage, memory/PSS, thermal stops, charger state.
+- T_ref comparability on real skin readings; the full ~86–95 minute session; logcat/LMK; native cleanup and screen restore.
+- No live timed block, session or root preflight was run by the Coder. These checks are not valid with agents resident, and proot cannot reach root.
+
+## Next steps
+No Git change is authorised here. After the owner resolves F6, the commit proposal (including force-adding the Git-ignored `_llama-server.log` files) needs an explicit "yes commit", and the push a separate "yes push".
+
+**Final verdict: APPROVED**, on condition that the owner resolves F6 before the commit gate.

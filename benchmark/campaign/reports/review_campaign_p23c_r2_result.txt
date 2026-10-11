@@ -1,0 +1,81 @@
+# P23C Round 2 review: APPROVED
+
+Both round-1 findings are fixed. F1 is fixed in `main`, which now passes its exact setup mark to `run_mode` and has a regression test. F2 is fixed in `RUN_INDEX.md`, which now says 4 high switches and 3 low restarts. I found nothing new that blocks the change. The 48-vs-50 file count still needs your clarification. It is a question about the archive, not about whether the code is correct.
+
+## How I reviewed
+
+- **No writes.** I used only Read/Grep and in-memory `python3 -I -B -c` that hashes and parses files. I ran no harness, wrote nothing, and touched no root, camera or models. Motors stayed off.
+- **One denied call.** One attempted in-memory run of `run_mode` (base against candidate, with `p.write` captured in memory) was denied by the permission layer. I did not retry it in another form. So my evidence for the after-origin identity is my own static diff plus the coder's logged differential, not a run of my own.
+- **Patch.** It is 10,398,409 bytes with sha256 `1eba5416…0417f`, as expected. It covers 147 files: the 146 manifest entries plus the manifest itself. That includes the new, git-ignored `runs/owner_rehearsal_p23_01_llama-server.log`.
+- **Manifest.** All 146 entries in `frozen_manifest_campaign_p23c.json` match the copy by sha256, with 0 mismatches.
+- **Unchanged modules.** These match their last frozen manifests:
+  - `runtime.py`, `power.py`, `diagnostics.py`, `lag_probe.py` and `self_check*.py` (FIX4D)
+  - `phase1.py` and `self_check_fix4.py` (P23)
+  - `self_check_p23.py` (P23B)
+  - the other suite tests (FIX3B/FIX4D)
+- **Base.** The external base file has git blob `4461b7f` and its sha256 equals the P23B manifest's `phase23.py`. The candidate's blob is `1709aab`. Both match the patch's index line. My own diff of base against candidate is exactly the source diff you supplied.
+- **Archive.** The inventory has 48 entries. Every one matches bytes and SHA-256 in both the copy and its original Downloads source path, and all 48 hashes are unique. The copy, the source folder and the inventory hold the same 48 names. No `owner_rehearsal_p23_02*` files exist yet.
+- **RUN_INDEX facts.** These match the archived JSON:
+  - live M2 calls 7/2/11, fallback calls and contexts 1 per mode, 3 fixed pauses
+  - adaptive: 4 high switches, 3 low restarts, 3 restarts
+  - 5 camera restarts in total, 0 failed attempts
+  - 0 read re-reads and 0 thermal retries; setup check `OK`
+  - errors `[['power coverage']]`, `rehearsal_pass=false`
+
+## Settle and how it fits in (`phase23.py`)
+
+**`settle_power` (`:364-378`)**
+- It runs `guard()` first, then takes the last 10 receipts and `now`.
+- It accepts only if all of these hold:
+  - exactly 10 samples, so 9 intervals, each strictly positive and ≤1.5 s
+  - the last sample is between 0 and 1.5 s old at the same `now` that becomes the idle origin
+  - `now-began` is ≤60
+- Otherwise it raises at ≥60 s, polling every ≤50 ms through the guarded `wait`. Heartbeat, cores, monitor errors, emergency limit and BatteryStop checks all stay active while it waits.
+- The 1.5 s limit matches `power.weighted(max_gap=1.5)`. Receipt `t` comes from `time.monotonic()` with `t0=0` (`power.py:28`), the same clock as `LiveSession.now`.
+- It records `settle_s`, `sample_count`, `total_samples`, `max_interval_s`, `settled`, `origin` and `last_sample_age_s`.
+
+**Where it runs (`:404-410`)**
+- It runs once per invocation, gated by `setup_complete`, which `main` sets False (`:664`) after the preflight-only return (`:660-663`).
+- Then `rt.retry_check(result['setup'], setup_mark)` uses the exact `mark` from `:657`, passed in at `:672`. **This resolves R1 F1.**
+- The setup ledger is now everything from the mark through the end of settle. That is a superset of the base setup ledger, so the cap can only get stricter. A re-read logged by another thread between settle's `now` and `retry_check` could count in both setup and idle, which errs strict. Preflight-only has no sampler, so it correctly does not settle.
+
+**Timeout behaviour**
+- The `RuntimeError` is raised before `row['idle']` exists and before any `try` that writes phase files. No idle, gate, active or pause file is written.
+- `main` labels it `NOT VALID — SETUP FAILURE` with `failure_kind='setup'` (`:678-680`), re-raises, and runs the normal `finally` cleanup (session close, server, screen, LMK).
+- `rehearsal_pass` fails because the modes list is incomplete, `error` is set and `setup_complete` is false.
+- The only files written are the samples checkpoint(s), which hold setup data. Base already wrote `checkpoint(True)` before idle too.
+
+**Unchanged.**
+- Everything after the origin is textually identical to base, and with `setup_complete=True` the origin expression is too.
+- The readers, FIX3D/FIX4D, `weighted`/max_gap, idle coverage, thresholds, FULL/SHORT and the P23B controller are untouched.
+
+## Tests (`self_check_p23c.py`) are adequate
+
+- **`check_settle`.** It uses independent receipt schedules: startup gaps of 0.37 s, 2.47 s and the owner's exact 2.874436 s. Origin is delayed by exactly the gap plus 9 intervals, plus at most 50 ms. The real `run_mode` idle is then fully covered with 0 gaps.
+- **Timeouts.** Stale, short, absent and 2 s-cadence streams each time out at exactly 60 s. An interval of exactly 1.5 s is accepted. A stale history waits for 10 new receipts.
+- **`check_main_failure`.** It covers both the mock path and the native classification path.
+- **Differential.** All modes × FULL/SHORT, comparing run objects and every JSON file's bytes against `git show d5d1e87` (blob confirmed to be `4461b7f`).
+- **`check_setup_retries`.** It exercises the R1 F1 scenario exactly:
+  - it excludes a previous invocation's re-read
+  - it keeps re-reads after the snapshot and during settle
+  - it confirms the cap fires at 4>3 with the `setup read retry cap` issue
+
+## Remaining findings (none block the change)
+
+- **F3 (Info, carried over).** `:678-680` labels any failure before settle completes as `SETUP FAILURE` / `failure_kind='setup'`. That covers `p.preflight`, `session.start` and `--preflight` failures, which base labelled `SESSION INCOMPLETE`. They are still NOT VALID, and nothing reads `failure_kind`.
+- **F4 (Info, archive, unresolved).** The task says 50 files; only 48 exist, and all 48 are archived unchanged and inventoried. This needs your clarification and must not be waived or made up.
+- **F5 (Info, commit).** `.gitignore` matches `*.log`, so `runs/owner_rehearsal_p23_01_llama-server.log` needs `git add -f` or the committed archive will have 47 files.
+- **F6 (Info, tests).**
+  - The native-path test takes the real `~/.cache/campaign_p1.lock`.
+  - The differential needs a git checkout.
+  - The 2.47 s case checks the settle function on its own, then a `run_mode` whose own settle finds the samples already settled (`settle_s==0`). No test has `run_mode` itself wait through a stall before idle. That is acceptable because the origin is just settle's return value.
+  - No test shows the pre-fix base failing coverage on the stall.
+- **F7 (Info).** On a settle timeout, the mode row stays in `result['runs']` with `IN PROGRESS — NOT VALID` and no idle. The top-level label is still `SETUP FAILURE`. Base behaves the same way for any failure before the try at `:445`.
+
+## Docs
+
+The `RUN.md` settle paragraph is accurate, including that preflight-only does not settle. The `_02` stem is used everywhere: the command, the file list and all three `--rehearsal` arguments. No `owner_rehearsal_p23_01` remains in `RUN.md`. The report draft says "adaptive4 high switches and3 low restarts" and includes the round-1 review verbatim.
+
+This review is not permission to commit. The commit and push gates stay with you.
+
+APPROVED

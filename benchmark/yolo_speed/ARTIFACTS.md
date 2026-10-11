@@ -211,3 +211,83 @@ e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  runs/yolo_spee
 094b00df8f28f3640d5f6ce9817c60feab363e2289c9561fc33da90e97f62043  runs/yolo_speed_20260928T182649Z/run_20260928T182650Z.json
 3c3f3bce387f3110029d13c2d2290ac75bebc442d68d4a38ae7b0d1eae1c6996  yolo_speed.py
 ```
+
+## P23D current inventory
+
+Historical sections above retain their exact original archive-time records; some describe older code or documentation bytes. The table below is the current file inventory, including required ignored artifacts explicitly force-added for review. It excludes this manifest, Python caches and the new frozen manifest to avoid self-reference.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `existing repository / P23D generated documentation or offline evidence` | 7079 | `c20eebcfc886194d4430b0d4be440d63a0ca812ae541fcc8404aa93b2efdab89` |
+| `RUN_INDEX.md` | `existing repository / P23D generated documentation or offline evidence` | 841 | `40cdcc9bf3a0a3bb7c2d01c6af5b9c3841b978855495c19fd876972575638451` |
+| `frames/SHA256SUMS` | `existing repository / P23D generated documentation or offline evidence` | 1580 | `12673ff36a3b73a8ee1dedfff3b3e628694147c24ce4a2a35f3ebf66180a21c6` |
+| `frames/SOURCES.txt` | `existing repository / P23D generated documentation or offline evidence` | 2109 | `ba58ec06e389589546cdb24378b05d5dd3d00e79f53eacd44f2a4a6401d6344a` |
+| `frames/frame_01.jpg` | `existing repository / P23D generated documentation or offline evidence` | 2230236 | `f78a3a1bb2658688cc8a98a67f7642677639d231b6bcd350314ecad024b0db2c` |
+| `frames/frame_02.jpg` | `existing repository / P23D generated documentation or offline evidence` | 1982115 | `e57bba1f16bf25162c5e7f2472c576b18d0cbf65621285452230f3c6f3093c57` |
+| `frames/frame_03.jpg` | `existing repository / P23D generated documentation or offline evidence` | 1869108 | `5642092638d4f3a40f8bee1c78f5720925a6e347ee33cc116ec3426a557d5c64` |
+| `frames/frame_04.jpg` | `existing repository / P23D generated documentation or offline evidence` | 1714207 | `58ee48fe4f4d7f5d2cd1efefd45811862e589e06d38adc32a2aa556c0217b10f` |
+| `frames/frame_05.jpg` | `existing repository / P23D generated documentation or offline evidence` | 2262775 | `ada9ab01f844a63e13ae43e618035e8f6fcb2bc64fe0083f7df904f0d2f8f164` |
+| `frames/frame_06.jpg` | `existing repository / P23D generated documentation or offline evidence` | 1784769 | `6e7882317f0620a383a2da279d58a3f82c357a978bc47221947af3460e67bcdb` |
+| `frames/frame_07.jpg` | `existing repository / P23D generated documentation or offline evidence` | 2468875 | `73f1b08a4cb4508f4b1159d27b8893575c9b0958f2a3765609dc4f1e2ba7faee` |
+| `frames/frame_08.jpg` | `existing repository / P23D generated documentation or offline evidence` | 2077995 | `0c636728d8b45738143f2faee190996aa88f8cd8eb7544075c35b8d13dc5f480` |
+| `frames/frame_09.jpg` | `existing repository / P23D generated documentation or offline evidence` | 2369757 | `54238e0436912e0fe849b564e3930854f54579035bdee9c25520e6bf5f577029` |
+| `frames/frame_10.jpg` | `existing repository / P23D generated documentation or offline evidence` | 1988201 | `fabf7f5d7aca09a6227ed62d1fb4d9a217b3867ffbf26911e7dc10562e03d6c6` |
+| `frames/frame_11.jpg` | `existing repository / P23D generated documentation or offline evidence` | 2230883 | `3544ca9ad60031588b21e03dbb10a7fb15664e301f3dbd8388e02ccdfb4b7475` |
+| `frames/frame_12.jpg` | `existing repository / P23D generated documentation or offline evidence` | 1655818 | `3015f69d8bee6f1296ada8931a1fafd77b7205f3ae6c341ec052bb1aa994beec` |
+| `frames/frame_13.jpg` | `existing repository / P23D generated documentation or offline evidence` | 1682743 | `ee5c64e992bd172e3394a8c70b19ffab1597882a8276e5360f26be24d3c81358` |
+| `frames/frame_14.jpg` | `existing repository / P23D generated documentation or offline evidence` | 1578596 | `4d935902fc513e581a3004e7c3857f4d92cd4e4ec6d337b27e53f04f38566edc` |
+| `frames/frame_15.jpg` | `existing repository / P23D generated documentation or offline evidence` | 2170400 | `f2c6ca77a1fcc6261ae788fee220890d7a037d37c0ab2ef5bf5386489edf53f8` |
+| `frames/frame_16.jpg` | `existing repository / P23D generated documentation or offline evidence` | 1779445 | `c1a9808e9f45fbe945aab1accf8c185757622037cfb793e2bad83ba40fcbd0c7` |
+| `frames/frame_17.jpg` | `existing repository / P23D generated documentation or offline evidence` | 1479237 | `156ec0c294e25042b9deb5424975111013f6db24d9eeb156325f60e28155ffbc` |
+| `frames/frame_18.jpg` | `existing repository / P23D generated documentation or offline evidence` | 1380081 | `dca6d9a6228670a13547b808a75fe3f59aa9f9528d2c696e08a191ea5ddaa77e` |
+| `frames/frame_19.jpg` | `existing repository / P23D generated documentation or offline evidence` | 1702821 | `44f048c7960bdc5780e29ed195a40c4d269267fc37e5156bd9b8c0e1f2ba4c00` |
+| `frames/frame_20.jpg` | `existing repository / P23D generated documentation or offline evidence` | 1735141 | `562d8879ab84753820309aeb760e13bb15777b0948b95ce5d7a3435838789516` |
+| `frames_black_camera_covered/SHA256SUMS` | `existing repository / P23D generated documentation or offline evidence` | 1580 | `b9bc91043e58ca73f85ef4d9584c9f759675baed8d1116436e53be0311c0fcac` |
+| `models/SHA256SUMS` | `existing repository / P23D generated documentation or offline evidence` | 1092 | `a890fd50c66095b6b47485cb58dad2c1d90a2ea2ae199f8e06069e97ad01d266` |
+| `models/SIZES.txt` | `existing repository / P23D generated documentation or offline evidence` | 349 | `fc096baac0a3950746858b9ad499a046ddac280b6ec69dccbd0d8afbf61063c9` |
+| `prep/capture_frames.py` | `existing repository / P23D generated documentation or offline evidence` | 743 | `f4afd1ec1c35caac8bfc90c49bcc6017e964f290179e29bce6e7674768c5ecfe` |
+| `prep/capture_timing.json` | `existing repository / P23D generated documentation or offline evidence` | 1570 | `32939f9e694f6fca77094b0b34b83621a4b0cd0e7d0d97796491506b3e460177` |
+| `prep/export_log.txt` | `existing repository / P23D generated documentation or offline evidence` | 22223 | `cd4f294196da99e41ab7d0b66e68d47a84bca6253abdaf793822060bfb5911a8` |
+| `prep/export_models.py` | `existing repository / P23D generated documentation or offline evidence` | 1252 | `295b5b972296f7d574822522b96d58363656443d16caacb9f7ccbfb6c4960271` |
+| `reviews/review2_final.md` | `existing repository / P23D generated documentation or offline evidence` | 1678 | `ebc45bcf220cf509a94d54cc42831dee263b4c1b82ed8061f6bf7b3d06b14d39` |
+| `reviews/review2_stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 133018 | `76cabc566f44db492b21366208e9c9e8e1fedd6b15d455eb3707f4f6528bd778` |
+| `reviews/review2_stdout.txt` | `existing repository / P23D generated documentation or offline evidence` | 1679 | `917f74e2d966e0c3e9e3a29d22171ad6f4e1f8ce2b8bd186ae39856480f0c79b` |
+| `reviews/review3_final.md` | `existing repository / P23D generated documentation or offline evidence` | 1691 | `b65c50af14e11de618ecd3e56667c0c9b4e24be5541781ca7856c023a9575853` |
+| `reviews/review3_stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 119587 | `476143c708f4f4a2e3d679bae5aba758c4b024efa7fde594e8e880b5375d2bfb` |
+| `reviews/review3_stdout.txt` | `existing repository / P23D generated documentation or offline evidence` | 1692 | `5527ea0352eae6dd012c3c1a17ebb946d134068a4ccb33ea47eff7bfeece7904` |
+| `reviews/review4_final.md` | `existing repository / P23D generated documentation or offline evidence` | 1559 | `a9d4d2e6ea143a629b3e8f7c3d3ea56ad9e2b83913dcd613ba6367c6572edd5d` |
+| `reviews/review4_stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 113450 | `f4bfbf49833842dfa62d124e9cf1f56206fc70f71ffaf84e4e691f1845128714` |
+| `reviews/review4_stdout.txt` | `existing repository / P23D generated documentation or offline evidence` | 1560 | `7a192b31bbdf9b05b85ddd66ded06a4046af8db2df843cc204f2d31f6332933e` |
+| `reviews/review5_final.md` | `existing repository / P23D generated documentation or offline evidence` | 1782 | `dc46139d1f55abef03f4eb2578241cf991235398ca89c28eed8ca3e7dfeb9154` |
+| `reviews/review5_stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 105899 | `441948a4cd13cad6068c08816b1e5974cfa45a3a7497d877f8fc6248038ee992` |
+| `reviews/review5_stdout.txt` | `existing repository / P23D generated documentation or offline evidence` | 1783 | `17d1034f4976bd9a2938b2fd6f4b18146d647f928bf32e25e7da76925e17b9d7` |
+| `reviews/review_final.md` | `existing repository / P23D generated documentation or offline evidence` | 1788 | `f8d470c7371584791ba679272be2a50ca3fbf12d345522400d0858ecf426134f` |
+| `reviews/review_request.md` | `existing repository / P23D generated documentation or offline evidence` | 27909 | `f34a11b489d575f8097b8976aa16eec3359d82546fb6e6674af3dd1aceb6feeb` |
+| `reviews/review_request2.md` | `existing repository / P23D generated documentation or offline evidence` | 43313 | `aecd32285d51f0e172e3f2f15b5cc7923b7b6768e93f832329ecfc5b5688f5fb` |
+| `reviews/review_request3.md` | `existing repository / P23D generated documentation or offline evidence` | 43153 | `54016ac7568e8b237fcce1f2f0908bcbcd6cf303645460f28658f73ebdcf21c3` |
+| `reviews/review_request4.md` | `existing repository / P23D generated documentation or offline evidence` | 43748 | `1ba6ea557a7f35d994d66dafcaec2fdf8118797fa88cdb2861bf4b7c8e56154c` |
+| `reviews/review_request5.md` | `existing repository / P23D generated documentation or offline evidence` | 43875 | `cdbd8d1c7ada71247493322b74c067dfb275ce0773de074ea134d7e3e4328a8b` |
+| `reviews/review_stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 91405 | `748fac637cb6bdb4c49a2a615c84facb0b6f90774677f8dc8f1af5eb5563e79d` |
+| `reviews/review_stdout.txt` | `existing repository / P23D generated documentation or offline evidence` | 1789 | `a3637db68db904285d798eb048517da434cf556e65b7d4c804de54fb0f2789dc` |
+| `run_yolo_speed.sh` | `existing repository / P23D generated documentation or offline evidence` | 1156 | `5fbd88589ba6000dabd52803a483bf9375189d2e627297bbda7a92be1f56d77c` |
+| `runs/oneshot_console_20260928T182142Z.log` | `existing repository / P23D generated documentation or offline evidence` | 14103 | `7663011c2541ddcdc7f5547908ea1c5dad37b6dc2bbd2a14f2975b694af8f936` |
+| `runs/yolo_speed_20260928T182649Z/blocks.jsonl` | `existing repository / P23D generated documentation or offline evidence` | 303496 | `f36841a1210d02627c278ae8cc990c7169c661d495bf1ca6886eea61c6f2b52d` |
+| `runs/yolo_speed_20260928T182649Z/logs/deployed_yolo11m_640.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/logs/deployed_yolo11m_640_int8dyn.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/logs/yolo11m_320.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/logs/yolo11m_640.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/logs/yolo11n_320.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/logs/yolo11n_640.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/logs/yolo11s_320.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/logs/yolo11s_640.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/logs/yolo26m_320.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/logs/yolo26m_640.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/logs/yolo26n_320.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/logs/yolo26n_640.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/logs/yolo26s_320.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/logs/yolo26s_640.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z/report.txt` | `existing repository / P23D generated documentation or offline evidence` | 2196 | `6484fb7a4b71e6bdd88103bc9cabcfcb0211e61dc5cc8dcd5e4f8a0d0a2ccc56` |
+| `runs/yolo_speed_20260928T182649Z/run_20260928T182650Z.json` | `existing repository / P23D generated documentation or offline evidence` | 4147 | `094b00df8f28f3640d5f6ce9817c60feab363e2289c9561fc33da90e97f62043` |
+| `runs/yolo_speed_20260928T182649Z.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `runs/yolo_speed_20260928T182649Z.stdout.txt` | `existing repository / P23D generated documentation or offline evidence` | 13313 | `85d2cd68e00a3f9f9483cdfbd7492eb1828f4e5d942f4fb27a1d6e2af3be9dd1` |
+| `yolo_speed.py` | `existing repository / P23D generated documentation or offline evidence` | 12224 | `3c3f3bce387f3110029d13c2d2290ac75bebc442d68d4a38ae7b0d1eae1c6996` |

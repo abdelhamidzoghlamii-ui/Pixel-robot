@@ -1,0 +1,38 @@
+VERDICT: CHANGES REQUESTED
+
+1. **HIGH — `benchmark/campaign/phase1.py:558`: thermal-reader failures returned as rows can still escape the deadline checks.**  
+   `cr.read_dump()` returns failed reads as rows containing `rc`, `error`, or missing `skin`/`status`; it does not necessarily raise. The worker therefore leaves `monitor_errors` empty, and the new post-join check at line 596 misses these failures. Neither `rest()` nor `live_block()` validates every collected thermal row after joining. Additionally, `runtime.py:139`’s `dump_check()` accepts nonzero `rc` when skin/status parse successfully.
+
+   I reproduced the deadline case using read-only, in-memory mocks for both camera states: an initial valid thermal sample followed by a read completing during the join with `rc=1`, `skin=None`, `status=None` produced:
+   `phase_error=None; monitor_errors=[]; coverage phase done=1`.
+   A complete synthetic rehearsal containing that phase returned `rehearsal_pass=true`.
+
+   Add a checked thermal reader within `benchmark/campaign/` that rejects failed root status, reader errors and missing required fields; use it for monitoring and diagnostics. Add regressions for returned failure rows, including a late completion. This remains contrary to the requirement that real reader failures stop the session.
+
+**Q0. Earlier findings resolved?**  
+Yes. Round-1 findings remain resolved: absence requires status-checked confirmation, fallback/selector coverage is checked per layout, and the completion label matches documentation. The exact round-2 memory-exception finding is resolved: late exceptions now fail after joining, and coverage excludes the affected phase. Finding 1 above concerns failures returned as data rather than exceptions.
+
+**Q1. RobotCam fix correct and fail-closed?**  
+The PSS fix is correct. Camera OFF accepts only confirmed absence; camera ON with the app missing remains fatal. Failed absence confirmation, malformed app PSS, nonzero memory-sample root status, missing battery/MemAvailable and missing required process PSS remain failures. The campaign is **not fail-closed for every real read failure**, because of finding 1.
+
+**Q2. Other state-dependent false failures?**  
+I found no additional state-dependent false failure across camera states, resident server, M2/no-M2 layouts, warm-up, pauses and idle sub-phases. M2 resides within the runner; runner/server/provider PSS remain required.
+
+The previously reported inherited cleanup limitation remains: `coresidency.py:177` discards enumeration status, and `camera_end_failed()` at line 183 ignores remaining PIDs. Those files are outside the permitted edit scope.
+
+**Q3. Every live path covered; full-session behavior unchanged?**  
+Rehearsal reaches all scheduled phases and layouts with live setup/readers, live and fallback M2 per layout, fallback context delivered to selectors, cleanup and screen restore. It does not guarantee:
+
+- Completed live M2 context consumed by selectors in L1/L3/L4.
+- Later selector cases beyond the shortened blocks’ initial calls.
+- Busy/skip, timeout, refusal and other fault branches; these remain mock-only.
+- Reliable rejection of the thermal-reader failure in finding 1.
+
+The documented estimate remains about 12 minutes, exceeding the requested 5–10-minute target. Full-session scheduling and normal behavior are unchanged apart from the PSS fix and post-join exception handling; forced fallback applies only to rehearsal.
+
+**Q4. Archive, labels and instructions?**  
+All **47 frozen entries** and **eight new owner archive entries** match recorded sizes and SHA-256 hashes. Both earlier archive inventories also match their recorded hashes. Downloads-to-copy equality is supported by the inventory, not independently verified here.
+
+RUN_INDEX preserves the requested labels, failure cause, no-warm-up/no-block statement and diagnostic-only 0% caps observation. RUN.md orders rehearsal before a fresh-stem session. Both artifact lists match emitted filenames: session JSON, stdout, stderr, server log, warm-up JSON and six block JSONs.
+
+I independently ran the permitted in-memory regressions and selected existing checks, plus campaign syntax parsing and hash verification. Archived results report all 11 checks successful, explicitly offline/NOT VALID. Suites requiring file creation were not rerun. No files were modified or created; no hardware commands or agents were invoked.

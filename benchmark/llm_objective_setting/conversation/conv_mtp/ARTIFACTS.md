@@ -140,3 +140,62 @@ b8191c4b2427d9927d359fd3d26653b8eba4714284f759bb585362de88e4bce3  reviews/review
 9fb8f663740eb52cf7645dfe5bc029c7b577f7e47aa81a8e3a17e4ef0914a44e  reviews/review5/stderr.txt
 8fb42edaa9b07ccf19f6272b16755219d3b74f40cf8da028cbb00b2e9a36507b  reviews/review5/stdout.txt
 ```
+
+## P23D current inventory
+
+Historical sections above retain their exact original archive-time records; some describe older code or documentation bytes. The table below is the current file inventory, including required ignored artifacts explicitly force-added for review. It excludes this manifest, Python caches and the new frozen manifest to avoid self-reference.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `existing repository / P23D generated documentation or offline evidence` | 4340 | `829168bf0b43a79573ea2c97e38b6c00cd72bf94e624cc2c84ef76cd63fdd476` |
+| `RUN_INDEX.md` | `existing repository / P23D generated documentation or offline evidence` | 767 | `2d1022e42669b9ccf84b79ae5d680e51a7c972f5bf20db5e94b5d50ea6022b4c` |
+| `conv_mtp_20260928T081906Z/blocks.jsonl` | `existing repository / P23D generated documentation or offline evidence` | 2210 | `7e209077bf430bbf71c46b6b92cb9ca0b01fb785f396984db2efa5b1cee873ac` |
+| `conv_mtp_20260928T081906Z/c_results.json` | `existing repository / P23D generated documentation or offline evidence` | 16510 | `bad315804110075da55a6c9f53fecba60a3b319bb825e0096f6b380bba809b07` |
+| `conv_mtp_20260928T081906Z/c_scores.txt` | `existing repository / P23D generated documentation or offline evidence` | 2203 | `edc66e01d5089a148a94dd3a377ba6354ba520bde3d014587f4027af1ec2d0d6` |
+| `conv_mtp_20260928T081906Z/logs/gemma_e2b_q40.cold.server.log` | `existing repository / P23D generated documentation or offline evidence` | 11673 | `7e520cbf107993f444551464331707ec5964e82b4a4432bdb1664f8407b10df7` |
+| `conv_mtp_20260928T081906Z/logs/gemma_e2b_q40_mtp.cold.server.log` | `existing repository / P23D generated documentation or offline evidence` | 14782 | `755d6387f23edda93bc2b366ae2a708b2ba436c94749491f1b76247c73d5a4c7` |
+| `conv_mtp_20260928T081906Z/logs/qwen35_4b_q40mtp.cold.server.log` | `existing repository / P23D generated documentation or offline evidence` | 12068 | `8df64a7273a42abd46b356cfc1f537e4b54a784d511ffe96d9b3057b7a6754a7` |
+| `conv_mtp_20260928T081906Z/logs/qwen35_4b_q40mtp_on.cold.server.log` | `existing repository / P23D generated documentation or offline evidence` | 14060 | `ce48edc9298dccc71db5c3dc117ef3d8d7351638d4dc1af62e57f6fbe5787616` |
+| `conv_mtp_20260928T081906Z/logs/qwen35_4b_q4km.cold.server.log` | `existing repository / P23D generated documentation or offline evidence` | 12207 | `94e455c50c9e9bf29a26c019cb7b57c1a8d5758275010b3d66b8b9187cd87b54` |
+| `conv_mtp_20260928T081906Z/report.txt` | `existing repository / P23D generated documentation or offline evidence` | 1221 | `cc1dc6d1a4f43ccfc386763001f98991307e4e588f0e4b07f87f82ccdc5390d5` |
+| `conv_mtp_20260928T081906Z/run_20260928T081907Z.json` | `existing repository / P23D generated documentation or offline evidence` | 2933 | `ed64eb593bdb7a871bb296703d980ff3036522abc1b699e600f3debc2fca69dd` |
+| `conv_mtp_20260928T081906Z/turns.jsonl` | `existing repository / P23D generated documentation or offline evidence` | 44275 | `c3db9e3bf19a926e3f95e785245af92f95a906ac0725d58f6ebdf9946ff0cc93` |
+| `conv_mtp_20260928T081906Z.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `conv_mtp_20260928T081906Z.stdout.txt` | `existing repository / P23D generated documentation or offline evidence` | 8363 | `3893faccf271f667a90e352443c3cc68fa119e0a361dc8dcc1eafd34ca40a4b0` |
+| `oneshot_console_20260928T081359Z.log` | `existing repository / P23D generated documentation or offline evidence` | 11131 | `ab3b716bdf73a9babfe598ba1801eb9bc5dd07e589a73c00e617b77b5ecb93c6` |
+| `reviews/review1/candidate.diff` | `existing repository / P23D generated documentation or offline evidence` | 13287 | `a38f7193d49271692e96860fdd7e6742e1216b5106afec780e4f31391634553b` |
+| `reviews/review1/final.md` | `existing repository / P23D generated documentation or offline evidence` | 1561 | `0c68aef5017377210475b15d1d9c3c331a500ec774bd9816d2feb95d64308a45` |
+| `reviews/review1/frozen.sha` | `existing repository / P23D generated documentation or offline evidence` | 256 | `5b3e8e997eeee5502eec023ccb7c5aba09ec5768d710867553fdb50ee202ad5c` |
+| `reviews/review1/request.md` | `existing repository / P23D generated documentation or offline evidence` | 20333 | `25ecc190ffbc068c28b2db8609a7ba9f40eb03ff478f05786c43a247c34f5628` |
+| `reviews/review1/stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 140241 | `fb94d2a229b4a8198aa66018661a82a987b69874ea91add8e33b2b78c3ad7a24` |
+| `reviews/review1/stdout.txt` | `existing repository / P23D generated documentation or offline evidence` | 1562 | `d98392a23282a17e4889ee851009b1676cf581dc0191fd8c1c333649aa4ada4b` |
+| `reviews/review2/candidate.diff` | `existing repository / P23D generated documentation or offline evidence` | 14147 | `3c7afe03a756f9ead3bc59a1d906a639d5fdbc0ef7ed8578ca0c2fd73055990c` |
+| `reviews/review2/delta.diff` | `existing repository / P23D generated documentation or offline evidence` | 1459 | `75fff6ecb27cc31699c38d482e7824047b4693f3bb19d796e381cad805679a4c` |
+| `reviews/review2/final.md` | `existing repository / P23D generated documentation or offline evidence` | 926 | `201fad1e4549acff22db2d2706567f071e5cc643be97472764870a6a60455018` |
+| `reviews/review2/frozen.sha` | `existing repository / P23D generated documentation or offline evidence` | 256 | `38bb7c693df9a3d3e81b0b58f38222b5feb105018729ea8b626045beedad1fa3` |
+| `reviews/review2/request.md` | `existing repository / P23D generated documentation or offline evidence` | 25405 | `63a5a82eb3b198135bb08c8dcf85dadf562925a65ed9f772fc0342c2912f64c0` |
+| `reviews/review2/stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 190061 | `fa74f8006ff5fb41e29fe73840c0a2522224aac82169391253e13a0e9c526854` |
+| `reviews/review2/stdout.txt` | `existing repository / P23D generated documentation or offline evidence` | 927 | `17daa6c272c22b135f43ffa44445b72ec2e1991b6c6132ba324675e2044acb95` |
+| `reviews/review3/candidate.diff` | `existing repository / P23D generated documentation or offline evidence` | 15363 | `7697223a7537787ad0df82b491143387d60578b41bb68c701ba9cf8f5ffd0e64` |
+| `reviews/review3/checks.txt` | `existing repository / P23D generated documentation or offline evidence` | 1438 | `c83d4f4f330bfa2717d3b7d48e354e35998efc686f664cee72cfe4d26c11f2bc` |
+| `reviews/review3/delta.diff` | `existing repository / P23D generated documentation or offline evidence` | 2450 | `358c03d838cc1807b794470524761d03e32b7004bb44e2292d7f00e4d8abb625` |
+| `reviews/review3/final.md` | `existing repository / P23D generated documentation or offline evidence` | 810 | `b9d8b796e51f7eed8bac181758ff843fcb486fe607599c51d3b96062cbc02908` |
+| `reviews/review3/frozen.sha` | `existing repository / P23D generated documentation or offline evidence` | 256 | `1d79e99b53b74066a3d86a129909b4b5e2d0da8ff71cc3da9f57223c8a9c70fe` |
+| `reviews/review3/request.md` | `existing repository / P23D generated documentation or offline evidence` | 29241 | `738fe90717ff74751b8f6f1b01ea0600f3c7443d954673729c003a92d6679c76` |
+| `reviews/review3/stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 149013 | `2042f681282046b16981562c5ebbc115bf410467ca4eb0c88986db1838e5ebdb` |
+| `reviews/review3/stdout.txt` | `existing repository / P23D generated documentation or offline evidence` | 811 | `fab6d18ae52e36b0a033f0c4615114c2afdcb8c707d5daf06c21e9978d8b8862` |
+| `reviews/review4/candidate.diff` | `existing repository / P23D generated documentation or offline evidence` | 15873 | `069ceb922a159e718d1249c9ef040eec7572bee71fd801cf87d8693678d98f08` |
+| `reviews/review4/delta.diff` | `existing repository / P23D generated documentation or offline evidence` | 1788 | `95c07f9365dd0f0167c1ed8f3bf03aeb10b63d1e8b5ab5467f3d7389aedbeebd` |
+| `reviews/review4/final.md` | `existing repository / P23D generated documentation or offline evidence` | 868 | `5f34cee0618fa6df1ce1be79f5fd2d24ff76d0dd79338d5d69bf414127a5c5a4` |
+| `reviews/review4/frozen.sha` | `existing repository / P23D generated documentation or offline evidence` | 256 | `f159756abdd47b7fa24dcda9a4eec4bbb83f40b8e14f223d67373163b32abb1c` |
+| `reviews/review4/request.md` | `existing repository / P23D generated documentation or offline evidence` | 30653 | `9fba1328033b3398a3077af67be3272ba88350d2c96ef0a3cc72ba6f0f2b0f1a` |
+| `reviews/review4/stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 192215 | `a5bd9dd60ddc610afee02e590b07d7d9499fd3944ddf65bf86d5f02c11762954` |
+| `reviews/review4/stdout.txt` | `existing repository / P23D generated documentation or offline evidence` | 869 | `2b8c024920b48794b82cd479ab8428e253561f95b1f18713174a6889e1d2ac66` |
+| `reviews/review5/candidate.diff` | `existing repository / P23D generated documentation or offline evidence` | 16160 | `d35883a1538bf8e11af67d687fdf9a9290eab0c0018fbe246f95f79a0bc432e4` |
+| `reviews/review5/checks.txt` | `existing repository / P23D generated documentation or offline evidence` | 923 | `5411594ea597961785138c205411feff384a2899c720f5d434070b91bda2b4d7` |
+| `reviews/review5/delta.diff` | `existing repository / P23D generated documentation or offline evidence` | 1931 | `bc0fce8c3997fcda99062b07f1a550320d53606eb5bf9a3206b19612cf5b0724` |
+| `reviews/review5/final.md` | `existing repository / P23D generated documentation or offline evidence` | 341 | `432b12c6f8e16b93e477ba6e48e404799c72c02a0fd2757c5dbbb8dab15e2f66` |
+| `reviews/review5/frozen.sha` | `existing repository / P23D generated documentation or offline evidence` | 256 | `644cb6d95757a5ed1baddfe7bf23b87edf2d814ae27e29b991b88be60cf3f0b0` |
+| `reviews/review5/request.md` | `existing repository / P23D generated documentation or offline evidence` | 32339 | `b8191c4b2427d9927d359fd3d26653b8eba4714284f759bb585362de88e4bce3` |
+| `reviews/review5/stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 164909 | `9fb8f663740eb52cf7645dfe5bc029c7b577f7e47aa81a8e3a17e4ef0914a44e` |
+| `reviews/review5/stdout.txt` | `existing repository / P23D generated documentation or offline evidence` | 342 | `8fb42edaa9b07ccf19f6272b16755219d3b74f40cf8da028cbb00b2e9a36507b` |

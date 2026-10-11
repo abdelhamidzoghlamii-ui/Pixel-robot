@@ -1,0 +1,20 @@
+VERDICT: CHANGES REQUESTED
+
+1. **HIGH — `benchmark/campaign/runtime.py:174`: failed app enumeration can be accepted as legitimate absence.**  
+   `coresidency.py:212` runs `pidof` inside command substitution without preserving its exit status. If `pidof` fails and returns no PIDs, subsequent provider sampling can still make the overall root call return 0. The parser then reports only missing `robotcam_app`, and this wrapper clears that error while camera OFF. Capture and validate enumeration status before accepting “not running”; add an offline regression for this partial-command failure.
+
+2. **MEDIUM — `benchmark/campaign/phase1.py:672`, `benchmark/campaign/RUN.md:45`: rehearsal coverage can pass with a layout’s live M2 path missing.**  
+   Counts are aggregated across layouts, while cadence failures may continue. For example, L2 can complete only its forced fallback call and miss its live slot; successful live calls elsewhere still satisfy the documented pass criteria. Require live and fallback coverage separately for L1–L4. Also verify selector contexts: forcing an initial asynchronous fallback does not ensure L1/L3/L4 selectors consume its context before later live results replace it.
+
+3. **LOW — `benchmark/campaign/RUN.md:43`: documented completion label differs from emitted label.**  
+   `phase1.py:753` appends `; inspect rehearsal_coverage`. Document the complete label or explicitly require a prefix match.
+
+**Q1.** The observed camera-OFF failure is fixed correctly. Camera ON with the app missing remains fatal. Present-but-unparseable app PSS, nonzero root return, missing battery fields, missing MemAvailable, and missing required process PSS remain failures. However, it is **not fail-closed for every real read failure**, because of finding 1.
+
+**Q2.** I found no additional state-dependent false failure in the scheduled idle phases, warm-up, pauses or layouts. Server and runner remain required; M2 has no separate required process entry. Camera-provider PSS remains required, consistent with the supplied owner evidence. Separately, inherited cleanup verification also discards `pidof` status at `coresidency.py:177`, and `camera_end_failed()` does not examine the resulting PID list; the campaign wrapper does not close that verification gap.
+
+**Q3.** The rehearsal reaches all scheduled phases and uses real setup, readers, models, camera, server and cleanup. Coverage is incomplete as a guarantee: it can miss a layout’s live M2 path and asynchronous fallback-context selection. Busy/skip branches, timeout and other fault paths are not deliberately exercised; later selector cases are also omitted. Those remain mock-tested or dependent on circumstances. Full-session scheduling and behavior are unchanged apart from the PSS fix. The documented rehearsal estimate is 10–15 minutes, exceeding the requested 5–10-minute target.
+
+**Q4.** All **47 frozen-manifest SHA-256 digests match** the candidate files, including all eight new owner archive files. Source Downloads equality is supported by the recorded inventory, not independently rechecked here. RUN_INDEX contains the requested fixed labels, failure cause, no-warm-up/no-block statement and diagnostic-only 0% caps observation. RUN.md correctly orders rehearsal before a fresh-stem session; artifact lists match generated filenames. Findings 2–3 require instruction corrections.
+
+Archived checks report success and are explicitly offline/NOT VALID. I did not rerun them: Python invocations exited 182 without output. No files were modified and no hardware was invoked.

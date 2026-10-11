@@ -71,3 +71,7 @@ robotcam_2 39 → 40 (+0.34); old_path 39 → 48 (+3.14). Idle zone9 at the star
 
 [RUN_INDEX.md](RUN_INDEX.md) lists the runs, including the two not archived; [ARTIFACTS.md](ARTIFACTS.md) hashes
 every file.
+
+## Rerun command and raw-data location
+
+Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

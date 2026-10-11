@@ -66,3 +66,7 @@ results themselves were not reviewed.
 - One run, 13 prompts; `same 13/13` shows identical output only on these prompts at temperature 0.
 - Preparation smoke logs and toy runs are not archived (see RUN_INDEX).
 - Model files are not in Git; their hashes are in `ARTIFACTS.md`.
+
+## Rerun command and raw-data location
+
+Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

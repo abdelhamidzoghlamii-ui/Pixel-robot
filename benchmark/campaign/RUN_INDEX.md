@@ -62,3 +62,14 @@ All 48 files present copied unchanged from owner Downloads: [bytes and SHA-256 i
 | Stem | Fixed label | Verified evidence |
 |---|---|---|
 | [owner_rehearsal_p23_01](runs/owner_rehearsal_p23_01.json) | NOT VALID — OWNER REHEARSAL | Power coverage (sampler start-up stall): first endurance idle covered 35.479149 of 35.593175 s, 0 internal gaps; first post-startup power receipt is 0.114026 s after its origin. rehearsal_pass=false; sole error power coverage. All 3 modes completed; live M2 calls endurance/fixed/adaptive 7/2/11; fallback M2 and selector fallback contexts in every mode; 3 fixed pauses; adaptive 4 high switches and 3 low restarts, 3 adaptive restarts; 5 total camera restarts, 0 failed attempts; 0 read re-reads or thermal retries. |
+
+## P23D measured sessions and second rehearsal
+
+Unchanged source bytes: [archive_sha256_p23_sessions.json](runs/archive_sha256_p23_sessions.json). Actual per-stem counts are 48 rehearsal, 45 endurance, 73 fixed and 78 adaptive; no expected count was substituted. Metrics and all planner differences are independently recomputable in [CAMPAIGN_RESULTS.json](CAMPAIGN_RESULTS.json).
+
+| Stem | Fixed label | Verified evidence |
+|---|---|---|
+| [owner_rehearsal_p23_02](runs/owner_rehearsal_p23_02.json) | NOT VALID — OWNER REHEARSAL | Recorded rehearsal coverage passes; shortened validation, not measured results. |
+| [owner_endurance_p23_01](runs/owner_endurance_p23_01.json) | VALID | Whole-run 4.399329 W; duty 0.996793; max skin 40.757202 C; picker 89 calls. |
+| [owner_fixed_p23_01](runs/owner_fixed_p23_01.json) | VALID | Whole-run 3.303409 W; duty 0.628934; max skin 38.022205 C; picker 60 calls. Prior observed monotonic rest 14.006511 min, below owner >=30 min rule; boot continuity UNVERIFIED. |
+| [owner_adaptive_p23_01](runs/owner_adaptive_p23_01.json) | VALID | Whole-run 3.541867 W; duty 0.629003; max skin 37.434700 C; picker 70 calls. Prior observed monotonic rest 31.415212 min; boot continuity UNVERIFIED. |

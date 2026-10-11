@@ -1,0 +1,910 @@
+{
+  "checks_validity": {
+    "adaptive_camera_restarts": 3,
+    "adaptive_high_switch": true,
+    "adaptive_low_restart": true,
+    "camera_failed_attempts": 0,
+    "camera_restarts": 5,
+    "errors": [
+      [
+        "power coverage"
+      ]
+    ],
+    "fallback_m2_calls": {
+      "adaptive": 1,
+      "endurance": 1,
+      "fixed": 1
+    },
+    "fixed_pauses": 3,
+    "live_m2_calls": {
+      "adaptive": 11,
+      "endurance": 7,
+      "fixed": 2
+    },
+    "modes": [
+      "endurance",
+      "fixed",
+      "adaptive"
+    ],
+    "rehearsal_pass": false,
+    "selector_fallback_contexts": {
+      "adaptive": 1,
+      "endurance": 1,
+      "fixed": 1
+    },
+    "setup_complete": true
+  },
+  "code_commit": "d5d1e87c66db86848cc93495046cde8f6e3d75f6",
+  "code_commit_basis": "Newest matching snapshot through P23D base c0ba141; matching hashes do not prove the executed commit.",
+  "code_hashes": {
+    "benchmark/campaign/diagnostics.py": "f61956305385e71926b9a8f34c10645b0eeae3738aa35ba7b2ca9a1682260017",
+    "benchmark/campaign/expected_hashes.json": "42e849482ceee321e197c991cb89f774be795a1595be2f191389841db7cddb02",
+    "benchmark/campaign/phase1.py": "cf793043bb4522f83a76d042aa9804dc78bc76717eb058d87016aaef7ee121c5",
+    "benchmark/campaign/phase23.py": "462866f048e8a105b86d708598726469e644144c1576f34612e8486b9c2556b0",
+    "benchmark/campaign/power.py": "9babcb652efb60925cc623f6b32700993fabcbf3c970339b9e1d1089d800bc1b",
+    "benchmark/campaign/runtime.py": "a91990297ec8851056958d3829e4b8baad0deb0333b52d54b39538147ccb18d0",
+    "benchmark/coresidency/coresidency.py": "a6b0d65454c0c060927f744194a8cbb9f2a419a59e39fc82b0a510b9f92ed177",
+    "benchmark/power_map/power_map.py": "4756ce7dc7ba4e358578288c0d2509345fc4e2fe02d45f077f65355792e29539",
+    "benchmark/relate_anything/desk2/desk_check.py": "c4501a6695c2300d339ee4dbfec024ca561fcc1cfee9a821e5932f6ffefc4861",
+    "benchmark/relate_anything/desk2/speed_block.py": "22734f2a581fe910832de3c1a28b55ed1331b8f8cdabc38a58dcc393355adea7",
+    "benchmark/relate_anything/speed1/session.py": "bd97335d54ffdbbd750bad1de532e95136d14b049ca547cc15a451c62ba13f28",
+    "benchmark/relate_anything/speed1/variants.py": "35d48507cfae4d5ba1b33478e3361e594b38512f00140f658bbce759d3090a9d",
+    "benchmark/strategic_selector/ladder/cases/ladder_cases_v1.jsonl": "41eeafd28e2ce499437f75091e2069bdd89d4e9e0d789f223ff4dd1c9bebb473",
+    "benchmark/strategic_selector/ladder/measure.py": "7040be22ec0bf2ef8dadb5b46a52e10402ab84d1ffd38eab0020430519705242",
+    "detect_person.py": "0d43ae09844433feb916ee423e2945183a455005b53168e6086363bd897b771a",
+    "detector_size_policy.py": "5af77d5925203e71ed06eec00c3f59eb6ff5beae2163a82378e3339bb2553e57",
+    "robotcam_reader.py": "0026372a8a21e8915bad5abf38452245230363f1410aa292ba14f49501969ce7",
+    "server_manager.py": "c0151546dc90036e6a9ddf7d865260e8a35801c82696b2eb2ffcd6eae61842ec"
+  },
+  "config": {
+    "by_phase": [],
+    "cadence_s": 1,
+    "detector_note": "#128 CONFIRM: 1 frame/s, SizePolicy replaces 320 with 640 every 5 s; MID 4-5 / 2 threads",
+    "hysteresis_c": 2.0,
+    "layout_checks": [
+      {
+        "diagnostics": {
+          "android_thermal_status": 0,
+          "battery_level": 86,
+          "battery_temperature_c": 23.7,
+          "camera_on": false,
+          "camera_state_source": "requested state; startup/stop checked by runner, no snapshot state readback",
+          "nodes": {
+            "/sys/class/power_supply/battery/capacity": "86",
+            "/sys/class/power_supply/battery/temp": "237",
+            "/sys/class/thermal/cooling_device0/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device0/type": "BIG-tj",
+            "/sys/class/thermal/cooling_device1/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device1/type": "MID-tj",
+            "/sys/class/thermal/cooling_device10/cur_state": "0",
+            "/sys/class/thermal/cooling_device10/type": "INT",
+            "/sys/class/thermal/cooling_device11/cur_state": "0",
+            "/sys/class/thermal/cooling_device11/type": "thermal-cpufreq-2",
+            "/sys/class/thermal/cooling_device12/cur_state": "0",
+            "/sys/class/thermal/cooling_device12/type": "INTCAM",
+            "/sys/class/thermal/cooling_device13/cur_state": "0",
+            "/sys/class/thermal/cooling_device13/type": "DISP",
+            "/sys/class/thermal/cooling_device14/cur_state": "0",
+            "/sys/class/thermal/cooling_device14/type": "CAM",
+            "/sys/class/thermal/cooling_device15/cur_state": "0",
+            "/sys/class/thermal/cooling_device15/type": "TNR",
+            "/sys/class/thermal/cooling_device16/cur_state": "0",
+            "/sys/class/thermal/cooling_device16/type": "MFC",
+            "/sys/class/thermal/cooling_device17/cur_state": "0",
+            "/sys/class/thermal/cooling_device17/type": "BO",
+            "/sys/class/thermal/cooling_device18/cur_state": "0",
+            "/sys/class/thermal/cooling_device18/type": "usbc-port",
+            "/sys/class/thermal/cooling_device19/cur_state": "0",
+            "/sys/class/thermal/cooling_device19/type": "chg_mdis",
+            "/sys/class/thermal/cooling_device2/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device2/type": "LITTLE-tj",
+            "/sys/class/thermal/cooling_device20/cur_state": "0",
+            "/sys/class/thermal/cooling_device20/type": "fcc",
+            "/sys/class/thermal/cooling_device21/cur_state": "0",
+            "/sys/class/thermal/cooling_device21/type": "dc_icl",
+            "/sys/class/thermal/cooling_device22/cur_state": "0",
+            "/sys/class/thermal/cooling_device22/type": "wlc_fcc",
+            "/sys/class/thermal/cooling_device23/cur_state": "0",
+            "/sys/class/thermal/cooling_device23/type": "tpu_cooling",
+            "/sys/class/thermal/cooling_device24/cur_state": "0",
+            "/sys/class/thermal/cooling_device24/type": "thermal-gpufreq-0",
+            "/sys/class/thermal/cooling_device25/cur_state": "0",
+            "/sys/class/thermal/cooling_device25/type": "gxp-cooling",
+            "/sys/class/thermal/cooling_device3/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device3/type": "G3D-tj",
+            "/sys/class/thermal/cooling_device4/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device4/type": "ISP-tj",
+            "/sys/class/thermal/cooling_device5/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device5/type": "TPU-tj",
+            "/sys/class/thermal/cooling_device6/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device6/type": "AUR-tj",
+            "/sys/class/thermal/cooling_device7/cur_state": "0",
+            "/sys/class/thermal/cooling_device7/type": "MIF",
+            "/sys/class/thermal/cooling_device8/cur_state": "0",
+            "/sys/class/thermal/cooling_device8/type": "thermal-cpufreq-0",
+            "/sys/class/thermal/cooling_device9/cur_state": "0",
+            "/sys/class/thermal/cooling_device9/type": "thermal-cpufreq-1",
+            "/sys/class/thermal/thermal_zone0/temp": "36000",
+            "/sys/class/thermal/thermal_zone0/type": "cp_on_chip_0",
+            "/sys/class/thermal/thermal_zone1/temp": "34000",
+            "/sys/class/thermal/thermal_zone1/type": "cp_on_chip_1",
+            "/sys/class/thermal/thermal_zone10/temp": "36000",
+            "/sys/class/thermal/thermal_zone10/type": "MID",
+            "/sys/class/thermal/thermal_zone11/temp": "37000",
+            "/sys/class/thermal/thermal_zone11/type": "LITTLE",
+            "/sys/class/thermal/thermal_zone12/temp": "35000",
+            "/sys/class/thermal/thermal_zone12/type": "G3D",
+            "/sys/class/thermal/thermal_zone13/temp": "35000",
+            "/sys/class/thermal/thermal_zone13/type": "ISP",
+            "/sys/class/thermal/thermal_zone14/temp": "35000",
+            "/sys/class/thermal/thermal_zone14/type": "TPU",
+            "/sys/class/thermal/thermal_zone15/temp": "35000",
+            "/sys/class/thermal/thermal_zone15/type": "AUR",
+            "/sys/class/thermal/thermal_zone16/temp": "25394",
+            "/sys/class/thermal/thermal_zone16/type": "neutral_therm",
+            "/sys/class/thermal/thermal_zone17/temp": "24645",
+            "/sys/class/thermal/thermal_zone17/type": "quiet_therm",
+            "/sys/class/thermal/thermal_zone18/temp": "23700",
+            "/sys/class/thermal/thermal_zone18/type": "maxfg",
+            "/sys/class/thermal/thermal_zone19/temp": "27221",
+            "/sys/class/thermal/thermal_zone19/type": "qi_therm",
+            "/sys/class/thermal/thermal_zone2/temp": "37000",
+            "/sys/class/thermal/thermal_zone2/type": "cp_on_chip_2",
+            "/sys/class/thermal/thermal_zone20/temp": "24996",
+            "/sys/class/thermal/thermal_zone20/type": "usb_pwr_therm",
+            "/sys/class/thermal/thermal_zone21/temp": "24996",
+            "/sys/class/thermal/thermal_zone21/type": "usb_pwr_therm2",
+            "/sys/class/thermal/thermal_zone22/temp": "23700",
+            "/sys/class/thermal/thermal_zone22/type": "battery",
+            "/sys/class/thermal/thermal_zone23/temp": "711",
+            "/sys/class/thermal/thermal_zone23/type": "battery_cycle",
+            "/sys/class/thermal/thermal_zone24/temp": "25043",
+            "/sys/class/thermal/thermal_zone24/type": "disp_therm",
+            "/sys/class/thermal/thermal_zone25/temp": "-26428",
+            "/sys/class/thermal/thermal_zone25/type": "batt_therm_sidekey",
+            "/sys/class/thermal/thermal_zone26/temp": "25066",
+            "/sys/class/thermal/thermal_zone26/type": "gnss_tcxo_therm",
+            "/sys/class/thermal/thermal_zone27/temp": "2900",
+            "/sys/class/thermal/thermal_zone27/type": "pca94xx-mains",
+            "/sys/class/thermal/thermal_zone28/temp": "960",
+            "/sys/class/thermal/thermal_zone28/type": "usbc-therm-adc",
+            "/sys/class/thermal/thermal_zone29/temp": "18",
+            "/sys/class/thermal/thermal_zone29/type": "soc",
+            "/sys/class/thermal/thermal_zone3/temp": "30000",
+            "/sys/class/thermal/thermal_zone3/type": "cp_on_chip_3",
+            "/sys/class/thermal/thermal_zone30/temp": "23673",
+            "/sys/class/thermal/thermal_zone30/type": "batt_vs",
+            "/sys/class/thermal/thermal_zone31/temp": "0",
+            "/sys/class/thermal/thermal_zone31/type": "mdis_morepower",
+            "/sys/class/thermal/thermal_zone32/temp": "0",
+            "/sys/class/thermal/thermal_zone32/type": "thb_hda",
+            "/sys/class/thermal/thermal_zone4/temp": "27000",
+            "/sys/class/thermal/thermal_zone4/type": "cp_on_chip_4",
+            "/sys/class/thermal/thermal_zone5/temp": "26000",
+            "/sys/class/thermal/thermal_zone5/type": "cp_on_chip_5",
+            "/sys/class/thermal/thermal_zone6/temp": "UNREADABLE",
+            "/sys/class/thermal/thermal_zone6/type": "cp_on_chip_6",
+            "/sys/class/thermal/thermal_zone7/temp": "UNREADABLE",
+            "/sys/class/thermal/thermal_zone7/type": "rf2_therm",
+            "/sys/class/thermal/thermal_zone8/temp": "UNREADABLE",
+            "/sys/class/thermal/thermal_zone8/type": "rf1_therm",
+            "/sys/class/thermal/thermal_zone9/temp": "36000",
+            "/sys/class/thermal/thermal_zone9/type": "BIG",
+            "/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_max_freq": "1803000",
+            "/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_min_freq": "300000",
+            "/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq": "1803000",
+            "/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq": "300000",
+            "/sys/devices/system/cpu/cpufreq/policy4/cpuinfo_max_freq": "2348000",
+            "/sys/devices/system/cpu/cpufreq/policy4/cpuinfo_min_freq": "400000",
+            "/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq": "2348000",
+            "/sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq": "400000",
+            "/sys/devices/system/cpu/cpufreq/policy6/cpuinfo_max_freq": "2850000",
+            "/sys/devices/system/cpu/cpufreq/policy6/cpuinfo_min_freq": "500000",
+            "/sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq": "2850000",
+            "/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq": "500000",
+            "optional_discovery": "best effort: readable boost min/max and power-hint nodes"
+          },
+          "raw_node_output": "/sys/class/power_supply/battery/capacity\t86\n/sys/class/power_supply/battery/temp\t237\n/sys/class/thermal/thermal_zone0/type\tcp_on_chip_0\n/sys/class/thermal/thermal_zone1/type\tcp_on_chip_1\n/sys/class/thermal/thermal_zone10/type\tMID\n/sys/class/thermal/thermal_zone11/type\tLITTLE\n/sys/class/thermal/thermal_zone12/type\tG3D\n/sys/class/thermal/thermal_zone13/type\tISP\n/sys/class/thermal/thermal_zone14/type\tTPU\n/sys/class/thermal/thermal_zone15/type\tAUR\n/sys/class/thermal/thermal_zone16/type\tneutral_therm\n/sys/class/thermal/thermal_zone17/type\tquiet_therm\n/sys/class/thermal/thermal_zone18/type\tmaxfg\n/sys/class/thermal/thermal_zone19/type\tqi_therm\n/sys/class/thermal/thermal_zone2/type\tcp_on_chip_2\n/sys/class/thermal/thermal_zone20/type\tusb_pwr_therm\n/sys/class/thermal/thermal_zone21/type\tusb_pwr_therm2\n/sys/class/thermal/thermal_zone22/type\tbattery\n/sys/class/thermal/thermal_zone23/type\tbattery_cycle\n/sys/class/thermal/thermal_zone24/type\tdisp_therm\n/sys/class/thermal/thermal_zone25/type\tbatt_therm_sidekey\n/sys/class/thermal/thermal_zone26/type\tgnss_tcxo_therm\n/sys/class/thermal/thermal_zone27/type\tpca94xx-mains\n/sys/class/thermal/thermal_zone28/type\tusbc-therm-adc\n/sys/class/thermal/thermal_zone29/type\tsoc\n/sys/class/thermal/thermal_zone3/type\tcp_on_chip_3\n/sys/class/thermal/thermal_zone30/type\tbatt_vs\n/sys/class/thermal/thermal_zone31/type\tmdis_morepower\n/sys/class/thermal/thermal_zone32/type\tthb_hda\n/sys/class/thermal/thermal_zone4/type\tcp_on_chip_4\n/sys/class/thermal/thermal_zone5/type\tcp_on_chip_5\n/sys/class/thermal/thermal_zone6/type\tcp_on_chip_6\n/sys/class/thermal/thermal_zone7/type\trf2_therm\n/sys/class/thermal/thermal_zone8/type\trf1_therm\n/sys/class/thermal/thermal_zone9/type\tBIG\n/sys/class/thermal/thermal_zone0/temp\t36000\n/sys/class/thermal/thermal_zone1/temp\t34000\n/sys/class/thermal/thermal_zone10/temp\t36000\n/sys/class/thermal/thermal_zone11/temp\t37000\n/sys/class/thermal/thermal_zone12/temp\t35000\n/sys/class/thermal/thermal_zone13/temp\t35000\n/sys/class/thermal/thermal_zone14/temp\t35000\n/sys/class/thermal/thermal_zone15/temp\t35000\n/sys/class/thermal/thermal_zone16/temp\t25394\n/sys/class/thermal/thermal_zone17/temp\t24645\n/sys/class/thermal/thermal_zone18/temp\t23700\n/sys/class/thermal/thermal_zone19/temp\t27221\n/sys/class/thermal/thermal_zone2/temp\t37000\n/sys/class/thermal/thermal_zone20/temp\t24996\n/sys/class/thermal/thermal_zone21/temp\t24996\n/sys/class/thermal/thermal_zone22/temp\t23700\n/sys/class/thermal/thermal_zone23/temp\t711\n/sys/class/thermal/thermal_zone24/temp\t25043\n/sys/class/thermal/thermal_zone25/temp\t-26428\n/sys/class/thermal/thermal_zone26/temp\t25066\n/sys/class/thermal/thermal_zone27/temp\t2900\n/sys/class/thermal/thermal_zone28/temp\t960\n/sys/class/thermal/thermal_zone29/temp\t18\n/sys/class/thermal/thermal_zone3/temp\t30000\n/sys/class/thermal/thermal_zone30/temp\t23673\n/sys/class/thermal/thermal_zone31/temp\t0\n/sys/class/thermal/thermal_zone32/temp\t0\n/sys/class/thermal/thermal_zone4/temp\t27000\n/sys/class/thermal/thermal_zone5/temp\t26000\n/sys/class/thermal/thermal_zone6/temp\tUNREADABLE\n/sys/class/thermal/thermal_zone7/temp\tUNREADABLE\n/sys/class/thermal/thermal_zone8/temp\tUNREADABLE\n/sys/class/thermal/thermal_zone9/temp\t36000\n/sys/class/thermal/cooling_device0/type\tBIG-tj\n/sys/class/thermal/cooling_device1/type\tMID-tj\n/sys/class/thermal/cooling_device10/type\tINT\n/sys/class/thermal/cooling_device11/type\tthermal-cpufreq-2\n/sys/class/thermal/cooling_device12/type\tINTCAM\n/sys/class/thermal/cooling_device13/type\tDISP\n/sys/class/thermal/cooling_device14/type\tCAM\n/sys/class/thermal/cooling_device15/type\tTNR\n/sys/class/thermal/cooling_device16/type\tMFC\n/sys/class/thermal/cooling_device17/type\tBO\n/sys/class/thermal/cooling_device18/type\tusbc-port\n/sys/class/thermal/cooling_device19/type\tchg_mdis\n/sys/class/thermal/cooling_device2/type\tLITTLE-tj\n/sys/class/thermal/cooling_device20/type\tfcc\n/sys/class/thermal/cooling_device21/type\tdc_icl\n/sys/class/thermal/cooling_device22/type\twlc_fcc\n/sys/class/thermal/cooling_device23/type\ttpu_cooling\n/sys/class/thermal/cooling_device24/type\tthermal-gpufreq-0\n/sys/class/thermal/cooling_device25/type\tgxp-cooling\n/sys/class/thermal/cooling_device3/type\tG3D-tj\n/sys/class/thermal/cooling_device4/type\tISP-tj\n/sys/class/thermal/cooling_device5/type\tTPU-tj\n/sys/class/thermal/cooling_device6/type\tAUR-tj\n/sys/class/thermal/cooling_device7/type\tMIF\n/sys/class/thermal/cooling_device8/type\tthermal-cpufreq-0\n/sys/class/thermal/cooling_device9/type\tthermal-cpufreq-1\n/sys/class/thermal/cooling_device0/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device1/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device10/cur_state\t0\n/sys/class/thermal/cooling_device11/cur_state\t0\n/sys/class/thermal/cooling_device12/cur_state\t0\n/sys/class/thermal/cooling_device13/cur_state\t0\n/sys/class/thermal/cooling_device14/cur_state\t0\n/sys/class/thermal/cooling_device15/cur_state\t0\n/sys/class/thermal/cooling_device16/cur_state\t0\n/sys/class/thermal/cooling_device17/cur_state\t0\n/sys/class/thermal/cooling_device18/cur_state\t0\n/sys/class/thermal/cooling_device19/cur_state\t0\n/sys/class/thermal/cooling_device2/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device20/cur_state\t0\n/sys/class/thermal/cooling_device21/cur_state\t0\n/sys/class/thermal/cooling_device22/cur_state\t0\n/sys/class/thermal/cooling_device23/cur_state\t0\n/sys/class/thermal/cooling_device24/cur_state\t0\n/sys/class/thermal/cooling_device25/cur_state\t0\n/sys/class/thermal/cooling_device3/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device4/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device5/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device6/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device7/cur_state\t0\n/sys/class/thermal/cooling_device8/cur_state\t0\n/sys/class/thermal/cooling_device9/cur_state\t0\n/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq\t300000\n/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq\t1803000\noptional_discovery\tbest effort: readable boost min/max and power-hint nodes\n/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq\t500000\n/sys/devices/system/cpu/cpufreq/policy6/cpuinfo_max_freq\t2850000\n/sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq\t2850000\n/sys/devices/system/cpu/cpufreq/policy6/cpuinfo_min_freq\t500000\n/sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq\t400000\n/sys/devices/system/cpu/cpufreq/policy4/cpuinfo_max_freq\t2348000\n/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq\t2348000\n/sys/devices/system/cpu/cpufreq/policy4/cpuinfo_min_freq\t400000\n/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq\t300000\n/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_max_freq\t1803000\n/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq\t1803000\n/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_min_freq\t300000",
+          "read_elapsed_s": 7.2846513299882645,
+          "screen": {
+            "power": [
+              "mWakefulness=Awake",
+              "mHoldingDisplaySuspendBlocker=true",
+              "Display Power: com.android.server.power.PowerManagerService$2@afad001",
+              "Failed to write while dumping service power: Broken pipe"
+            ],
+            "rc": 0,
+            "resumed_activity": "topResumedActivity=ActivityRecord{159448109 u0 com.termux/.app.TermuxActivity t1303}\nFailed to write while dumping service activity: Broken pipe"
+          },
+          "skin": 25.199501,
+          "t": 94709.641551574,
+          "thermal_attempts": 1,
+          "thermal_incomplete_attempts": []
+        },
+        "layout": "L0",
+        "ort": {
+          "caller_tid": 9651,
+          "default_count_note": "observed created workers / two sessions + one calling thread; option 0 = auto",
+          "intra_op_num_threads": {
+            "320": 2,
+            "640": 2
+          },
+          "observed_default_intra_threads_per_session": null,
+          "setting": "mid",
+          "version": "1.25.1",
+          "worker_tids": [
+            9621,
+            9650
+          ]
+        },
+        "policies": {
+          "policy0": 1803000,
+          "policy4": 2348000,
+          "policy6": 2850000
+        },
+        "safe_cpus": [
+          0,
+          1,
+          2,
+          3,
+          6,
+          7
+        ],
+        "setup_affinity": {
+          "actual": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "before": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "requested": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      },
+      {
+        "diagnostics": {
+          "android_thermal_status": 0,
+          "battery_level": 86,
+          "battery_temperature_c": 23.7,
+          "camera_on": false,
+          "camera_state_source": "requested state; startup/stop checked by runner, no snapshot state readback",
+          "nodes": {
+            "/sys/class/power_supply/battery/capacity": "86",
+            "/sys/class/power_supply/battery/temp": "237",
+            "/sys/class/thermal/cooling_device0/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device0/type": "BIG-tj",
+            "/sys/class/thermal/cooling_device1/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device1/type": "MID-tj",
+            "/sys/class/thermal/cooling_device10/cur_state": "0",
+            "/sys/class/thermal/cooling_device10/type": "INT",
+            "/sys/class/thermal/cooling_device11/cur_state": "0",
+            "/sys/class/thermal/cooling_device11/type": "thermal-cpufreq-2",
+            "/sys/class/thermal/cooling_device12/cur_state": "0",
+            "/sys/class/thermal/cooling_device12/type": "INTCAM",
+            "/sys/class/thermal/cooling_device13/cur_state": "0",
+            "/sys/class/thermal/cooling_device13/type": "DISP",
+            "/sys/class/thermal/cooling_device14/cur_state": "0",
+            "/sys/class/thermal/cooling_device14/type": "CAM",
+            "/sys/class/thermal/cooling_device15/cur_state": "0",
+            "/sys/class/thermal/cooling_device15/type": "TNR",
+            "/sys/class/thermal/cooling_device16/cur_state": "0",
+            "/sys/class/thermal/cooling_device16/type": "MFC",
+            "/sys/class/thermal/cooling_device17/cur_state": "0",
+            "/sys/class/thermal/cooling_device17/type": "BO",
+            "/sys/class/thermal/cooling_device18/cur_state": "0",
+            "/sys/class/thermal/cooling_device18/type": "usbc-port",
+            "/sys/class/thermal/cooling_device19/cur_state": "0",
+            "/sys/class/thermal/cooling_device19/type": "chg_mdis",
+            "/sys/class/thermal/cooling_device2/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device2/type": "LITTLE-tj",
+            "/sys/class/thermal/cooling_device20/cur_state": "0",
+            "/sys/class/thermal/cooling_device20/type": "fcc",
+            "/sys/class/thermal/cooling_device21/cur_state": "0",
+            "/sys/class/thermal/cooling_device21/type": "dc_icl",
+            "/sys/class/thermal/cooling_device22/cur_state": "0",
+            "/sys/class/thermal/cooling_device22/type": "wlc_fcc",
+            "/sys/class/thermal/cooling_device23/cur_state": "0",
+            "/sys/class/thermal/cooling_device23/type": "tpu_cooling",
+            "/sys/class/thermal/cooling_device24/cur_state": "0",
+            "/sys/class/thermal/cooling_device24/type": "thermal-gpufreq-0",
+            "/sys/class/thermal/cooling_device25/cur_state": "0",
+            "/sys/class/thermal/cooling_device25/type": "gxp-cooling",
+            "/sys/class/thermal/cooling_device3/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device3/type": "G3D-tj",
+            "/sys/class/thermal/cooling_device4/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device4/type": "ISP-tj",
+            "/sys/class/thermal/cooling_device5/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device5/type": "TPU-tj",
+            "/sys/class/thermal/cooling_device6/cur_state": "UNREADABLE",
+            "/sys/class/thermal/cooling_device6/type": "AUR-tj",
+            "/sys/class/thermal/cooling_device7/cur_state": "0",
+            "/sys/class/thermal/cooling_device7/type": "MIF",
+            "/sys/class/thermal/cooling_device8/cur_state": "0",
+            "/sys/class/thermal/cooling_device8/type": "thermal-cpufreq-0",
+            "/sys/class/thermal/cooling_device9/cur_state": "0",
+            "/sys/class/thermal/cooling_device9/type": "thermal-cpufreq-1",
+            "/sys/class/thermal/thermal_zone0/temp": "36000",
+            "/sys/class/thermal/thermal_zone0/type": "cp_on_chip_0",
+            "/sys/class/thermal/thermal_zone1/temp": "34000",
+            "/sys/class/thermal/thermal_zone1/type": "cp_on_chip_1",
+            "/sys/class/thermal/thermal_zone10/temp": "35000",
+            "/sys/class/thermal/thermal_zone10/type": "MID",
+            "/sys/class/thermal/thermal_zone11/temp": "36000",
+            "/sys/class/thermal/thermal_zone11/type": "LITTLE",
+            "/sys/class/thermal/thermal_zone12/temp": "34000",
+            "/sys/class/thermal/thermal_zone12/type": "G3D",
+            "/sys/class/thermal/thermal_zone13/temp": "34000",
+            "/sys/class/thermal/thermal_zone13/type": "ISP",
+            "/sys/class/thermal/thermal_zone14/temp": "34000",
+            "/sys/class/thermal/thermal_zone14/type": "TPU",
+            "/sys/class/thermal/thermal_zone15/temp": "33000",
+            "/sys/class/thermal/thermal_zone15/type": "AUR",
+            "/sys/class/thermal/thermal_zone16/temp": "25581",
+            "/sys/class/thermal/thermal_zone16/type": "neutral_therm",
+            "/sys/class/thermal/thermal_zone17/temp": "24832",
+            "/sys/class/thermal/thermal_zone17/type": "quiet_therm",
+            "/sys/class/thermal/thermal_zone18/temp": "23700",
+            "/sys/class/thermal/thermal_zone18/type": "maxfg",
+            "/sys/class/thermal/thermal_zone19/temp": "28233",
+            "/sys/class/thermal/thermal_zone19/type": "qi_therm",
+            "/sys/class/thermal/thermal_zone2/temp": "37000",
+            "/sys/class/thermal/thermal_zone2/type": "cp_on_chip_2",
+            "/sys/class/thermal/thermal_zone20/temp": "24949",
+            "/sys/class/thermal/thermal_zone20/type": "usb_pwr_therm",
+            "/sys/class/thermal/thermal_zone21/temp": "24972",
+            "/sys/class/thermal/thermal_zone21/type": "usb_pwr_therm2",
+            "/sys/class/thermal/thermal_zone22/temp": "23700",
+            "/sys/class/thermal/thermal_zone22/type": "battery",
+            "/sys/class/thermal/thermal_zone23/temp": "711",
+            "/sys/class/thermal/thermal_zone23/type": "battery_cycle",
+            "/sys/class/thermal/thermal_zone24/temp": "25066",
+            "/sys/class/thermal/thermal_zone24/type": "disp_therm",
+            "/sys/class/thermal/thermal_zone25/temp": "-26428",
+            "/sys/class/thermal/thermal_zone25/type": "batt_therm_sidekey",
+            "/sys/class/thermal/thermal_zone26/temp": "25488",
+            "/sys/class/thermal/thermal_zone26/type": "gnss_tcxo_therm",
+            "/sys/class/thermal/thermal_zone27/temp": "3000",
+            "/sys/class/thermal/thermal_zone27/type": "pca94xx-mains",
+            "/sys/class/thermal/thermal_zone28/temp": "960",
+            "/sys/class/thermal/thermal_zone28/type": "usbc-therm-adc",
+            "/sys/class/thermal/thermal_zone29/temp": "18",
+            "/sys/class/thermal/thermal_zone29/type": "soc",
+            "/sys/class/thermal/thermal_zone3/temp": "30000",
+            "/sys/class/thermal/thermal_zone3/type": "cp_on_chip_3",
+            "/sys/class/thermal/thermal_zone30/temp": "23681",
+            "/sys/class/thermal/thermal_zone30/type": "batt_vs",
+            "/sys/class/thermal/thermal_zone31/temp": "0",
+            "/sys/class/thermal/thermal_zone31/type": "mdis_morepower",
+            "/sys/class/thermal/thermal_zone32/temp": "0",
+            "/sys/class/thermal/thermal_zone32/type": "thb_hda",
+            "/sys/class/thermal/thermal_zone4/temp": "27000",
+            "/sys/class/thermal/thermal_zone4/type": "cp_on_chip_4",
+            "/sys/class/thermal/thermal_zone5/temp": "26000",
+            "/sys/class/thermal/thermal_zone5/type": "cp_on_chip_5",
+            "/sys/class/thermal/thermal_zone6/temp": "UNREADABLE",
+            "/sys/class/thermal/thermal_zone6/type": "cp_on_chip_6",
+            "/sys/class/thermal/thermal_zone7/temp": "UNREADABLE",
+            "/sys/class/thermal/thermal_zone7/type": "rf2_therm",
+            "/sys/class/thermal/thermal_zone8/temp": "UNREADABLE",
+            "/sys/class/thermal/thermal_zone8/type": "rf1_therm",
+            "/sys/class/thermal/thermal_zone9/temp": "34000",
+            "/sys/class/thermal/thermal_zone9/type": "BIG",
+            "/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_max_freq": "1803000",
+            "/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_min_freq": "300000",
+            "/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq": "1803000",
+            "/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq": "300000",
+            "/sys/devices/system/cpu/cpufreq/policy4/cpuinfo_max_freq": "2348000",
+            "/sys/devices/system/cpu/cpufreq/policy4/cpuinfo_min_freq": "400000",
+            "/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq": "2348000",
+            "/sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq": "400000",
+            "/sys/devices/system/cpu/cpufreq/policy6/cpuinfo_max_freq": "2850000",
+            "/sys/devices/system/cpu/cpufreq/policy6/cpuinfo_min_freq": "500000",
+            "/sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq": "2850000",
+            "/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq": "500000",
+            "optional_discovery": "best effort: readable boost min/max and power-hint nodes"
+          },
+          "raw_node_output": "/sys/class/power_supply/battery/capacity\t86\n/sys/class/power_supply/battery/temp\t237\n/sys/class/thermal/thermal_zone0/type\tcp_on_chip_0\n/sys/class/thermal/thermal_zone1/type\tcp_on_chip_1\n/sys/class/thermal/thermal_zone10/type\tMID\n/sys/class/thermal/thermal_zone11/type\tLITTLE\n/sys/class/thermal/thermal_zone12/type\tG3D\n/sys/class/thermal/thermal_zone13/type\tISP\n/sys/class/thermal/thermal_zone14/type\tTPU\n/sys/class/thermal/thermal_zone15/type\tAUR\n/sys/class/thermal/thermal_zone16/type\tneutral_therm\n/sys/class/thermal/thermal_zone17/type\tquiet_therm\n/sys/class/thermal/thermal_zone18/type\tmaxfg\n/sys/class/thermal/thermal_zone19/type\tqi_therm\n/sys/class/thermal/thermal_zone2/type\tcp_on_chip_2\n/sys/class/thermal/thermal_zone20/type\tusb_pwr_therm\n/sys/class/thermal/thermal_zone21/type\tusb_pwr_therm2\n/sys/class/thermal/thermal_zone22/type\tbattery\n/sys/class/thermal/thermal_zone23/type\tbattery_cycle\n/sys/class/thermal/thermal_zone24/type\tdisp_therm\n/sys/class/thermal/thermal_zone25/type\tbatt_therm_sidekey\n/sys/class/thermal/thermal_zone26/type\tgnss_tcxo_therm\n/sys/class/thermal/thermal_zone27/type\tpca94xx-mains\n/sys/class/thermal/thermal_zone28/type\tusbc-therm-adc\n/sys/class/thermal/thermal_zone29/type\tsoc\n/sys/class/thermal/thermal_zone3/type\tcp_on_chip_3\n/sys/class/thermal/thermal_zone30/type\tbatt_vs\n/sys/class/thermal/thermal_zone31/type\tmdis_morepower\n/sys/class/thermal/thermal_zone32/type\tthb_hda\n/sys/class/thermal/thermal_zone4/type\tcp_on_chip_4\n/sys/class/thermal/thermal_zone5/type\tcp_on_chip_5\n/sys/class/thermal/thermal_zone6/type\tcp_on_chip_6\n/sys/class/thermal/thermal_zone7/type\trf2_therm\n/sys/class/thermal/thermal_zone8/type\trf1_therm\n/sys/class/thermal/thermal_zone9/type\tBIG\n/sys/class/thermal/thermal_zone0/temp\t36000\n/sys/class/thermal/thermal_zone1/temp\t34000\n/sys/class/thermal/thermal_zone10/temp\t35000\n/sys/class/thermal/thermal_zone11/temp\t36000\n/sys/class/thermal/thermal_zone12/temp\t34000\n/sys/class/thermal/thermal_zone13/temp\t34000\n/sys/class/thermal/thermal_zone14/temp\t34000\n/sys/class/thermal/thermal_zone15/temp\t33000\n/sys/class/thermal/thermal_zone16/temp\t25581\n/sys/class/thermal/thermal_zone17/temp\t24832\n/sys/class/thermal/thermal_zone18/temp\t23700\n/sys/class/thermal/thermal_zone19/temp\t28233\n/sys/class/thermal/thermal_zone2/temp\t37000\n/sys/class/thermal/thermal_zone20/temp\t24949\n/sys/class/thermal/thermal_zone21/temp\t24972\n/sys/class/thermal/thermal_zone22/temp\t23700\n/sys/class/thermal/thermal_zone23/temp\t711\n/sys/class/thermal/thermal_zone24/temp\t25066\n/sys/class/thermal/thermal_zone25/temp\t-26428\n/sys/class/thermal/thermal_zone26/temp\t25488\n/sys/class/thermal/thermal_zone27/temp\t3000\n/sys/class/thermal/thermal_zone28/temp\t960\n/sys/class/thermal/thermal_zone29/temp\t18\n/sys/class/thermal/thermal_zone3/temp\t30000\n/sys/class/thermal/thermal_zone30/temp\t23681\n/sys/class/thermal/thermal_zone31/temp\t0\n/sys/class/thermal/thermal_zone32/temp\t0\n/sys/class/thermal/thermal_zone4/temp\t27000\n/sys/class/thermal/thermal_zone5/temp\t26000\n/sys/class/thermal/thermal_zone6/temp\tUNREADABLE\n/sys/class/thermal/thermal_zone7/temp\tUNREADABLE\n/sys/class/thermal/thermal_zone8/temp\tUNREADABLE\n/sys/class/thermal/thermal_zone9/temp\t34000\n/sys/class/thermal/cooling_device0/type\tBIG-tj\n/sys/class/thermal/cooling_device1/type\tMID-tj\n/sys/class/thermal/cooling_device10/type\tINT\n/sys/class/thermal/cooling_device11/type\tthermal-cpufreq-2\n/sys/class/thermal/cooling_device12/type\tINTCAM\n/sys/class/thermal/cooling_device13/type\tDISP\n/sys/class/thermal/cooling_device14/type\tCAM\n/sys/class/thermal/cooling_device15/type\tTNR\n/sys/class/thermal/cooling_device16/type\tMFC\n/sys/class/thermal/cooling_device17/type\tBO\n/sys/class/thermal/cooling_device18/type\tusbc-port\n/sys/class/thermal/cooling_device19/type\tchg_mdis\n/sys/class/thermal/cooling_device2/type\tLITTLE-tj\n/sys/class/thermal/cooling_device20/type\tfcc\n/sys/class/thermal/cooling_device21/type\tdc_icl\n/sys/class/thermal/cooling_device22/type\twlc_fcc\n/sys/class/thermal/cooling_device23/type\ttpu_cooling\n/sys/class/thermal/cooling_device24/type\tthermal-gpufreq-0\n/sys/class/thermal/cooling_device25/type\tgxp-cooling\n/sys/class/thermal/cooling_device3/type\tG3D-tj\n/sys/class/thermal/cooling_device4/type\tISP-tj\n/sys/class/thermal/cooling_device5/type\tTPU-tj\n/sys/class/thermal/cooling_device6/type\tAUR-tj\n/sys/class/thermal/cooling_device7/type\tMIF\n/sys/class/thermal/cooling_device8/type\tthermal-cpufreq-0\n/sys/class/thermal/cooling_device9/type\tthermal-cpufreq-1\n/sys/class/thermal/cooling_device0/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device1/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device10/cur_state\t0\n/sys/class/thermal/cooling_device11/cur_state\t0\n/sys/class/thermal/cooling_device12/cur_state\t0\n/sys/class/thermal/cooling_device13/cur_state\t0\n/sys/class/thermal/cooling_device14/cur_state\t0\n/sys/class/thermal/cooling_device15/cur_state\t0\n/sys/class/thermal/cooling_device16/cur_state\t0\n/sys/class/thermal/cooling_device17/cur_state\t0\n/sys/class/thermal/cooling_device18/cur_state\t0\n/sys/class/thermal/cooling_device19/cur_state\t0\n/sys/class/thermal/cooling_device2/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device20/cur_state\t0\n/sys/class/thermal/cooling_device21/cur_state\t0\n/sys/class/thermal/cooling_device22/cur_state\t0\n/sys/class/thermal/cooling_device23/cur_state\t0\n/sys/class/thermal/cooling_device24/cur_state\t0\n/sys/class/thermal/cooling_device25/cur_state\t0\n/sys/class/thermal/cooling_device3/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device4/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device5/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device6/cur_state\tUNREADABLE\n/sys/class/thermal/cooling_device7/cur_state\t0\n/sys/class/thermal/cooling_device8/cur_state\t0\n/sys/class/thermal/cooling_device9/cur_state\t0\n/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq\t300000\n/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq\t1803000\noptional_discovery\tbest effort: readable boost min/max and power-hint nodes\n/sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq\t500000\n/sys/devices/system/cpu/cpufreq/policy6/cpuinfo_max_freq\t2850000\n/sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq\t2850000\n/sys/devices/system/cpu/cpufreq/policy6/cpuinfo_min_freq\t500000\n/sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq\t400000\n/sys/devices/system/cpu/cpufreq/policy4/cpuinfo_max_freq\t2348000\n/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq\t2348000\n/sys/devices/system/cpu/cpufreq/policy4/cpuinfo_min_freq\t400000\n/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq\t300000\n/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_max_freq\t1803000\n/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq\t1803000\n/sys/devices/system/cpu/cpufreq/policy0/cpuinfo_min_freq\t300000",
+          "read_elapsed_s": 15.474895393999759,
+          "screen": {
+            "power": [
+              "mWakefulness=Awake",
+              "mHoldingDisplaySuspendBlocker=true",
+              "Display Power: com.android.server.power.PowerManagerService$2@afad001",
+              "Failed to write while dumping service power: Broken pipe"
+            ],
+            "rc": 0,
+            "resumed_activity": "topResumedActivity=ActivityRecord{159448109 u0 com.termux/.app.TermuxActivity t1303}\nFailed to write while dumping service activity: Broken pipe"
+          },
+          "skin": 25.314302,
+          "t": 94726.849058826,
+          "thermal_attempts": 1,
+          "thermal_incomplete_attempts": []
+        },
+        "layout": "L2",
+        "ort": {
+          "caller_tid": 10163,
+          "default_count_note": "observed created workers / two sessions + one calling thread; option 0 = auto",
+          "intra_op_num_threads": {
+            "320": 2,
+            "640": 2
+          },
+          "observed_default_intra_threads_per_session": null,
+          "setting": "mid",
+          "version": "1.25.1",
+          "worker_tids": [
+            10159,
+            10162
+          ]
+        },
+        "policies": {
+          "policy0": 1803000,
+          "policy4": 2348000,
+          "policy6": 2850000
+        },
+        "safe_cpus": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "setup_affinity": {
+          "actual": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "before": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "requested": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      }
+    ],
+    "m2_cluster": {
+      "cpus": [
+        6,
+        7
+      ],
+      "threads": 2
+    },
+    "monitor_mask": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "ort": {
+      "caller_tid": 10711,
+      "default_count_note": "observed created workers / two sessions + one calling thread; option 0 = auto",
+      "intra_op_num_threads": {
+        "320": 2,
+        "640": 2
+      },
+      "observed_default_intra_threads_per_session": null,
+      "setting": "mid",
+      "version": "1.25.1",
+      "worker_tids": [
+        10709,
+        10710
+      ]
+    },
+    "recorded_schedule": {
+      "schedule": {
+        "active": 40,
+        "adaptive": 480,
+        "endurance": 180,
+        "fixed": 180,
+        "gate": 30,
+        "idle": 30,
+        "min_active": 60,
+        "min_pause": 30,
+        "pause": 20
+      },
+      "source": "phase23.py at d5d1e87c66db86848cc93495046cde8f6e3d75f6",
+      "t_hi_c": [
+        37.0,
+        37.0,
+        30.965403
+      ]
+    },
+    "selector_slot_s": 20,
+    "size_policy": "#128 CONFIRM: 1 frame/s, SizePolicy replaces 320 with 640 every 5 s; MID 4-5 / 2 threads"
+  },
+  "environment": {
+    "battery_start_percent": 86,
+    "device": null,
+    "gate_skin": [
+      {
+        "attempts": 1,
+        "rc": 0,
+        "skin": 25.954502,
+        "status": 0,
+        "t": 94790.762514545,
+        "t_start": 94790.600636331
+      },
+      {
+        "attempts": 1,
+        "rc": 0,
+        "skin": 29.683,
+        "status": 0,
+        "t": 95011.555761479,
+        "t_start": 95011.390139409
+      },
+      {
+        "attempts": 1,
+        "rc": 0,
+        "skin": 29.965403,
+        "status": 0,
+        "t": 95232.070630402,
+        "t_start": 95231.915922516
+      }
+    ],
+    "idle_start_skin": [
+      {
+        "attempts": 1,
+        "rc": 0,
+        "skin": 26.263899,
+        "status": 0,
+        "t": 94760.272985071,
+        "t_start": 94760.114481775
+      },
+      {
+        "attempts": 1,
+        "rc": 0,
+        "skin": 30.713402,
+        "status": 0,
+        "t": 94981.139808095,
+        "t_start": 94980.996057281
+      },
+      {
+        "attempts": 1,
+        "rc": 0,
+        "skin": 30.6602,
+        "status": 0,
+        "t": 95201.758818416,
+        "t_start": 95201.600516984
+      }
+    ],
+    "installed_robotcam": {
+      "versionCode": "1",
+      "versionName": "0.1"
+    },
+    "rest_gap_reason": "No comparable preceding invocation established; see summary rest_gaps for P23 sessions.",
+    "rest_gap_s": null
+  },
+  "evidence": [
+    {
+      "bytes": 1683129,
+      "path": "runs/owner_rehearsal_p23_01.json",
+      "sha256": "603c588e998e78fc2b5f0dd1a4b459e8c087b86136a7409ba7e36b8175553ce7"
+    },
+    {
+      "bytes": 239,
+      "path": "runs/owner_rehearsal_p23_01.stderr",
+      "sha256": "1a09333f9395face7055c3658bf3821b19a8c27012057c3690e1d958407265ca"
+    },
+    {
+      "bytes": 2008,
+      "path": "runs/owner_rehearsal_p23_01.stdout",
+      "sha256": "2ac626a6b5368adeb6707b9b6916d90067a258b5a0927dbf501d3cdbcdff68ca"
+    },
+    {
+      "bytes": 188496,
+      "path": "runs/owner_rehearsal_p23_01_adaptive.json",
+      "sha256": "b7e41727f2e3443b96d39d292045e80bed385c1fd08dc8ddbbc200643401935a"
+    },
+    {
+      "bytes": 28998,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_active_01.json",
+      "sha256": "958ff84d15f0ed1c410e1e70412fc852e55335d6da19dd93e1291ea069745e75"
+    },
+    {
+      "bytes": 29420,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_active_02.json",
+      "sha256": "11c33511e0c17a182918ecccdeadbbf5abb09b8e7c905fd798020158ff1ec9b1"
+    },
+    {
+      "bytes": 29662,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_active_03.json",
+      "sha256": "5b52f36be6e1236c5648f04f631187c8b7f66224bcadf849591a8c0d2cd5a9f9"
+    },
+    {
+      "bytes": 29281,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_active_04.json",
+      "sha256": "e7e5b4f62706bbe19efb99aabe5c41e08f596229db5eb7da5d7ed8c062b355cb"
+    },
+    {
+      "bytes": 585,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_gate.json",
+      "sha256": "b123e876da6b05b89f80b19322f488398bd3b58c327e44132aa9473d0d661a46"
+    },
+    {
+      "bytes": 2801,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_idle.json",
+      "sha256": "9b2046248984e2a8006770a73cc2574a788369067978f5fa5e34136a7291c95b"
+    },
+    {
+      "bytes": 4977,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_pause_01.json",
+      "sha256": "29a7a997e6f74148f0c984584c037ffda75c5c1287c82a8d0d019ed157a4f502"
+    },
+    {
+      "bytes": 4956,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_pause_02.json",
+      "sha256": "9a5c906557468ce74c685856ff04c888fd91d06e1919a2dd9fb5fadbbd2c2e7b"
+    },
+    {
+      "bytes": 4962,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_pause_03.json",
+      "sha256": "7f05a01a3d4ab154a18ef5094b702eaf269c5bccc678402f3ca764864f706b35"
+    },
+    {
+      "bytes": 3239,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_pause_04.json",
+      "sha256": "d0f4da8cc51c61e7c424347288b779790e011985a7ae80d408f6365b689431c0"
+    },
+    {
+      "bytes": 5706,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_samples_0001.json",
+      "sha256": "50e4332742531399c548fbbe912971a4974f8966eb6fdb232e39cdc93143cc37"
+    },
+    {
+      "bytes": 89561,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_samples_0002.json",
+      "sha256": "d418389615a4a3c1d252b0059483131c31617e1abf6cde02cbbcdb19cee64264"
+    },
+    {
+      "bytes": 95829,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_samples_0003.json",
+      "sha256": "8e7f85c2194eec3fae88ec5985f3d73b003f0c0d6bf2e7812ecd9d274e4f581d"
+    },
+    {
+      "bytes": 84768,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_samples_0004.json",
+      "sha256": "7f4f73555df26d262d253a13b1442423448b2c1fc8451f6aa08865e63585cdd1"
+    },
+    {
+      "bytes": 100404,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_samples_0005.json",
+      "sha256": "ceafbf0403848e0075c499cc34632cd61f46bc14b7e0376ba91d3c0dec460ad7"
+    },
+    {
+      "bytes": 81924,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_samples_0006.json",
+      "sha256": "2ec81e297f6aa0baa4d7941af678d4657877a3804af0e6b692d46d2af75f614c"
+    },
+    {
+      "bytes": 104266,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_samples_0007.json",
+      "sha256": "db78398419f90edd4a47f9e4b62a1543e14bb174e018d062920d95f99ff2b58a"
+    },
+    {
+      "bytes": 79563,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_samples_0008.json",
+      "sha256": "395ca8affba92faa4e86aef03425b04d89932d1c36a143c570be505463154a22"
+    },
+    {
+      "bytes": 108709,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_samples_0009.json",
+      "sha256": "eb07fddfa5aa8772e97fbd3b9f92a0712f9e0d51105087763940fb126cb4c79c"
+    },
+    {
+      "bytes": 45311,
+      "path": "runs/owner_rehearsal_p23_01_adaptive_samples_0010.json",
+      "sha256": "526c7ebc0704c276313ef5c7b088f6e3da6c5e13b7c4b363b80cdf65152148ed"
+    },
+    {
+      "bytes": 102524,
+      "path": "runs/owner_rehearsal_p23_01_endurance.json",
+      "sha256": "9b212d16b955cae57d4c6fa6fb4e6fc0ee203982f84d211ddd40275ef3b33d08"
+    },
+    {
+      "bytes": 74886,
+      "path": "runs/owner_rehearsal_p23_01_endurance_active_01.json",
+      "sha256": "293eaed9ffbf460193a58a9dca1d09466eb776a23e3520ba092b8a4f2aa5e0d6"
+    },
+    {
+      "bytes": 587,
+      "path": "runs/owner_rehearsal_p23_01_endurance_gate.json",
+      "sha256": "b8bd04d7f29bf814ef336c465195fe68a380c1e1cc14e7e03769236ccd8c7732"
+    },
+    {
+      "bytes": 2798,
+      "path": "runs/owner_rehearsal_p23_01_endurance_idle.json",
+      "sha256": "f24578af49b5a3a14c993fc356a0bc12026c31ef7465409bcc647aa34cfa6072"
+    },
+    {
+      "bytes": 2970,
+      "path": "runs/owner_rehearsal_p23_01_endurance_samples_0001.json",
+      "sha256": "1a28df1e1ee428eeafb80b3108b8a76f529d5847d072a5df3ff942075600efc0"
+    },
+    {
+      "bytes": 86044,
+      "path": "runs/owner_rehearsal_p23_01_endurance_samples_0002.json",
+      "sha256": "fd52b8d304ef4ec1b05fe045ccee61ea4f57f801299f0946038044336e781695"
+    },
+    {
+      "bytes": 107897,
+      "path": "runs/owner_rehearsal_p23_01_endurance_samples_0003.json",
+      "sha256": "55732a7d66cf1689ce4e6c0450c4efba67507327e7d6cf851b9e2106721bda47"
+    },
+    {
+      "bytes": 108873,
+      "path": "runs/owner_rehearsal_p23_01_endurance_samples_0004.json",
+      "sha256": "c84c9967956076747e7b6aeece32e1a77f6efd2a5f48bdb4dd11859cb4b3237d"
+    },
+    {
+      "bytes": 67813,
+      "path": "runs/owner_rehearsal_p23_01_endurance_samples_0005.json",
+      "sha256": "92e5e81574cffa5f9c1c88e52057a3e371e180f42d733fba3a4c9a41b6543314"
+    },
+    {
+      "bytes": 87559,
+      "path": "runs/owner_rehearsal_p23_01_fixed.json",
+      "sha256": "fcae8a289ade4edf74a146e0a459eb46e697dafe4af10133d39378839d920fc6"
+    },
+    {
+      "bytes": 17063,
+      "path": "runs/owner_rehearsal_p23_01_fixed_active_01.json",
+      "sha256": "893bef4e41ca17d9b9cc04c2cfd5864b63d79369a80b6fce8caa046ad2585127"
+    },
+    {
+      "bytes": 17012,
+      "path": "runs/owner_rehearsal_p23_01_fixed_active_02.json",
+      "sha256": "1a5fc77fa212c50c6f3f66d120b409463ba5ed22147dc13edeedce73c433173a"
+    },
+    {
+      "bytes": 17038,
+      "path": "runs/owner_rehearsal_p23_01_fixed_active_03.json",
+      "sha256": "a0c256b791da101271a902a7735432853656deaad2ed4c29937721614aadb91f"
+    },
+    {
+      "bytes": 579,
+      "path": "runs/owner_rehearsal_p23_01_fixed_gate.json",
+      "sha256": "78caa255c129df86932b38fd763a980a72e669961bd1ca1aceeb6f6c8d48cc21"
+    },
+    {
+      "bytes": 2793,
+      "path": "runs/owner_rehearsal_p23_01_fixed_idle.json",
+      "sha256": "721b3e36580780e16ff6dbf306a404ac7fa04073caa0f9b6a873445ad515f38b"
+    },
+    {
+      "bytes": 3091,
+      "path": "runs/owner_rehearsal_p23_01_fixed_pause_01.json",
+      "sha256": "47c773d970c6e86816965e898dea367b785ead6d337032ec0f673ded9459bb00"
+    },
+    {
+      "bytes": 3089,
+      "path": "runs/owner_rehearsal_p23_01_fixed_pause_02.json",
+      "sha256": "f0979eddd5651b7a31ce909a8ce377c30c674c6320fe6f6440c681de9070f66f"
+    },
+    {
+      "bytes": 3092,
+      "path": "runs/owner_rehearsal_p23_01_fixed_pause_03.json",
+      "sha256": "21349bbf08f9832c7da025e2e4efe02738f970c82085504b3452b18dfd3134d7"
+    },
+    {
+      "bytes": 5957,
+      "path": "runs/owner_rehearsal_p23_01_fixed_samples_0001.json",
+      "sha256": "c25c5dbdef3b7f75d2942a885326339eafe95dbfde25526b9c0a8e6e56daed39"
+    },
+    {
+      "bytes": 89281,
+      "path": "runs/owner_rehearsal_p23_01_fixed_samples_0002.json",
+      "sha256": "5c4f4f9e4515bc3252f32f722d3ba8328af2e73ea8130e640bf8603b94304801"
+    },
+    {
+      "bytes": 95373,
+      "path": "runs/owner_rehearsal_p23_01_fixed_samples_0003.json",
+      "sha256": "5cb43dfb01eb9705bebf42007401a1e2d6b56875eff32b1cc8726018d3fed090"
+    },
+    {
+      "bytes": 94478,
+      "path": "runs/owner_rehearsal_p23_01_fixed_samples_0004.json",
+      "sha256": "15c022753de19110a92f5d0b2810bc6403225d3cc3c40f443c5eec653dd9d6b7"
+    },
+    {
+      "bytes": 57756,
+      "path": "runs/owner_rehearsal_p23_01_fixed_samples_0005.json",
+      "sha256": "0310abfa0e166ea8cf49cd7e7e1800b34867b3e769e735db5ca29e2a26580b81"
+    },
+    {
+      "bytes": 20406,
+      "path": "runs/owner_rehearsal_p23_01_llama-server.log",
+      "sha256": "110e73718e7d03cf58898f0087af8dd0d0e6fe1fb9fb986da956b6a9652205c2"
+    }
+  ],
+  "exact_owner_command": [
+    "(set -C; python -u ~/robot/benchmark/campaign/phase23.py --dry-run --output ~/storage/downloads/campaign/owner_rehearsal_p23_01.json > ~/storage/downloads/campaign/owner_rehearsal_p23_01.stdout 2> ~/storage/downloads/campaign/owner_rehearsal_p23_01.stderr)"
+  ],
+  "label": "NOT VALID — OWNER REHEARSAL",
+  "layout": "L2",
+  "llama_server_command": [
+    "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+    "-m",
+    "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+    "--port",
+    "8080",
+    "--ctx-size",
+    "2048",
+    "--threads",
+    "4",
+    "--threads-batch",
+    "4",
+    "--parallel",
+    "1",
+    "--swa-full",
+    "--cache-ram",
+    "0",
+    "--host",
+    "127.0.0.1"
+  ],
+  "missing_reasons": {
+    "config.layout_checks[0].ort.observed_default_intra_threads_per_session": "Recorded null or absent in archived evidence; not inferred.",
+    "config.layout_checks[1].ort.observed_default_intra_threads_per_session": "Recorded null or absent in archived evidence; not inferred.",
+    "config.ort.observed_default_intra_threads_per_session": "Recorded null or absent in archived evidence; not inferred.",
+    "device": "No device identity recorded by invocation; phone model from docs is not run metadata.",
+    "environment.device": "Recorded null or absent in archived evidence; not inferred.",
+    "environment.rest_gap_s": "Recorded null or absent in archived evidence; not inferred."
+  },
+  "mode": "rehearsal",
+  "model_files_and_hashes": {
+    "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server": "77eb35a0e716dff307e0d33b0b45ce0ed91e216a20db9411a7b9dc94e6624053",
+    "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf": "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52",
+    "/data/data/com.termux/files/home/models/relate_anything/relsgg-vits16/predicate_bank.npz": "6043ff8fb765db34d89019617979d566b79967b7740c72bb4007786179839f48",
+    "/data/data/com.termux/files/home/models/relate_anything/relsgg-vits16/relateanything.json": "e70152faa7875bf9ae865d14b3539b7aac358f33bfb10db265365441db26bfaa",
+    "/data/data/com.termux/files/home/models/relate_anything/relsgg-vits16/relateanything.onnx": "24a2e2a2ef8ea7d1b7cffef9fe5e35ab9c8eeb413e73eb4dee5afa9b24dd98d5",
+    "/data/data/com.termux/files/home/robot/yolo11s_320.onnx": "9eab5ebc83d1254e0049abf2a939ef12db696b7e0ef74af7ec8b70cec993f863",
+    "/data/data/com.termux/files/home/robot/yolo11s_640.onnx": "dc9fe7c50e66ef272db1318f282d6e6dc4ba6adaa0103a2197a87300fbb9dcb5"
+  },
+  "phase": "2/3",
+  "result_validity": [
+    "NOT VALID — OWNER REHEARSAL",
+    "NOT VALID — OWNER REHEARSAL",
+    "NOT VALID — OWNER REHEARSAL"
+  ],
+  "stem": "owner_rehearsal_p23_01"
+}

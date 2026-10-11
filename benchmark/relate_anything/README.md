@@ -20,3 +20,7 @@ Dry runs are NOT VALID TIMING and do not sample power. Read
 External model/source paths are declared in `desk2/desk_check.py`.
 See [RUN_INDEX.md](RUN_INDEX.md) for owner measurements and their validity labels,
 and [ASSET_INDEX.json](ASSET_INDEX.json) for shared image paths and SHA-256s.
+
+## Rerun command and raw-data location
+
+Rerun command: `python benchmark/relate_anything/desk2/self_check.py` ([source](README.md)). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

@@ -36,3 +36,21 @@ a5bbb13d3c27ad56e5d04bae5e15511a9f0136e1124b098ea0db10d68fa75d49  s1o.server.log
 2252c13986ee5dce62b87c05b2bb104b596bb45b57b1521ca6d0ec3a323e329c  von11.log
 1476afdd2642e72c78756cd12ef5d840d17595955698460b6cd3c4fb5488a35a  von12.log
 ```
+
+## P23D current inventory
+
+Historical sections above retain their exact original archive-time records; some describe older code or documentation bytes. The table below is the current file inventory, including required ignored artifacts explicitly force-added for review. It excludes this manifest, Python caches and the new frozen manifest to avoid self-reference.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `existing repository / P23D generated documentation or offline evidence` | 1118 | `728baa2ed6d835f0fb95754d6385b04a8cb70c3f1fe0509edf2b1b3c1f2bf4d6` |
+| `RUN_INDEX.md` | `existing repository / P23D generated documentation or offline evidence` | 216 | `d0cee5b2b95c31266acd682f005733872e49592d760d3fb8f88dcbbc63747c04` |
+| `laya_en.log` | `existing repository / P23D generated documentation or offline evidence` | 313 | `d4e3475eb87508087cba7b47bb2062226ad8e331881f54bd985a8f8d627d1131` |
+| `laya_micro.log` | `existing repository / P23D generated documentation or offline evidence` | 313 | `31acbba40ec92c2ac3967b6e571b3d0554dbde3b3b62e7683eed041964706f03` |
+| `laya_multi.log` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `request.txt` | `existing repository / P23D generated documentation or offline evidence` | 1415 | `aadd627cf7e3f4ca471783a31397f1031e46b4be6f371483c641af542c5d2abf` |
+| `s1o.log` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `s1o.server.log` | `existing repository / P23D generated documentation or offline evidence` | 2925 | `a5bbb13d3c27ad56e5d04bae5e15511a9f0136e1124b098ea0db10d68fa75d49` |
+| `von10_nli.log` | `existing repository / P23D generated documentation or offline evidence` | 1139 | `4ae06dad002f046dcfb8d281bb005e0e3f5757efb223052ecd39090c74fa2f6e` |
+| `von11.log` | `existing repository / P23D generated documentation or offline evidence` | 957 | `2252c13986ee5dce62b87c05b2bb104b596bb45b57b1521ca6d0ec3a323e329c` |
+| `von12.log` | `existing repository / P23D generated documentation or offline evidence` | 944 | `1476afdd2642e72c78756cd12ef5d840d17595955698460b6cd3c4fb5488a35a` |

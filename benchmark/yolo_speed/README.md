@@ -107,3 +107,7 @@ incomplete-block and torn-line handling); round 5 **APPROVE WITH NOTES — requi
 - The worker runs under proot; absolute latencies may differ from the robot's native process.
 - 60 timed frames cycle 20 images, so each image is timed three times.
 - Model files, `.pt` weights, venv and black frames are not in Git; their hashes are in `ARTIFACTS.md`.
+
+## Rerun command and raw-data location
+
+Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.
