@@ -45,6 +45,7 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | Local build names b1609 / b2351 | #119 identifies upstream llama.cpp tags b10194 / b10936. |
 | #29, #74, #110, #119–#122, #124 zone9-based heat conclusions | #126 marks them not trusted; speed, RAM and power results stand. Register: `benchmark/thermal_char/HEAT_EVIDENCE.md`. |
 | #122 says camera-idle mode is not needed now | #129 decides camera OFF during planned preventive heat pauses; #127 emergency motor and battery stops retain precedence. |
+| #133 lists the P23D review/receipt as external and archive cleanups as open | #134 archives the review, receipt and coder report; closes the listed link, Qwen wording and rerun-documentation cleanups; P23E review records and coder report remain external. |
 
 For any claim outside these selected topics, search the numbered log and inspect
 the later entries that cite it. This index makes no claim to classify all decisions.

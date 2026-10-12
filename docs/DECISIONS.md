@@ -1545,3 +1545,42 @@ Format: `NN. [area] decision — why`
      vision run has been found. Known open cleanups from the review: two
      dead `runs/` links, "partial" wording in the Qwen entries, and generic
      "rerun UNVERIFIED" lines.
+
+134. **P23D external files archived; #133 open cleanups closed (P23E).**
+     Commit `d8e5259` (2026-10-12), parent `a34087c`, 38 paths.
+     Coder: Codex CLI, `gpt-6.1-sol`, high effort. Independent reviewer:
+     Claude Code CLI, `claude-opus-5-5`, medium effort; round 3 APPROVED
+     (round 1 incomplete, no verdict; round 2 CHANGES REQUESTED).
+     Evidence: `benchmark/campaign/reports/INDEX.md`,
+     `benchmark/campaign/frozen_manifest_campaign_p23e.json`, campaign
+     README and the touched benchmark READMEs; P23E review records and
+     coder report remain external as noted below.
+     Archived byte-identical into `benchmark/campaign/reports/`:
+     - `review_campaign_p23d_r2_result.txt`, SHA-256
+       `fffcf1aeaba54f88620254cc960eb678e366595332aca3eb2fae71fb8793fb91`;
+     - `p23d_commit_receipt.json`, SHA-256
+       `b97d9cf0fdcd7d983b4e98994fb532aaf43e6d4e4386409b84e6d5fa465b09d2`;
+     - `CAMPAIGN_P23D_CODER_REPORT.md`, SHA-256
+       `fb2e3d83d13b45b22778184b01578ca0055663b4a92a80e60644fcefa4560949`.
+     The first two hashes were recorded in #133; the coder-report hash is
+     first recorded here. This supersedes #133's external-only placement
+     for the review and receipt; #133 itself remains unchanged.
+     Cleanups: dead `runs/` links in the conv_mtp and von12_rerun READMEs
+     now point to the tracked raw-data folders `conv_mtp_20260928T081906Z/`
+     and `raw/`. Qwen's "partial" wording now identifies an aborted attempt.
+     Of 14 generic "Rerun command: UNVERIFIED" lines, 7 now give an archived
+     command supported by its source, 5 list the present scripts with exact
+     invocation still unverified, and 2 remain unchanged because no archived
+     script reproduces those outputs. These close the cleanups listed in #133;
+     they do not establish successful Qwen inference or new benchmark results.
+     `ARTIFACTS.md` edits are append-only: all 24 listed manifests preserve
+     their exact `a34087c` byte prefixes. New check
+     `benchmark/campaign/self_check_p23e.py` PASSES at `d8e5259`.
+     `self_check_p23d.py` remains historical: its archived base check passes
+     at `a34087c`; on `d8e5259` it fails on intentionally superseded document
+     hashes by design.
+     Frozen manifest `benchmark/campaign/frozen_manifest_campaign_p23e.json`
+     SHA-256 `0a4a657071a5c10409de74351402027383fe58bce828e92bf3b24924f92b8009`.
+     Not in the repo: P23E review rounds 1–3 and
+     `CAMPAIGN_P23E_CODER_REPORT.md`, retained externally under
+     `/termux-home/storage/downloads/campaign/` (Download/campaign/).
