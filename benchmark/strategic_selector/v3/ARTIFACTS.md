@@ -752,3 +752,11 @@ Historical sections above retain their exact original archive-time records; some
 | `sources/pre_finalists/s1o_probs_evidence.py` | `existing repository / P23D generated documentation or offline evidence` | 2366 | `1f176e9430d13f863d47c21002946fd38c2ffd56f254f029e851a2b820a58194` |
 | `sources/pre_finalists/test_v3.py` | `existing repository / P23D generated documentation or offline evidence` | 2399 | `06c51a153bf5e898333014fdbe1b5868d45be3205f7a420d455251bae5af64f1` |
 | `test_v3.py` | `existing repository / P23D generated documentation or offline evidence` | 2803 | `696d1f6772df9607453e79999a7be0285f21f837cbdc1351d371426906d051eb` |
+
+## P23E current inventory
+
+Payload files only; manifests and current check outputs are hashed by the frozen manifest or external review evidence.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `P23E docs or offline evidence` | 6498 | `1febf4c0170e59052cbd3559e59601e8e2792290aa150e8c1bd60714a227f8c6` |

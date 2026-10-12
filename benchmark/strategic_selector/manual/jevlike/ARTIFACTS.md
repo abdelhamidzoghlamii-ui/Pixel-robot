@@ -23,3 +23,11 @@ Historical sections above retain their exact original archive-time records; some
 | `logs/von12.log` | `existing repository / P23D generated documentation or offline evidence` | 944 | `1476afdd2642e72c78756cd12ef5d840d17595955698460b6cd3c4fb5488a35a` |
 | `test_jevlike.py` | `existing repository / P23D generated documentation or offline evidence` | 835 | `e2ec850c06b09733211542f827b06fa7407a04f5f16742f7e8a7453d1267a1b5` |
 | `worker.py` | `existing repository / P23D generated documentation or offline evidence` | 4908 | `06eecc622378efd91e6cb0839a39f84fefa8eef797a8512845f6117df61661f9` |
+
+## P23E current inventory
+
+Payload files only; manifests and current check outputs are hashed by the frozen manifest or external review evidence.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `P23E docs or offline evidence` | 2251 | `628b7467de56b39c657d8d9dd83f06d06e26316720de5e3506a2d16e5f714340` |

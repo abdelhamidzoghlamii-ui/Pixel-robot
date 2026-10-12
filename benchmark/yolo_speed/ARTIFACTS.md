@@ -291,3 +291,11 @@ Historical sections above retain their exact original archive-time records; some
 | `runs/yolo_speed_20260928T182649Z.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
 | `runs/yolo_speed_20260928T182649Z.stdout.txt` | `existing repository / P23D generated documentation or offline evidence` | 13313 | `85d2cd68e00a3f9f9483cdfbd7492eb1828f4e5d942f4fb27a1d6e2af3be9dd1` |
 | `yolo_speed.py` | `existing repository / P23D generated documentation or offline evidence` | 12224 | `3c3f3bce387f3110029d13c2d2290ac75bebc442d68d4a38ae7b0d1eae1c6996` |
+
+## P23E current inventory
+
+Payload files only; manifests and current check outputs are hashed by the frozen manifest or external review evidence.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `P23E docs or offline evidence` | 7056 | `6d10c7b5038eec4e29ea569e7cfef0fb7f775331f28c3029bd5ce7bb69542867` |

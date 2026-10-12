@@ -132,4 +132,4 @@ does not reproduce the archived command exactly. The memory check did not record
 
 ## Rerun command and raw-data location
 
-Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.
+Rerun command: UNVERIFIED — scripts present: bench.py, aggregate.py, test_bench.py, test_aggregate.py; exact invocation not documented. Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

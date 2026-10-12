@@ -83,4 +83,4 @@ WITH CAVEATS**.
 
 ## Rerun command and raw-data location
 
-Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.
+Rerun command: UNVERIFIED — scripts present: run.py, measure.py, report.py, s1o_probs_evidence.py, adapters.py, test_v3.py; exact invocation not documented. `cases.py` is withheld from Git (see table above). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

@@ -69,4 +69,4 @@ results themselves were not reviewed.
 
 ## Rerun command and raw-data location
 
-Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.
+Rerun command: `RUN_SCRIPT=run_conv_mtp.sh bash ~/ladder/oneshot.sh`. Owner hardware gates in the cited instructions still apply. Raw data: [conv_mtp_20260928T081906Z/](conv_mtp_20260928T081906Z/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

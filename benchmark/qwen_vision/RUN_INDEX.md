@@ -14,4 +14,4 @@ mtimes (UTC) unless a file states its own date.
 
 ## P23D recovered result files
 
-[results.json](runs/results.json) and [summary.txt](runs/summary.txt) were recovered unchanged from `/termux-home/qwen_vision_bench.json/`. The source JSON and summary retain their own failures and incomplete results; no success is inferred. These are partial #105 evidence; attribution to other Gemma/projector/stopped-sweep outputs remains UNVERIFIED. Exact source/destination hashes: [sweep_decisions.json](../campaign/checks/p23d/sweep_decisions.json).
+[results.json](runs/results.json) and [summary.txt](runs/summary.txt) were recovered unchanged from `/termux-home/qwen_vision_bench.json/`. The source JSON and summary retain their own failures and incomplete results; no success is inferred. This is an aborted #105 attempt (battery-precondition refusal at 91%, required 50–80%; no result rows); attribution to other Gemma/projector/stopped-sweep outputs remains UNVERIFIED. Exact source/destination hashes: [sweep_decisions.json](../campaign/checks/p23d/sweep_decisions.json).

@@ -42,3 +42,12 @@ Historical sections above retain their exact original archive-time records; some
 | `qwen_vision_bench_test.py` | `existing repository / P23D generated documentation or offline evidence` | 5827 | `07608f23d888320bba4837a073b7756c5c4181e71253a7d4579a7b255883beed` |
 | `runs/results.json` | `/termux-home/qwen_vision_bench.json/results.json` | 5826 | `61d0177aaf9e7ebec443638d926fe006b0b68d73ee6f80f5bb772bf4595c7c33` |
 | `runs/summary.txt` | `/termux-home/qwen_vision_bench.json/summary.txt` | 1182 | `52d1d71fd117fa998c9e8f47382fa5b4c8c904144cf6740cc324f3dede1d7351` |
+
+## P23E current inventory
+
+Payload files only; manifests and current check outputs are hashed by the frozen manifest or external review evidence.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `P23E docs or offline evidence` | 4098 | `453117aa5b4114dd29e01250f56f9451c5e0510470ba742df6dd3361577ce0c7` |
+| `RUN_INDEX.md` | `P23E docs or offline evidence` | 1625 | `b42ad4f52a2e3d189a3d981e310cde2d6942e27e2a1047464a74ebb5b4e491b6` |

@@ -1,0 +1,144 @@
+# CAMPAIGN_P23D review, round 2: APPROVED
+
+Both round-1 blockers are fixed in the frozen candidate. The four ignored dataset/inventory files and the eight recovered raw files are now in the candidate, the manifest and the live git index. The two round-1 medium findings are also fixed. I recomputed every headline number from raw JSON with my own code, and all of them match. What remains are minor wording and link problems that don't block.
+
+## Findings
+
+### Round-1 items: status
+
+- **B1 — fixed.** `data/{calls,windows,thermal}.csv` and `benchmark/UNARCHIVED_INVENTORY.md` are now in `frozen_manifest_campaign_p23d.json`.
+  - I parsed the live `.git/index` read-only. All 41 manifest files that `.gitignore` would exclude are in the index.
+  - For all 18 force-added files, the staged blob SHA-1 equals the candidate bytes.
+- **B2 — fixed.** All 294 "archived into folder" destinations exist in the candidate, are in the manifest, and match their source SHA-256. This includes the coresidency, camera_heat and qwen files.
+  - All 1117 "already archived" decisions have at least one tracked destination with the same hash.
+  - The "P23D current inventory" tables are no longer empty.
+- **M1 — fixed.** In the review patch, every pre-existing ARTIFACTS.md and README.md receives added lines only and loses none. For example, `coresidency/ARTIFACTS.md` gets +46/−0. The historical sha256 blocks are byte-preserved, and current hashes now sit in a separate "P23D current inventory" section. The only file that loses lines is `benchmark/INDEX.md` (two rows rewritten; see n2).
+- **M2 — fixed in the outcome column.** `benchmark/INDEX.md:25` now says "no successful results recovered" and names the battery-precondition refusal.
+- **m3–m8 — fixed, or kept with a stated reason:**
+  - m3: all 149 files under 64 bytes carry the note "does not establish run identity or provenance".
+  - m4: cards now say "newest matching snapshot".
+  - m5: Phase 1 owner commands stay null with an explicit reason. This was accepted as a known limit.
+  - m6: the Task column now holds canonical task names.
+  - m7: the three loose scripts now have decisions (already archived), and `UNARCHIVED_INVENTORY.md:715` names the skipped categories.
+  - m8: child rehearsal cards now carry only their own mode's values, plus `parent_owner_command`.
+
+### New minor findings (non-blocking)
+
+- **n1. Two broken links.** The added rerun paragraph links `[runs/](runs/)`, but these folders have no `runs/` directory:
+  - `benchmark/llm_objective_setting/conversation/conv_mtp/README.md:72`
+  - `benchmark/strategic_selector/von12_rerun/README.md:58`
+
+  All 403 relative links in new or changed Markdown outside `reports/` resolve except these two. The broken links inside `reports/` are in verbatim historical reports and are expected.
+- **n2. Leftover "partial" wording for Qwen.**
+  - The INDEX description still says "harness and partial recovered results" (`benchmark/INDEX.md:25`).
+  - `qwen_vision/RUN_INDEX.md:17` says "These are partial #105 evidence".
+  - Since `rows=[]`, these should say "aborted attempt".
+  - The rewritten INDEX row also dropped the original date "2026-09-14/16" and the list of archived items (projector report, AGY review, probe). `qwen_vision/README.md` still records them.
+- **n3. Generic rerun text even where scripts exist.** The repeated text "Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md)" links each README to itself. It also appears in folders that do contain rerun scripts, such as `coresidency/run_coresidency.sh`. This is conservative, not false.
+- **n4. Commit hygiene (process only).** 282 new files that aren't ignored are not yet staged. That is expected before a "yes commit", but the commit needs to add exactly the manifest list. `self_check_p23d.py:91-95` only checks membership in the frozen manifest or in the tracked set.
+
+## Independent computations (my own code, raw JSON only)
+
+I did not import or run `campaign_data.py`, `summarize_campaign.py` or `self_check_p23d.py`. Power uses my own in-memory trapezoid integration with the semantics of `power.py:45-64`: clipped to the window, gaps over 1.5 s skipped, no extrapolation. Windows run from `run.origin` to `run.end`.
+
+| Mode (label) | Mean W whole / active / pause | Coverage, gaps | Inference s, duty | Max skin °C, max status | YOLO due 320/640 = done, skipped | Picker calls / misses | M2 executed |
+|---|---|---|---|---|---|---|---|
+| endurance (VALID) | 4.399329228069399 / 4.399329228069399 / – | 1800.0 s, 0 | 1794.2269627089845, 0.9967927570605469 | 40.757202, 1 | 1436/358 = 1436/358, 0 | 89 / 0 | 89 |
+| fixed (VALID) | 3.3034091444579277 / 4.294047793525703 / 1.322131846322393 | 2160.0 s, 0 | 1358.498307384958, 0.6289344015671102 | 38.022205, 0 | 1104/264 = 1104/264, 0 | 60 / 0 | 60 |
+| adaptive (VALID) | 3.541867349720145 / 4.724321938096641 / 1.3482986213311676 | 2160.0 s, 0 | 1358.646808892081, 0.6290031522648524 | 37.4347, 0 | 1105/264 = 1105/264, 0 | 70 / 0 | 70 |
+
+- **First skin reading at or above 35 / 37 / 39 °C:**
+  - endurance: 519.2366 / 675.0925 / 996.5217 s
+  - fixed: 451.4742 / 816.7187 s / none
+  - adaptive: 417.0715 / 572.9157 s / none
+- **Rest gaps:** 14.006511 min (endurance → fixed, below the 30 min rule) and 31.415212 min (fixed → adaptive).
+- **Match:** all of these equal `CAMPAIGN_RESULTS.json` and `.md`, `README.md` and `RUN_INDEX.md`.
+- **Windows:** the measured windows reproduce the mode totals. The duration-weighted mean of window W gives 4.399329 / 3.303409 / 3.541867 W. Window counts are 30, 36 and 36, and the window due, done, M2, picker and miss counts sum to the figures above.
+- **Rows I integrated myself:** four random adaptive windows (seed 31: indexes 0, 7, 25, 30, including two mixed windows) and three random 1 s `thermal.csv` power rows. W, max skin and active_s all match to within 1e-8.
+
+## Spot checks
+
+### Run cards (3)
+
+Evidence for each card was checked by bytes and SHA-256.
+
+- **`owner_adaptive_p23_01` (P23, VALID): correct.** 78/78 evidence files OK.
+  - These match raw: code_hashes, model hashes, server command, `m2_cluster` [6,7]×2, monitor mask [0–3], ORT mid, battery 81%, gate skin 24.5993, idle start skin 25.3564, `t_hi_c` 37.0.
+  - FULL schedule taken from phase23.py at c0ba141. Exact owner command equals `RUN.md:447`. Rest gap 1884.91 s.
+- **`owner_session_p1a_fix` (Phase 1): correct.** 7/7 evidence files OK.
+  - Label "SESSION COMPLETE; inspect individual validity"; result validity per block is L0 VALID, L1 and L2 NOT VALID — WARM START.
+  - Server command and model hashes are identical to raw. RobotCam version 0.1.
+  - No code_hashes, so the commit is unknown and the command, battery and schedule are null, each with a reason.
+- **`owner_rehearsal_p23_01_fixed` (child rehearsal card): correct.** 48/48 evidence files OK.
+  - Labelled NOT VALID — OWNER REHEARSAL, with child checks VALID.
+  - `t_hi_c` [37.0], gate skin 29.683 and idle start skin 30.713402 are the fixed-mode values. Battery 86%.
+  - Commit d5d1e87 with its SHORT schedule. `exact_owner_command` is null with a reason, and `parent_owner_command` holds the `--dry-run` line.
+- **Coverage:** all 22 invocations that have a stdout file have a card. The 6 extra cards are the per-mode rehearsal children.
+
+### calls.csv rows
+
+- **Main sample:** seed 20261013, `random.Random(seed).sample(range(8833), 20)`.
+  - Row indexes: 306, 764, 874, 1206, 1588, 1711, 2112, 2280, 2508, 3168, 3291, 3624, 3883, 4094, 5372, 6798, 7402, 7489, 7759, 8018.
+  - Raw sources: `owner_{adaptive,endurance,fixed}_p23_01.json`, `owner_rehearsal_p1_fix4d.json`, `owner_session_p1_fix4d.json`.
+- **Extra sample:** seed 99, 10 M2/picker rows drawn from 777: 985, 1505, 3346, 3367, 3398, 3417, 3420, 4464, 4716, 7228.
+- **Result: all 30 rows match every field I checked:**
+  - absolute start = phase `inference_origin` (P23; origin confirmed at `phase23.py:267`) or block clock (Phase 1) + `started_s`;
+  - run offset and phase offset;
+  - the preceding skin reading (t ≤ start, Phase 1 including `skin_start`/`skin_end`), its value and age, and the frequency age;
+  - policy0/4/6 maximum MHz;
+  - M2 `inference_ms` versus wall time (e.g. row 4094: 967.67 vs 983.60 ms; row 7228: 4560.02 vs 4613.86 ms);
+  - live/fallback/none context, and the miss flag.
+
+### Sweep decisions
+
+- **Stratified sample:** seed 5150, 4 + 3 + 3 drawn by category.
+  - Already archived:
+    - [33] `camera_power/run_20261003T004418Z_smoke/block_baseline_last.json`
+    - [134] `camera_power/run_20261003T073546Z_smoke/manual_1000_start.jpg`
+    - [246] `duty_cycle/run_20261002T201443Z_PARTS/block_P0U.json`
+    - [1780] `downloads/duty_cycle_run_20261003T090742Z_CYCLE_report.txt`
+  - Archived into folder:
+    - [198] `coresidency/run_20261001T041743Z/block_B3_mix_gemma.json` (a B2 file)
+    - [875] `owner_adaptive_p23_01_adaptive_idle.json`
+    - [968] `owner_endurance_p23_01_endurance_samples_0028.json`
+  - Inventory only:
+    - [1409] `p23c_round1_checks/coder_mock_p23c_fixed_active_02.json`
+    - [1630] `coresidency_review_artifacts/notes20.txt`
+    - [1744] `coresidency_review_artifacts/review6/stdout.txt`
+  - Every source and destination hash matches.
+- **Full pass over all 2104 decisions:**
+  - every source still exists with the recorded bytes and hash;
+  - all 294 archive destinations OK;
+  - all 1117 "already archived" decisions have a tracked destination with the same hash;
+  - all 149 matches under 64 bytes carry the provenance note.
+- **Matching policy:** matching purely by hash is acceptable now that tiny files are annotated and destinations must be tracked or in the candidate.
+- **Report coverage:** every CAMPAIGN coder report and review final in Downloads is copied. The exceptions are FIX3 (unsafe, inventoried), AUDIT1 (already archived) and P23D's own files (external).
+- **Report index:** `reports/INDEX.md` hashes match all 42 files. The verdicts I checked match the text (p23_r3, p1_fix3_r1, p23c_r2).
+
+## Public safety
+
+- **Candidate scan:** I ran the 6 provided patterns over all 415 candidate files plus the frozen manifest; all decode as UTF-8, so none were skipped. There are 2 email matches, at `reports/CAMPAIGN_P1_FIX_CODER_REPORT.md:336-337`. Both values already appear in unchanged tracked files, so they are allowlisted. **New findings: 0.**
+- **Omitted sources:** I confirmed email matches at:
+  - `ARCHIVE1_REPORT.md:526`
+  - `CAMPAIGN_P1_FIX3_CODER_REPORT.md:339`
+  - `CODER_REPORT_archive_0928.md:113,288`
+  - `campaign/commit_campaign_p23b.json:110`
+  - `review_request_campaign_p1.txt:1309`
+  - `review_request_campaign_p1_r2.txt:1270`
+
+  None of them was copied; all are inventory-only. FIX3 is listed as "PUBLIC SAFETY: new email; omitted unchanged, not redacted" at `UNARCHIVED_INVENTORY.md:105`. `CODER_REPORT_archive_0928.md:274` also matches, but that value is already in committed files.
+- **Limits:**
+  - The scan is regex-only.
+  - The allowlist uses unchanged index-tracked files in the copy, not a HEAD tree walk.
+  - I couldn't run git.
+  - The source scan covered 2062 of the 2104 swept files; the rest are presumably binary.
+
+## Checks I could confirm
+
+- **Frozen manifest:** 415 files, 0 hash mismatches, 46,028,333 bytes, nothing over 50 MB. The patch is 47,107,755 bytes with SHA-256 `1023f4c3…0780`, matching the stated value.
+- **Protected areas untouched:** the manifest has no changes to `phase23`, `phase1`, `runtime`, `power`, `diagnostics`, `coresidency.py`, readers or `docs/`.
+- **Recorded self-check outputs:** they match the request. `results.json` shows exit 0 for all three. `self_check_p23d.r2_initial.stderr` records a failed first attempt and the fix that followed.
+- **Not rerun after round 1:** the P23/P23C self-checks. Their code is unchanged, so I accept that.
+- **Not run by me:** I didn't run any self-check, per the instructions.
+
+**Verdict: APPROVED** (round 2). n1–n4 are optional cleanups. This is a review finding only; it does not authorize a commit or a push.

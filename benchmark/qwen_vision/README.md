@@ -53,6 +53,6 @@ The earlier "no results" status above describes the original source archive. P23
 
 ## Rerun command and raw-data location
 
-Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.
+Rerun command: `python qwen_vision_bench.py --output /absolute/new/results-directory`. Archived usage only: the harness was edited after review and not re-reviewed; the scripts are not runnable from this folder as-is. Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.
 
 Recovered JSON dates the attempt 2026-09-15T00:03:34Z–00:03:35Z: `rows=[]`, and `run_error` records a battery precondition refusal at 91% (required 50–80%). The summary is an empty-result grid, not successful vision inference. No missing successful #105 result was recovered by this sweep ([results.json](runs/results.json), [summary.txt](runs/summary.txt)).

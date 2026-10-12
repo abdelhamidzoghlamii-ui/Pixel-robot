@@ -55,4 +55,4 @@ confounded, and the weights are unpinned upstream.
 
 ## Rerun command and raw-data location
 
-Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.
+Rerun command: UNVERIFIED — scripts present: raw/run_block.py, raw/von12_heldout_extra.py, raw/determinism_check.py, raw/negative_control/negctl.py, ../archive_run.py, ../robot_selector_benchmark.py; exact invocation not documented. Owner hardware gates in the cited instructions still apply. Raw data: [raw/](raw/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

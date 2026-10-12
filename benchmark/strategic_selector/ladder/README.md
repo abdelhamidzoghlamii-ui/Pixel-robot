@@ -99,4 +99,4 @@ The fixed launcher (DECISIONS #123 screen-timeout form, `codex` in the agent che
 
 ## Rerun command and raw-data location
 
-Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.
+Rerun command: `bash ~/ladder/oneshot.sh`. Covers only the s1o speed run as executed by `oneshot_executed_s1o_resume.sh`. The conversation run used `oneshot_executed_conversation_run.sh`; the archived final `oneshot.sh` was never executed (see the table above). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

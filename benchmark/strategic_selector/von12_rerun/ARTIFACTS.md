@@ -148,3 +148,11 @@ Historical sections above retain their exact original archive-time records; some
 | `review/review_attempt2_stdout.json` | `existing repository / P23D generated documentation or offline evidence` | 4704 | `0454b184dc1a9d6511e2a10c0717a3929b05b98c262a357449d848361377d78a` |
 | `review/review_request.txt` | `existing repository / P23D generated documentation or offline evidence` | 34998 | `eee515ad10f7a1e08b954b79717f748b03ec5c66ba13f829e680d10bd4f1dbbc` |
 | `review/review_request_attempt2.txt` | `existing repository / P23D generated documentation or offline evidence` | 35320 | `e7225317d8c110fedb42cb0b29f2e55c3f20212a2d61bc0f7a4856236556bfa1` |
+
+## P23E current inventory
+
+Payload files only; manifests and current check outputs are hashed by the frozen manifest or external review evidence.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `P23E docs or offline evidence` | 4249 | `73c1c4a781147ff468c5a54a9bc2a9793efacb8af608c7723c368c2ce70e96b9` |

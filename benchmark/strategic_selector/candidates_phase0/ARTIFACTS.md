@@ -197,3 +197,11 @@ Historical sections above retain their exact original archive-time records; some
 | `raw/s1o/smoke_s1o.py` | `existing repository / P23D generated documentation or offline evidence` | 4332 | `e8fcd234bcfdb4b1b68d7846ff6957ed8ac636ee51b5c0b25ae0bc8c7f18578d` |
 | `raw/toy.json` | `existing repository / P23D generated documentation or offline evidence` | 586 | `ac533a0ce6befdfaeb22c777d551b16cc7cea33199a03da116160d48ac653314` |
 | `reports/CODER_REPORT_candidates_phase0.md` | `existing repository / P23D generated documentation or offline evidence` | 9126 | `1633f8b554b2146bfbb6df1abe1aa55b895d0904061375b97077ed0f24ed56f1` |
+
+## P23E current inventory
+
+Payload files only; manifests and current check outputs are hashed by the frozen manifest or external review evidence.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `P23E docs or offline evidence` | 3343 | `109b50b6a7748ea1a761cbade68e9999fd345121c1be9543eb929e3be5f9c5cd` |

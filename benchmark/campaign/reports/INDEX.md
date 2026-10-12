@@ -46,6 +46,9 @@ Copied unchanged; each source SHA-256 is recorded. Verdict and date come from re
 | [review_campaign_p23c_r1_result.txt](review_campaign_p23c_r1_result.txt) | CAMPAIGN_P23C | 1 | CHANGES REQUESTED | UNKNOWN | 7937 | `6fd330481243fd87980e9b891f32c420e7a04d7860671b69404042da5c1c08c0` |
 | [review_campaign_p23c_r2.json](review_campaign_p23c_r2.json) | CAMPAIGN_P23C | 2 | APPROVED | UNKNOWN | 11444 | `4ee22f88a1eb9daafd8d6a60f3e1ca34706735f0a628f06911236d3f90f52177` |
 | [review_campaign_p23c_r2_result.txt](review_campaign_p23c_r2_result.txt) | CAMPAIGN_P23C | 2 | APPROVED | UNKNOWN | 7739 | `3070c1a1fe8a7ebf9f8373ba998bb429868b4fe142c9d8b14eed44a4819d948c` |
+| [review_campaign_p23d_r2_result.txt](review_campaign_p23d_r2_result.txt) | P23D | 2 | APPROVED | UNKNOWN | 12040 | `fffcf1aeaba54f88620254cc960eb678e366595332aca3eb2fae71fb8793fb91` |
+| [p23d_commit_receipt.json](p23d_commit_receipt.json) | P23D | UNKNOWN | N/A (receipt) | UNKNOWN | 434 | `b97d9cf0fdcd7d983b4e98994fb532aaf43e6d4e4386409b84e6d5fa465b09d2` |
+| [CAMPAIGN_P23D_CODER_REPORT.md](CAMPAIGN_P23D_CODER_REPORT.md) | P23D | 2 | N/A (coder report) | 2026-10-11 | 72606 | `fb2e3d83d13b45b22778184b01578ca0055663b4a92a80e60644fcefa4560949` |
 
 ## External review artifacts and omitted files
 

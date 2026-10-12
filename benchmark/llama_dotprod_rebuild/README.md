@@ -53,4 +53,4 @@ Coder report: `reports/CODER_REPORT_llama_dotprod_rebuild.md`.
 
 ## Rerun command and raw-data location
 
-Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: UNVERIFIED; consult the existing evidence paths in [RUN_INDEX.md](RUN_INDEX.md); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.
+Rerun command: UNVERIFIED — scripts present: checks/ladder_dp.py, checks/ladder_dponly.py, checks/voice_gen.py, checks/voice_old1.py, checks/voice_warm.py, checks/smoke.py, checks/smoke.sh, checks/compare_3a.py; exact invocation not documented. Owner hardware gates in the cited instructions still apply. Raw data: UNVERIFIED; consult the existing evidence paths in [RUN_INDEX.md](RUN_INDEX.md); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

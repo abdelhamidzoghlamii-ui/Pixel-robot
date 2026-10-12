@@ -1182,3 +1182,11 @@ Historical sections above retain their exact original archive-time records; some
 | `s1o_speed_prep/v.log` | `existing repository / P23D generated documentation or offline evidence` | 246207 | `2fe34c55b0f2c10e44313df0aee7591ea51ebfd87c4c0fecfc692ad5db5628dc` |
 | `test_ladder.py` | `existing repository / P23D generated documentation or offline evidence` | 9728 | `19da97c0fb8726d06d454f1d1044e9577c0fc10ef30bd774c80d60c5f208170f` |
 | `toy_cases.jsonl` | `existing repository / P23D generated documentation or offline evidence` | 1736 | `2ebe1f9fd4eac5d9329d6fe8af2b2bb7dbccf170239c687191ed6ae9e5ebb7bc` |
+
+## P23E current inventory
+
+Payload files only; manifests and current check outputs are hashed by the frozen manifest or external review evidence.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `P23E docs or offline evidence` | 7498 | `dc515c56199bff23a7f8824b6424bc1949cff537c8f20c6574892962dcf41757` |

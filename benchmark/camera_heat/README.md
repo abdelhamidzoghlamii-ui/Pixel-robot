@@ -74,4 +74,11 @@ every file.
 
 ## Rerun command and raw-data location
 
-Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.
+Rerun command (native Termux; archived invocation in `reports/CODER_REPORT_camera_heat.md:19–21`):
+
+```bash
+( bash ~/ladder/run_camera_heat.sh --helper </dev/null > ~/ladder/camera_heat_helper.log 2>&1 &
+  helper=$!; trap 'kill "$helper" 2>/dev/null || true' EXIT
+  RUN_SCRIPT=run_camera_heat.sh bash ~/ladder/oneshot.sh )
+```
+Owner hardware gates in the cited instructions still apply. Raw data: [runs/](runs/); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.

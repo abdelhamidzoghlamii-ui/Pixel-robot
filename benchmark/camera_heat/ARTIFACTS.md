@@ -206,3 +206,11 @@ Historical sections above retain their exact original archive-time records; some
 | `runs/camera_heat_20260929T022511Z_16984/sensors.jsonl` | `existing repository / P23D generated documentation or offline evidence` | 37874 | `7b66c640c4bb2a0bc01cedd0c902aa27f587e58648994f0bc3aadade7c66ba32` |
 | `runs/camera_heat_active.json` | `/termux-home/ladder/camera_heat_active.json` | 78 | `17026e3e875ae491d4ca8af0cf4db02d7074424073b7e570b6505261b0cfada6` |
 | `runs/oneshot_console_20260929T022511Z.log` | `existing repository / P23D generated documentation or offline evidence` | 2620 | `72d5f2d481c2bc70371cb8b3cfc33214a2b9a2163f9a2fa69e0ff0c89bf7b6b8` |
+
+## P23E current inventory
+
+Payload files only; manifests and current check outputs are hashed by the frozen manifest or external review evidence.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `P23E docs or offline evidence` | 4953 | `3e784870d7b7dd54a56cb8ab6c469e9d96f5633453d7b0a8435838a65e4146b4` |

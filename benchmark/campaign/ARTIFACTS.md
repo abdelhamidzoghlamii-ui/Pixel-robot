@@ -1164,3 +1164,18 @@ Historical sections above retain their exact original archive-time records; some
 | `self_check_p23d.py` | `existing repository / P23D generated documentation or offline evidence` | 7119 | `b7f6a25ad69e4a58d2b4b8c4aa4ff78ae7cb718cff2d19e106fcf49c227e4e47` |
 | `summarize_campaign.py` | `existing repository / P23D generated documentation or offline evidence` | 15335 | `2e6451a3f23a9950c60aae4ef88620da0126077d1466a38dbaa6363eac14d8aa` |
 | `../UNARCHIVED_INVENTORY.md` | `existing repository / P23D generated documentation or offline evidence` | 177471 | `10f3054b9a7bdba57acfa00a208f33aebad0b3f17863e4c9895eb1b2562089f5` |
+
+## P23E current inventory
+
+Payload files only; manifests and current check outputs are hashed by the frozen manifest or external review evidence.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `P23E docs or offline evidence` | 2614 | `fc0b8102ee14024c1dd552536c04cf297d6f6ff3c7a74c2441cda93da7e8d7c2` |
+| `checks/p23e/self_check_p23d.base.stderr` | `P23E docs or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `checks/p23e/self_check_p23d.base.stdout` | `P23E docs or offline evidence` | 176 | `6c6db64ff12ad59c62c35b2e10ecd8c1348d88af6c8b317c353970e2c61378d5` |
+| `reports/CAMPAIGN_P23D_CODER_REPORT.md` | `/termux-home/storage/downloads/CAMPAIGN_P23D_CODER_REPORT.md` | 72606 | `fb2e3d83d13b45b22778184b01578ca0055663b4a92a80e60644fcefa4560949` |
+| `reports/INDEX.md` | `P23E docs or offline evidence` | 58276 | `389d81279e6646b4c920b7ce182fea2fb1cc48d93c8f0030db050df63b609f18` |
+| `reports/p23d_commit_receipt.json` | `/termux-home/storage/downloads/campaign/p23d_commit_receipt.json` | 434 | `b97d9cf0fdcd7d983b4e98994fb532aaf43e6d4e4386409b84e6d5fa465b09d2` |
+| `reports/review_campaign_p23d_r2_result.txt` | `/termux-home/storage/downloads/campaign/review_campaign_p23d_r2_result.txt` | 12040 | `fffcf1aeaba54f88620254cc960eb678e366595332aca3eb2fae71fb8793fb91` |
+| `self_check_p23e.py` | `P23E docs or offline evidence` | 6411 | `00958b84e20e369083600a29ee53a6eeba7d7c46d4d412de2defc707e99fde39` |

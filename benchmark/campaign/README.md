@@ -19,3 +19,5 @@ Generation uses only archived bytes, the existing power.weighted function and lo
 ## Rerun command and raw-data location
 
 Offline rerun command: `python3 -B benchmark/campaign/campaign_data.py` ([campaign_data.py](campaign_data.py)). Hardware reruns remain owner-only and use the exact commands in [RUN.md](RUN.md); none was executed for P23D. Raw bytes: [runs/](runs/), with source paths, byte sizes and hashes in [session inventory](runs/archive_sha256_p23_sessions.json) and earlier inventories listed by [RUN_INDEX.md](RUN_INDEX.md).
+
+P23E archived the three P23D external files; `self_check_p23d.py` is historical (passes at `a34087c`); use `self_check_p23e.py` for the current tree.

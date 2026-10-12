@@ -284,3 +284,11 @@ Historical sections above retain their exact original archive-time records; some
 | `runs/bench_results_20260921_164938.json` | `existing repository / P23D generated documentation or offline evidence` | 235645 | `804cade9a772b9f2cb415c5843621edc70d8ecff37487f3a7e966081ea7ae6d6` |
 | `test_aggregate.py` | `existing repository / P23D generated documentation or offline evidence` | 2065 | `51bd46a566b37c9bf0728a7f43594502eb052ae0a518e425543f284070a6d16c` |
 | `test_bench.py` | `existing repository / P23D generated documentation or offline evidence` | 1374 | `123484c38cea33f7a00fdbbcfecbedfb07129ca116a9a8db73a40a2de37543ae` |
+
+## P23E current inventory
+
+Payload files only; manifests and current check outputs are hashed by the frozen manifest or external review evidence.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `P23E docs or offline evidence` | 15587 | `f06330961db446065263842dcb83795309096e1625209f59f38a8e0e5a57f6c3` |

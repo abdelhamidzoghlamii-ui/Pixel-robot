@@ -178,3 +178,11 @@ Historical sections above retain their exact original archive-time records; some
 | `runs/thermal.log` | `existing repository / P23D generated documentation or offline evidence` | 38562 | `b567ef9c0070ac32a7f6236e1316b3e191be2b65a501f036b8bf48f7bca80a67` |
 | `test_coresidency.py` | `existing repository / P23D generated documentation or offline evidence` | 49598 | `bbeea8c7bb503fd3585a09b7d987d00d0e4d48927c1bbf80d60298a7337de0d9` |
 | `test_oneshot.sh` | `existing repository / P23D generated documentation or offline evidence` | 8056 | `bccd170dfe71bccdb316aaf86b555defed3bf528dfaef9b854d231c7289f4e19` |
+
+## P23E current inventory
+
+Payload files only; manifests and current check outputs are hashed by the frozen manifest or external review evidence.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `P23E docs or offline evidence` | 7687 | `a23c924c5bfc8846fee032e2638597bd20bc732304c22d5083f8b5f524db2e84` |

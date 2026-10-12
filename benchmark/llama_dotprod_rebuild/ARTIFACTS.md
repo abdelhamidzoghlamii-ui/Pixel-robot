@@ -191,3 +191,11 @@ Historical sections above retain their exact original archive-time records; some
 | `checks/voice_warm.py` | `existing repository / P23D generated documentation or offline evidence` | 1379 | `cf0b8df14d0e15104f988c19aa104f91fd35ca4f476c3efef831731a8a8f4644` |
 | `checks/voice_warm.stderr.txt` | `existing repository / P23D generated documentation or offline evidence` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
 | `reports/CODER_REPORT_llama_dotprod_rebuild.md` | `existing repository / P23D generated documentation or offline evidence` | 10546 | `36eacedffac6f75e6fad7cfc59e874bbdbbf4baaa7b3314c960451ae7c73814f` |
+
+## P23E current inventory
+
+Payload files only; manifests and current check outputs are hashed by the frozen manifest or external review evidence.
+
+| Archive path | Source | Bytes | SHA-256 |
+|---|---|---:|---|
+| `README.md` | `P23E docs or offline evidence` | 4234 | `e74162417626d0dbaa5d48b394275dec5e98bc97d227d7a1516836d369bba609` |

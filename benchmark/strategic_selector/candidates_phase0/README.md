@@ -46,4 +46,4 @@ No weights, ONNX graphs, venvs or HF caches are archived. [ARTIFACTS.md](ARTIFAC
 
 ## Rerun command and raw-data location
 
-Rerun command: UNVERIFIED: no single command identified in [existing instructions](README.md). Owner hardware gates in the cited instructions still apply. Raw data: UNVERIFIED; consult the existing evidence paths in [RUN_INDEX.md](RUN_INDEX.md); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.
+Rerun command: UNVERIFIED — scripts present: raw/run_smoke.py, raw/laya0320/smoke_laya.py, raw/laya-micro/smoke_micro.py, raw/laya-micro/shape_timing.py, raw/s1o/smoke_s1o.py; exact invocation not documented. Owner hardware gates in the cited instructions still apply. Raw data: UNVERIFIED; consult the existing evidence paths in [RUN_INDEX.md](RUN_INDEX.md); hashes: [ARTIFACTS.md](ARTIFACTS.md). P23D performed no hardware rerun.
