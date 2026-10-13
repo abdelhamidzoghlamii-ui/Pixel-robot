@@ -8,6 +8,23 @@ from unittest.mock import Mock, patch
 import run_mission
 
 
+def fake_heat(events, failure=None):
+    """HeatControl/HeatMonitor stand-ins for run_mission.heat_control; no su."""
+    class Heat:
+        def __init__(self, monitor):
+            assert monitor == 'monitor'
+
+        def start(self):
+            events.append('heat_start')
+            if failure == 'heat':
+                raise RuntimeError('no root')
+
+        def stop(self):
+            events.append('heat_stop')
+
+    return SimpleNamespace(HeatControl=Heat, HeatMonitor=lambda: 'monitor')
+
+
 class MissionExitTest(unittest.TestCase):
     def run_dry(self, failure, signum=None):
         events = []
@@ -37,8 +54,9 @@ class MissionExitTest(unittest.TestCase):
                 if failure == 'start':
                     raise RuntimeError('start failed')
 
-            def run_mission(self, mission):
+            def run_mission(self, mission, heat):
                 events.append('run')
+                assert heat is not None
                 if signum:
                     handlers[signum](signum, None)
                 if failure == 'run':
@@ -50,7 +68,7 @@ class MissionExitTest(unittest.TestCase):
         with patch.object(run_mission.R, 'Robot', Robot), patch.object(
                 run_mission.signal, 'signal', side_effect=register), patch.object(
                 run_mission.R, 'warm_up', side_effect=AssertionError('dry warmup')), patch.dict(
-                sys.modules, {'motors': None}):
+                sys.modules, {'motors': None}), patch.object(run_mission, 'heat_control', fake_heat(events, failure)):
             if signum:
                 with self.assertRaises(SystemExit):
                     run_mission.main(['--dry'])
@@ -60,14 +78,17 @@ class MissionExitTest(unittest.TestCase):
         return events
 
     def test_stop_camera_on_start_and_run_failure(self):
-        self.assertEqual(self.run_dry('start'), ['start', 'stop_camera'])
-        self.assertEqual(self.run_dry('run'), ['start', 'run', 'stop_camera'])
+        self.assertEqual(self.run_dry('start'), ['heat_start', 'start', 'stop_camera', 'heat_stop'])
+        self.assertEqual(self.run_dry('run'), ['heat_start', 'start', 'run', 'stop_camera', 'heat_stop'])
+
+    def test_heat_start_failure_never_starts_camera_or_mission(self):
+        self.assertEqual(self.run_dry('heat'), ['heat_start', 'stop_camera', 'heat_stop'])
 
     def test_sigterm_and_sighup_stop_camera(self):
         for signum in (signal.SIGTERM, signal.SIGHUP):
             with self.subTest(signum=signum):
                 self.assertEqual(self.run_dry(None, signum),
-                                 ['start', 'run', 'stop_camera'])
+                                 ['heat_start', 'start', 'run', 'stop_camera', 'heat_stop'])
 
     def test_motor_stop_precedes_camera_stop(self):
         events = []
@@ -86,15 +107,17 @@ class MissionExitTest(unittest.TestCase):
                 self.last_moves = []
 
             def start_camera(self): pass
-            def run_mission(self, mission): raise RuntimeError('run failed')
+            def run_mission(self, mission, heat): raise RuntimeError('run failed')
             def stop_camera(self): events.append('camera_stop')
 
         with patch.dict(sys.modules, {'motors': SimpleNamespace(Motors=Motors)}), patch.object(
                 run_mission.R, 'Robot', Robot), patch.object(run_mission.R, 'warm_up'), patch.object(
-                run_mission.signal, 'signal'), patch.object(run_mission.time, 'sleep'):
+                run_mission.signal, 'signal'), patch.object(run_mission.time, 'sleep'), patch.object(
+                run_mission, 'heat_control', fake_heat(events)):
             with self.assertRaises(RuntimeError):
                 run_mission.main([])
-        self.assertEqual(events, ['connect', 'motor_stop', 'camera_stop', 'disconnect'])
+        self.assertEqual(events, ['connect', 'heat_start', 'motor_stop', 'camera_stop', 'heat_stop',
+                                  'disconnect'])
 
 
 if __name__ == '__main__':

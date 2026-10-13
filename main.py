@@ -5,6 +5,7 @@ from detect_person import get_detector, detect_scene, scene_from_detections, sce
 from detector_size_policy import SizePolicy
 from robotcam_reader import read_frame
 from stereo_depth import stereo_scan, scene_with_depth, estimate_distance_single
+from heat_control import PAUSE_FORWARD_SPEED
 
 HOME    = '/data/data/com.termux/files/home'
 PHOTO_A = HOME + '/robot_photo_a.jpg'
@@ -19,15 +20,6 @@ CYCLE_MOVE_TIME  = 1.5   # seconds per move
 CAMERA_SOURCE    = 'robotcam'  # 'termux_photo' is the rollback source
 LARGE_FRAME_INTERVAL_S = 5
 PERSON_HEIGHT_FRACTION = 1/3
-
-# ── Thermal ───────────────────────────────────────────
-def get_temp():
-    try:
-        return int(os.popen('su -c "cat /sys/class/thermal/thermal_zone9/temp"').read().strip()) // 1000
-    except KeyboardInterrupt:
-        raise
-    except Exception:
-        return 0
 
 # ── Camera ────────────────────────────────────────────
 def take_photo(path):
@@ -198,6 +190,7 @@ class Robot:
         self.known_rooms = {}
         self.running     = False
         self.state       = 'idle'  # idle / navigating / searching / found
+        self.heat_text   = 'heat n/a'  # skin/status for the cycle print, set by run_mission
 
     def start_camera(self):
         self.detector = get_detector()  # shared by detect_scene and the robot loop
@@ -225,10 +218,10 @@ class Robot:
                            check=True, timeout=5, stdin=subprocess.DEVNULL,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    def move(self, cmd, duration=CYCLE_MOVE_TIME):
+    def move(self, cmd, duration=CYCLE_MOVE_TIME, speed=MOTOR_SPEED):
         print(f'  [MOTOR] {cmd}')
         if self.motors:
-            if cmd == 'FORWARD':  self.motors.forward(MOTOR_SPEED, duration)
+            if cmd == 'FORWARD':  self.motors.forward(speed, duration)
             elif cmd == 'LEFT':   self.motors.rotate_left(120, duration)
             elif cmd == 'RIGHT':  self.motors.rotate_right(120, duration)
             elif cmd == 'BACK':   self.motors.backward(MOTOR_SPEED, duration)
@@ -347,9 +340,8 @@ class Robot:
 
     def run_cycle(self, photo_path=None):
         self.cycle += 1
-        temp = get_temp()
         distance = self.get_distance()
-        print(f'\n── Cycle {self.cycle} | {temp}°C | dist:{distance}cm ──')
+        print(f'\n── Cycle {self.cycle} | {self.heat_text} | dist:{distance}cm ──')
 
         # Vision: every cycle must have a fresh usable frame before any movement.
         if photo_path:
@@ -409,22 +401,69 @@ class Robot:
 
         return move
 
-    def run_mission(self, mission_text):
-        """Run until mission complete or stopped."""
+    def pause_cycle(self):
+        """Planned heat pause (#129): camera off, no YOLO; ultrasonic-only rules."""
+        self.cycle += 1
+        distance = self.get_distance()
+        print(f'\n── Pause cycle {self.cycle} | {self.heat_text} | dist:{distance}cm ──')
+        if distance == 999:     # stale or no reading: never drive blind, rotate in place
+            move = getattr(self, 'avoid_side', 'LEFT')
+        else:
+            move = self.navigate_rules([], distance)
+        print(f'  [NAV] {move}')
+        if move != 'STOP':
+            self.move(move, speed=PAUSE_FORWARD_SPEED)  # speed applies to FORWARD only
+        else:
+            print('  [STOP] Mission complete or waiting')
+            self.state = 'found'
+        return move
+
+    def run_mission(self, mission_text, heat=None):
+        """Run until mission complete or stopped, under heat control (#127, #129).
+        heat: a started heat_control.HeatControl; the camera is already on (ACTIVE)."""
+        if heat is None:
+            raise ValueError('run_mission needs heat control (heat_control.HeatControl)')
         self.mission = mission_text
         self.state = 'navigating'
         self.running = True
         print(f'\n[ROBOT] Mission: {mission_text}')
 
         while self.running and self.state != 'found':
-            # Thermal protection
-            if get_temp() > 80:
-                print('[THERMAL] Too hot, pausing 5s...')
-                if self.motors: self.motors.stop()
-                time.sleep(5)
-                continue
+            target, reason = heat.decide(self.get_distance())
+            self.heat_text = heat.summary()
+            if target == 'END':
+                print(f'[HEAT] END: {reason}')
+                break
+            if target != heat.phase:
+                print(f'[HEAT] {heat.phase} -> {target}: {reason}')
+                if heat.phase == 'ACTIVE':      # into PAUSE or HOLD: camera off, detector stays loaded
+                    if self.motors: self.motors.stop()
+                    try:
+                        self.stop_camera()
+                    except Exception as exc:
+                        print(f'[CAM] stop failed: {exc} — mission ends')
+                        heat.event('camera_stop_fail', str(exc))
+                        break
+                    heat.event('camera_stop_ok')
+                    heat.enter(target, since=heat.now())
+                elif target == 'ACTIVE':
+                    started = heat.now()
+                    try:
+                        self.start_camera()     # resets the frame counter and session
+                    except Exception as exc:
+                        print(f'[CAM] start failed: {exc} — mission ends')
+                        heat.event('camera_start_fail', str(exc))
+                        break
+                    heat.event('camera_start_ok')
+                    heat.enter('ACTIVE', since=started)
+                else:                           # PAUSE <-> HOLD; camera already off
+                    heat.enter(target)
 
-            move = self.run_cycle()
+            if heat.phase == 'HOLD':
+                if self.motors: self.motors.stop()
+                time.sleep(1)
+                continue
+            move = self.run_cycle() if heat.phase == 'ACTIVE' else self.pause_cycle()
 
             if move == 'STOP':
                 break

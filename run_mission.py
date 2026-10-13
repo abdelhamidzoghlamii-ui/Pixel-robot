@@ -5,6 +5,7 @@ import time
 
 sys.path.insert(0, '/data/data/com.termux/files/home/robot')
 import main as R
+import heat_control
 
 
 def exit_on_signal(signum, frame):
@@ -23,6 +24,7 @@ def main(argv=None):
     signal.signal(signal.SIGHUP, exit_on_signal)
     motors = None
     robot = None
+    heat = None
     try:
         if not dry:
             from motors import Motors
@@ -34,12 +36,14 @@ def main(argv=None):
         robot = R.Robot(motors, camera_source=camera_source)
         if person_search:
             robot.size_policy.set_mode('person_search')
+        heat = heat_control.HeatControl(heat_control.HeatMonitor())
+        heat.start()  # raises without root or a first complete reading: mission not started
         robot.start_camera()
         if not dry:
             R.warm_up()
         print(f"\nmission: {mission}{'   [DRY — no motor commands]' if dry else ''}")
         print('ctrl-C to stop\n')
-        robot.run_mission(mission)
+        robot.run_mission(mission, heat=heat)
     except KeyboardInterrupt:
         print('\ninterrupted')
     finally:
@@ -56,6 +60,11 @@ def main(argv=None):
                 robot.stop_camera()
             except Exception as exc:
                 cleanup_errors.append(f'[CAM] stop failed: {exc}')
+        if heat:
+            try:
+                heat.stop()
+            except Exception as exc:
+                cleanup_errors.append(f'[HEAT] stop failed: {exc}')
         if motors:
             try:
                 motors.disconnect()
