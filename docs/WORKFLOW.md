@@ -150,49 +150,104 @@ or exit the current agent first. Native Termux's repository and
 
 User-provided environment evidence: official `@openai/codex` 0.153.4 via npm (0.157.0 observed 2026-09-25) with
 Node 20.19.2/npm 9.2.0, launcher `/usr/local/bin/codex`; AGY at
-`/root/.local/bin/agy`, version 1.1.27 (1.2.10 reported by the Coder 2026-09-25); Claude previously ran in Debian. AGY
-started successfully on this Pixel, so it is not categorically unsupported.
+`/root/.local/bin/agy`, version 1.1.27 (1.2.10 reported by the Coder 2026-09-25;
+1.3.3 observed 2026-10-13, binary dated 2026-10-12). AGY updates itself; its
+updater status is in `/root/.gemini/antigravity-cli/updater/update_status.json`.
+Claude previously ran in Debian. AGY started successfully on this Pixel, so it is
+not categorically unsupported.
 
 ## AGY headless reviewer
 
-Installed model evidence: `agy models` lists
-`gemini-3.1-pro-high  Gemini 3.1 Pro (High)`. The authorized smoke call:
+Facts observed on this phone during task HEAT-A (2026-10-13, AGY 1.3.3, Coder
+evidence in `/termux-home/review/heat_a/`). Earlier text in this section claimed
+otherwise; these observations replace it.
+
+**Models change on Google's side.** `gemini-3.1-pro-high` was withdrawn
+server-side between 2026-10-12 21:22 and 2026-10-13 04:27 UTC with the same
+binary and account; `--model gemini-3.1-pro-high` now fails as "not recognized".
+A settings.json model label naming a withdrawn model is silently remapped (the
+log showed "Gemini 3.1 Pro (High)" resolved to "Gemini 3.8 Flash (High)"), so a
+session can run on a different model without any error. `agy models` on
+2026-10-13 listed: `gemini-3.8-flash-high|medium|low`,
+`claude-opus-5-5-low|medium|high`, `claude-sonnet-5-5-low|medium|high`,
+`gpt-oss-120b-medium`. The `claude-*` entries are the same model family as a
+Claude Code Coder. Before every AGY review: run `agy models`, pass `--model`
+explicitly with the exact id from the EXECUTION PROFILE, run the smoke call
+below with that id, and confirm the model label in the AGY log afterwards.
+A missing model is an INCOMPLETE round; a replacement reviewer needs an owner
+decision and a new profile.
+
+Smoke call (substitute the profile's model id):
 ```bash
 agy -p 'Reply exactly: REVIEW_SMOKE_PASS. Do not inspect files, run commands, call tools, or make changes.' \
-  --model gemini-3.1-pro-high --output-format json --sandbox --print-timeout 2m
+  --model "$AGY_MODEL" --output-format json --sandbox --print-timeout 2m
 ```
-returned `{"status":"SUCCESS","response":"REVIEW_SMOKE_PASS\n"}`.
-The concrete invocation pattern, when a task assigns an AGY reviewer (use the
-exact model id from that task's EXECUTION PROFILE):
+It must return `{"status":"SUCCESS","response":"REVIEW_SMOKE_PASS\n"}`.
+Review invocation, run from inside the isolated copy:
 ```bash
 agy -p "$REVIEW_REQUEST" --model "$AGY_MODEL" \
   --output-format json --sandbox --print-timeout 10m
 ```
-`$REVIEW_REQUEST` contains the frozen task, base, complete diff including new
-files, source context, check output, no-mutation rules, and a final-review request.
-Preserve stdout as the complete JSON review and stderr as separate diagnostics. It
-is a direct Coder action, not an executable helper.
+`$REVIEW_REQUEST` (keep it under 100 KB; put the diff, context and check output
+as files in the copy and name them) contains the frozen task, base, no-mutation
+rules and a final-review request. Preserve stdout as the complete JSON review
+and stderr as separate diagnostics. It is a direct Coder action, not an
+executable helper.
 
-Official [AGY headless](https://antigravity.google/docs/cli/headless/) documentation
-says headless workspace reads and writes are auto-allowed by default. A prompt
-alone is therefore not an enforced read-only boundary. `--sandbox` was smoke-tested,
-but sandboxed workspace paths remain writable when permissions allow. Never use
+**The shared settings are not neutral.** `/root/.gemini/antigravity-cli/settings.json`
+(observed 2026-10-13) has `artifactReviewPolicy: always-proceed`,
+`allowNonWorkspaceAccess: true`, 36 command allow entries (including
+`git commit` and `git push origin main`), empty deny and ask lists, and trusted
+workspaces `/termux-home/robot`, `/termux-home/laya-test` and `/root`. It was
+rewritten at 2026-10-13 04:58:50 UTC by a process that is not identified.
+Allow-listed commands run without asking, also in headless mode.
+
+**Commands in headless mode.** Nobody can approve a prompt in headless mode, so
+commands that are not allow-listed do not run. Allow-listed commands do run.
+**`--sandbox` does not confine them in proot:** in HEAT-A round 3 the reviewer
+reported that the terminal sandbox failed (`fork/exec /root/.local/bin/agy:
+operation not permitted`) and that the allow-listed commands were re-run with the
+sandbox bypassed; nobody approved anything and `--dangerously-skip-permissions`
+was not used. The commands did run: their results matched the Coder's, and in
+round 2 they left `.pyc` files in the copy. Headless workspace reads
+and writes are also auto-allowed by default (official
+[headless](https://antigravity.google/docs/cli/headless/) documentation). A
+prompt is therefore never a read-only boundary. Never use
 `--dangerously-skip-permissions`.
 
-A true read-only reviewer needs a dedicated AGY configuration or OS account, not
-the shared Doc Keeper configuration. Its `settings.json` must use strict,
+**Procedure that produced a valid review (HEAT-A round 3, owner-approved):**
+1. No other AGY session runs while the overlay below is in place.
+2. Back up settings.json and record its SHA-256.
+3. Temporary overlay: allow entries for exactly the check commands the reviewer
+   must rerun (absolute interpreter path), and `"deny": ["command(git*)"]`.
+   No wildcard interpreter allow. Deny precedes ask precedes allow
+   ([permissions](https://antigravity.google/docs/cli/permissions/)).
+4. Isolated copy: tracked files plus new candidate files, without `.git` and
+   ignored files; check free space first.
+5. Before and after the call: SHA-256 of every file in the copy and in the live
+   tree (except `.git/`), `git rev-parse HEAD origin/main`,
+   `git ls-remote origin refs/heads/main`, `git stash list`,
+   `git status --porcelain=v1 -uall --ignored`, and the settings.json hash.
+   Any difference makes the round INVALID.
+6. Checks the reviewer runs must write nothing: `python -B -m py_compile` still
+   writes `.pyc` files; use `compile()` instead.
+7. The reviewer states each file's line count and quotes the exact code line for
+   every file:line it cites. The Coder verifies every citation against the copy;
+   a citation to a missing or different line makes the round INVALID (HEAT-A
+   round 2 cited lines past the end of a file).
+8. Restore settings.json from the backup right after the call and verify the hash.
+
+A true read-only reviewer still needs a dedicated AGY configuration or OS
+account, not the shared configuration. Its `settings.json` would use strict,
 sandboxed permissions and deny mutation tools:
 ```json
 {"enableTerminalSandbox":true,"toolPermission":"strict","permissions":{"deny":["write_file(*)","command(*)","mcp(*)","execute_url(*)"]}}
 ```
-Official permission precedence is deny before ask before allow. The current shared
-AGY settings have only a chosen model and trusted workspace, so this dedicated
-deny policy is not provisioned or tested; do not add it globally because it would
-block Doc Keeper. Until a separate setup is tested, review an isolated copy of the
-exact frozen candidate to protect the live worktree. Isolation is not an enforced
-read-only sandbox. Authentication, quota, model, or permission failures mean
-incomplete review, never a pass. Sources: [permissions](https://antigravity.google/docs/cli/permissions/)
-and [sandbox](https://antigravity.google/docs/cli/sandbox/).
+This dedicated policy is not provisioned or tested; do not add it to the shared
+settings, because it would block other AGY role sessions. Authentication, quota,
+model, or permission failures mean incomplete review, never a pass. Sources:
+[permissions](https://antigravity.google/docs/cli/permissions/) and
+[sandbox](https://antigravity.google/docs/cli/sandbox/).
 
 ## GitHub access verified
 
