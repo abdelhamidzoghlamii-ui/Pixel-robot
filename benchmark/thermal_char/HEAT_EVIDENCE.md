@@ -179,3 +179,11 @@ command grep -rn --binary-files=text -i --exclude-dir=.git -- "$p" . | wc -l
 297 files matched at least one pattern; each was assigned to a row above or to "Other hits". The docs were searched
 with the same patterns plus `z9`, `hot`, `throttl` and bare `NN C`. The phone-only folders (`/…/home/coresidency/`,
 `/…/home/thermal_char/`, `/…/home/ladder/camera_heat_*`) were read directly.
+
+## HEAT-A motors-off dry run (appended by ARCHIVE-DRYRUN1)
+
+Labels only; the numbers are in the run's [report](../heat_control/dryrun1/DRYRUN1_REPORT.md).
+
+| Path | Date | What it measured | Sensor | Status | Reason |
+|---|---|---|---|---|---|
+| `heat_control/dryrun1/heat_trace_20261013T072747Z.jsonl` | 2026-10-13 | HEAT-A adaptive 37/35 °C heat control during `run_mission.py --dry` (motors off), 5 s dumpsys rows | VIRTUAL-SKIN (`skin_c`), Android thermal status (`status`); also `battery_c`, `cpu_max_c` | **VALID** (VIRTUAL-SKIN, Android status); `cpu_max_c` **NOT TRUSTED** as a heat state | heat state judged from skin and status; `cpu_max_c` is a CPU-zone fault-check value only; `battery_c` is battery temperature |
