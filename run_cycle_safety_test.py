@@ -58,7 +58,7 @@ def isolated_robot(distance, now=100.0):
     """A Robot whose every external operation is faked or forbidden."""
     R = load_robot_module()
     R.time = SimpleNamespace(time=Mock(return_value=now),
-                             sleep=Mock(side_effect=forbidden))
+                             sleep=Mock(side_effect=forbidden), perf_counter=Mock(return_value=0.0))
     R.os = SimpleNamespace(system=forbidden, popen=forbidden)
     R.get_temp = Mock(return_value=35)
     R.detect_scene = Mock(return_value=[])
@@ -166,7 +166,7 @@ class RunCycleSafetyTest(unittest.TestCase):
     def test_vision_exception_stops_motors(self):
         R, motors, robot = isolated_robot(distance=400)
         robot.camera_source = 'robotcam'
-        R.read_frame = Mock(return_value={'status': 'ok', 'session': 'abc', 'frame': 1,
+        R.read_frame = Mock(return_value={'status': 'ok', 'session': 'abc', 'frame': 1, 'age_s': 0.4,
                                           'image': SimpleNamespace(height=480, size=(640, 480))})
         R.get_detector = Mock(return_value=SimpleNamespace(
             detect=Mock(side_effect=Exception('inference failure'))))
@@ -176,7 +176,7 @@ class RunCycleSafetyTest(unittest.TestCase):
     def test_start_camera_pins_new_frame(self):
         R, motors, robot = isolated_robot(distance=400)
         robot.camera_source = 'robotcam'
-        R.get_detector = Mock(return_value=object())
+        R.get_detector = Mock(return_value=SimpleNamespace(check_affinity=Mock(return_value={'ok': True})))
         R.time = SimpleNamespace(clock_gettime=Mock(return_value=100.0),
                                  CLOCK_BOOTTIME=7, monotonic=Mock(side_effect=[0, 0, 1]),
                                  sleep=Mock())
@@ -189,7 +189,19 @@ class RunCycleSafetyTest(unittest.TestCase):
         self.assertEqual(R.read_frame.call_count, 2)
         R.read_frame.assert_called_with(min_capture_boot_s=100.0)
         self.assertEqual(am.call_args.args[0][0:2], ['am', 'start'])
+        self.assertEqual(am.call_args.args[0][-6:], ['--es', 'mode', 'B', '--ei', 'rate', '1'])
         self.assertEqual(am.call_args.kwargs['timeout'], 10)
+        R.get_detector.assert_called_once_with(pinned=True)
+
+    def test_detector_creation_failure_never_starts_camera(self):
+        R, motors, robot = isolated_robot(distance=400)
+        robot.camera_source = 'robotcam'
+        R.get_detector = Mock(side_effect=RuntimeError('cannot identify ORT workers'))
+        with patch.object(R.subprocess, 'run') as am:
+            with self.assertRaises(RuntimeError):
+                robot.start_camera()
+        am.assert_not_called()
+        self.assertIsNone(robot.detector)
 
     def test_robotcam_cycle_uses_pinned_session(self):
         R, motors, robot = isolated_robot(distance=400)
@@ -197,7 +209,7 @@ class RunCycleSafetyTest(unittest.TestCase):
         robot.camera_session = 'abc'
         frame = SimpleNamespace(height=480, size=(640, 480))
         R.read_frame = Mock(return_value={'status': 'ok', 'session': 'abc',
-                                          'frame': 1, 'image': frame})
+                                          'frame': 1, 'age_s': 0.4, 'image': frame})
         detector = SimpleNamespace(detect=Mock(return_value=[]))
         R.get_detector = Mock(return_value=detector)
         R.scene_from_detections = Mock(return_value=[])
@@ -213,8 +225,8 @@ class RunCycleSafetyTest(unittest.TestCase):
                 robot.camera_source = 'robotcam'
                 frame = SimpleNamespace(height=480, size=(640, 480))
                 R.read_frame = Mock(side_effect=[
-                    {'status': 'ok', 'session': 'abc', 'frame': 2, 'image': frame},
-                    {'status': 'ok', 'session': 'abc', 'frame': next_frame, 'image': frame}])
+                    {'status': 'ok', 'session': 'abc', 'frame': 2, 'age_s': 0.4, 'image': frame},
+                    {'status': 'ok', 'session': 'abc', 'frame': next_frame, 'age_s': 0.4, 'image': frame}])
                 detector = SimpleNamespace(detect=Mock(return_value=[]))
                 R.get_detector = Mock(return_value=detector)
                 R.scene_from_detections = Mock(return_value=[])

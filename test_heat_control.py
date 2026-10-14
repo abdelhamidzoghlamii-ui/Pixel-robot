@@ -150,10 +150,16 @@ class MissionTest(unittest.TestCase):
         self.addCleanup(self.dir.cleanup)
         R, motors, robot = isolated_robot(distance=400)
         robot.camera_source = 'robotcam'
+        ticks = iter(range(10**6))  # perf_counter: +0.1 s per call, so each detect takes 100 ms
         R.time = SimpleNamespace(time=Mock(return_value=100.0), sleep=Mock(), monotonic=Mock(return_value=0.0),
-                                 clock_gettime=Mock(return_value=0.0), CLOCK_BOOTTIME=7)
+                                 clock_gettime=Mock(return_value=0.0), CLOCK_BOOTTIME=7,
+                                 perf_counter=lambda: next(ticks) / 10)
         R.subprocess = SimpleNamespace(DEVNULL=subprocess.DEVNULL, run=Mock(side_effect=self.am))
-        self.detector = SimpleNamespace(detect=Mock(return_value=[]))
+        self.am_args = []
+        self.affinity = {'before': {7: [4, 5]}, 'repinned': [], 'after': {7: [4, 5]}, 'ok': True, 'errors': {}}
+        self.detector = SimpleNamespace(detect=Mock(return_value=[]), check_affinity=Mock(side_effect=lambda: self.affinity),
+                                        affinity=Mock(return_value={7: [4, 5], 8: [4, 5], 9: [4, 5]}),
+                                        config=Mock(return_value={'ort_version': '1.25.1', 'caller_tid': 7}))
         R.get_detector = Mock(return_value=self.detector)
         R.scene_from_detections = Mock(return_value=[])
         self.frames = [50]
@@ -170,6 +176,7 @@ class MissionTest(unittest.TestCase):
             self.heat.start()
 
     def am(self, args, **kw):
+        self.am_args.append(args)
         self.motors.actions.append(('am', args[1]))
         if args[1] == self.am_fail:
             raise subprocess.CalledProcessError(1, args)
@@ -177,7 +184,7 @@ class MissionTest(unittest.TestCase):
     def read_frame(self, session=None, min_capture_boot_s=None):
         if min_capture_boot_s is not None:  # start_camera waiting for its first frame
             return {'status': 'ok', 'session': 's2'}
-        return {'status': 'ok', 'session': session, 'frame': self.frames.pop(0),
+        return {'status': 'ok', 'session': session, 'frame': self.frames.pop(0), 'age_s': 0.5,
                 'image': SimpleNamespace(height=480, size=(640, 480))}
 
     def run_script(self, steps):
@@ -223,14 +230,16 @@ class MissionTest(unittest.TestCase):
             ('forward', (R.MOTOR_SPEED, R.CYCLE_MOVE_TIME)),
             ('stop', ())])
         self.robot.stop_camera.assert_called_once_with()
-        self.robot.start_camera.assert_called_once_with()
+        self.robot.start_camera.assert_called_once_with(self.heat)
         self.assertEqual(self.detector.detect.call_count, 2)  # only the two ACTIVE cycles
         self.assertEqual((self.robot.camera_session, self.robot.camera_frame), ('s2', 1))
         self.assertEqual(self.robot.last_moves, ['FORWARD', 'FORWARD', 'STRAFE_LEFT', 'LEFT', 'FORWARD'])
         events = [(r['event'], r['phase']) for r in self.trace()]
-        self.assertEqual(events, [('start', 'ACTIVE'), ('camera_stop_ok', 'ACTIVE'), ('phase_change', 'PAUSE'),
-                                  ('camera_start_ok', 'PAUSE'), ('phase_change', 'ACTIVE'), ('end', 'ACTIVE')])
-        row = self.trace()[2]
+        self.assertEqual(events, [('start', 'ACTIVE'), ('camera_stop_ok', 'ACTIVE'), ('active_slot', 'ACTIVE'),
+                                  ('phase_change', 'PAUSE'), ('detector_affinity', 'PAUSE'),
+                                  ('camera_start_ok', 'PAUSE'), ('phase_change', 'ACTIVE'), ('end', 'ACTIVE'),
+                                  ('active_slot', 'ACTIVE')])
+        row = self.trace()[3]
         self.assertEqual(set(row), {'t_mono', 't_utc', 'event', 'phase', 'status', 'skin_c', 'battery_c',
                                     'cpu_max_c', 'distance_cm', 'detail'})
         self.assertEqual((row['t_mono'], row['skin_c'], row['distance_cm']), (61, 37.0, 400))
@@ -268,8 +277,8 @@ class MissionTest(unittest.TestCase):
             ('stop', ())])
         self.assertEqual(R.time.sleep.call_args_list, [((1,),)] * 2)
         self.robot.start_camera.assert_not_called()
-        self.assertEqual([(r['event'], r['phase']) for r in self.trace()][2:5],
-                         [('hold_start', 'HOLD'), ('note', 'HOLD'), ('hold_end', 'PAUSE')])
+        self.assertEqual([(r['event'], r['phase']) for r in self.trace()][2:6],
+                         [('active_slot', 'ACTIVE'), ('hold_start', 'HOLD'), ('note', 'HOLD'), ('hold_end', 'PAUSE')])
         self.assertEqual(self.heat.state['since'], 10)  # pause timer from the camera stop, through the HOLD
 
     def test_each_end_reason_stops_motors_and_ends(self):
@@ -282,9 +291,95 @@ class MissionTest(unittest.TestCase):
                 self.monitor.readings = fake
                 self.run_script([])
                 self.assertEqual(self.motors.actions, [('stop', ())])
-                self.assertEqual(self.trace()[-1]['event'], 'end')
-                self.assertIn(words, self.trace()[-1]['detail'])
+                self.assertEqual([r['event'] for r in self.trace()][-2:], ['end', 'active_slot'])
+                self.assertIn(words, self.trace()[-2]['detail'])
                 self.detector.detect.assert_not_called()
+
+    def test_camera_rate_1_and_detector_trace(self):
+        """First start (as run_mission.py does) and a PAUSE -> ACTIVE restart: rate 1 and the detector lines."""
+        with patch('builtins.print'):
+            self.robot.start_camera(self.heat)
+        self.R.get_detector.assert_called_with(pinned=True)
+        self.robot.camera_frame = 49
+        self.frames = [50, 51, 52, 1, 1]
+        self.robot.size_policy.last_large = -100  # first cycle uses 640, then 320 (SizePolicy's real clock)
+        self.run_script([
+            (0, (0, 36.0, 30, 60), 400), (1, (0, 36.0, 30, 60), 400), (2, (0, 36.0, 30, 60), 400),
+            (61, (0, 37.0, 30, 60), 400),     # -> PAUSE: one active_slot
+            (91, (0, 35.0, 30, 60), 400),     # -> ACTIVE: restart, frame 1
+            (92, (0, 35.0, 30, 60), 400),     # frame 1 again: fail-closed 'no new' stop ends the mission
+        ])
+        starts = [a for a in self.am_args if a[1] == 'start']
+        self.assertEqual(len(starts), 2)
+        for a in starts:
+            self.assertEqual(a[-6:], ['--es', 'mode', 'B', '--ei', 'rate', '1'])
+        rows = self.trace()
+        self.assertEqual([r['event'] for r in rows if r['event'].startswith(('detector', 'active'))],
+                         ['detector_config', 'detector_affinity', 'active_slot', 'detector_affinity', 'active_slot'])
+        config = next(r for r in rows if r['event'] == 'detector_config')['detail']
+        self.assertEqual(config, {'ort_version': '1.25.1', 'caller_tid': 7, 'camera_rate': 1})
+        affinity = next(r for r in rows if r['event'] == 'detector_affinity')['detail']
+        self.assertEqual(set(affinity), {'before', 'repinned', 'after', 'ok', 'errors'})
+        first, last = [r['detail'] for r in rows if r['event'] == 'active_slot']
+        self.assertEqual(set(first), {'cycles', 'frames', 'detections', 'detect_ms', 'age_s', 'camera_stops',
+                                      'affinity'})
+        self.assertEqual((first['cycles'], first['frames'], first['detections']), (3, 3, {'320': 2, '640': 1}))
+        self.assertEqual(first['detect_ms'], {'320': {'median': 100.0, 'max': 100.0},
+                                              '640': {'median': 100.0, 'max': 100.0}})
+        self.assertEqual((first['age_s'], first['camera_stops']), ({'median': 0.5, 'max': 0.5}, {}))
+        self.assertEqual(first['affinity'], {'7': [4, 5], '8': [4, 5], '9': [4, 5]})
+        self.assertEqual((last['cycles'], last['frames'], last['camera_stops']), (2, 1, {'no new': 1}))
+        self.assertEqual(self.detector.check_affinity.call_count, 2)
+        self.assertEqual(self.detector.config.call_count, 1)
+
+    def test_failed_repin_is_logged_and_mission_continues(self):
+        self.affinity = {'before': {7: [0, 1, 2, 3]}, 'repinned': [7], 'after': {7: [0, 1, 2, 3]}, 'ok': False,
+                         'errors': {7: 'OSError: [Errno 22] Invalid argument'}}
+        with patch('builtins.print') as out:
+            self.robot.start_camera(self.heat)
+        self.assertIn('affinity re-pin failed', out.call_args_list[0].args[0])
+        self.robot.camera_frame, self.frames = 49, [50, 51]
+        self.run_script([(0, (0, 36.0, 30, 60), 400), (1, (0, 36.0, 30, 60), 400)])
+        self.assertEqual(self.detector.detect.call_count, 2)  # the mission went on
+        row = next(r for r in self.trace() if r['event'] == 'detector_affinity')
+        self.assertEqual((row['detail']['ok'], row['detail']['errors']), (False, {'7': 'OSError: [Errno 22] Invalid argument'}))
+
+    def test_interrupted_active_slot_is_written_once(self):
+        """Ctrl-C, SIGTERM/SIGHUP (SystemExit via run_mission.exit_on_signal) or an error inside an ACTIVE cycle:
+        the slot line is still written, exactly once, and the exception reaches the caller."""
+        import run_mission
+
+        def keyboard(*a):
+            raise KeyboardInterrupt
+
+        def sigterm(*a):
+            run_mission.exit_on_signal(15, None)  # what SIGTERM/SIGHUP do in a mission
+
+        for exc, raiser in ((KeyboardInterrupt, keyboard), (SystemExit, sigterm), (RuntimeError, None)):
+            with self.subTest(exc=exc.__name__):
+                self.setUp()
+                self.frames = [50, 51]
+                calls = []
+
+                def detect(frame, size):
+                    calls.append(size)
+                    if len(calls) == 2 and raiser:
+                        raiser()
+                    return []
+                self.detector.detect.side_effect = detect
+                if raiser is None:  # an error outside run_cycle's vision try (not turned into STOP)
+                    self.R.scene_to_text = Mock(side_effect=['empty room', RuntimeError('boom')])
+                with self.assertRaises(exc):
+                    self.run_script([(0, (0, 36.0, 30, 60), 400), (1, (0, 36.0, 30, 60), 400)])
+                slots = [r['detail'] for r in self.trace() if r['event'] == 'active_slot']
+                self.assertEqual(len(slots), 1)
+                self.assertEqual((slots[0]['cycles'], slots[0]['frames']), (2, 2))
+
+    def test_slot_not_written_twice_when_pause_entry_fails(self):
+        self.heat.enter = Mock(side_effect=RuntimeError('enter failed'))
+        with self.assertRaises(RuntimeError):
+            self.run_script([(0, (0, 36.0, 30, 60), 400), (61, (0, 37.0, 30, 60), 400)])
+        self.assertEqual([r['event'] for r in self.trace()].count('active_slot'), 1)
 
     def test_run_mission_without_heat_raises(self):
         with self.assertRaises(ValueError):

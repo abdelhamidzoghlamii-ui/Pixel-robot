@@ -26,6 +26,9 @@ def main(argv=None):
     robot = None
     heat = None
     try:
+        # Before the motor reader and heat threads exist, so the ORT thread diff sees only ORT workers;
+        # raises (mission not started) when the workers or their affinity cannot be verified.
+        R.get_detector(pinned=True)
         if not dry:
             from motors import Motors
             motors = Motors()
@@ -38,7 +41,7 @@ def main(argv=None):
             robot.size_policy.set_mode('person_search')
         heat = heat_control.HeatControl(heat_control.HeatMonitor())
         heat.start()  # raises without root or a first complete reading: mission not started
-        robot.start_camera()
+        robot.start_camera(heat)
         if not dry:
             R.warm_up()
         print(f"\nmission: {mission}{'   [DRY — no motor commands]' if dry else ''}")

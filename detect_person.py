@@ -1,4 +1,4 @@
-import sys, os, time
+import sys, os, time, queue, threading
 import numpy as np
 import onnxruntime as ort
 from PIL import Image, ImageOps
@@ -58,12 +58,126 @@ class Detector:
                                 'size_used': size})
         return sorted(results, key=lambda d: -d['conf'])
 
+ROBOT_CPUS = {4, 5}       # MID cores (DECISIONS #128 power map)
+ROBOT_INTRA_THREADS = 2   # per session; ORT counts the calling thread as one of them
+
+
+# Copied from benchmark/power_map/power_map.py: thread_ids() (os.listdir instead of pathlib).
+def thread_ids():
+    return {int(t) for t in os.listdir(f'/proc/{os.getpid()}/task')}
+
+
+# Copied from benchmark/power_map/power_map.py: the set + verify lines of PinnedDetector.loop()/build_detector();
+# the tid 0 / main-thread refusal is added.
+def pin(tid, cpus):
+    if tid in (0, os.getpid()):  # 0 = the caller, pid = the main thread: never pinned
+        raise RuntimeError(f'refusing to pin tid {tid}')
+    os.sched_setaffinity(tid, cpus)
+    if os.sched_getaffinity(tid) != cpus:
+        raise RuntimeError(f'thread {tid} affinity did not take effect')
+
+
+class PinnedDetector:
+    """The robot's detector (#128): both yolo11s sessions with 2 intra-op / 1 inter-op threads; the 2 new ORT
+    workers and one detector-only calling thread are pinned to ROBOT_CPUS and verified. Only these 3 threads are
+    ever pinned: never the process, pid 0, the main thread or any other thread.
+    Copied from benchmark/power_map/power_map.py: build_detector() ('mid' branch) and PinnedDetector. Changed:
+    raises on any failure (no 'default' branch); each request carries its own reply queue, so a late answer can
+    never reach a later request; check_affinity()/affinity()/config() added for the robot's trace; no close()
+    (daemon thread, ends with the process)."""
+
+    def __init__(self, cpus=ROBOT_CPUS):
+        self.cpus = set(cpus)
+        before = thread_ids()  # the diff sees only ORT workers: no other code starts threads meanwhile
+        opts = ort.SessionOptions()
+        opts.intra_op_num_threads = ROBOT_INTRA_THREADS
+        opts.inter_op_num_threads = 1
+        self.detector = Detector.__new__(Detector)
+        self.detector.sessions = {size: ort.InferenceSession(path, sess_options=opts)
+                                  for size, path in MODELS.items()}
+        self.worker_tids = sorted(thread_ids() - before)
+        expected = len(MODELS) * (ROBOT_INTRA_THREADS - 1)
+        if len(self.worker_tids) != expected:
+            raise RuntimeError(f'cannot identify ORT workers: expected {expected}, got {self.worker_tids}')
+        for tid in self.worker_tids:
+            pin(tid, self.cpus)
+        self.requests, ready = queue.Queue(), queue.Queue()
+        self.thread = threading.Thread(target=self.loop, args=(ready,), daemon=True)
+        self.thread.start()
+        ok, result = ready.get()
+        if not ok:
+            self.thread.join()
+            raise result
+        self.caller_tid = result
+
+    def loop(self, ready):
+        try:
+            tid = threading.get_native_id()
+            pin(tid, self.cpus)
+            ready.put((True, tid))
+        except BaseException as e:
+            ready.put((False, e))
+            return
+        while True:
+            frame, size, reply = self.requests.get()
+            try:
+                reply.put((True, self.detector.detect(frame, size)))
+            except BaseException as e:
+                reply.put((False, e))
+
+    def detect(self, frame, size=320):
+        reply = queue.Queue()
+        self.requests.put((frame, size, reply))
+        ok, result = reply.get()
+        if not ok:
+            raise result
+        return result
+
+    def affinity(self):
+        """{tid: sorted cpus or error text} for the caller and workers; read only."""
+        live, out = thread_ids(), {}
+        for tid in [self.caller_tid] + self.worker_tids:
+            try:
+                if tid not in live:  # never touch a tid that left this process (it could be reused elsewhere)
+                    raise ProcessLookupError(f'thread {tid} is gone')
+                out[tid] = sorted(os.sched_getaffinity(tid))
+            except OSError as e:
+                out[tid] = f'{type(e).__name__}: {e}'
+        return out
+
+    def check_affinity(self):
+        """Re-pin and verify any of the 3 threads whose affinity drifted (Android cpuset changes can reset it).
+        Never raises: the result says ok or not."""
+        before = self.affinity()
+        repin = [tid for tid, cpus in before.items() if isinstance(cpus, list) and set(cpus) != self.cpus]
+        errors = {tid: cpus for tid, cpus in before.items() if isinstance(cpus, str)}
+        for tid in repin:
+            try:
+                pin(tid, self.cpus)
+            except (OSError, RuntimeError) as e:
+                errors[tid] = f'{type(e).__name__}: {e}'
+        after = self.affinity() if repin else before
+        return {'before': before, 'repinned': repin, 'after': after, 'ok': not errors, 'errors': errors}
+
+    def config(self):
+        return {'ort_version': ort.__version__,
+                'sessions': {size: {'intra_op_num_threads': s.get_session_options().intra_op_num_threads,
+                                    'inter_op_num_threads': s.get_session_options().inter_op_num_threads}
+                             for size, s in self.detector.sessions.items()},
+                'worker_tids': self.worker_tids, 'caller_tid': self.caller_tid,
+                'requested_cpus': sorted(self.cpus), 'affinity': self.affinity()}
+
+
 _detector = None
 
-def get_detector():
+def get_detector(pinned=False):
+    """Shared detector. pinned=True (the robot process) creates the PinnedDetector; later get_detector() calls,
+    e.g. from detect_scene(), then return that same one. Without pinned it is a plain Detector(), as before."""
     global _detector
     if _detector is None:
-        _detector = Detector()
+        _detector = PinnedDetector() if pinned else Detector()
+    elif pinned and not isinstance(_detector, PinnedDetector):
+        raise RuntimeError('a default detector is already loaded; the robot needs one pinned session pair')
     return _detector
 
 def iou(a, b):

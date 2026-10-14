@@ -1,4 +1,4 @@
-import sys, os, time, json, threading, requests, subprocess
+import sys, os, time, json, threading, requests, subprocess, statistics
 sys.path.insert(0, '/data/data/com.termux/files/home/robot')
 
 from detect_person import get_detector, detect_scene, scene_from_detections, scene_to_text, person_direction
@@ -18,6 +18,7 @@ STEREO_BASELINE  = 5.0   # cm — strafe for depth
 MOTOR_SPEED      = 130   # default motor speed
 CYCLE_MOVE_TIME  = 1.5   # seconds per move
 CAMERA_SOURCE    = 'robotcam'  # 'termux_photo' is the rollback source
+CAMERA_RATE      = 1     # RobotCam frames/s (DECISIONS #128 power map)
 LARGE_FRAME_INTERVAL_S = 5
 PERSON_HEIGHT_FRACTION = 1/3
 
@@ -172,6 +173,10 @@ def speak(text):
     os.system(f'termux-tts-speak "{text}" &')
 
 # ── Main Robot Class ──────────────────────────────────
+def new_slot():
+    return {'cycles': 0, 'frames': 0, 'detect_ms': {320: [], 640: []}, 'age_s': [], 'camera_stops': {},
+            'ended': False}
+
 class Robot:
     def __init__(self, motors=None, camera_source=CAMERA_SOURCE):
         self.motors      = motors
@@ -191,15 +196,29 @@ class Robot:
         self.running     = False
         self.state       = 'idle'  # idle / navigating / searching / found
         self.heat_text   = 'heat n/a'  # skin/status for the cycle print, set by run_mission
+        self.slot        = new_slot()  # numbers of the current ACTIVE phase, for the 'active_slot' trace line
 
-    def start_camera(self):
-        self.detector = get_detector()  # shared by detect_scene and the robot loop
+    def start_camera(self, heat=None):
+        """heat: the mission's HeatControl, for the detector trace lines (None: no trace)."""
+        created = self.detector is None
+        # Shared by detect_scene and the robot loop. MID cores (#128); raises before `am start` when the
+        # ORT workers or an affinity cannot be verified, so the mission does not start.
+        self.detector = get_detector(pinned=True)
+        if created and heat:
+            heat.event('detector_config', {**self.detector.config(), 'camera_rate': CAMERA_RATE})
+        # Affinity is a power setting, not a safety stop: a failed re-pin is logged and the mission continues.
+        affinity = self.detector.check_affinity()
+        if not affinity['ok']:
+            print(f"[DETECTOR] affinity re-pin failed: {affinity['errors']} — continuing")
+        if heat:
+            heat.event('detector_affinity', affinity)
+        self.slot = new_slot()
         if self.camera_source == 'robotcam':
             self.camera_session = None
             self.camera_frame = None
             started_boot_s = time.clock_gettime(time.CLOCK_BOOTTIME)
             subprocess.run(['am', 'start', '-n', 'com.pixelrobot.robotcam/.StartActivity',
-                            '--es', 'mode', 'B', '--ei', 'rate', '2'],
+                            '--es', 'mode', 'B', '--ei', 'rate', str(CAMERA_RATE)],
                            check=True, timeout=10, stdin=subprocess.DEVNULL,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             deadline = time.monotonic() + 8
@@ -340,6 +359,8 @@ class Robot:
 
     def run_cycle(self, photo_path=None):
         self.cycle += 1
+        self.slot['cycles'] += 1
+        age = None
         distance = self.get_distance()
         print(f'\n── Cycle {self.cycle} | {self.heat_text} | dist:{distance}cm ──')
 
@@ -352,11 +373,15 @@ class Robot:
                     frame_result['frame'] <= self.camera_frame):
                 reason = frame_result['status'] if frame_result['status'] != 'ok' else 'no new'
                 print(f'  [CAM] {reason} frame — stop')
+                self.slot['camera_stops'][reason] = self.slot['camera_stops'].get(reason, 0) + 1
                 if self.motors: self.motors.stop()
                 return 'STOP'
             self.camera_session = frame_result['session']
             self.camera_frame = frame_result['frame']
             frame = frame_result['image']
+            age = frame_result['age_s']
+            self.slot['frames'] += 1
+            self.slot['age_s'].append(age)
         else:
             if not take_photo(PHOTO_A):
                 print('  [CAM] Photo failed')
@@ -374,10 +399,14 @@ class Robot:
                     from PIL import Image, ImageOps
                     with Image.open(path) as source:
                         frame = ImageOps.exif_transpose(source).convert('RGB')
+                started = time.perf_counter()
                 detections = self.detector.detect(frame, size)
+                detect_ms = (time.perf_counter() - started) * 1000
+                self.slot['detect_ms'][size].append(detect_ms)
                 self.size_policy.observe(detections, frame.height)
                 results = scene_from_detections(detections, *frame.size)
-                print(f'  [YOLO] size={size} person={any(d["class_name"] == "person" for d in detections)}')
+                print(f'  [YOLO] size={size} person={any(d["class_name"] == "person" for d in detections)} '
+                      f'detect={detect_ms:.0f}ms age={"n/a" if age is None else f"{age:.2f}s"}')
         except Exception as exc:
             print(f'  [VISION] {exc} — stop')
             if self.motors: self.motors.stop()
@@ -428,48 +457,68 @@ class Robot:
         self.running = True
         print(f'\n[ROBOT] Mission: {mission_text}')
 
-        while self.running and self.state != 'found':
-            target, reason = heat.decide(self.get_distance())
-            self.heat_text = heat.summary()
-            if target == 'END':
-                print(f'[HEAT] END: {reason}')
-                break
-            if target != heat.phase:
-                print(f'[HEAT] {heat.phase} -> {target}: {reason}')
-                if heat.phase == 'ACTIVE':      # into PAUSE or HOLD: camera off, detector stays loaded
+        try:
+            while self.running and self.state != 'found':
+                target, reason = heat.decide(self.get_distance())
+                self.heat_text = heat.summary()
+                if target == 'END':
+                    print(f'[HEAT] END: {reason}')
+                    break
+                if target != heat.phase:
+                    print(f'[HEAT] {heat.phase} -> {target}: {reason}')
+                    if heat.phase == 'ACTIVE':      # into PAUSE or HOLD: camera off, detector stays loaded
+                        if self.motors: self.motors.stop()
+                        try:
+                            self.stop_camera()
+                        except Exception as exc:
+                            print(f'[CAM] stop failed: {exc} — mission ends')
+                            heat.event('camera_stop_fail', str(exc))
+                            break
+                        heat.event('camera_stop_ok')
+                        self.end_slot(heat)
+                        heat.enter(target, since=heat.now())
+                    elif target == 'ACTIVE':
+                        started = heat.now()
+                        try:
+                            self.start_camera(heat)  # resets the frame counter, session and slot numbers
+                        except Exception as exc:
+                            print(f'[CAM] start failed: {exc} — mission ends')
+                            heat.event('camera_start_fail', str(exc))
+                            break
+                        heat.event('camera_start_ok')
+                        heat.enter('ACTIVE', since=started)
+                    else:                           # PAUSE <-> HOLD; camera already off
+                        heat.enter(target)
+
+                if heat.phase == 'HOLD':
                     if self.motors: self.motors.stop()
-                    try:
-                        self.stop_camera()
-                    except Exception as exc:
-                        print(f'[CAM] stop failed: {exc} — mission ends')
-                        heat.event('camera_stop_fail', str(exc))
-                        break
-                    heat.event('camera_stop_ok')
-                    heat.enter(target, since=heat.now())
-                elif target == 'ACTIVE':
-                    started = heat.now()
-                    try:
-                        self.start_camera()     # resets the frame counter and session
-                    except Exception as exc:
-                        print(f'[CAM] start failed: {exc} — mission ends')
-                        heat.event('camera_start_fail', str(exc))
-                        break
-                    heat.event('camera_start_ok')
-                    heat.enter('ACTIVE', since=started)
-                else:                           # PAUSE <-> HOLD; camera already off
-                    heat.enter(target)
+                    time.sleep(1)
+                    continue
+                move = self.run_cycle() if heat.phase == 'ACTIVE' else self.pause_cycle()
 
-            if heat.phase == 'HOLD':
-                if self.motors: self.motors.stop()
-                time.sleep(1)
-                continue
-            move = self.run_cycle() if heat.phase == 'ACTIVE' else self.pause_cycle()
-
-            if move == 'STOP':
-                break
-
+                if move == 'STOP':
+                    break
+        finally:                                # also on Ctrl-C, SIGTERM/SIGHUP (SystemExit) and errors
+            if heat.phase == 'ACTIVE':
+                self.end_slot(heat)
         print('[ROBOT] Mission ended')
         if self.motors: self.motors.stop()
+
+    def end_slot(self, heat):
+        """One 'active_slot' trace line: the ACTIVE phase that just ended (into PAUSE/HOLD, or mission end).
+        At most once per slot."""
+        s = self.slot
+        if s['ended']:
+            return
+        s['ended'] = True
+        def stats(values):
+            return {'median': round(statistics.median(values), 3), 'max': round(max(values), 3)} if values else None
+        heat.event('active_slot', {
+            'cycles': s['cycles'], 'frames': s['frames'],
+            'detections': {size: len(ms) for size, ms in s['detect_ms'].items()},
+            'detect_ms': {size: stats(ms) for size, ms in s['detect_ms'].items()},
+            'age_s': stats(s['age_s']), 'camera_stops': s['camera_stops'],
+            'affinity': self.detector.affinity() if self.detector else None})
 
     def stereo_depth_scan(self):
         """Strafe 5cm right, take two photos, return depth data."""
