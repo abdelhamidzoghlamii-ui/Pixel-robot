@@ -201,7 +201,6 @@ manually. Request hashes, push output, and Git status as evidence. This does not
 grant this online thread phone access, visibility into unpushed changes, or
 permission to bypass the human commit and push gates.
 
-Thermal configuration remains unresolved; read [COMMANDS.md §7](COMMANDS.md)
-for the live pause and historical measurements. Do not select or change a
-thermal threshold until the planned definitive real `run_cycle` benchmark is
-completed and reviewed.
+Heat control is implemented (DECISIONS #135: adaptive 37/35 °C, #127 stops);
+see [COMMANDS.md §7](COMMANDS.md). Changing a heat threshold needs an owner
+decision and evidence from a mission heat trace.

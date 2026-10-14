@@ -90,7 +90,7 @@ MOTOR_SPEED       130       FORWARD/BACK
 rotation speed    120       hardcoded literal in Robot.move(), not a constant
 strafe speed      100       hardcoded literal in Robot.move(), not a constant
 CYCLE_MOVE_TIME   1.5 s
-thermal pause     >80 °C    reads thermal_zone9 (BIG cores), sleeps 5s
+heat control      adaptive VIRTUAL-SKIN 37/35 °C pauses + #127 stops (heat_control.py, #135)
 ```
 
 **Vision** (`detect_person.py`)
@@ -164,9 +164,9 @@ Archived controlled conversation rates (cold vs cached block aggregate token-wei
 ## Thermal governance
 
 VIRTUAL-SKIN-CPU-GPU is the reported HAL CPU-throttling signal (first trip
-37.0 °C); BIG/zone9 is not its HAL governor (DECISIONS #90). The live
-`main.py` pause still reads BIG above 80 °C; a correct sensor and threshold
-have not been selected or verified in a real mission. The dated device
+37.0 °C); BIG/zone9 is not its HAL governor (DECISIONS #90). `run_mission` uses `heat_control.py`
+(#135): Android status and VIRTUAL-SKIN every 5 s, adaptive 37/35 °C camera-off
+pauses and the #127 stops; validated in one motors-off dry run, not with motors live. The dated device
 thresholds, formula, zone map, throttle checks, and evidence limitations are
 preserved in [PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
 
@@ -176,11 +176,11 @@ rates are not trusted, #126). Measured (#126, room 22 °C): under RobotCam 2/s +
 640 every frame + continuous Gemma, the CPU is first capped within 2 s while the
 skin is about 32 °C; from 6 min the phone holds 3.68–4.24 W; status LIGHT at
 78 s, MODERATE at 10.7 min, SEVERE (skin 45 °C) at 18.3 min. Co-residency
-(#125): mix 4.1–4.3 W, 640-only 5.8–6.3 W. Heat rules decided, not implemented
-(#127); `main.py` still pauses on zone9 > 80 °C. Every heat reading in the repo
+(#125): mix 4.1–4.3 W, 640-only 5.8–6.3 W. Heat rules (#127) and the #129 pauses
+are implemented with the adaptive 37/35 °C schedule (#135); the #129 torch is not. Every heat reading in the repo
 is labelled in `benchmark/thermal_char/HEAT_EVIDENCE.md`. Power map, power split,
 duty-cycle and camera-power measurements (#128) and the owner's heat-pause design
-(#129, not implemented) are archived in `benchmark/power_map/`,
+(#129; implemented in #135 except the torch) are archived in `benchmark/power_map/`,
 `benchmark/duty_cycle/` and `benchmark/camera_power/`.
 
 ## Memory
@@ -331,14 +331,12 @@ observations and follow-up are retained in
   DECISIONS #84's stated `git rm` did not occur in the checked repository; retain
   all seven until an explicit future removal task. `get_temp.py`/`thermal_guard.py` (#75) and `mission_test.py` remain
   deliberately kept; `nav_sim.py` was deleted (#118). 420 MB of unused ONNX models remains untouched.
-- **`get_temp()` pause (zone9 > 80 °C) reads the wrong signal.** zone9 is a
-  CPU-core reading: it reaches about 100 °C within seconds under load, then is
-  held at 61–68 °C while the skin keeps rising (#126). The replacement rules are
-  decided but not implemented (#127).
-  `thermal_guard.py`'s 82/86 are dead code — nothing imports it and `main.py` uses
-  an inline `get_temp`. A replacement needs the correct thermal signal and a
-  threshold validated against a real mission trace; neither is selected.
-  See DECISIONS #74, #75, #90, #126, #127.
+- **Heat control (#135) is validated motors-off only.** One unattended `--dry`
+  run (5 h, 67 pauses, 0 rule violations) ended by low battery; emergency rules
+  (CRITICAL hold, battery 45 °C, CPU fault) have not fired on hardware. Pause
+  FORWARD speed 100 is uncalibrated. `thermal_guard.py` (82/86) and `get_temp.py`
+  remain orphans; `main.py` no longer has `get_temp()`. See DECISIONS #126, #127,
+  #129, #135.
 - **Battery thermal zone number unconfirmed.** STATUS previously implied zone
   22; a later enumeration reported zone 25. Neither is canonical until a
   direct thermal_zoneN/type read confirms it.
@@ -399,11 +397,9 @@ observations and follow-up are retained in
 - YOLO power map done (#128): chosen setting 1 frame/s, 640 every 5 s, MID
   cores (4–5); continuous use reaches skin about 37 °C in about 17 min, so
   heat pauses are needed (#129).
-- Implement the #127 heat rules and the #129 pause design (camera off,
-  sensor-only moves, Gemma resident, torch in the dark) in `main.py`
-  (navigation work); needs independent review and a mission thermal trace.
-  Measured candidates (#132): fixed 120/60 s and adaptive 37/35 °C; owner
-  choice of schedule pending (Local AI recommends adaptive).
+- Heat rules and pauses implemented (#135, commit `6f81f2a`); motors-off dry run
+  archived in `benchmark/heat_control/dryrun1/` (`92492ec`). Torch for dark
+  scenes not designed (#129).
 - RobotCam manual-exposure 2 fps (mode A) is a candidate on unmerged branch
   `robotcam-camera-power` (90ef439); not adopted; torch untested (#128, #129).
 - RobotCam screen-off capture is untested; frame loss ends a mission
@@ -434,8 +430,8 @@ or permission to execute hardware work.
 5. Take rotation calibration with the robot; method remains pending, as recorded
    above and in COMMANDS.md §6.
 6. After the safety fix, perform the first motors-live autonomous run under human
-   control, with wheels on a stand. Capture the mission thermal trace to validate
-   the #127 heat rules (#75, #90, #127).
+   control, with wheels on a stand. `run_mission` writes the heat trace to
+   `~/robot_runs/`; keep it with the run (#127, #135).
 
 Mode 2 video/audio teleop remains parked indefinitely for thermal cost (#58).
 This does not park the serial-command firmware named `mode2_auto.ino`.

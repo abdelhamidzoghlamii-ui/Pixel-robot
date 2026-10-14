@@ -1584,3 +1584,44 @@ Format: `NN. [area] decision — why`
      Not in the repo: P23E review rounds 1–3 and
      `CAMPAIGN_P23E_CODER_REPORT.md`, retained externally under
      `/termux-home/storage/downloads/campaign/` (Download/campaign/).
+
+135. **Adaptive 37/35 °C heat control implemented in `main.py` (HEAT-A); motors-off dry run passed.**
+     Owner decision 2026-10-13: the #129 pause schedule is adaptive 37/35 °C
+     (#132, Local AI recommendation). Commit `6f81f2a` adds `heat_control.py`
+     and changes `main.py`, `run_mission.py` and tests. `run_mission` reads
+     Android thermal status and VIRTUAL-SKIN every 5 s (`dumpsys thermalservice`,
+     #123 form) and CPU zones and battery temperature every 1 s, through root;
+     it refuses to start without root or a first complete reading. Rules, in
+     precedence: no status/skin reading for > 60 s or no CPU/battery reading for
+     > 5 s ends the mission; battery ≥ 45 °C ends it; a CPU zone ≥ 110 °C in 3
+     consecutive samples ends it; status ≥ CRITICAL holds with motors stopped
+     and camera off until status ≤ MODERATE; SEVERE is logged only (no optional
+     Gemma work exists in the mission loop); ACTIVE → camera-off PAUSE at skin
+     ≥ 37.0 °C after ≥ 60 s active, PAUSE → ACTIVE at skin ≤ 35.0 °C after
+     ≥ 30 s paused. In PAUSE the robot moves on ultrasonic-only `navigate_rules`
+     with FORWARD at speed 100 (UNCALIBRATED) and only rotates when there is no
+     fresh distance reading. Gemma is untouched. A camera stop or start failure
+     ends the mission. Each mission writes
+     `~/robot_runs/heat_trace_<UTC>.jsonl`. The zone9 > 80 °C pause and
+     `main.get_temp()` are removed; `get_temp.py` and `thermal_guard.py` remain
+     orphans. Not implemented: the #129 torch for dark scenes.
+     Checks: offline tests only (28 unit tests, `nav_test.py`, 7 detector
+     tests). Coder Claude Code `claude-opus-5-5` medium; reviewer AGY
+     `claude-opus-5-5-high`, round 3 APPROVED (round 1 incomplete, round 2 not
+     valid).
+     Motors-off acceptance (`python3 run_mission.py --dry`, unattended, on
+     battery from 94 %), archived in `benchmark/heat_control/dryrun1/`
+     (commit `92492ec`): 2026-10-13 07:27:48Z–12:30:28Z, 67 pauses, 0 rule
+     violations, 67/67 camera restarts, Android status 0 throughout, no HOLD,
+     skin 34.7–37.1 °C after the first pause, status/skin read every 5.0 s
+     (max gap 6.0 s). Ended by a low-battery Android SHUTDOWN at
+     12:30:25.763Z (0 %), not by heat. VALID motors-off heat-control
+     acceptance; NOT VALID as a complete mission (no `end` event); NOT
+     COMPARABLE with #132 (no Gemma picker, no M2: inference duty 0.74 vs
+     0.50 from the first pause). Single run; ambient and prior rest not
+     recorded. Not tested: motors live, emergency rules on hardware.
+     Owner decision 2026-10-14: no further changes from this run (a
+     low-battery stop, a dry-run time limit, a null distance in the trace,
+     extra tests and heat decisions during warm-up were proposed and declined).
+     This supersedes #127's and #129's "not implemented" and #132's "schedule
+     choice pending"; those entries remain unchanged.

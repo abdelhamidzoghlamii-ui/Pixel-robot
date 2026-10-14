@@ -13,7 +13,7 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | Motor safety | Firmware watchdog is 1000 ms; the `nav_stuck` safety-move override was fixed in Python; LLM failure paths now select STOP. Hardware validation remains separate. | #47, #88, #108; STATUS Pending |
 | Firmware and wiring | Corrected `mode2_auto.ino` and corner map are committed; what is flashed on the physical board is unconfirmed. | #43, #89; STATUS Architecture |
 | Person stop | Coarse detector area bucket was chosen to replace uncalibrated centimetres, but is not implemented. | #78–#80; STATUS Pending |
-| Thermal control | Android's skin-based governor sets the sustained limit; zone9 is not a heat signal. Power map and duty-cycle measurements show continuous use needs heat pauses. Planned camera-off pauses with safe sensor-only moves and resident Gemma are decided, not implemented; #127 emergency stops retain precedence. The live `main.py` pause still reads BIG at >80 °C. | #74–#75, #90–#93, #126–#129; STATUS Thermal/Pending |
+| Thermal control | Android's skin-based governor sets the sustained limit; zone9 is not a heat signal. Power map and duty-cycle measurements show continuous use needs heat pauses. Camera-off pauses with sensor-only moves and resident Gemma are implemented with the adaptive 37/35 °C schedule; #127 emergency stops retain precedence. Validated in one motors-off dry run (5 h, 0 rule violations). | #74–#75, #90–#93, #126–#129, #135; STATUS Thermal/Pending |
 | Model vision | Deployed image requests were effectively text-only; later projector experiments did not yield usable on-device LLM vision. YOLO remains perception. | #96, #105; STATUS Vision |
 | Android app | Root-free USB and sustained inference spikes passed; the native app itself has no code yet. Prototype measurements do not transfer automatically. | #67–#69; APP_STATUS |
 | Licensing | [LICENSES.md](LICENSES.md) owns the app allowlist. Its derived copy in APP_CLAUDE.md is intentional. | #66 |
@@ -25,7 +25,7 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | Language | English-only speech input and replies are acceptable; English-only components are eligible. | #117 |
 | Detection and co-residency | yolo11s 320/640 mix kept over 640-only (less power, fewer caps, steadier detect ms); RobotCam + detector + resident Gemma fit in RAM with no LMK kills. | #121, #125 |
 | Power and camera candidates | Power-map choice: 1 frame/s, 640 every 5 s, MID cores (4–5); benchmark choice, not deployed config. Manual-exposure 2 fps mode A remains an unadopted candidate on `robotcam-camera-power` (`90ef439`); torch work and mission validation remain pending. | #128, #129; STATUS Pending |
-| RelateAnything and heat schedules | M2 (our relsgg-vits16 export) passes parity; standalone BIG median 646 ms; owner chose L2 (BIG, before each picker call); continuous L2 shows substantial capping and picker slowdown after ~15 min; fixed 120/60 s and adaptive 37/35 °C peak at 38.02/37.43 °C with overall inference duty 0.63; schedule choice pending. | #130–#133 |
+| RelateAnything and heat schedules | M2 (our relsgg-vits16 export) passes parity; standalone BIG median 646 ms; owner chose L2 (BIG, before each picker call); continuous L2 shows substantial capping and picker slowdown after ~15 min; fixed 120/60 s and adaptive 37/35 °C peak at 38.02/37.43 °C with overall inference duty 0.63; owner chose adaptive (#135). | #130–#133, #135 |
 
 ## Corrections worth knowing before citing an older entry
 
@@ -46,6 +46,7 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | #29, #74, #110, #119–#122, #124 zone9-based heat conclusions | #126 marks them not trusted; speed, RAM and power results stand. Register: `benchmark/thermal_char/HEAT_EVIDENCE.md`. |
 | #122 says camera-idle mode is not needed now | #129 decides camera OFF during planned preventive heat pauses; #127 emergency motor and battery stops retain precedence. |
 | #133 lists the P23D review/receipt as external and archive cleanups as open | #134 archives the review, receipt and coder report; closes the listed link, Qwen wording and rerun-documentation cleanups; P23E review records and coder report remain external. |
+| #127/#129 heat rules and pauses "not implemented"; #132 schedule pending | #135 implements them with adaptive 37/35 °C (`6f81f2a`) and records the motors-off dry run (`92492ec`). |
 
 For any claim outside these selected topics, search the numbered log and inspect
 the later entries that cite it. This index makes no claim to classify all decisions.

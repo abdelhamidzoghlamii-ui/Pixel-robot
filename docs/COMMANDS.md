@@ -439,20 +439,15 @@ su -c 'i=0; while [ $i -lt 12 ]; do cat /sys/class/thermal/thermal_zone9/temp; s
 >
 > Historical idle readings of 52–67 °C do not establish the loaded ceiling.
 
-> ⚠️ **Thermal configuration remains unresolved.** Only `main.py`'s
-> `run_mission` pause above **80 °C** is currently live. `thermal_guard.py` is
-> orphaned; its **82/86 °C** values are not competing live thresholds (#75).
+> **Heat control (#135):** `run_mission.py` uses `heat_control.py` — adaptive
+> VIRTUAL-SKIN 37/35 °C camera-off pauses and the #127 stops. It needs root, so
+> run missions from native Termux; each mission writes
+> `~/robot_runs/heat_trace_<UTC>.jsonl`. A `--dry` run has no time limit: stop it
+> with Ctrl-C (the archived dry run ran 5 h until the battery was empty).
+> `thermal_guard.py` (82/86 °C) and `get_temp.py` are orphans, not live thresholds (#75).
 >
-> Existing measurements are historical observations from different workloads:
-> the 24-cycle dry run peaked at 67 °C with YOLO and occasional Gemma calls;
-> #74 records 97–101 °C under sustained llama.cpp inference and 31–38 °C idle,
-> superseding the older unsourced 79–82 °C sustained-inference claim.
-> These observations do not establish the correct runtime threshold.
->
-> **Do not select or change a thermal threshold until the planned definitive
-> benchmark exercising the real `run_cycle` has been completed and reviewed.**
-> Use its per-cycle temperature evidence; retain the existing hardware
-> restrictions and human approval gates.
+> Historical zone9 observations (24-cycle dry run peak 67 °C; #74 97–101 °C under
+> sustained inference, 31–38 °C idle) are CPU-core readings, not a heat state (#126).
 
 ---
 

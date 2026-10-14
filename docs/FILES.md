@@ -1,6 +1,6 @@
 # File Inventory
 
-The live runtime uses `main.py`, `motors.py`, `detect_person.py`,
+The live runtime uses `main.py`, `heat_control.py`, `motors.py`, `detect_person.py`,
 `detector_size_policy.py`, `robotcam_reader.py` and `stereo_depth.py`.
 "Imported/called by" below means Python `import`; scripts you'd run by hand
 are marked *(entry point)*.
@@ -10,6 +10,7 @@ are marked *(entry point)*.
 | File | What it does | Imported/called by |
 |---|---|---|
 | `main.py` | `Robot` class: RobotCam→detect→Python navigation→move cycle loop. | `mission_test.py`, `nav_test.py`, `run_mission.py` |
+| `heat_control.py` | Mission heat control: root thermal readers, `decide()` rules (#127/#135), `HeatControl` phase state and trace. | `main.py`, `run_mission.py`, `test_heat_control.py` |
 | `motors.py` | `Motors` class — CP2102 USB-serial link to the motor MCU (drive/strafe/rotate, ultrasonic distance, keepalive thread). | `log_run.py`, `run_mission.py`, `teleop.py` |
 | `detect_person.py` | YOLO11s ONNX inference at 320/640: `detect_scene`, `scene_to_text`, `person_direction`, cached sessions, legacy `detect_person` shim. | `main.py`, `mission_test.py`, `stereo_depth.py`, `test_suite.py`, `test_suite_m.py` |
 | `stereo_depth.py` | Two-frame stereo + object-height→distance estimation (`stereo_scan`, `scene_with_depth`, `estimate_distance_single`). | `main.py`, `mission_test.py` |
@@ -40,8 +41,8 @@ are marked *(entry point)*.
 
 | File | What it does | Imported/called by |
 |---|---|---|
-| `get_temp.py` | Root per-zone SoC temp reader (BIG/MID/LITTLE/GPU/TPU/battery), `get_temps`/`get_cpu_max`. | nobody — **orphan**: recent, but `main.py` uses its own inline `get_temp` |
-| `thermal_guard.py` | `big_temp()` + throttle/cooldown helper (WARN 82 / CRIT 86). | nobody — **orphan**: `main.py` does thermal inline |
+| `get_temp.py` | Root per-zone SoC temp reader (BIG/MID/LITTLE/GPU/TPU/battery), `get_temps`/`get_cpu_max`. | nobody — **orphan**; `main.py` uses `heat_control.py` (#135) |
+| `thermal_guard.py` | `big_temp()` + throttle/cooldown helper (WARN 82 / CRIT 86). | nobody — **orphan**; `main.py` uses `heat_control.py` (#135) |
 | `thermal_real.py` | Benchmark: llama-server tok/s vs real CPU temp. | nobody *(benchmark)* |
 | `thermal_benchmark3.py` | Benchmark: combined YOLO+LLM thermal load with real temps (newest of the line). | nobody *(benchmark)* |
 | `thermal_benchmark2.py` | Earlier thermal benchmark (zone9 + battery zone25). | nobody — **superseded** by `thermal_benchmark3.py` |
