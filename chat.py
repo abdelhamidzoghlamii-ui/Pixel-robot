@@ -1,6 +1,7 @@
 import sys, os, requests, time, subprocess, shutil
 from pathlib import Path
 sys.path.insert(0, '/data/data/com.termux/files/home/robot')
+from server_manager import MTP_ARGS, MTP_DRAFT, mtp_draft_ok
 
 HOME   = '/data/data/com.termux/files/home'
 MODEL_FILES = (
@@ -27,7 +28,9 @@ MODELS = {
 SERVER  = HOME + '/llama.cpp-b1609-dotprod/build/bin/llama-server'
 SERVER_LOG = HOME + '/robot-chat-server.log'
 URL     = 'http://127.0.0.1:8080/completion'
+MTP_MODEL = 'gemma-4-E2B-it-Q4_0.gguf'  # the one entry that runs the MTP drafter (DECISIONS #120)
 current_model = None
+mtp_on = False
 history = []
 
 # ── Colors ────────────────────────────────────────────
@@ -64,6 +67,18 @@ def get_temp():
         return ram
 
 # ── Server ────────────────────────────────────────────
+def server_cmd(model_key, draft=False):
+    """llama-server argv for a menu entry, without taskset; draft adds the MTP drafter flags.
+    benchmark/.../chat_mtp/chat_mtp.py launches this same list."""
+    m = MODELS[model_key]
+    cmd = [
+        SERVER, '-m', f'{HOME}/models/{m["file"]}', '--port', '8080',
+        '--ctx-size', str(m['ctx']), '--host', '127.0.0.1',
+        '--threads', '4', '--threads-batch', '4', '--parallel', '1',
+        '--swa-full', '--cache-ram', '0',
+    ]
+    return cmd + MTP_ARGS if draft else cmd
+
 def kill_server():
     subprocess.run(['pkill', '-f', '^' + SERVER + ' '], stdout=subprocess.DEVNULL,
                    stderr=subprocess.DEVNULL)
@@ -71,7 +86,7 @@ def kill_server():
     print(colored('  Server killed', C.YELLOW))
 
 def start_server(model_key):
-    global current_model
+    global current_model, mtp_on
     m = MODELS[model_key]
     model_path = f'{HOME}/models/{m["file"]}'
 
@@ -85,13 +100,12 @@ def start_server(model_key):
         print(colored('  Port 8080 is still in use by another server', C.RED))
         return False
 
+    draft = m['file'] == MTP_MODEL
+    if draft and not mtp_draft_ok():
+        print(colored(f'  MTP drafter missing or wrong size, starting without it: {MTP_DRAFT}', C.YELLOW))
+        draft = False
     print(colored(f'  Loading {m["name"]}...', C.CYAN))
-    cmd = [
-        SERVER, '-m', model_path, '--port', '8080',
-        '--ctx-size', str(m['ctx']), '--host', '127.0.0.1',
-        '--threads', '4', '--threads-batch', '4', '--parallel', '1',
-        '--swa-full', '--cache-ram', '0',
-    ]
+    cmd = server_cmd(model_key, draft)
     if not shutil.which('taskset'):
         print(colored('  taskset unavailable; using Android CPU scheduling', C.YELLOW))
     elif {4, 5, 6, 7}.issubset(os.sched_getaffinity(0)):
@@ -116,8 +130,9 @@ def start_server(model_key):
             with urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2) as response:
                 if response.status != 200:
                     continue
-            print(colored(f'  Ready after {i+1}s | {get_temp()}', C.GREEN))
+            print(colored(f'  Ready after {i+1}s | MTP {"on" if draft else "off"} | {get_temp()}', C.GREEN))
             current_model = model_key
+            mtp_on = draft
             return True
         except:
             if i % 5 == 0:
@@ -190,6 +205,15 @@ def get_stop_tokens(model_type):
     }
     return stops.get(model_type, [])
 
+def chat_payload(prompt, model_type):
+    return {
+        'prompt':      prompt,
+        'n_predict':   512,
+        'temperature': 0.7,
+        'stop':        get_stop_tokens(model_type),
+        'stream':      False,
+    }
+
 # ── Chat ──────────────────────────────────────────────
 def chat(user_input):
     m = MODELS[current_model]
@@ -200,13 +224,7 @@ def chat(user_input):
     # Build prompt
     prompt = build_prompt(m['type'], history)
 
-    payload = {
-        'prompt':      prompt,
-        'n_predict':   512,
-        'temperature': 0.7,
-        'stop':        get_stop_tokens(m['type']),
-        'stream':      False,
-    }
+    payload = chat_payload(prompt, m['type'])
 
     # Call
     t0 = time.time()
@@ -233,7 +251,7 @@ def show_header():
     print(colored('='*50, C.CYAN))
     if current_model:
         m = MODELS[current_model]
-        print(f'  Model: {colored(m["name"], C.YELLOW)}')
+        print(f'  Model: {colored(m["name"], C.YELLOW)} | MTP {"on" if mtp_on else "off"}')
         print(f'  No vision | {get_temp()}')
     print(colored('='*50, C.CYAN))
 

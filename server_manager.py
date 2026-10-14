@@ -14,6 +14,15 @@ LLAMA_SERVER = HOME + "/llama.cpp-b1609-dotprod/build/bin/llama-server"
 THREADS = "4"
 BATCH_THREADS = "4"
 
+# MTP drafter, opt-in through setup_q4_mtp; not the robot default. Measured in DECISIONS #120 (temperature 0,
+# ctx 2048): +46% gen tok/s, +609 MiB peak, identical replies. chat.py uses it for its Gemma E2B Q4_0 entry.
+MTP_DRAFT = HOME + "/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf"
+MTP_DRAFT_SIZE = 97817664  # bytes; SHA-256 9eba8199... (conv_mtp/ARTIFACTS.md)
+MTP_ARGS = ["--model-draft", MTP_DRAFT, "--spec-type", "draft-mtp", "--spec-draft-n-max", "3"]
+
+def mtp_draft_ok():
+    return os.path.isfile(MTP_DRAFT) and os.path.getsize(MTP_DRAFT) == MTP_DRAFT_SIZE
+
 def kill_servers():
     os.system("pkill -f llama-server 2>/dev/null")
     time.sleep(2)
@@ -68,6 +77,18 @@ def start_setup(setup_name):
             port=8080, ctx=2048
         )
 
+    # ── MAIN ROBOT MODEL + MTP DRAFTER (opt-in) ───────
+    elif setup_name == "setup_q4_mtp":
+        # setup_q4 plus the DECISIONS #120 drafter flags; not the robot default
+        if not mtp_draft_ok():
+            print("[SERVER] ERROR: MTP drafter missing or not " + str(MTP_DRAFT_SIZE) +
+                  " bytes: " + MTP_DRAFT + "; nothing started")
+            return False
+        return start_server(
+            HOME + "/models/gemma-4-E2B-it-Q4_0.gguf",
+            port=8080, ctx=2048, extra_args=" ".join(MTP_ARGS)
+        )
+
     # ── QUALITY MODE ──────────────────────────────────
     elif setup_name == "setup_e4b":
         # E4B Q4_K_M — smarter but slower
@@ -84,12 +105,12 @@ def start_setup(setup_name):
 
     else:
         print("[SERVER] Unknown setup: " + setup_name)
-        print("[SERVER] Available: setup_q4, setup_e4b, stop")
+        print("[SERVER] Available: setup_q4, setup_q4_mtp, setup_e4b, stop")
         return False
 
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2:
-        print("Usage: python3 server_manager.py [setup_q4|setup_e4b|stop]")
+        print("Usage: python3 server_manager.py [setup_q4|setup_q4_mtp|setup_e4b|stop]")
         sys.exit(1)
     start_setup(sys.argv[1])
