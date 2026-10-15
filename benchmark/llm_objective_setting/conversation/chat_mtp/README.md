@@ -1,6 +1,12 @@
 # robot-chat speed with the MTP drafter (task MTP-A)
 
-Status: **NOT RUN.** No timed result exists yet; the owner runs it from native Termux ([RUN.md](RUN.md)).
+Status: two runs archived in `runs/`: [run index](runs/RUN_INDEX.md), [artifacts](runs/ARTIFACTS.md).
+Fixed labels (Local AI, 2026-10-15); owner commands: [RUN.md](RUN.md).
+
+- chat_mtp_20261014T221203Z_smoke: SMOKE, not a measurement. The runner works end to end: 1/1 prompt per config, ON draft acceptance 50.2 %, server on cores 4-7 and stopped after each block. Its speed, memory and power figures are NOT VALID as results; block 1 (ON) was a WARM START.
+- chat_mtp_20261014T224541Z: VALID, single run at robot-chat settings (ctx 4096, temperature 0.7, n_predict 512, cores 4-7, dotprod b1609 build). 13/13 prompts per config, one block each (OFF, then ON; the planned OFF/ON alternation did not occur because each config finished in its first block; ON started 1.5 °C warmer, 25.63 vs 24.15 °C); no WARM START; Android thermal status 0. Generation 13.37 -> 19.18 tok/s (+43 %), draft acceptance 39.0 %, prompt 0.35 / 0.34 s, load 4.3 -> 6.4 s. Energy per generated token 0.73 -> 0.58 J: INDICATIVE ONLY (5 s power sampling, one block per config). Memory: median llama-server PSS from 10 s on was 3,427,284 kB OFF vs 4,389,009 kB ON (+939 MiB) in this run, but OFF VmHWM was 4,177,884 kB in the smoke run vs 3,422,148 kB here while ON matched (4,394,768 vs 4,398,784 kB): the drafter's memory cost is NOT ESTABLISHED. MemAvailable is not a usable comparison (swap use changed within blocks). Reply quality NOT EVALUATED (temperature 0.7: replies differ by design).
+
+report.txt header of the two archived runs: '(>= 10 tokens);accept' is printed as one line because a comma was missing between two string literals in chat_mtp.py report(), so Python joined them; cosmetic, numbers unaffected. Fixed after these runs (MTP-ARCHIVE); the runs used the code at 2091f42 (code_sha256 in each run.json).
 
 ## What
 

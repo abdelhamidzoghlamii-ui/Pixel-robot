@@ -1,0 +1,36 @@
+0.00.004.409 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.005.423 W srv  llama_server: -----------------
+0.00.005.433 W srv  llama_server: CORS is set to allow all origins ('*') and no API key is set
+0.00.005.434 W srv  llama_server: this can be a security risk (cross-origin attacks)
+0.00.005.435 W srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655
+0.00.005.436 W srv  llama_server: -----------------
+0.00.006.780 I srv    load_model: loading model '/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf'
+0.00.945.553 E llama_init_from_model: failed to initialize the context: Gemma4Assistant requires ctx_other to be set (this warning is normal during memory fitting)
+0.01.092.922 W srv    load_model: [spec] failed to measure draft model memory: failed to create llama_context from model
+0.03.041.625 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.03.049.695 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.03.092.339 W load: special_eog_ids contains '<|tool_response>', removing '</s>' token from EOG list
+0.04.466.547 W llama_kv_cache_iswa: using full-size SWA cache (ref: https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
+0.04.712.414 I common_speculative_init_result: loading draft model '/data/data/com.termux/files/home/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf'
+0.05.670.238 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.05.678.977 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.05.717.126 W load: special_eog_ids contains '<|tool_response>', removing '</s>' token from EOG list
+0.05.876.423 W llama_kv_cache_iswa: using full-size SWA cache (ref: https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
+0.05.876.482 W llama_kv_cache: layer   3: sharing with layer 34. k = 0xb4000070759cc000, v = 0xb400007075dcc000
+0.05.876.517 W llama_kv_cache: layer   0: sharing with layer 33. k = 0xb4000070745c9000, v = 0xb4000070747c9000
+0.05.876.519 W llama_kv_cache: layer   1: sharing with layer 33. k = 0xb4000070745c9000, v = 0xb4000070747c9000
+0.05.876.520 W llama_kv_cache: layer   2: sharing with layer 33. k = 0xb4000070745c9000, v = 0xb4000070747c9000
+0.05.995.158 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 4096, kv_unified = 'false'
+0.06.005.894 W srv          init: --cache-idle-slots requires --cache-ram, disabling
+0.06.016.104 I srv  llama_server: model loaded
+0.06.016.120 I srv  llama_server: listening on http://127.0.0.1:8080
+0.06.043.887 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+0.06.043.942 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+0.11.367.187 I slot print_timing: id  0 | task 0 | n_decoded =    102, tg =  22.34 t/s, tg_3s =  22.34 t/s
+0.14.099.188 I slot print_timing: id  0 | task 0 | prompt eval time =     758.15 ms /    46 tokens (   16.48 ms per token,    60.67 tokens per second)
+0.14.099.224 I slot print_timing: id  0 | task 0 |        eval time =    7297.03 ms /   166 tokens (   43.96 ms per token,    22.75 tokens per second)
+0.14.099.246 I slot print_timing: id  0 | task 0 |       total time =    8055.18 ms /   212 tokens
+0.14.099.247 I slot print_timing: id  0 | task 0 |    graphs reused =         67
+0.14.099.253 I slot print_timing: id  0 | task 0 | draft acceptance = 0.50249 (  101 accepted /   201 generated), mean len =  2.51
+0.14.099.318 I slot      release: id  0 | task 0 | stop processing: n_tokens = 214, truncated = 0
+0.14.101.384 I srv    operator(): operator(): cleaning up before exit...

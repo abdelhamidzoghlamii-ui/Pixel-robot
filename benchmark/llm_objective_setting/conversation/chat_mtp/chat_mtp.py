@@ -347,7 +347,7 @@ def report(prompts, blocks, ids):
     med = lambda xs: statistics.median(xs) if xs else None
     L = ['CHAT MTP REPORT  (chat.py E2B Q4_0 command and payload: ctx 4096, temperature 0.7, n_predict 512, cores 4-7)',
          'prompt s = server prompt_ms, median (TTFT not measurable: payload not streamed); gen tok/s token-weighted',
-         '(>= 10 tokens);'
+         '(>= 10 tokens);',
          'accept = accepted / drafted; W = mean battery power over all block samples; J/tok = mean W during requests',
          '  x request time / generated tokens (whole phone); RAM: max VmHWM / max PSS, min MemAvailable', '']
     L.append(f"{'config':<7}{'prompts':>8}{'load s':>8}{'prompt s':>9}{'gen t/s':>9}{'accept':>8}{'reply ch':>9}"

@@ -432,6 +432,16 @@ class MathTest(unittest.TestCase):
         self.assertAlmostEqual(b['energy_j_per_token'], 5.0 * 20.0 / 200)
         self.assertEqual((b['peak_pss_kb'], b['min_mem_available_mib'], b['vm_hwm_kb']), (4200, 2500, 4300000))
 
+    def test_report_header_lines(self):  # '(>= 10 tokens);' and 'accept = ...' were once joined into one line
+        lines = cm.report([], [], ['A5']).split('\n')
+        self.assertTrue(lines[0].startswith('CHAT MTP REPORT  ('))
+        self.assertTrue(lines[1].startswith('prompt s = server prompt_ms, median'))
+        self.assertEqual(lines[2], '(>= 10 tokens);')
+        self.assertTrue(lines[3].startswith('accept = accepted / drafted; W = '))
+        self.assertTrue(lines[4].startswith('  x request time / generated tokens'))
+        self.assertEqual(lines[5], '')
+        self.assertTrue(lines[6].startswith('config '))
+
 
 class ResumeTest(unittest.TestCase):
     def test_state_and_main_resume_skip_finished_prompts(self):

@@ -187,3 +187,13 @@ Labels only; the numbers are in the run's [report](../heat_control/dryrun1/DRYRU
 | Path | Date | What it measured | Sensor | Status | Reason |
 |---|---|---|---|---|---|
 | `heat_control/dryrun1/heat_trace_20261013T072747Z.jsonl` | 2026-10-13 | HEAT-A adaptive 37/35 °C heat control during `run_mission.py --dry` (motors off), 5 s dumpsys rows | VIRTUAL-SKIN (`skin_c`), Android thermal status (`status`); also `battery_c`, `cpu_max_c` | **VALID** (VIRTUAL-SKIN, Android status); `cpu_max_c` **NOT TRUSTED** as a heat state | heat state judged from skin and status; `cpu_max_c` is a CPU-zone fault-check value only; `battery_c` is battery temperature |
+
+## robot-chat MTP on/off runs (appended by MTP-ARCHIVE)
+
+Labels only; the numbers are in the [run index](../llm_objective_setting/conversation/chat_mtp/runs/RUN_INDEX.md).
+Paths are under `llm_objective_setting/conversation/chat_mtp/runs/`.
+
+| Path | Date | What it measured | Sensor | Status | Reason |
+|---|---|---|---|---|---|
+| `chat_mtp_20261014T224541Z/blocks.jsonl`, `chat_mtp_20261014T221203Z_smoke/blocks.jsonl` (gate and end `skin`, `status`; `run.json` `idle.skin`) | 2026-10-14 | skin gate before each block and reading after each server stop, MTP drafter off/on at robot-chat settings | VIRTUAL-SKIN (`skin`, via `dumpsys thermalservice`), Android thermal status (`status`) | **VALID** | heat state judged from skin and status; the smoke run is not a measurement (its RUN_INDEX label) |
+| `chat_mtp_20261014T224541Z/blocks.jsonl`, `chat_mtp_20261014T221203Z_smoke/blocks.jsonl` (`z9`/`z10`/`z11` in samples and gate; `run.json` `idle`), `thermal.log`, `oneshot_console_*.log` (launcher lines) | 2026-10-14 | launcher's 5 s zone log over both sessions; zone readings beside each 5 s sample | zone9/10/11 | **NOT TRUSTED** | CPU-core readings, not a heat state |

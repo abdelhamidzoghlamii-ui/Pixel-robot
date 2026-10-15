@@ -1,0 +1,102 @@
+{
+ "smoke": true,
+ "ids": [
+  "A5"
+ ],
+ "commands": {
+  "OFF": [
+   "taskset",
+   "-c",
+   "4-7",
+   "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+   "-m",
+   "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+   "--port",
+   "8080",
+   "--ctx-size",
+   "4096",
+   "--host",
+   "127.0.0.1",
+   "--threads",
+   "4",
+   "--threads-batch",
+   "4",
+   "--parallel",
+   "1",
+   "--swa-full",
+   "--cache-ram",
+   "0"
+  ],
+  "ON": [
+   "taskset",
+   "-c",
+   "4-7",
+   "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+   "-m",
+   "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+   "--port",
+   "8080",
+   "--ctx-size",
+   "4096",
+   "--host",
+   "127.0.0.1",
+   "--threads",
+   "4",
+   "--threads-batch",
+   "4",
+   "--parallel",
+   "1",
+   "--swa-full",
+   "--cache-ram",
+   "0",
+   "--model-draft",
+   "/data/data/com.termux/files/home/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf",
+   "--spec-type",
+   "draft-mtp",
+   "--spec-draft-n-max",
+   "3"
+  ]
+ },
+ "payload_example": {
+  "prompt": "<start_of_turn>user\n<text><end_of_turn>\n<start_of_turn>model\n",
+  "n_predict": 512,
+  "temperature": 0.7,
+  "stop": [
+   "<end_of_turn>"
+  ],
+  "stream": false
+ },
+ "prompt_text_sha256": {
+  "A5": "358db44102b145d8ef8432b1fc69f51663219e180cc3aa7db4217c89ba4299b0"
+ },
+ "started": "2026-10-14T22:12:08+00:00",
+ "idle": {
+  "at": "2026-10-14T22:12:07Z",
+  "z9": 40000,
+  "z10": 36000,
+  "z11": 38000,
+  "skin": 21.53074
+ },
+ "model_sha256": {
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf": "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52",
+  "/data/data/com.termux/files/home/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf": "9eba819938efccfd6044f8af84e3bbfddc639a2bcf32ebc36420e6a649191919"
+ },
+ "bench_sha256": "0792beeed813d94df2a1d9ce7bffe2f5e2a00a564de4a32aaecfa0182b8e6f8f",
+ "prompt_texts": {
+  "A5": "I'm looking for something. It's small and black. So where should I start?"
+ },
+ "code_sha256": {
+  "/data/data/com.termux/files/home/robot/benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py": "88759798629c2e3865c8975131266abe456a7bec21773baa6f6d5eee265294ae",
+  "/data/data/com.termux/files/home/robot/chat.py": "8ec902632973998d8161016f46ddd6e2d599abc269d853fac9bf17811f7bdad5",
+  "/data/data/com.termux/files/home/robot/server_manager.py": "47bf2dad92843a44d795a4c01b6cb32c6f7fa3a5576c2c6cb1fe194fd1746ffb",
+  "/data/data/com.termux/files/home/robot/benchmark/coresidency/coresidency.py": "a6b0d65454c0c060927f744194a8cbb9f2a419a59e39fc82b0a510b9f92ed177",
+  "/data/data/com.termux/files/home/robot/benchmark/power_map/power_map.py": "4756ce7dc7ba4e358578288c0d2509345fc4e2fe02d45f077f65355792e29539"
+ },
+ "llama_server": "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+ "libggml_cpu_sha256": "a4ef0d97e741f5902919af5e9cef95f808bd98581be76bca66fcee3f4ac8a0dd",
+ "block_s": 180,
+ "deadline_s": 175,
+ "term_wait_s": 3,
+ "last_start_s": 150,
+ "gate_max_s": 20
+}

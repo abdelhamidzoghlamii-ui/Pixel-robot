@@ -1,0 +1,28 @@
+[oneshot] screen timeout was 1800000 ms; set to 2147483647 for the run (read back)
+[oneshot] CPU-core reading, not a heat state: 2026-10-14T22:07:02Z z9=28000 z10=26000 z11=27000 CPU-core_reading,_not_a_heat_state=1
+[oneshot] idling 5 minutes; keep Termux in front
+[oneshot] CPU-core reading, not a heat state after idle: 2026-10-14T22:12:02Z z9=24000 z10=24000 z11=24000 CPU-core_reading,_not_a_heat_state=1
+/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_validation.py:66: UserWarning: Unsupported platform (android). ONNX Runtime supports Linux, macOS, AIX and Windows platforms, only.
+  warnings.warn(
+checking model and drafter SHA-256 (about 30 s); run folder /data/data/com.termux/files/home/robot_runs/chat_mtp_20261014T221203Z_smoke
+[block 0 OFF] skin 21.53074 degC, status 0, waited 0 s
+[block 0 OFF] A5, server 19 s; all prompts done
+[block 1 ON] waiting: skin 24.452402, need <= 23.0; 0 s
+[block 1 ON] waiting: skin 25.405, need <= 23.0; 10 s
+[block 1 ON] skin 25.0637 degC, status 0, waited 20 s, WARM START
+[block 1 ON] A5, server 15 s; all prompts done
+CHAT MTP REPORT  (chat.py E2B Q4_0 command and payload: ctx 4096, temperature 0.7, n_predict 512, cores 4-7)
+prompt s = server prompt_ms, median (TTFT not measurable: payload not streamed); gen tok/s token-weighted
+(>= 10 tokens);accept = accepted / drafted; W = mean battery power over all block samples; J/tok = mean W during requests
+  x request time / generated tokens (whole phone); RAM: max VmHWM / max PSS, min MemAvailable
+
+config  prompts  load s prompt s  gen t/s  accept reply ch  HWM MiB  PSS MiB avail MiB     W  J/tok blocks warm
+OFF         1/1     5.9     0.61    13.24     n/a      576     4080     4060      2579  8.27   0.81      1    0
+ON          1/1     6.1     0.76    22.75   50.2%      606     4292     4173      2600  4.02   0.35      1    1
+
+blocks: seq config prompts | load s, last reply s, server exit s (from spawn) | skin degC/status start -> end | server Cpus_allowed_list | end
+   0 OFF A5 | 5.9, 18, 19 | 21.53074/0 -> 24.452402/0 | 4-7 -> 4-7 | all prompts done
+   1 ON  A5 | 6.1, 14, 15 | 25.0637/0 -> 24.9719/0 WARM START | 4-7 -> 4-7 | all prompts done
+[oneshot] done; console log: /data/data/com.termux/files/home/robot_runs/chat_mtp/oneshot_console_20261014T220655Z.log
+[oneshot] screen timeout restored to 1800000 ms; read back: 1800000
+[oneshot] stopped logger

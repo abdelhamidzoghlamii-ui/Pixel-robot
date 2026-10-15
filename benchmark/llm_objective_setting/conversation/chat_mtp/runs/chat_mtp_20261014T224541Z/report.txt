@@ -1,0 +1,12 @@
+CHAT MTP REPORT  (chat.py E2B Q4_0 command and payload: ctx 4096, temperature 0.7, n_predict 512, cores 4-7)
+prompt s = server prompt_ms, median (TTFT not measurable: payload not streamed); gen tok/s token-weighted
+(>= 10 tokens);accept = accepted / drafted; W = mean battery power over all block samples; J/tok = mean W during requests
+  x request time / generated tokens (whole phone); RAM: max VmHWM / max PSS, min MemAvailable
+
+config  prompts  load s prompt s  gen t/s  accept reply ch  HWM MiB  PSS MiB avail MiB     W  J/tok blocks warm
+OFF       13/13     4.3     0.35    13.37     n/a      108     3342     3392      2475  8.21   0.73      1    0
+ON        13/13     6.4     0.34    19.18   39.0%      144     4296     4288      2654  8.50   0.58      1    0
+
+blocks: seq config prompts | load s, last reply s, server exit s (from spawn) | skin degC/status start -> end | server Cpus_allowed_list | end
+   0 OFF A5,A6,B1,B2,B6,B7,C1,C6,C7,C8,C9,C10,C11 | 4.3, 60, 60 | 24.149101/0 -> 32.1837/0 | 4-7 -> 4-7 | all prompts done
+   1 ON  A5,A6,B1,B2,B6,B7,C1,C6,C7,C8,C9,C10,C11 | 6.4, 48, 49 | 25.634/0 -> 32.480503/0 | 4-7 -> 4-7 | all prompts done

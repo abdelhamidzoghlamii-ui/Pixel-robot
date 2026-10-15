@@ -144,3 +144,5 @@ Historical sections above retain their exact original archive-time records; some
 | `test_thermal_char.py` | `existing repository / P23D generated documentation or offline evidence` | 34227 | `2c9368528d3f5249c107a219b1e88d1fe1f060945aaf5ee6a51960af1d258469` |
 | `thermal_char.py` | `existing repository / P23D generated documentation or offline evidence` | 43958 | `b5b0c812c535cb69987ffb726bd1a37d2ba4d341c7fedd20d7b13d23e8f89b84` |
 | `thermal_char_executed_cbf73d12b5bc.py` | `existing repository / P23D generated documentation or offline evidence` | 43763 | `cbf73d12b5bcebb80db1d3c09f5b1e72f0231df915c490669c925f1bd9365d1d` |
+
+HEAT_EVIDENCE.md re-hashed 2026-10-15 after MTP-ARCHIVE: 17631 B, SHA-256 276173a9ea7c46d92f168c3eae9a24a607298b0ed91bd4ab243815161c1d4252; the 5e749f5c... rows above are stale (the file changed in 92492ec, to 16456 B, SHA-256 f55954bc5b87ba565d7b1b30bdf0345d5ce86e2e53852c547e23bcfaf7cf6078, and in MTP-ARCHIVE).
