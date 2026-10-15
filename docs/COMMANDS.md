@@ -73,6 +73,7 @@ Always run `setup_q4` before a mission; it stops any leftover chat server and lo
 | Command | What it does |
 |---|---|
 | `python3 server_manager.py setup_q4` ✅ | **Robot default.** Gemma 4 E2B Q4_0, 2.8 GB, ~12 tok/s.* |
+| `python3 server_manager.py setup_q4_mtp` | Opt-in: `setup_q4` plus the MTP drafter (#137); refuses to start if the drafter file is missing or not 97817664 bytes. Not the robot default. |
 | `python3 server_manager.py setup_e4b` ⚠️ | Gemma 4 E4B Q4_K_M, 5.0 GB, ~5.4 tok/s.* Not used by chat.py (chat starts its own server); too slow for the control loop. |
 | `python3 server_manager.py stop` ✅ | Kills all llama-server processes. |
 
@@ -141,6 +142,7 @@ am start -n com.pixelrobot.robotcam/.StartActivity --es mode B --ei rate 2
 am broadcast -n com.pixelrobot.robotcam/.ControlReceiver -a com.pixelrobot.robotcam.STOP
 python ~/robot/benchmark/robotcam/robotcam_test.py --interval 0.5 -n 30
 ```
+The robot itself starts RobotCam at rate 1 (`main.py` `CAMERA_RATE`, #136); the commands above are the manual rate-2 test.
 
 Frames: `/storage/emulated/0/Download/robotcam/frame.jpg`.
 
@@ -269,7 +271,7 @@ helpers or re-send itself.
 `python3 chat.py` — Python interactive chat.
 Both entry points use the same script and start their own server on port 8080.
 
-**Server details:** Uses the b1609 dotprod binary, 4 generation/batch threads, parallel 1, SWA full, cache RAM 0, and CPU affinity 4–7 when Android allows those cores. The diagnostic log is `~/robot-chat-server.log`. The header and per-reply status show `MemAvailable` from `/proc/meminfo` in GiB (still displays RAM when thermal reads fail). See STATUS.md for model-specific ctx sizes.
+**Server details:** Uses the b1609 dotprod binary, 4 generation/batch threads, parallel 1, SWA full, cache RAM 0, and CPU affinity 4–7 when Android allows those cores. The diagnostic log is `~/robot-chat-server.log`. For Gemma 4 E2B Q4_0 the server also loads the MTP drafter (`--model-draft ~/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf --spec-type draft-mtp --spec-draft-n-max 3`, #137); if the file is missing or the wrong size, chat warns and starts without it. The header shows `MTP on` / `MTP off`. The header and per-reply status show `MemAvailable` from `/proc/meminfo` in GiB (still displays RAM when thermal reads fail). See STATUS.md for model-specific ctx sizes.
 
 In-chat commands (apply to both):
 

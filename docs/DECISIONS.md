@@ -1625,3 +1625,45 @@ Format: `NN. [area] decision — why`
      extra tests and heat decisions during warm-up were proposed and declined).
      This supersedes #127's and #129's "not implemented" and #132's "schedule
      choice pending"; those entries remain unchanged.
+
+136. **RobotCam 1 frame/s and YOLO on MID cores 4–5 deployed (CAM1-MID); not yet run in a mission.**
+     Owner decision 2026-10-14: deploy #128's power-map choice. Commit `e208aaf` (Coder Claude Code
+     `claude-opus-5-5` high; reviewer Codex `gpt-6.1-sol` medium, round 1 CHANGES REQUESTED, round 2
+     APPROVED). `main.py` starts RobotCam with `CAMERA_RATE = 1` on every camera start, including each
+     PAUSE -> ACTIVE restart. `run_mission.py` creates the robot detector first, before the motor reader and
+     heat threads: `detect_person.PinnedDetector` loads both yolo11s sessions with 2 intra-op / 1 inter-op
+     threads, pins the 2 new ORT worker threads and one detector-only calling thread to cpus 4–5 and verifies
+     the affinity; any failure raises before the camera starts, so the mission does not start. The process and
+     main thread are never pinned; `Detector()` and `get_detector()` without `pinned` are unchanged. At every
+     camera start the affinity is re-checked and re-pinned; a failed re-pin is logged and the mission continues
+     (a power setting, not a safety stop). SizePolicy (640 every 5 s), the 2.0 s stale-frame STOP and all heat
+     rules are unchanged. The heat trace gains `detector_config`, `detector_affinity` and `active_slot`
+     (per ACTIVE slot: cycles, frames, detections and detect ms per size, frame age, camera stops, affinity).
+     Checks: offline only, 51 unit tests (35 at base) and `nav_test.py`; one untimed phone pin check from proot
+     (caller and both workers allowed and running only on cpus 4–5, main thread unchanged; in one run Android
+     had already limited the process to cpus 0–5). Archived 1 frame/s evidence (power_map R2/R3/CONFIRM,
+     2,245 frames): longest interval per published frame 1.07 s, oldest frame read 1.26 s, against the 2.0 s
+     limit. Not measured: any `run_mission.py --dry` with this code, the real cycle period (estimated about
+     1.7 s with a 320 frame and 2.1 s with a 640 frame) and detect times in a mission. Supersedes #128's
+     "benchmark choice, not deployed config"; #128 remains unchanged.
+
+137. **MTP drafter on in robot-chat for Gemma E2B Q4_0; robot opt-in `setup_q4_mtp`; memory cost not established.**
+     Owner decision 2026-10-14: drafter on in `chat.py` for the Gemma 4 E2B Q4_0 entry and an opt-in robot
+     setup; `setup_q4` (robot default) unchanged, because in the robot Gemma only runs one warm-up parse and
+     the planned picker scores one letter. Commit `2091f42` (Coder Claude Code `claude-opus-5-5` high;
+     reviewer Codex `gpt-6.1-sol` medium; rounds 1 and 3 CHANGES REQUESTED, round 2 INVALID (network failure
+     in the identity snapshot), round 4 APPROVED; the owner authorised round 4 and accepted that the runner
+     records the server's prompt time instead of TTFT, which a non-streamed request cannot give).
+     Drafter flags as #120: `--model-draft ~/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf --spec-type draft-mtp
+     --spec-draft-n-max 3` (file 97817664 bytes, SHA-256 9eba8199…). Chat warns and starts without the
+     drafter if the file is missing or the wrong size; `setup_q4_mtp` refuses to start. New runner
+     `benchmark/llm_objective_setting/conversation/chat_mtp/`. Measured (archive `18709d4`, run
+     chat_mtp_20261014T224541Z, VALID single run at chat settings: ctx 4096, temperature 0.7, n_predict 512,
+     cores 4–7, 13/13 prompts per config, one block each, OFF then ON): generation 13.37 -> 19.18 tok/s
+     (+43 %), draft acceptance 39.0 %, prompt 0.35 / 0.34 s, load 4.3 -> 6.4 s; energy per generated token
+     0.73 -> 0.58 J INDICATIVE ONLY (5 s power sampling). Memory NOT ESTABLISHED: steady llama-server PSS
+     3,427,284 kB OFF vs 4,389,009 kB ON (+939 MiB) in that run, but OFF VmHWM differed from the
+     smoke run while ON matched. Reply quality NOT EVALUATED. The smoke run is not a measurement. `18709d4`
+     also fixes a missing comma in the runner's report header (cosmetic) and appends a re-hash line for
+     HEAT_EVIDENCE.md to `benchmark/thermal_char/ARTIFACTS.md`. Supersedes #120's "not deployed" for
+     robot-chat only; #120 remains unchanged.

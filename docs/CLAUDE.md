@@ -109,7 +109,7 @@ historical target as a current model-selection gate.
 MODEL = yolo11s_320.onnx + yolo11s_640.onnx (stock COCO; yolo11m.onnx kept for rollback)
 CONF  = 0.35
 IOU   = 0.45
-Input = 320 or 640 per frame (SizePolicy); camera = RobotCam 640x480, 2/s
+Input = 320 or 640 per frame (SizePolicy); camera = RobotCam 640x480, 1/s; robot detector 2 threads pinned to MID cores 4–5 (#136)
 Detector dicts: source-frame pixels; legacy tuples: 640 space
 ```
 See DECISIONS #121, #122.

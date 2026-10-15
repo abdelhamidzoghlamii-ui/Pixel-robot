@@ -20,11 +20,11 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | Collaboration | Independent Coder/Reviewer/human commit gate and per-task execution profiles are defined in [WORKFLOW.md](WORKFLOW.md). Push needs separate authorization. | #86–#87 |
 | Strategic selector harness v3 | s1o dropped on speed; laya_en and von11 proceed; hardware timings provisional. | #112 |
 | Data Engineer role | Selector moves to a fine-tuning track; new Data Engineer role created to generate the dataset. | #113 |
-| LLM runtime | Robot runs b1609 rebuilt with ARM dotprod (~3x prompt speed); default model Gemma E2B Q4_0 with `--cache-ram 0` and a voice warm-up. | #114, #115 |
+| LLM runtime | Robot runs b1609 rebuilt with ARM dotprod (~3x prompt speed); default model Gemma E2B Q4_0 with `--cache-ram 0` and a voice warm-up. MTP drafter on in robot-chat, opt-in `setup_q4_mtp` for the robot (#137). | #114, #115, #137 |
 | Selector direction | Gemma letter-scoring leads (1.55 s, 77%); one resident Gemma for talk + selection decided (option 3, #125). | #116, #125 |
 | Language | English-only speech input and replies are acceptable; English-only components are eligible. | #117 |
 | Detection and co-residency | yolo11s 320/640 mix kept over 640-only (less power, fewer caps, steadier detect ms); RobotCam + detector + resident Gemma fit in RAM with no LMK kills. | #121, #125 |
-| Power and camera candidates | Power-map choice: 1 frame/s, 640 every 5 s, MID cores (4–5); benchmark choice, not deployed config. Manual-exposure 2 fps mode A remains an unadopted candidate on `robotcam-camera-power` (`90ef439`); torch work and mission validation remain pending. | #128, #129; STATUS Pending |
+| Power and camera candidates | Power-map choice: 1 frame/s, 640 every 5 s, MID cores (4–5); deployed in `e208aaf` (#136), not yet run in a mission. Manual-exposure 2 fps mode A remains an unadopted candidate on `robotcam-camera-power` (`90ef439`); torch work and mission validation remain pending. | #128, #129, #136; STATUS Pending |
 | RelateAnything and heat schedules | M2 (our relsgg-vits16 export) passes parity; standalone BIG median 646 ms; owner chose L2 (BIG, before each picker call); continuous L2 shows substantial capping and picker slowdown after ~15 min; fixed 120/60 s and adaptive 37/35 °C peak at 38.02/37.43 °C with overall inference duty 0.63; owner chose adaptive (#135). | #130–#133, #135 |
 
 ## Corrections worth knowing before citing an older entry
@@ -47,6 +47,8 @@ itself. An entry labelled *decided* here may still be unimplemented.
 | #122 says camera-idle mode is not needed now | #129 decides camera OFF during planned preventive heat pauses; #127 emergency motor and battery stops retain precedence. |
 | #133 lists the P23D review/receipt as external and archive cleanups as open | #134 archives the review, receipt and coder report; closes the listed link, Qwen wording and rerun-documentation cleanups; P23E review records and coder report remain external. |
 | #127/#129 heat rules and pauses "not implemented"; #132 schedule pending | #135 implements them with adaptive 37/35 °C (`6f81f2a`) and records the motors-off dry run (`92492ec`). |
+| #128 power-map choice "benchmark choice, not deployed config" | #136 deploys 1 frame/s and MID 4–5 pinning (`e208aaf`); not yet run in a mission. |
+| #120 MTP drafter "not deployed" | #137 turns it on in robot-chat and adds opt-in `setup_q4_mtp`; robot default unchanged; memory cost at chat settings not established. |
 
 For any claim outside these selected topics, search the numbered log and inspect
 the later entries that cite it. This index makes no claim to classify all decisions.

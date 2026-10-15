@@ -58,13 +58,13 @@ from earlier commits.
 
 **Per-cycle flow** (`main.py: Robot.run_cycle`):
 ```
-RobotCam frame (640×480, 2/s, fail-closed reader) → YOLO yolo11s (320, 640 every 5 s or in person search) → navigate_rules (pure Python, instant) → execute move
+RobotCam frame (640×480, 1/s, fail-closed reader) → YOLO yolo11s (320, 640 every 5 s or in person search; 2 threads on MID cores 4–5) → navigate_rules (pure Python, instant) → execute move
 ```
 
 | Layer | Handles | Cost |
 |---|---|---|
 | YOLO yolo11s (320/640 policy, both sessions resident; yolo11m kept for rollback) | object/person detection, position, coarse distance | every cycle |
-| RobotCam app (Camera2 foreground service) | 640×480 frames, 2/s; missing/old/repeated frame → STOP | continuous while a mission runs |
+| RobotCam app (Camera2 foreground service) | 640×480 frames, 1/s (#136); missing/old/repeated frame → STOP | continuous while a mission runs |
 | Python `navigate_rules` | obstacle stop, person approach, room signature logging | every cycle, 0ms |
 | Gemma 4 E2B (Q4_0, default since 2026-09-26) | voice→intent only, outside navigation | on demand |
 | Whisper.cpp (base) | 5s voice capture → text | on demand |
@@ -97,6 +97,7 @@ heat control      adaptive VIRTUAL-SKIN 37/35 °C pauses + #127 stops (heat_cont
 ```
 yolo11s_320.onnx + yolo11s_640.onnx (stock COCO) · CONF 0.35 · IOU 0.45
 SizePolicy: drive = 320 every frame + one 640 every 5 s; person_search = 640 until person box ≥ 1/3 frame height
+robot process: one PinnedDetector, 2 intra-op / 1 inter-op threads, ORT workers + calling thread pinned to cpus 4–5 (#136)
 legacy detect_scene default 640; legacy tuples in 640 space; detector dicts in source-frame pixels
 position: left/center/right by thirds of frame width
 coarse distance by box area: >0.3 very close, >0.1 close, >0.03 medium, else far
@@ -120,7 +121,8 @@ REAL_HEIGHTS: person 170, refrigerator 180, chair 90, couch 85, dining table 75,
 ```
 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --ctx-size 2048
 setup_q4     Gemma 4 E2B Q4_0    2.8GB  ~12 gen tok/s  ← robot default (since 2026-09-26)
-Gemma E2B Q4_0 on this build: selector letter-scoring 1408 ms median (DECISIONS #119). MTP drafter measured +46% gen speed, +609 MiB, identical output; not deployed (DECISIONS #120). Build names: b1609 = upstream b10194, b2351 = upstream b10936 (#119).
+setup_q4_mtp setup_q4 + MTP drafter  opt-in, not the robot default (#137)
+Gemma E2B Q4_0 on this build: selector letter-scoring 1408 ms median (DECISIONS #119). MTP drafter measured +46% gen speed, +609 MiB, identical output (DECISIONS #120); on in robot-chat, opt-in for the robot (`setup_q4_mtp`), not in the robot default (#137). At chat settings: +43% gen speed, memory cost not established (#137). Build names: b1609 = upstream b10194, b2351 = upstream b10936 (#119).
 setup_e4b    Gemma 4 E4B Q4_K_M  5.0GB  ~5.4 gen tok/s ← kept, not recommended (#115)
 (setup_qwen3b / setup_qwen1b and the Qwen2.5 files were removed 2026-09-26.
 Qwen3.5 2B and 4B GGUFs at ~/models/qwen35/ are eval-only, not wired into
@@ -221,7 +223,7 @@ observations and follow-up are retained in
   reuse the cached system prompt instead of reprocessing it.
 - YOLO scene detection, position + coarse distance.
 - RobotCam app (`android/robotcam/`, `af57939`) and integration (`9b49ce0`):
-  640×480 at 2/s, fail-closed reader, `termux_photo` rollback. Motors-off checks
+  640×480 at 1/s since `e208aaf` (#136; 2/s before), fail-closed reader, `termux_photo` rollback. Motors-off checks
   only (native and `su -c --dry`); no motors-live run yet.
 - Dual-size yolo11s detector with SizePolicy (`9b49ce0`), unit-tested (18 tests).
 - Voice pipeline end to end: record → Whisper → Gemma JSON parse → TTS.
@@ -232,7 +234,7 @@ observations and follow-up are retained in
 - Manual selector playground `robot-jevlike`
   (`benchmark/strategic_selector/manual/jevlike/`): runs one input through any
   installed selector model side by side. Research only, not a benchmark.
-- **Standalone chat** (`robot-chat`): Menu filters against installed models (Gemma E2B Q4_0/Q4_K_M/Q8_0, Gemma E4B Q4_K_M, Qwen3.5 2B Q4_K_M, Qwen3.5 4B Q4_K_M/Q5_K_M/Q6_K, Mistral 7B Q4_K_M). None of the menu entries other than the robot's deployed model (Gemma E2B Q4_0) are deployed to the robot loop. Image chat is unavailable in this interface.
+- **Standalone chat** (`robot-chat`): Menu filters against installed models (Gemma E2B Q4_0/Q4_K_M/Q8_0, Gemma E4B Q4_K_M, Qwen3.5 2B Q4_K_M, Qwen3.5 4B Q4_K_M/Q5_K_M/Q6_K, Mistral 7B Q4_K_M). None of the menu entries other than the robot's deployed model (Gemma E2B Q4_0) are deployed to the robot loop. Image chat is unavailable in this interface. The Gemma E2B Q4_0 entry runs the MTP drafter (#137); without the drafter file chat warns and starts without it.
 - Benchmark archive index: `benchmark/INDEX.md` lists every archive folder,
   its key result and status.
 - Root restored on Android 17; real SoC temps readable (zone9 BIG / 10 MID /
@@ -322,8 +324,9 @@ observations and follow-up are retained in
 - **Dead and orphaned code mapped** (`FILES.md`). Superseded: `detect_scene.py`,
   `llm.py`, `voice.py`, `ch340_test.py`, `thermal_benchmark.py`,
   `thermal_benchmark2.py`, `quality_benchmark.py`. Orphans never wired in:
-  `get_temp.py`, `thermal_guard.py`, `server_manager.py` (nothing starts the
-  server programmatically). `mission_test.py` predates the current `Robot` API
+  `get_temp.py`, `thermal_guard.py`. `server_manager.py` is no longer an orphan:
+  `chat.py` imports its MTP drafter constants (#137); the robot still does not
+  start the server programmatically (the owner runs `setup_q4`). `mission_test.py` predates the current `Robot` API
   and is probably broken.
 - **Orphaned-file deletion deferred (DECISIONS #85).** `detect_scene.py`,
   `llm.py`, `voice.py`, `ch340_test.py`, `thermal_benchmark.py`,
@@ -396,7 +399,8 @@ observations and follow-up are retained in
   README.
 - YOLO power map done (#128): chosen setting 1 frame/s, 640 every 5 s, MID
   cores (4–5); continuous use reaches skin about 37 °C in about 17 min, so
-  heat pauses are needed (#129).
+  heat pauses are needed (#129). Deployed in `e208aaf` (#136); not yet run in a
+  mission: a motors-off `run_mission.py --dry` with this code is pending.
 - Heat rules and pauses implemented (#135, commit `6f81f2a`); motors-off dry run
   archived in `benchmark/heat_control/dryrun1/` (`92492ec`). Torch for dark
   scenes not designed (#129).

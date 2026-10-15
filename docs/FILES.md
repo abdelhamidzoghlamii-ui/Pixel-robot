@@ -76,7 +76,7 @@ are marked *(entry point)*.
 | `yolo_scene_test.py` | One-shot YOLO scene detection on a fixed test photo, prints detections. | nobody *(entry point)* — overlaps `diagnose_yolo.py` |
 | `bench_detector_robotcam.py` | Motors-off detector and RobotCam check in native Termux. | nobody *(entry point)* |
 | `check_robotcam_root_dry.sh` | `su -c --dry` mission check with RobotCam. | nobody *(entry point)* |
-| `test_detector_robotcam.py`, `test_run_mission.py` | Detector/RobotCam and mission unit tests. | nobody *(tests)* |
+| `test_detector_robotcam.py`, `test_run_mission.py`, `test_chat_mtp.py` | Detector/RobotCam (incl. `PinnedDetector`), mission and chat/server MTP unit tests. | nobody *(tests)* |
 | `benchmark/robotcam/`, `benchmark/yolo_speed/` | RobotCam test and YOLO benchmark tools. | nobody *(tools)* |
 | `.github/workflows/robotcam.yml` | CI APK build for RobotCam. | GitHub Actions |
 
@@ -84,7 +84,7 @@ are marked *(entry point)*.
 
 | File | What it does | Imported/called by |
 |---|---|---|
-| `server_manager.py` | Programmatic llama-server lifecycle (kill/start/wait, named setup configs), CLI `server_manager.py <setup>`. | nobody — **orphan** (only named in a `benchmark_compare.py` help string; `run_mission.py`/`main.py` assume the server is already up) |
+| `server_manager.py` | Programmatic llama-server lifecycle (kill/start/wait, named setup configs), CLI `server_manager.py <setup>`. | `chat.py` (`MTP_ARGS`, `MTP_DRAFT`, `mtp_draft_ok`), `test_chat_mtp.py`, `benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py`; owner CLI `server_manager.py <setup>`. `run_mission.py`/`main.py` still assume the server is already up |
 | `llm.py` | Old command parser: GBNF-grammar-constrained JSON actions via ChatML `<|im_start|>` prompt; needs `~/actions.gbnf`. | nobody — **superseded** by `main.parse_command` (Gemma `<start_of_turn>` format, no grammar) |
 | `voice.py` | Standalone `listen(duration)`: mic → ffmpeg → whisper-cli transcription. | nobody — **superseded**: `main.listen()` is a copy with the same paths |
 | `detect_scene.py` | Earlier YOLO module: `detect()→(results, elapsed)`, 4-tuple detections, no session cache. | nobody — **superseded** by `detect_person.py` (only the *symbol* `detect_scene`, defined in `detect_person.py`, is used) |
