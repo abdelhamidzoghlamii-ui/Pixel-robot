@@ -4,8 +4,9 @@ sys.path.insert(0, '/data/data/com.termux/files/home/robot')
 from detect_person import get_detector, detect_scene, scene_from_detections, scene_to_text, person_direction
 from detector_size_policy import SizePolicy
 from robotcam_reader import read_frame
-from stereo_depth import stereo_scan, scene_with_depth, estimate_distance_single
-from heat_control import PAUSE_FORWARD_SPEED
+from stereo_depth import stereo_scan, scene_with_depth
+from heat_control import PAUSE_FORWARD_SPEED, STATUS_SEVERE
+import picker
 
 HOME    = '/data/data/com.termux/files/home'
 PHOTO_A = HOME + '/robot_photo_a.jpg'
@@ -13,7 +14,10 @@ PHOTO_B = HOME + '/robot_photo_b.jpg'
 
 # ── Config ────────────────────────────────────────────
 OBSTACLE_DIST    = 25    # cm — stop if closer
-PERSON_STOP_DIST = 80    # cm — stop when person this close
+PERSON_STOP_BUCKETS = ('close', 'very close')  # #79: area bucket r[3] (area > 0.1); owner confirms vs bench_photos
+FORWARD_MOVES    = ('FORWARD', 'FWD_L', 'FWD_R')  # person-stop holds these (FWD_L/R: firmware diagonal names)
+LOOK_CYCLES      = 4     # LOOK rotates for this many cycles, then EXPLORE
+GREETING         = 'Hello, nice to see you.'
 STEREO_BASELINE  = 5.0   # cm — strafe for depth
 MOTOR_SPEED      = 130   # default motor speed
 CYCLE_MOVE_TIME  = 1.5   # seconds per move
@@ -175,7 +179,7 @@ def speak(text):
 # ── Main Robot Class ──────────────────────────────────
 def new_slot():
     return {'cycles': 0, 'frames': 0, 'detect_ms': {320: [], 640: []}, 'age_s': [], 'camera_stops': {},
-            'ended': False}
+            'picks': 0, 'picker_ms': [], 'm2_ms': [], 'fallbacks': 0, 'ended': False}
 
 class Robot:
     def __init__(self, motors=None, camera_source=CAMERA_SOURCE):
@@ -197,6 +201,23 @@ class Robot:
         self.state       = 'idle'  # idle / navigating / searching / found
         self.heat_text   = 'heat n/a'  # skin/status for the cycle print, set by run_mission
         self.slot        = new_slot()  # numbers of the current ACTIVE phase, for the 'active_slot' trace line
+        self.heat        = None        # the mission's HeatControl (trace lines), set by run_mission
+        # Picker (#109, #131). mode None = --no-picker: today's rules incl. person approach. With the picker on,
+        # mode is EXPLORE / APPROACH / GREET / LOOK and picker is None when it fell back at mission start.
+        self.picker      = None
+        self.mode        = None
+        self.mode_since  = None
+        self.look_cycles = 0
+        self.greeted     = False
+        self.cadence     = picker.Cadence()
+        self.pick_inflight = False
+        self.picker_severe = False
+        self.slot_n      = 0           # ACTIVE slot number; a pick requested in an earlier slot is not applied
+        self.last_640    = None        # (frame, detector dicts) of this slot's latest 640 detection, for M2
+
+    def trace(self, name, detail):
+        if self.heat:
+            self.heat.event(name, detail)
 
     def start_camera(self, heat=None):
         """heat: the mission's HeatControl, for the detector trace lines (None: no trace)."""
@@ -213,6 +234,8 @@ class Robot:
         if heat:
             heat.event('detector_affinity', affinity)
         self.slot = new_slot()
+        self.slot_n += 1
+        self.last_640 = None
         if self.camera_source == 'robotcam':
             self.camera_session = None
             self.camera_frame = None
@@ -245,6 +268,9 @@ class Robot:
             elif cmd == 'RIGHT':  self.motors.rotate_right(120, duration)
             elif cmd == 'BACK':   self.motors.backward(MOTOR_SPEED, duration)
             elif cmd == 'STOP':   self.motors.stop()
+            elif cmd == 'HOLD':   # stand still for the cycle; the mission continues (GREET, person-stop)
+                self.motors.stop()
+                time.sleep(duration)
             elif cmd == 'STRAFE_RIGHT': self.motors.strafe_right(100, duration)
             elif cmd == 'STRAFE_LEFT':  self.motors.strafe_left(100, duration)
         else:
@@ -265,8 +291,9 @@ class Robot:
             return 400          # no echo = clear to sensor max range
         return d
 
-    def navigate_rules(self, results, distance):
+    def navigate_rules(self, results, distance, approach=True):
         """Fast Python navigation — no LLM. Owns safety; Gemma never overrides.
+        approach=False (EXPLORE, LOOK): people are ordinary objects; no person branch.
 
         Blocked path: strafe first (mecanum holds heading, so YOLO keeps the
         same view), rotate on axis if strafing isn't clearing it, and set
@@ -328,13 +355,9 @@ class Robot:
         self.blocked_since = None
 
         # ── Person ──────────────────────────────────────────
+        # Person-stop (#79) is applied to the final move in choose_move(), in every mode.
         labels = [r[0] for r in results]
-        if 'person' in labels:
-            for r in results:
-                if r[0] == 'person':
-                    dist_est = estimate_distance_single('person', r[7])
-                    if dist_est and dist_est < PERSON_STOP_DIST:
-                        return 'STOP'
+        if approach and 'person' in labels:
             direction = person_direction(results)
             if direction:
                 return direction
@@ -360,6 +383,7 @@ class Robot:
     def run_cycle(self, photo_path=None):
         self.cycle += 1
         self.slot['cycles'] += 1
+        self.collect_pick()  # a pick that finished meanwhile changes the mode from this cycle on
         age = None
         distance = self.get_distance()
         print(f'\n── Cycle {self.cycle} | {self.heat_text} | dist:{distance}cm ──')
@@ -389,6 +413,7 @@ class Robot:
                 return 'STOP'
             path = PHOTO_A
 
+        detections = []
         try:
             if photo_path:
                 results = detect_scene(path)
@@ -405,6 +430,8 @@ class Robot:
                 self.slot['detect_ms'][size].append(detect_ms)
                 self.size_policy.observe(detections, frame.height)
                 results = scene_from_detections(detections, *frame.size)
+                if size == 640:
+                    self.last_640 = (frame, detections)
                 print(f'  [YOLO] size={size} person={any(d["class_name"] == "person" for d in detections)} '
                       f'detect={detect_ms:.0f}ms age={"n/a" if age is None else f"{age:.2f}s"}')
         except Exception as exc:
@@ -417,9 +444,13 @@ class Robot:
             self.scene_log.pop(0)
         print(f'  [YOLO] {scene}')
 
-        # Fast navigation rules
-        move = self.navigate_rules(results, distance)
+        # Fast navigation rules, shaped by the mode; person-stop last. The legacy tuples keep one person (the most
+        # confident); person-stop also sees every other person detection's area bucket.
+        people = [r[3] for r in results if r[0] == 'person'] + [
+            scene_from_detections([d], *frame.size)[0][3] for d in detections if d['class_name'] == 'person']
+        move = self.choose_move(results, distance, people)
         print(f'  [NAV] {move}')
+        self.request_pick(results, distance)  # never waits; M2 runs during the move below
 
         # Execute move (motors cool during movement)
         if move != 'STOP':
@@ -429,6 +460,93 @@ class Robot:
             self.state = 'found'
 
         return move
+
+    def choose_move(self, results, distance, people=None):
+        """The mode only shapes the Python rules (#104/#109); obstacle rules stay inside navigate_rules. Person-stop
+        (#79) applies in every mode: a forward move while any person's area bucket is in PERSON_STOP_BUCKETS holds.
+        people: the area bucket of every person detection (default: the person tuples in results)."""
+        if people is None:
+            people = [r[3] for r in results if r[0] == 'person']
+        if self.mode == 'GREET':  # stand still until the next pick; greet once per GREET
+            if not self.greeted:
+                speak(GREETING)
+                self.greeted = True
+            move = 'HOLD'
+        else:
+            move = self.navigate_rules(results, distance, approach=self.mode in (None, 'APPROACH'))
+            if self.mode == 'LOOK':
+                if move == 'FORWARD':  # clear path: rotate in place instead
+                    move = 'LEFT'
+                self.look_cycles += 1
+        close = [b for b in people if b in PERSON_STOP_BUCKETS]
+        if move in FORWARD_MOVES and close:
+            print(f'  [PERSON] {close[0]} person — {move} held')
+            self.trace('person_stop', {'move': move, 'mode': self.mode, 'bucket': close[0]})
+            move = 'HOLD'
+        if self.mode == 'LOOK' and self.look_cycles >= LOOK_CYCLES:
+            self.set_mode('EXPLORE', f'LOOK done after {LOOK_CYCLES} cycles')
+        return move
+
+    def set_mode(self, mode, reason):
+        if mode == self.mode:
+            return
+        now = time.monotonic()
+        print(f'  [MODE] {self.mode} -> {mode}: {reason}')
+        self.trace('mode', {'from': self.mode, 'to': mode, 'reason': reason,
+                            'after_s': None if self.mode_since is None else round(now - self.mode_since, 1)})
+        self.mode, self.mode_since, self.look_cycles, self.greeted = mode, now, 0, False
+
+    def request_pick(self, results, distance):
+        """Start a pick in the worker when the cadence says so (owner D2); ACTIVE cycles only, never at Android
+        status SEVERE or above (#127: no optional Gemma work), at most one in flight, only with a 640 frame."""
+        if self.picker is None:
+            return
+        severe = self.severe_now()
+        (self.picker.forbid if severe else self.picker.allow)()  # also cancels a pick already running
+        if severe != self.picker_severe:
+            self.picker_severe = severe
+            print(f"  [PICKER] {'no picks at status SEVERE or above; mode stays ' + self.mode if severe else 'picks resume'}")
+            self.trace('picker_severe', {'severe': severe, 'mode': self.mode})
+        person = any(r[0] == 'person' for r in results)
+        now = time.monotonic()
+        trigger = self.cadence.due(now, person, distance < OBSTACLE_DIST,
+                                   ready=not (self.pick_inflight or severe or self.last_640 is None))
+        if trigger is None:
+            return
+        self.picker.submit({
+            'slot': self.slot_n, 'trigger': trigger, 'eligible': picker.eligible(person), 'frame_640': self.last_640,
+            'situation': picker.situation(self.mission, results, distance, self.mode, now - self.mode_since,
+                                          self.last_moves, list(self.known_rooms))})
+        self.pick_inflight = True
+
+    def severe_now(self):
+        """The latest Android status is SEVERE or above (#127: no optional Gemma work)."""
+        dump = self.heat.monitor.readings()['dump'] if self.heat else None
+        return bool(dump) and dump['status'] >= STATUS_SEVERE
+
+    def collect_pick(self):
+        """Trace a finished pick (any phase, and at mission end). Its numbers count only in its own ACTIVE slot while
+        that slot is open; its mode applies only then, below SEVERE, and when it was not cancelled. A failed pick is
+        EXPLORE: the fallback, never a stop."""
+        if self.picker is None or not self.pick_inflight:
+            return
+        r = self.picker.result()
+        if r is None:
+            return
+        self.pick_inflight = False
+        own_slot = r['slot'] == self.slot_n and not self.slot['ended']
+        applied = own_slot and not r['cancelled'] and not self.severe_now()  # the reading now, not last cycle's
+        if own_slot:
+            self.slot['picks'] += 1
+            self.slot['fallbacks'] += r['fallback'] is not None
+            for key in ('picker_ms', 'm2_ms'):
+                if r[key] is not None:
+                    self.slot[key].append(r[key])
+        self.trace('pick', {**r, 'applied': applied})
+        if r['fallback']:
+            print(f"  [PICKER] fallback to EXPLORE: {r['fallback']}")
+        if applied:
+            self.set_mode(r['mode'], f"pick ({r['trigger']})" if r['fallback'] is None else 'picker fallback')
 
     def pause_cycle(self):
         """Planned heat pause (#129): camera off, no YOLO; ultrasonic-only rules."""
@@ -455,11 +573,17 @@ class Robot:
         self.mission = mission_text
         self.state = 'navigating'
         self.running = True
+        self.heat = heat
+        if self.picker:
+            self.picker.allow()
         print(f'\n[ROBOT] Mission: {mission_text}')
 
         try:
             while self.running and self.state != 'found':
+                self.collect_pick()  # also in PAUSE/HOLD: every pick is traced when it ends
                 target, reason = heat.decide(self.get_distance())
+                if self.picker and self.severe_now():
+                    self.picker.forbid()  # before this cycle's vision: no further picker request at SEVERE
                 self.heat_text = heat.summary()
                 if target == 'END':
                     print(f'[HEAT] END: {reason}')
@@ -468,6 +592,7 @@ class Robot:
                     print(f'[HEAT] {heat.phase} -> {target}: {reason}')
                     if heat.phase == 'ACTIVE':      # into PAUSE or HOLD: camera off, detector stays loaded
                         if self.motors: self.motors.stop()
+                        if self.picker: self.picker.forbid()  # no M2 or Gemma outside ACTIVE (#129)
                         try:
                             self.stop_camera()
                         except Exception as exc:
@@ -487,6 +612,7 @@ class Robot:
                             break
                         heat.event('camera_start_ok')
                         heat.enter('ACTIVE', since=started)
+                        if self.picker: self.picker.allow()
                     else:                           # PAUSE <-> HOLD; camera already off
                         heat.enter(target)
 
@@ -518,7 +644,9 @@ class Robot:
             'detections': {size: len(ms) for size, ms in s['detect_ms'].items()},
             'detect_ms': {size: stats(ms) for size, ms in s['detect_ms'].items()},
             'age_s': stats(s['age_s']), 'camera_stops': s['camera_stops'],
-            'affinity': self.detector.affinity() if self.detector else None})
+            'affinity': self.detector.affinity() if self.detector else None,
+            'picks': s['picks'], 'picker_ms': stats(s['picker_ms']), 'm2_ms': stats(s['m2_ms']),
+            'fallbacks': s['fallbacks']})
 
     def stereo_depth_scan(self):
         """Strafe 5cm right, take two photos, return depth data."""

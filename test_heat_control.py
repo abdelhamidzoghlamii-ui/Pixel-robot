@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 import tempfile
+import threading
 import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -322,7 +323,7 @@ class MissionTest(unittest.TestCase):
         self.assertEqual(set(affinity), {'before', 'repinned', 'after', 'ok', 'errors'})
         first, last = [r['detail'] for r in rows if r['event'] == 'active_slot']
         self.assertEqual(set(first), {'cycles', 'frames', 'detections', 'detect_ms', 'age_s', 'camera_stops',
-                                      'affinity'})
+                                      'affinity', 'picks', 'picker_ms', 'm2_ms', 'fallbacks'})
         self.assertEqual((first['cycles'], first['frames'], first['detections']), (3, 3, {'320': 2, '640': 1}))
         self.assertEqual(first['detect_ms'], {'320': {'median': 100.0, 'max': 100.0},
                                               '640': {'median': 100.0, 'max': 100.0}})
@@ -391,6 +392,204 @@ class MissionTest(unittest.TestCase):
         with patch('builtins.print') as out:
             self.heat.event('x')
         self.assertIn('trace write failed', out.call_args.args[0])
+
+
+class FakePicker:
+    """picker.Picker stand-in: each submit finishes at once with the next scripted mode (or a fallback)."""
+    def __init__(self, modes, clock):
+        self.allowed = threading.Event()
+        self.modes, self.clock, self.submitted, self.done = list(modes), clock, [], []
+        self.generation = 0
+
+    def submit(self, request):
+        self.held = getattr(self, 'held', False)
+        self.submitted.append({**request, 'active': self.allowed.is_set(), 'at': self.clock.t})
+        mode = self.modes.pop(0) if self.modes else 'EXPLORE'
+        self.done.append({'slot': request['slot'], 'trigger': request['trigger'], 'eligible': request['eligible'],
+                          'mode': mode or 'EXPLORE', 'probs': {'keep exploring': 1.0}, 'm2_ms': 600.0,
+                          'm2_boxes': 0, 'm2_relations': 0, 'm2_repinned': [], 'picker_ms': 2000.0 if mode else None,
+                          'prompt_tokens': 120, 'fallback': None if mode else 'Gemma: TimeoutError: timed out',
+                          'cancelled': False, 'generation': self.generation})
+
+    def allow(self):
+        self.allowed.set()
+
+    def forbid(self):  # as the real worker: a pick whose generation changed is cancelled when it ends
+        if self.allowed.is_set():
+            self.generation += 1
+        self.allowed.clear()
+
+    def result(self):
+        if not self.done or self.held:
+            return None
+        r = self.done.pop(0)
+        generation = r.pop('generation')
+        if generation is not None and generation != self.generation:  # None: it had finished before  # the real worker's check() after its last request
+            r.update(cancelled=True, mode='EXPLORE', fallback='Gemma: Cancelled: optional work not allowed')
+        return r
+
+
+class PickerMissionTest(unittest.TestCase):
+    """The picker inside the real mission loop: ACTIVE only, never at SEVERE, a pick applies from the next cycle.
+    Uses MissionTest's harness without inheriting (and re-running) its tests."""
+    am, read_frame, run_script, trace = MissionTest.am, MissionTest.read_frame, MissionTest.run_script, MissionTest.trace
+
+    def setUp(self):
+        MissionTest.setUp(self)
+        self.R.time.monotonic = self.clock  # cadence and mode times follow the scripted clock
+        self.robot.size_policy.set_mode('person_search')  # every frame is a 640 frame (M2 input)
+        self.frames = list(range(50, 80))
+
+    def use(self, modes):
+        self.robot.picker = FakePicker(modes, self.clock)
+        self.robot.set_mode('EXPLORE', 'mission start')
+        return self.robot.picker
+
+    def steps(self, times, status=0, skin=36.0, distance=400):
+        return [(t, (status, skin, 30, 60), distance) for t in times]
+
+    def test_pick_applies_from_the_next_cycle_and_is_traced(self):
+        p = self.use(['LOOK'])
+        self.run_script(self.steps([0, 1, 2]))
+        self.assertEqual([r['trigger'] for r in p.submitted], ['start'])
+        self.assertEqual(self.robot.last_moves, ['FORWARD', 'LEFT', 'LEFT'])  # EXPLORE, then LOOK
+        rows = self.trace()
+        pick = next(r['detail'] for r in rows if r['event'] == 'pick')
+        self.assertEqual(set(pick), {'slot', 'trigger', 'eligible', 'mode', 'probs', 'm2_ms', 'm2_boxes',
+                                     'm2_relations', 'm2_repinned', 'picker_ms', 'prompt_tokens', 'fallback',
+                                     'cancelled', 'applied'})
+        self.assertTrue(pick['applied'])
+        mode = next(r['detail'] for r in rows if r['event'] == 'mode')
+        self.assertEqual((mode['from'], mode['to'], mode['reason']), ('EXPLORE', 'LOOK', 'pick (start)'))
+        slot = next(r['detail'] for r in rows if r['event'] == 'active_slot')
+        self.assertEqual((slot['picks'], slot['fallbacks'], slot['picker_ms'], slot['m2_ms']),
+                         (1, 0, {'median': 2000.0, 'max': 2000.0}, {'median': 600.0, 'max': 600.0}))
+        self.assertEqual(p.submitted[0]['eligible'], ['EXPLORE', 'LOOK'])
+        self.assertTrue(p.submitted[0]['situation'].startswith('Mission: explore\nScene: nothing detected'))
+
+    def test_no_picks_in_pause_or_hold_and_worker_gate_follows_the_phase(self):
+        p = self.use([])
+        gate, stop = [], self.robot.stop_camera
+        self.robot.stop_camera = Mock(side_effect=lambda: gate.append(p.allowed.is_set()) or stop())
+        self.run_script(self.steps([0]) + self.steps([61], skin=37.0) + self.steps([70, 80, 85]) +
+                        self.steps([86], status=4, skin=47.0) + self.steps([87], status=4, skin=47.0) +
+                        self.steps([88], status=2, skin=36.0) + self.steps([125], skin=35.0) + self.steps([126]))
+        phases = [r['phase'] for r in self.trace() if r['event'] in ('phase_change', 'hold_start', 'hold_end')]
+        self.assertEqual(phases, ['PAUSE', 'HOLD', 'PAUSE', 'ACTIVE'])
+        self.assertEqual([(r['at'], r['trigger'], r['active']) for r in p.submitted],
+                         [(0, 'start', True), (125, 'heartbeat', True)])  # none in PAUSE/HOLD (t=61..88)
+        self.assertEqual(gate, [False])  # the worker gate closes before the camera stops
+
+    def test_no_picks_at_severe_mode_kept_and_logged(self):
+        p = self.use(['LOOK'])
+        self.run_script(self.steps([0, 21, 42], status=3) + self.steps([43]))
+        self.assertEqual([r['trigger'] for r in p.submitted], ['start'])  # only once SEVERE ended
+        self.assertEqual(self.robot.mode, 'LOOK')                          # applied after SEVERE ended
+        rows = [r['detail'] for r in self.trace() if r['event'] == 'picker_severe']
+        self.assertEqual(rows, [{'severe': True, 'mode': 'EXPLORE'}, {'severe': False, 'mode': 'EXPLORE'}])
+
+    def test_pick_from_an_earlier_slot_is_traced_not_applied(self):
+        p = self.use(['GREET'])
+        p.submit({'slot': 0, 'trigger': 'heartbeat', 'eligible': ['EXPLORE', 'LOOK']})
+        p.submitted.clear()
+        self.robot.pick_inflight = True
+        self.robot.slot_n = 1
+        self.run_script(self.steps([0]))
+        pick = next(r['detail'] for r in self.trace() if r['event'] == 'pick')
+        self.assertEqual((pick['mode'], pick['applied']), ('GREET', False))
+        self.assertEqual(self.robot.mode, 'EXPLORE')
+
+    def test_fallback_sets_explore_and_mission_continues(self):
+        p = self.use(['APPROACH', None])
+        self.run_script(self.steps([0, 1, 25, 26, 27]))
+        modes = [(r['detail']['to'], r['detail']['reason']) for r in self.trace() if r['event'] == 'mode']
+        self.assertEqual(modes, [('APPROACH', 'pick (start)'), ('EXPLORE', 'picker fallback')])
+        self.assertEqual(len(self.robot.last_moves), 5)  # every cycle still moved
+        slot = next(r['detail'] for r in self.trace() if r['event'] == 'active_slot')
+        self.assertEqual((slot['picks'], slot['fallbacks']), (2, 1))
+
+
+    def hold_until(self, release_t):
+        """The fake worker's result is withheld until the scripted clock reaches release_t."""
+        p = self.robot.picker
+        p.held = True
+        real = p.result
+        p.result = lambda: (setattr(p, 'held', self.clock.t < release_t), real())[1]
+
+    def test_severe_during_a_running_pick_cancels_it_and_keeps_the_mode(self):
+        p = self.use(['LOOK'])
+        self.hold_until(30)
+        self.run_script(self.steps([0]) + self.steps([10, 20], status=3) + self.steps([30, 31]))
+        self.assertEqual([r['at'] for r in p.submitted][:1], [0])
+        pick = next(r['detail'] for r in self.trace() if r['event'] == 'pick')
+        self.assertEqual((pick['mode'], pick['cancelled'], pick['applied']), ('EXPLORE', True, False))
+        modes = [r['detail']['to'] for r in self.trace() if r['event'] == 'mode']
+        self.assertNotIn('LOOK', modes)  # the pick started below SEVERE never changed the mode
+        self.assertEqual([r['detail']['severe'] for r in self.trace() if r['event'] == 'picker_severe'], [True, False])
+
+    def test_result_ready_when_severe_first_appears_is_not_applied(self):
+        """The monitor reports SEVERE before the next cycle refreshed the picker flag: the reading now decides."""
+        p = self.use(['LOOK'])
+        self.hold_until(10)
+        submit = p.submit
+        p.submit = lambda req: (submit(req), p.done[-1].update(generation=None))  # finished before SEVERE, not cancelled
+        self.run_script(self.steps([0]) + self.steps([10], status=3) + self.steps([11]))
+        pick = next(r['detail'] for r in self.trace() if r['event'] == 'pick')
+        self.assertEqual((pick['mode'], pick['cancelled'], pick['applied']), ('LOOK', False, False))
+        self.assertNotIn('LOOK', [r['detail']['to'] for r in self.trace() if r['event'] == 'mode'])
+
+    def test_severe_closes_the_real_worker_gate_before_vision(self):
+        """Real Picker, fake transport: a tokenization is in flight when the monitor first reports SEVERE. While this
+        cycle's detection is still blocked, the released worker must send no further HTTP request."""
+        import picker as P
+        from test_picker import FakeRelate, fake_server
+        post = fake_server({'A': .5, 'B': .5})
+        gemma = P.Gemma(post)
+        entered, release = threading.Event(), threading.Event()
+
+        def hooked(path, body=None):
+            if path == '/tokenize' and not entered.is_set():
+                entered.set()
+                release.wait(5)
+            return post(path, body)
+        gemma.post = hooked
+        p = P.Picker(gemma, FakeRelate())
+        self.addCleanup(p.stop)
+        self.robot.picker = p
+        self.robot.set_mode('EXPLORE', 'mission start')
+        seen = {}
+
+        def detect(frame, size):
+            if self.clock.t == 10:  # the first SEVERE cycle, inside its vision step
+                self.assertTrue(entered.wait(5))
+                seen['before'] = len(post.calls)
+                release.set()
+                for _ in range(500):  # until the worker has finished the pick
+                    if not p.results.empty():
+                        break
+                    threading.Event().wait(0.01)
+                seen['after'] = len(post.calls)
+            return []
+        self.detector.detect.side_effect = detect
+        self.run_script(self.steps([0]) + self.steps([10], status=3))
+        self.assertEqual(seen['after'], seen['before'] + 1)  # only the held /tokenize; nothing after it
+        self.assertNotIn('/completion', [c[0] for c in post.calls])
+        pick = next(r['detail'] for r in self.trace() if r['event'] == 'pick')
+        self.assertEqual((pick['cancelled'], pick['applied']), (True, False))
+
+    def test_pick_spanning_a_pause_is_traced_once_and_counted_nowhere_else(self):
+        p = self.use(['GREET'])
+        self.hold_until(70)
+        self.run_script(self.steps([0]) + self.steps([61], skin=37.0) + self.steps([70, 80]) +
+                        self.steps([92], skin=35.0) + self.steps([93]))
+        picks = [r for r in self.trace() if r['event'] == 'pick']
+        first = picks[0]
+        self.assertEqual((first['phase'], first['detail']['slot'], first['detail']['cancelled'],
+                          first['detail']['applied']), ('PAUSE', p.submitted[0]['slot'], True, False))  # traced in the pause
+        self.assertNotIn('GREET', [r['detail']['to'] for r in self.trace() if r['event'] == 'mode'])
+        slots = [r['detail'] for r in self.trace() if r['event'] == 'active_slot']
+        self.assertEqual(slots[0]['picks'], 0)                         # its slot ended before it did
+        self.assertEqual(sum(s['picks'] for s in slots), len(picks) - 1)  # never charged to the next slot
 
 
 class MonitorTest(unittest.TestCase):

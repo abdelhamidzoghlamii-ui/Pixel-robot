@@ -102,7 +102,7 @@ class RunCycleSafetyTest(unittest.TestCase):
                 recorded = []
                 with recording_rules(robot, recorded) as rules:
                     result = robot.run_cycle(photo_path='fake-photo.jpg')
-                    rules.assert_called_once_with([], 20)
+                    rules.assert_called_once_with([], 20, approach=True)
 
                 # The executed move is exactly the move the rules returned.
                 self.assertEqual(recorded, [expected_move])
@@ -250,6 +250,175 @@ class RunCycleSafetyTest(unittest.TestCase):
             self.assertEqual(robot.run_cycle(), 'FORWARD')
         R.take_photo.assert_called_once_with(R.PHOTO_A)
         self.assertEqual(motors.actions, [('forward', (R.MOTOR_SPEED, R.CYCLE_MOVE_TIME))])
+
+
+def person_direction(results):
+    """detect_person.person_direction (the harness keeps vision code unloaded)."""
+    for r in results:
+        if r[0] == 'person':
+            return {'left': 'LEFT', 'right': 'RIGHT', 'center': 'FORWARD'}[r[2]]
+    return None
+
+
+def person(pos='center', bucket='far'):
+    return ('person', 0.9, pos, bucket, 320, 320, 100, 300)
+
+
+MODES = (None, 'EXPLORE', 'APPROACH', 'GREET', 'LOOK')  # None = --no-picker
+FORWARD_MOTORS = ('forward',)  # Robot.move has no diagonal; FWD_L/FWD_R are checked on choose_move directly
+
+
+def mode_robot(mode, distance=400, results=()):
+    """A robot in `mode` whose next run_cycle sees `results` (legacy tuples) on a fake 320 frame."""
+    R, motors, robot = isolated_robot(distance=distance)
+    R.time.monotonic = Mock(return_value=50.0)
+    R.time.sleep = Mock()  # HOLD waits out the cycle
+    R.time.strftime = Mock(return_value='12:00')
+    R.person_direction = person_direction
+    R.speak = Mock()
+    robot.camera_source = 'robotcam'
+    R.read_frame = Mock(side_effect=lambda session=None: {
+        'status': 'ok', 'session': 'abc', 'frame': robot.camera_frame + 1 if robot.camera_frame else 1,
+        'age_s': 0.4, 'image': SimpleNamespace(height=480, size=(640, 480))})
+    R.get_detector = Mock(return_value=SimpleNamespace(detect=Mock(return_value=[])))
+    R.scene_from_detections = Mock(return_value=list(results))
+    robot.heat = SimpleNamespace(event=Mock(), monitor=SimpleNamespace(readings=lambda: {'dump': None}))
+    if mode:
+        robot.set_mode(mode, 'test')
+    return R, motors, robot
+
+
+def traced(robot, name):
+    return [c.args[1] for c in robot.heat.event.call_args_list if c.args[0] == name]
+
+
+class ModeTest(unittest.TestCase):
+    """Each mode only shapes the Python rules; Python keeps every move (#104/#109)."""
+
+    def test_explore_ignores_people_approach_follows_them(self):
+        for mode, pos, move in (('EXPLORE', 'left', 'FORWARD'), ('EXPLORE', 'right', 'FORWARD'),
+                                ('APPROACH', 'left', 'LEFT'), ('APPROACH', 'right', 'RIGHT'),
+                                ('APPROACH', 'center', 'FORWARD'), (None, 'left', 'LEFT'), (None, 'center', 'FORWARD')):
+            with self.subTest(mode=mode, pos=pos):
+                R, motors, robot = mode_robot(mode, results=[person(pos)])
+                self.assertEqual(robot.run_cycle(), move)
+
+    def test_explore_logs_rooms_with_a_person_in_view(self):
+        R, motors, robot = mode_robot('EXPLORE', results=[person('left'), ('bed', 0.8, 'right', 'medium', 0, 0, 0, 0)])
+        self.assertEqual(robot.run_cycle(), 'FORWARD')
+        self.assertIn('bedroom', robot.known_rooms)
+
+    def test_greet_holds_and_speaks_once(self):
+        R, motors, robot = mode_robot('GREET', results=[person()])
+        self.assertEqual([robot.run_cycle() for _ in range(3)], ['HOLD'] * 3)
+        R.speak.assert_called_once_with(R.GREETING)
+        self.assertEqual(motors.actions, [('stop', ())] * 3)
+        self.assertEqual(R.time.sleep.call_args_list, [((R.CYCLE_MOVE_TIME,),)] * 3)  # the cycle keeps its length
+        self.assertNotEqual(robot.state, 'found')
+        robot.set_mode('EXPLORE', 'x')
+        robot.set_mode('GREET', 'x')
+        robot.run_cycle()
+        self.assertEqual(R.speak.call_count, 2)  # once per GREET
+
+    def test_look_rotates_four_cycles_then_explores(self):
+        R, motors, robot = mode_robot('LOOK')
+        self.assertEqual([robot.run_cycle() for _ in range(5)], ['LEFT'] * 4 + ['FORWARD'])
+        self.assertEqual(robot.mode, 'EXPLORE')
+        self.assertEqual(traced(robot, 'mode')[-1]['to'], 'EXPLORE')
+
+    def test_hold_is_not_a_mission_end(self):
+        R, motors, robot = mode_robot('GREET')
+        robot.move('HOLD')
+        self.assertEqual((robot.last_moves, robot.state), (['HOLD'], 'idle'))
+
+
+class PersonStopTest(unittest.TestCase):
+    """#79 area bucket, owner D4: every forward move holds while a person is 'close' or 'very close'."""
+
+    def test_every_mode_holds_forward_at_close_and_very_close(self):
+        for mode in MODES:
+            for bucket in ('close', 'very close'):
+                with self.subTest(mode=mode, bucket=bucket):
+                    R, motors, robot = mode_robot(mode, results=[person('center', bucket)])
+                    # LOOK turns the clear-path FORWARD into an in-place LEFT: nothing forward to hold
+                    self.assertEqual(robot.run_cycle(), 'LEFT' if mode == 'LOOK' else 'HOLD')
+                    self.assertFalse([a for a, _ in motors.actions if a in FORWARD_MOTORS])
+                    if mode not in ('GREET', 'LOOK'):
+                        self.assertEqual(traced(robot, 'person_stop'), [{'move': 'FORWARD', 'mode': mode,
+                                                                         'bucket': bucket}])
+
+    def test_a_closer_less_confident_second_person_still_stops(self):
+        """scene_from_detections keeps only the most confident person; person-stop must see every person."""
+        from detect_person import scene_from_detections
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                R, motors, robot = mode_robot(mode)
+                R.scene_from_detections = scene_from_detections
+                R.get_detector = Mock(return_value=SimpleNamespace(detect=Mock(return_value=[
+                    {'class_name': 'person', 'conf': 0.9, 'box_xyxy': (300, 200, 340, 260)},     # far, centre
+                    {'class_name': 'person', 'conf': 0.5, 'box_xyxy': (0, 0, 400, 300)}])))      # close (0.39)
+                self.assertEqual([r[3] for r in R.scene_from_detections(robot.detector.detect(None) if robot.detector
+                                  else R.get_detector().detect(None), 640, 480)], ['far'])
+                move = robot.run_cycle()
+                self.assertNotIn(move, ('FORWARD', 'FWD_L', 'FWD_R'))
+                self.assertFalse([a for a, _ in motors.actions if a in FORWARD_MOTORS])
+
+    def test_medium_and_far_do_not_stop(self):
+        for bucket in ('medium', 'far'):
+            R, motors, robot = mode_robot('APPROACH', results=[person('center', bucket)])
+            self.assertEqual(robot.run_cycle(), 'FORWARD')
+            self.assertEqual(traced(robot, 'person_stop'), [])
+
+    def test_diagonal_forward_moves_hold_in_every_mode(self):
+        for mode in MODES:
+            for move in ('FWD_L', 'FWD_R', 'FORWARD'):
+                with self.subTest(mode=mode, move=move):
+                    R, motors, robot = mode_robot(mode)
+                    robot.navigate_rules = Mock(return_value=move)
+                    expected = 'LEFT' if (mode, move) == ('LOOK', 'FORWARD') else 'HOLD'
+                    self.assertEqual(robot.choose_move([person('right', 'close')], 400), expected)
+
+    def test_turns_away_from_a_close_person_are_not_held(self):
+        R, motors, robot = mode_robot(None, results=[person('left', 'close')])
+        self.assertEqual(robot.run_cycle(), 'LEFT')
+
+
+class SafetyInEveryModeTest(unittest.TestCase):
+    def test_obstacle_rules_win_in_every_mode(self):
+        for mode in MODES:
+            for distance in (10, 20):
+                with self.subTest(mode=mode, distance=distance):
+                    R, motors, robot = mode_robot(mode, distance=distance, results=[person('center', 'far')])
+                    move = robot.run_cycle()
+                    self.assertNotIn(move, ('FORWARD', 'FWD_L', 'FWD_R'))
+                    if mode == 'GREET':
+                        self.assertEqual(move, 'HOLD')
+                    else:  # exactly the ladder's move, whatever the mode
+                        ladder = isolated_robot(distance=distance)[2].navigate_rules([], distance)
+                        self.assertEqual(move, ladder)
+
+    def test_stale_frame_stops_before_any_mode_logic(self):
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                R, motors, robot = mode_robot(mode, results=[person('center', 'far')])
+                robot.camera_frame = 5
+                R.read_frame = Mock(return_value={'status': 'ok', 'session': 'abc', 'frame': 5, 'age_s': 0.4,
+                                                  'image': None})
+                self.assertEqual(robot.run_cycle(), 'STOP')
+                self.assertEqual(motors.actions, [('stop', ())])
+                R.speak.assert_not_called()
+
+    def test_picks_never_reach_the_motors(self):
+        """A pick only sets a mode name; even an unknown name cannot produce a motor command."""
+        R, motors, robot = mode_robot('EXPLORE', distance=20)
+        robot.picker = SimpleNamespace(result=Mock(return_value={
+            'slot': robot.slot_n, 'trigger': 'start', 'mode': 'FORWARD', 'fallback': None, 'picker_ms': 1.0,
+            'm2_ms': None, 'cancelled': False}), submit=Mock(), allow=Mock(), forbid=Mock())
+        robot.pick_inflight = True
+        robot.last_640 = None
+        move = robot.run_cycle()
+        self.assertEqual(robot.mode, 'FORWARD')
+        self.assertEqual(move, isolated_robot(distance=20)[2].navigate_rules([], 20))  # obstacle ladder still decides
 
 
 if __name__ == '__main__':
