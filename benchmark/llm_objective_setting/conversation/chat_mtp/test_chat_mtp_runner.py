@@ -556,5 +556,56 @@ class ResumeTest(unittest.TestCase):
         h.assert_not_called()
 
 
+class E4BOptionTest(unittest.TestCase):
+    def test_e4b_commands_change_only_model_and_drafter_paths(self):
+        for config in ('OFF', 'ON'):
+            self.assertEqual(cm.command(config, 'e2b'), cm.command(config))
+            self.assertEqual(cm.command(config, 'e4b'), [s.replace('E2B', 'E4B') for s in cm.command(config)])
+        self.assertEqual(cm.report([], [], cm.IDS, 'e2b'), cm.report([], [], cm.IDS))
+        self.assertEqual(cm.report([], [], cm.IDS, 'e4b').replace('E4B', 'E2B'), cm.report([], [], cm.IDS))
+
+    def test_e4b_hashes_are_pinned_and_mismatch_or_missing_refuses(self):
+        expected = {
+            str(cr.HOME / 'models/gemma-4-E4B-it-Q4_0.gguf'):
+                '4a403d2e4d80281063e4f517b1c061ded8476b4011a4fc2ba7dbff707075547e',
+            str(cr.HOME / 'models/mtp/mtp-gemma-4-E4B-it-Q8_0.gguf'):
+                'b6a723115efa510d3b3215db1e26790dae84cd08c2134a764f3d194f1f0c3376'}
+        self.assertEqual(cm.E4B_SHA256, expected)
+        with mock.patch.object(cm.os.path, 'isfile', return_value=True), \
+                mock.patch.object(cr, 'sha256', side_effect=expected.__getitem__) as hashed:
+            self.assertEqual(cm.check_hashes('e4b'), expected)
+            self.assertEqual([c.args[0] for c in hashed.call_args_list], list(expected))
+        for missing in (True, False):
+            with mock.patch.object(cm.os.path, 'isfile', return_value=not missing), \
+                    mock.patch.object(cr, 'sha256', return_value='wrong'), self.assertRaises(SystemExit):
+                cm.check_hashes('e4b')
+
+    def test_e4b_cli_checks_hashes_before_blocks_and_records_model_commands(self):
+        blocks = []
+        def fake_block(seq, config, todo, texts, ctx):
+            blocks.append(ctx['model'])
+            for pid in todo:
+                ctx['emit']({'config': config, 'prompt_id': pid, 'block': seq})
+            return {'block': seq, 'config': config, 'prompts': todo, 'server_s': 0, 'end_reason': 'done'}
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(cm, 'OUT_ROOT', Path(d)), \
+                mock.patch.object(cr, 'require_native'), mock.patch.object(cm, 'refusals', return_value=[]), \
+                mock.patch.object(cm, 'check_hashes', return_value={}) as hashes, \
+                mock.patch.object(cr, 'wait_cores'), mock.patch.object(cr, 'read_thermal', return_value={}), \
+                mock.patch.object(cr, 'read_dump', return_value={'skin': 29.0}), \
+                mock.patch.object(cr, 'sha256', return_value='h'), mock.patch.object(cm.signal, 'signal'), \
+                mock.patch.object(cm, 'run_block', side_effect=fake_block), \
+                mock.patch.object(cm, 'report', return_value='REPORT') as report, \
+                mock.patch.object(cm.pm, 'GATE_MAX_S', 480), redirect_stdout(io.StringIO()):
+            cm.main(['--model', 'e4b', '--smoke'])
+            hashes.assert_called_once_with('e4b')
+            self.assertEqual(blocks, ['e4b', 'e4b'])
+            out = next(Path(d).glob('chat_mtp_e4b_*'))
+            meta = json.loads((out / 'run.json').read_text())
+            self.assertEqual(meta['commands'], {c: cm.command(c, 'e4b') for c in ('OFF', 'ON')})
+            self.assertEqual(meta['payload_example'], cm.payload('<text>'))
+            self.assertEqual(report.call_args.args[-1], 'e4b')
+            self.assertEqual((out / 'report.txt').read_text(), 'REPORT\n')
+
+
 if __name__ == '__main__':
     unittest.main()

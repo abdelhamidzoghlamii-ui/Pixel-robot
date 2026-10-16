@@ -23,6 +23,13 @@ MTP_ARGS = ["--model-draft", MTP_DRAFT, "--spec-type", "draft-mtp", "--spec-draf
 def mtp_draft_ok():
     return os.path.isfile(MTP_DRAFT) and os.path.getsize(MTP_DRAFT) == MTP_DRAFT_SIZE
 
+E4B_MTP_DRAFT = HOME + "/models/mtp/mtp-gemma-4-E4B-it-Q8_0.gguf"
+E4B_MTP_DRAFT_SIZE = 98653248
+E4B_MTP_ARGS = ["--model-draft", E4B_MTP_DRAFT, "--spec-type", "draft-mtp", "--spec-draft-n-max", "3"]
+
+def e4b_mtp_draft_ok():
+    return os.path.isfile(E4B_MTP_DRAFT) and os.path.getsize(E4B_MTP_DRAFT) == E4B_MTP_DRAFT_SIZE
+
 def kill_servers():
     os.system("pkill -f llama-server 2>/dev/null")
     time.sleep(2)
@@ -98,6 +105,23 @@ def start_setup(setup_name):
             port=8080, ctx=2048
         )
 
+    # E4B Q4_0: opt-in, not the robot default.
+    elif setup_name == "setup_e4b_q4":
+        return start_server(
+            HOME + "/models/gemma-4-E4B-it-Q4_0.gguf",
+            port=8080, ctx=2048
+        )
+
+    elif setup_name == "setup_e4b_q4_mtp":
+        if not e4b_mtp_draft_ok():
+            print("[SERVER] ERROR: MTP drafter missing or not " + str(E4B_MTP_DRAFT_SIZE) +
+                  " bytes: " + E4B_MTP_DRAFT + "; nothing started")
+            return False
+        return start_server(
+            HOME + "/models/gemma-4-E4B-it-Q4_0.gguf",
+            port=8080, ctx=2048, extra_args=" ".join(E4B_MTP_ARGS)
+        )
+
     # ── STOP ─────────────────────────────────────────
     elif setup_name == "stop":
         kill_servers()
@@ -106,11 +130,12 @@ def start_setup(setup_name):
     else:
         print("[SERVER] Unknown setup: " + setup_name)
         print("[SERVER] Available: setup_q4, setup_q4_mtp, setup_e4b, stop")
+        print("[SERVER] Opt-in: setup_e4b_q4, setup_e4b_q4_mtp")
         return False
 
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2:
-        print("Usage: python3 server_manager.py [setup_q4|setup_q4_mtp|setup_e4b|stop]")
+        print("Usage: python3 server_manager.py [setup_q4|setup_q4_mtp|setup_e4b|setup_e4b_q4|setup_e4b_q4_mtp|stop]")
         sys.exit(1)
     start_setup(sys.argv[1])

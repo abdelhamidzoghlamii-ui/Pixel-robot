@@ -60,6 +60,10 @@ THERMAL_LOG = OUT_ROOT / 'chat_mtp' / 'thermal.log'  # oneshot.sh's logger
 MODEL = str(cr.HOME / 'models' / chat.MTP_MODEL)
 SHA256 = {MODEL: '8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52',  # conv_mtp/ARTIFACTS.md
           sm.MTP_DRAFT: '9eba819938efccfd6044f8af84e3bbfddc639a2bcf32ebc36420e6a649191919'}
+# unsloth/gemma-4-E4B-it-GGUF, pinned bfc15c382204943c3a8fff0c750b94ae2364d7a3 (Hub LFS SHA-256).
+E4B_SHA256 = {str(cr.HOME / 'models' / chat.E4B_MTP_MODEL):
+              '4a403d2e4d80281063e4f517b1c061ded8476b4011a4fc2ba7dbff707075547e',
+              sm.E4B_MTP_DRAFT: 'b6a723115efa510d3b3215db1e26790dae84cd08c2134a764f3d194f1f0c3376'}
 IDS = 'A5 A6 B1 B2 B6 B7 C1 C6 C7 C8 C9 C10 C11'.split()  # conv_speed_mtp.IDS
 ORDER = ('OFF', 'ON', 'ON', 'OFF')  # block n runs ORDER[n % 4]
 BLOCK_S, LAST_START_S, SMOKE_GATE_S = 180, 150, 20
@@ -76,16 +80,17 @@ def prompt_texts():
             for i in IDS}
 
 
-def model_key():
-    key = next((k for k, m in chat.MODELS.items() if m['file'] == chat.MTP_MODEL), None)
+def model_key(model='e2b'):
+    file = chat.E4B_MTP_MODEL if model == 'e4b' else chat.MTP_MODEL
+    key = next((k for k, m in chat.MODELS.items() if m['file'] == file), None)
     if key is None:
-        raise SystemExit(f'{MODEL} is not in chat.py\'s menu (missing on disk?)')
+        raise SystemExit(f'{cr.HOME / "models" / file} is not in chat.py\'s menu (missing on disk?)')
     return key
 
 
-def command(config):
-    """What chat.start_server launches for the E2B Q4_0 entry when cores 4-7 are allowed."""
-    return ['taskset', '-c', '4-7', *chat.server_cmd(model_key(), draft=config == 'ON')]
+def command(config, model='e2b'):
+    """What chat.start_server launches for the chosen Q4_0 entry when cores 4-7 are allowed."""
+    return ['taskset', '-c', '4-7', *chat.server_cmd(model_key(model), draft=config == 'ON')]
 
 
 def payload(text):
@@ -120,9 +125,10 @@ def refusals():
     return why
 
 
-def check_hashes():
-    got = {p: cr.sha256(p) if os.path.isfile(p) else 'missing' for p in SHA256}
-    bad = [f'{p}: {got[p]} != {want}' for p, want in SHA256.items() if got[p] != want]
+def check_hashes(model='e2b'):
+    expected = E4B_SHA256 if model == 'e4b' else SHA256
+    got = {p: cr.sha256(p) if os.path.isfile(p) else 'missing' for p in expected}
+    bad = [f'{p}: {got[p]} != {want}' for p, want in expected.items() if got[p] != want]
     if bad:
         raise SystemExit('SHA-256 mismatch: ' + '; '.join(bad))
     return got
@@ -214,7 +220,7 @@ def run_block(seq, config, todo, texts, ctx):
     stop_sampling, samples, sampler, timer = threading.Event(), [], None, None
     with open(ctx['out'] / f'server_block{seq:02d}_{config}.log', 'w') as log:
         t0 = time.monotonic()
-        proc = spawn(command(config), log)
+        proc = spawn(command(config, ctx.get('model', 'e2b')), log)
         try:  # sampling covers the load too; it stops when the server stop begins
             timer, fired = watchdog(proc, DEADLINE_S - (time.monotonic() - t0))
             sampler = threading.Thread(target=cr.sampler_loop, args=(t0, ctx['thermal_log'], SimpleNamespace(proc=proc),
@@ -342,7 +348,7 @@ def acceptance(rows):
     return sum(r['draft_n_accepted'] or 0 for r in rows) / drafted if drafted else None
 
 
-def report(prompts, blocks, ids):
+def report(prompts, blocks, ids, model='e2b'):
     f = lambda v, spec: format(v, spec) if v is not None else 'n/a'
     med = lambda xs: statistics.median(xs) if xs else None
     L = ['CHAT MTP REPORT  (chat.py E2B Q4_0 command and payload: ctx 4096, temperature 0.7, n_predict 512, cores 4-7)',
@@ -350,6 +356,8 @@ def report(prompts, blocks, ids):
          '(>= 10 tokens);',
          'accept = accepted / drafted; W = mean battery power over all block samples; J/tok = mean W during requests',
          '  x request time / generated tokens (whole phone); RAM: max VmHWM / max PSS, min MemAvailable', '']
+    if model == 'e4b':
+        L[0] = L[0].replace('E2B', 'E4B')
     L.append(f"{'config':<7}{'prompts':>8}{'load s':>8}{'prompt s':>9}{'gen t/s':>9}{'accept':>8}{'reply ch':>9}"
              f"{'HWM MiB':>9}{'PSS MiB':>9}{'avail MiB':>10}{'W':>6}{'J/tok':>7}{'blocks':>7}{'warm':>5}")
     for c in ('OFF', 'ON'):
@@ -385,6 +393,7 @@ def main(argv=None):
     ap.add_argument('--smoke', action='store_true')
     ap.add_argument('--resume', type=Path)
     ap.add_argument('--thermal-log', default=str(THERMAL_LOG))
+    ap.add_argument('--model', choices=('e2b', 'e4b'), default='e2b', help='Q4_0 chat model (default: e2b)')
     a = ap.parse_args(argv)
     cr.require_native()  # before any root command or server
     for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
@@ -395,7 +404,7 @@ def main(argv=None):
             raise SystemExit('not started: ' + '; '.join(why))
         ids = IDS[:1] if a.smoke else IDS
         texts = prompt_texts()
-        manifest = {'smoke': a.smoke, 'ids': ids, 'commands': {c: command(c) for c in ('OFF', 'ON')},
+        manifest = {'smoke': a.smoke, 'ids': ids, 'commands': {c: command(c, a.model) for c in ('OFF', 'ON')},
                     'payload_example': payload('<text>'),
                     'prompt_text_sha256': {i: sha256_text(texts[i]) for i in ids}}
         if a.smoke:
@@ -406,10 +415,11 @@ def main(argv=None):
             if any(run[k] != v for k, v in manifest.items()):
                 raise SystemExit('--resume: smoke flag, prompts, commands or payload differ from run.json')
         else:
-            out = OUT_ROOT / f'chat_mtp_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}{"_smoke" if a.smoke else ""}'
+            prefix = 'chat_mtp_e4b' if a.model == 'e4b' else 'chat_mtp'
+            out = OUT_ROOT / f'{prefix}_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}{"_smoke" if a.smoke else ""}'
             out.mkdir(parents=True)
         print(f'checking model and drafter SHA-256 (about 30 s); run folder {out}', flush=True)
-        hashes = check_hashes()
+        hashes = check_hashes(a.model)
         cr.wait_cores('start')
         idle = run['idle'] if a.resume else {**cr.read_thermal(a.thermal_log), 'skin': cr.read_dump()['skin']}
         if idle['skin'] is None:
@@ -438,7 +448,7 @@ def main(argv=None):
                 plog.flush()
                 prompts.append(row)
                 remaining[row['config']].remove(row['prompt_id'])
-            ctx = {'out': out, 'thermal_log': a.thermal_log, 'idle': idle, 'emit': emit}
+            ctx = {'out': out, 'thermal_log': a.thermal_log, 'idle': idle, 'emit': emit, 'model': a.model}
             while (nxt := next_block(seq, remaining)) is not None:
                 seq, config = nxt
                 while True:
@@ -454,7 +464,7 @@ def main(argv=None):
                 print(f'[block {seq} {config}] {",".join(b["prompts"]) or "no prompt"}, server {b["server_s"]:.0f} s; '
                       f'{b["end_reason"]}', flush=True)
                 seq += 1
-        text = report(prompts, blocks, ids)
+        text = report(prompts, blocks, ids, a.model)
         (out / 'report.txt').write_text(text + '\n')
         print(text, flush=True)
     finally:

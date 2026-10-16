@@ -26,11 +26,17 @@ def base_chat_cmd(file, ctx):
             '--threads', '4', '--threads-batch', '4', '--parallel', '1', '--swa-full', '--cache-ram', '0']
 
 
-def fake_fs(draft_size):
+def fake_fs(draft_size, e4b_size=sm.E4B_MTP_DRAFT_SIZE):
     """os.path fakes: every model file is 2 GB; the drafter has draft_size bytes, or is missing when None."""
     def exists(p):
+        if p == sm.E4B_MTP_DRAFT:
+            return e4b_size is not None
         return p != DRAFT or draft_size is not None
     def getsize(p):
+        if p == sm.E4B_MTP_DRAFT:
+            if e4b_size is None:
+                raise FileNotFoundError(p)
+            return e4b_size
         if p == DRAFT:
             if draft_size is None:
                 raise FileNotFoundError(p)
@@ -128,9 +134,10 @@ class ChatTest(unittest.TestCase):
         for name, file, _, ctx in chat.MODEL_FILES:
             key = self.keys[name]
             self.assertEqual(chat.server_cmd(key), base_chat_cmd(file, ctx), name)
-            self.assertEqual(chat.server_cmd(key, draft=True), base_chat_cmd(file, ctx) + G1, name)
+            args = sm.E4B_MTP_ARGS if file == chat.E4B_MTP_MODEL else G1
+            self.assertEqual(chat.server_cmd(key, draft=True), base_chat_cmd(file, ctx) + args, name)
 
-    def start(self, key, draft_size=sm.MTP_DRAFT_SIZE):
+    def start(self, key, draft_size=sm.MTP_DRAFT_SIZE, e4b_size=sm.E4B_MTP_DRAFT_SIZE, affinity=frozenset(range(8))):
         launched = []
 
         class Popen:
@@ -142,13 +149,13 @@ class ChatTest(unittest.TestCase):
                 return None
 
         with tempfile.TemporaryDirectory() as d, \
-                Patches(fake_fs(draft_size) + [mock.patch.object(chat, 'SERVER_LOG', d + '/log'),
+                Patches(fake_fs(draft_size, e4b_size) + [mock.patch.object(chat, 'SERVER_LOG', d + '/log'),
                                                mock.patch.object(chat, 'kill_server'),
                                                mock.patch.object(chat, 'server_running', return_value=False),
                                                mock.patch.object(chat, 'get_temp', return_value=''),
                                                mock.patch.object(chat.time, 'sleep'),
                                                mock.patch.object(chat.shutil, 'which', return_value='/usr/bin/taskset'),
-                                               mock.patch.object(chat.os, 'sched_getaffinity', return_value=set(range(8))),
+                                               mock.patch.object(chat.os, 'sched_getaffinity', return_value=affinity),
                                                mock.patch.object(chat.subprocess, 'Popen', Popen),
                                                mock.patch('urllib.request.urlopen', return_value=Response())]), \
                 redirect_stdout(io.StringIO()) as out:
@@ -159,8 +166,9 @@ class ChatTest(unittest.TestCase):
     def test_start_server_e2b_q4_0_gets_drafter_others_unchanged(self):
         for name, file, _, ctx in chat.MODEL_FILES:
             launched, out = self.start(self.keys[name])
-            mtp = name == 'Gemma 4 E2B Q4_0'
-            self.assertEqual(launched, [['taskset', '-c', '4-7'] + base_chat_cmd(file, ctx) + G1 * mtp], name)
+            mtp = name in ('Gemma 4 E2B Q4_0', 'Gemma 4 E4B Q4_0')
+            args = sm.E4B_MTP_ARGS if file == chat.E4B_MTP_MODEL else G1
+            self.assertEqual(launched, [['taskset', '-c', '4-7'] + base_chat_cmd(file, ctx) + args * mtp], name)
             self.assertIn('MTP on' if mtp else 'MTP off', out)
             self.assertIs(chat.mtp_on, mtp)
 

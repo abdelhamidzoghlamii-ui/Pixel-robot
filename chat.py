@@ -1,7 +1,7 @@
 import sys, os, requests, time, subprocess, shutil
 from pathlib import Path
 sys.path.insert(0, '/data/data/com.termux/files/home/robot')
-from server_manager import MTP_ARGS, MTP_DRAFT, mtp_draft_ok
+from server_manager import MTP_ARGS, MTP_DRAFT, mtp_draft_ok, E4B_MTP_ARGS, E4B_MTP_DRAFT, e4b_mtp_draft_ok
 
 HOME   = '/data/data/com.termux/files/home'
 MODEL_FILES = (
@@ -14,6 +14,7 @@ MODEL_FILES = (
     ('Qwen3.5 4B Q5_K_M', 'qwen35/Qwen3.5-4B-Q5_K_M.gguf', 'qwen', 2048),
     ('Qwen3.5 4B Q6_K', 'qwen35/Qwen3.5-4B-Q6_K.gguf', 'qwen', 2048),
     ('Mistral 7B Q4_K_M', 'mistral-7b-instruct-v0.2.Q4_K_M.gguf', 'mistral', 2048),
+    ('Gemma 4 E4B Q4_0', 'gemma-4-E4B-it-Q4_0.gguf', 'gemma', 4096),
 )
 available_models = [
     entry for entry in MODEL_FILES
@@ -28,7 +29,8 @@ MODELS = {
 SERVER  = HOME + '/llama.cpp-b1609-dotprod/build/bin/llama-server'
 SERVER_LOG = HOME + '/robot-chat-server.log'
 URL     = 'http://127.0.0.1:8080/completion'
-MTP_MODEL = 'gemma-4-E2B-it-Q4_0.gguf'  # the one entry that runs the MTP drafter (DECISIONS #120)
+MTP_MODEL = 'gemma-4-E2B-it-Q4_0.gguf'  # E2B MTP entry (DECISIONS #120)
+E4B_MTP_MODEL = 'gemma-4-E4B-it-Q4_0.gguf'
 current_model = None
 mtp_on = False
 history = []
@@ -77,7 +79,8 @@ def server_cmd(model_key, draft=False):
         '--threads', '4', '--threads-batch', '4', '--parallel', '1',
         '--swa-full', '--cache-ram', '0',
     ]
-    return cmd + MTP_ARGS if draft else cmd
+    draft_args = E4B_MTP_ARGS if m['file'] == E4B_MTP_MODEL else MTP_ARGS
+    return cmd + draft_args if draft else cmd
 
 def kill_server():
     subprocess.run(['pkill', '-f', '^' + SERVER + ' '], stdout=subprocess.DEVNULL,
@@ -100,9 +103,11 @@ def start_server(model_key):
         print(colored('  Port 8080 is still in use by another server', C.RED))
         return False
 
-    draft = m['file'] == MTP_MODEL
-    if draft and not mtp_draft_ok():
-        print(colored(f'  MTP drafter missing or wrong size, starting without it: {MTP_DRAFT}', C.YELLOW))
+    e4b = m['file'] == E4B_MTP_MODEL
+    draft = m['file'] in (MTP_MODEL, E4B_MTP_MODEL)
+    if draft and not (e4b_mtp_draft_ok() if e4b else mtp_draft_ok()):
+        draft_path = E4B_MTP_DRAFT if e4b else MTP_DRAFT
+        print(colored(f'  MTP drafter missing or wrong size, starting without it: {draft_path}', C.YELLOW))
         draft = False
     print(colored(f'  Loading {m["name"]}...', C.CYAN))
     cmd = server_cmd(model_key, draft)
