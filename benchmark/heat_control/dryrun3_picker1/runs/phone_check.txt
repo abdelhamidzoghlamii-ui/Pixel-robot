@@ -1,0 +1,22 @@
+photo roomsig_couch_1.jpg frame (480, 640) boxes 4 scene [('person', 0.92, 'left', 'close'), ('potted plant', 0.78, 'center', 'medium'), ('couch', 0.53, 'center', 'very close')]
+main thread affinity [0, 1, 2, 3, 4, 5, 6, 7] pid 19073
+M2 affinity {19082: [6, 7], 19080: [6, 7]} workers [19080] caller 19082
+--- situation (pick 1, without M2 block) ---
+Mission: explore and map the rooms
+Scene: person (left, close), potted plant (center, medium), couch (center, very close)
+Ultrasonic distance ahead: 400 cm
+Current action: keep exploring (for 0 s)
+Last moves: FORWARD
+Rooms seen: living room
+pick 1: trigger=start options=['keep exploring', 'go toward the person', 'stop and greet the person', 'look around in place'] probs={'keep exploring': 0.966, 'go toward the person': 0.018, 'stop and greet the person': 0.007, 'look around in place': 0.009} mode=EXPLORE picker_ms=3151 m2_ms=653 m2_boxes=4 m2_relations=5 tokens=202 fallback=None
+pick 2: trigger=person_appeared options=['keep exploring', 'go toward the person', 'stop and greet the person', 'look around in place'] probs={'keep exploring': 0.977, 'go toward the person': 0.012, 'stop and greet the person': 0.005, 'look around in place': 0.006} mode=EXPLORE picker_ms=2994 m2_ms=784 m2_boxes=4 m2_relations=5 tokens=205 fallback=None
+pick 3: trigger=heartbeat options=['keep exploring', 'go toward the person', 'stop and greet the person', 'look around in place'] probs={'keep exploring': 0.063, 'go toward the person': 0.03, 'stop and greet the person': 0.011, 'look around in place': 0.896} mode=LOOK picker_ms=3130 m2_ms=800 m2_boxes=4 m2_relations=5 tokens=207 fallback=None
+--- M2 relations text ---
+M2 relations:
+- person [0] behind couch [3].
+- potted plant [2] to the right of potted plant [1].
+- potted plant [1] to the right of person [0].
+- potted plant [1] behind couch [3].
+- person [0] to the left of potted plant [1].
+M2 affinity after {19082: [6, 7], 19080: [6, 7]}
+stopped True

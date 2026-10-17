@@ -1,0 +1,161 @@
+No [P0]–[P3] findings. The two authorized round-4 fixes address the reported cancellation gaps; I found no additional correctness or safety defect requiring changes.
+
+The mission closes the picker gate after the heat decision and before vision:
+
+main.py:586
+```
+                    self.picker.forbid()  # before this cycle's vision: no further picker request at SEVERE
+```
+
+The worker checks cancellation again after accepting the affinity result, before entering M2:
+
+picker.py:215
+```
+            check()  # a forbid() during the affinity check: no M2 run
+```
+
+Both have targeted regression tests. The SEVERE test uses the real Picker and Gemma with fake transport, releases an outstanding tokenization during blocked detection, and verifies cancellation without further HTTP requests. The affinity test verifies that neither relations nor Gemma runs after cancellation.
+
+test_heat_control.py:541
+```
+    def test_severe_closes_the_real_worker_gate_before_vision(self):
+```
+
+test_picker.py:315
+```
+    def test_forbid_during_affinity_check_runs_no_m2(self):
+```
+
+Python retains movement authority. Person-stop checks every detected person, including a closer person discarded by label deduplication, and holds forward moves without ending the mission. Obstacle navigation remains authoritative for moving modes; GREET holds still. Stale-frame handling precedes mode execution. The worker receives frame/data references and never accesses motors, camera control, or heat state.
+
+PAUSE/HOLD transitions forbid optional work before stopping the camera. Generation checks prevent a running cancelled pick from reviving after a later `allow()`. Results apply only to their still-open ACTIVE slot, when uncancelled and below the monitor’s latest SEVERE status:
+
+main.py:538
+```
+        applied = own_slot and not r['cancelled'] and not self.severe_now()  # the reading now, not last cycle's
+```
+
+Startup and per-pick fallbacks continue in EXPLORE. `--no-picker` preserves the original person-approach rules except the authorized person-stop change. The candidate diff leaves heat thresholds, SizePolicy, CAMERA_RATE, stale-frame limits, MOTOR_SPEED and CYCLE_MOVE_TIME unchanged.
+
+Copy-fidelity checks:
+
+- **F1:** The campaign uses S1O’s schema builder and letter-probability scoring, then chooses the highest-probability offered option, with ties resolved by offered order. The copied request parameters, renormalization and choice match. Prompt-equivalence tests passed, including truncated state input.
+
+benchmark/strategic_selector/v3/adapters.py:194
+```
+        return self.build(self.Example(state, [q]), self, shuffle_choice=False, train=False)["ids"]
+```
+
+benchmark/coresidency/coresidency.py:485
+```
+    from s1.schema import Example, Q, LETTERS, build
+```
+
+- **F2:** BIG means CPUs 6–7 and two threads. M2 preprocessing, calibration, decoding, relation formatting and highest-confidence box selection match their sources. The three constant hashes match the campaign manifest; the graph hash matches the passed parity record. Hash verification precedes pickle-enabled bank loading.
+
+benchmark/relate_anything/speed1/variants.py:14
+```
+CLUSTERS = {'MID': ({4, 5}, 2), 'BIG': ({6, 7}, 2), 'LITTLE': ({0, 1, 2, 3}, 4)}
+```
+
+The asset directory contains `relateanything.onnx`, `relateanything.json` and `predicate_bank.npz`:
+
+relate.py:20
+```
+DIRECTORY = '/data/data/com.termux/files/home/models/relate_anything/relsgg-vits16'
+```
+
+The requested `speed1/speed_block.py` is absent. `speed1/variants.py` imports the implementation from `desk2/speed_block.py`; I checked that implementation.
+
+- **F3:** The removed centimetre check used the unchanged single-image formula. With person height 170, focal length 500 and a maximum 640-space box height of 640, the estimate cannot reach the former 80 cm threshold.
+
+stereo_depth.py:36
+```
+    dist = (real_h * FOCAL_PX) / height_px
+```
+
+- **F4:** The campaign starts the same server binary/model and four-thread settings as `setup_q4`, without an explicit server taskset. Its measurement-thread affinity controls are separate. No server-manager change appears in the candidate.
+
+benchmark/coresidency/coresidency.py:404
+```
+    `2>/dev/null &` replaced by a log file). No taskset: the robot does not pin the server."""
+```
+
+- **F5:** `picker.py` includes upstream attribution, pinned revision and the complete MIT notice. Production modules do not import benchmark code or the external S1O source; the external schema import is test-only.
+
+picker.py:12
+```
+  Copyright (c) 2026 Rami Mithalouni
+```
+
+The situation template is:
+
+```text
+Mission: {mission}
+Scene: {label} ({position}, {bucket}), ...
+Ultrasonic distance ahead: {distance} cm
+Current action: {mode phrase} (for {seconds rounded to an integer} s)
+Last moves: {last three moves, comma-separated}
+Rooms seen: {room names, comma-separated}
+M2 relations:
+{formatted relations}
+```
+
+Empty alternatives are `nothing detected`, `no reading`, and `none`. Fewer than two boxes produces `- none (fewer than 2 objects).` The instruction is exactly “Choose the single best next action for the robot.”
+
+I reran `sh ../checks.sh` successfully: syntax checks passed; test counts were **22 / 17 / 29 / 10 / 10 / 29 / 32**, totaling **149**, all passing. Navigation output remained **41 lines**, MD5 **fbbfe5b3248f1c930ac7c0d5fc67d4c6**. Base counts are supplied evidence, not independently rerun here.
+
+File line counts below include partially inspected sources and files compiled or checked by the permitted script.
+
+| File | Lines |
+|---|---:|
+| docs/HANDOFF.md | 68 |
+| docs/WORKFLOW.md | 303 |
+| docs/REVIEWER.md | 15 |
+| docs/STATUS.md | 449 |
+| docs/DECISION_INDEX.md | 54 |
+| docs/DECISIONS.md | 1669 |
+| docs/CLAUDE.md | 127 |
+| docs/LICENSES.md | 85 |
+| TASK.txt | 95 |
+| candidate.diff | 1823 |
+| check_output.txt | 194 |
+| frozen_manifest.json | 42 |
+| photo_table.md | 36 |
+| phone_check.txt | 22 |
+| delta_r3_r4.diff | 104 |
+| main.py | 690 |
+| run_cycle_safety_test.py | 425 |
+| run_mission.py | 118 |
+| test_heat_control.py | 643 |
+| test_run_mission.py | 251 |
+| picker.py | 257 |
+| relate.py | 185 |
+| test_picker.py | 418 |
+| detect_person.py | 283 |
+| detector_size_policy.py | 32 |
+| heat_control.py | 345 |
+| robotcam_reader.py | 43 |
+| stereo_depth.py | 173 |
+| server_manager.py | 116 |
+| test_detector_robotcam.py | 317 |
+| test_chat_mtp.py | 202 |
+| nav_test.py | 35 |
+| ../checks.sh | 24 |
+| benchmark/strategic_selector/v3/adapters.py | 368 |
+| benchmark/coresidency/coresidency.py | 1290 |
+| benchmark/relate_anything/desk2/desk_check.py | 232 |
+| benchmark/relate_anything/desk2/speed_block.py | 495 |
+| benchmark/relate_anything/speed1/variants.py | 78 |
+| benchmark/campaign/phase1.py | 1074 |
+| benchmark/campaign/runtime.py | 723 |
+| benchmark/campaign/expected_hashes.json | 9 |
+| benchmark/relate_anything/desk2/parity_valid_relsgg-vits16.json | 7988 |
+| benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py | 468 |
+| benchmark/llm_objective_setting/conversation/chat_mtp/test_chat_mtp_runner.py | 560 |
+| benchmark/llm_objective_setting/conversation/chat_mtp/oneshot.sh | 135 |
+| benchmark/llm_objective_setting/conversation/chat_mtp/run_chat_mtp.sh | 9 |
+
+Limits: hardware, photos, asset contents and upstream licence provenance were not independently rechecked. Existing absolute import paths make some checks depend on the live tree’s supplied byte-identity assurance. The round-3 phone output establishes neither round-4 hardware validation nor timing. This approval does not authorize a commit.
+
+VERDICT: APPROVED

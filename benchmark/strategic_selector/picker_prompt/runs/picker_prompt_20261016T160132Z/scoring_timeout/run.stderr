@@ -1,0 +1,49 @@
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/robot/benchmark/strategic_selector/picker_prompt/harness.py", line 351, in <module>
+    main()
+    ~~~~^^
+  File "/data/data/com.termux/files/home/robot/benchmark/strategic_selector/picker_prompt/harness.py", line 347, in main
+    run(args.output)
+    ~~~^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/robot/benchmark/strategic_selector/picker_prompt/harness.py", line 289, in run
+    rows_by_variant[v] = score(v, 'DEV', v)
+                         ~~~~~^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/robot/benchmark/strategic_selector/picker_prompt/harness.py", line 268, in score
+    dist = gemma.decide(text, phrases)
+  File "/data/data/com.termux/files/home/robot/picker.py", line 110, in decide
+    res = self.request('/completion', {'prompt': ids, 'n_predict': 1, 'n_probs': N_PROBS, 'post_sampling_probs': False,
+                                    'temperature': 0, 'cache_prompt': False})
+  File "/data/data/com.termux/files/home/robot/picker.py", line 88, in request
+    return self.post(path, body)
+           ~~~~~~~~~^^^^^^^^^^^^
+  File "/data/data/com.termux/files/home/robot/picker.py", line 68, in http
+    with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/urllib/request.py", line 189, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/urllib/request.py", line 489, in open
+    response = self._open(req, data)
+  File "/usr/lib/python3.13/urllib/request.py", line 506, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+                              '_open', req)
+  File "/usr/lib/python3.13/urllib/request.py", line 466, in _call_chain
+    result = func(*args)
+  File "/usr/lib/python3.13/urllib/request.py", line 1348, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/urllib/request.py", line 1323, in do_open
+    r = h.getresponse()
+  File "/usr/lib/python3.13/http/client.py", line 1459, in getresponse
+    response.begin()
+    ~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/client.py", line 336, in begin
+    version, status, reason = self._read_status()
+                              ~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.13/http/client.py", line 297, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socket.py", line 719, in readinto
+    return self._sock.recv_into(b)
+           ~~~~~~~~~~~~~~~~~~~~^^^
+TimeoutError: timed out

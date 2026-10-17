@@ -1,0 +1,173 @@
+Two remaining cancellation gaps require changes. The round-3 fixes are present, but they do not close these execution windows.
+
+1. **[P1] SEVERE does not cancel the worker before vision runs.**
+
+   When the next mission iteration observes SEVERE and remains ACTIVE, the worker stays allowed throughout camera reading, YOLO inference, and movement selection. Cancellation happens only in `request_pick()` afterward. An outstanding tokenization request can therefore finish and start further requests—including `/completion`—after the mission thread has observed SEVERE. This exceeds the permitted exception for an already-sent request.
+
+main.py:584
+```python
+                target, reason = heat.decide(self.get_distance())
+```
+
+main.py:428
+```python
+                detections = self.detector.detect(frame, size)
+```
+
+main.py:453
+```python
+        self.request_pick(results, distance)  # never waits; M2 runs during the move below
+```
+
+main.py:505
+```python
+        (self.picker.forbid if severe else self.picker.allow)()  # also cancels a pick already running
+```
+
+   Close the worker gate when SEVERE is observed, before entering vision. Add a regression using the real Picker with fake transport: hold a tokenization request, publish SEVERE, block detector execution, then release tokenization. No subsequent HTTP request should start while detection remains blocked. Existing mission tests check eventual cancellation and mode retention, not this ordering.
+
+2. **[P2] Cancellation during affinity verification still starts M2.**
+
+   The worker checks permission before `check_affinity()`, which performs `/proc` reads and affinity syscalls. If the mission calls `forbid()` during those operations, the worker subsequently enters `relations()` without checking again. With at least two boxes, a new M2 inference starts after permission was withdrawn; cancellation is noticed only afterward.
+
+picker.py:211
+```python
+            affinity = self.relate.check_affinity()
+```
+
+picker.py:215
+```python
+            text, out['m2_boxes'], out['m2_relations'], out['m2_ms'] = self.relate.relations(*request['frame_640'])
+```
+
+   Recheck cancellation after affinity verification and before starting M2. A deterministic regression can make the fake `check_affinity()` call `forbid()` before returning success, then assert that neither `relations()` nor Gemma runs. This finding is from static inspection; I did not run an additional, unauthorized reproduction.
+
+The permitted `sh ../checks.sh` run passed: syntax checks, 147 tests across the seven suites, and nav_test’s unchanged 41-line output hash, `fbbfe5b3248f1c930ac7c0d5fc67d4c6`. Suite counts were 22 / 17 / 28 / 10 / 10 / 28 / 32. The reported base counts were not independently rerun because this copy contains the candidate.
+
+The remaining safety paths inspected preserve Python’s motor authority. Person-stop considers every detected person, including a closer person discarded by label deduplication. Forward and diagonal-forward candidates become a non-ending HOLD. Obstacle navigation remains authoritative for moving modes; GREET stays stopped. Stale-frame handling precedes mode execution. The worker receives frame data and text and does not access motors, camera controls, or heat state. Startup and per-pick failure paths retain EXPLORE fallback behavior. `--no-picker` retains person approach and avoids constructing Gemma or M2. SizePolicy, CAMERA_RATE, MOTOR_SPEED, CYCLE_MOVE_TIME, and heat thresholds are unchanged in the authoritative diff.
+
+The requested source comparisons established:
+
+- **F1:** The copied prompt construction matches the single-question S1O builder, including truncation. Letter scoring preserves one-token completion, raw letter probabilities, renormalization, and first-option tie breaking. The original-builder parity test passed.
+
+benchmark/strategic_selector/v3/adapters.py:194
+```python
+        return self.build(self.Example(state, [q]), self, shuffle_choice=False, train=False)["ids"]
+```
+
+benchmark/coresidency/coresidency.py:516
+```python
+    choice = max(keys, key=lambda k: dist[k])  # ties: first offered, as in ladder.py
+```
+
+- **F2:** Preprocessing, graph validation, calibration, relation decoding, context formatting, and confidence-based box selection agree with their copied sources. BIG uses two threads on CPUs 6–7. The three embedded asset hashes match the campaign manifest; the graph hash matches the parity-passed record. Hash validation precedes pickle-enabled bank loading. The requested `speed1/speed_block.py` path does not exist; `speed1/variants.py` delegates to `desk2/speed_block.py`.
+
+benchmark/relate_anything/speed1/variants.py:14
+```python
+CLUSTERS = {'MID': ({4, 5}, 2), 'BIG': ({6, 7}, 2), 'LITTLE': ({0, 1, 2, 3}, 4)}
+```
+
+benchmark/relate_anything/desk2/desk_check.py:56
+```python
+        if parity.get('graph_sha256') != hashlib.sha256(graph.read_bytes()).hexdigest():
+```
+
+  Runtime M2 assets are `relateanything.onnx`, `relateanything.json`, and `predicate_bank.npz` beneath:
+
+relate.py:20
+```python
+DIRECTORY = '/data/data/com.termux/files/home/models/relate_anything/relsgg-vits16'
+```
+
+- **F3:** The base person branch used the height estimate shown below. With valid detector coordinates, the minimum estimate is approximately 133 cm, above the old 80 cm threshold.
+
+candidate.diff:101
+```diff
+-                    dist_est = estimate_distance_single('person', r[7])
+```
+
+- **F4:** Campaign server construction uses the setup_q4 binary and flags, with four generation and four batch threads. Neither command adds taskset; actual inherited scheduling remains an environment property.
+
+benchmark/coresidency/coresidency.py:404
+```python
+    `2>/dev/null &` replaced by a log file). No taskset: the robot does not pin the server."""
+```
+
+- **F5:** `picker.py` includes attribution and the complete MIT permission and warranty text.
+
+picker.py:12
+```python
+  Copyright (c) 2026 Rami Mithalouni
+```
+
+  I could inspect the external schema source, but its root LICENSE, LICENSE.md, LICENSE.txt, and pyproject.toml were absent. Thus the original licence declaration and claimed revision remain independently unverified; the embedded notice alone does not establish provenance. The new runtime modules contain no benchmark or external s1 imports. The pre-existing absolute repository path insertion remains, so some checks resolve dependencies from the live tree; live/copy byte identity remains coder-supplied evidence.
+
+The exact situation-text shape is:
+
+```text
+Mission: {mission}
+Scene: {label} ({position}, {bucket}), ...
+Ultrasonic distance ahead: {distance} cm
+Current action: {mode phrase} (for {rounded seconds} s)
+Last moves: {last three moves}
+Rooms seen: {room names}
+M2 relations:
+{phase1.context-formatted relation lines}
+```
+
+Empty values render as `nothing detected`, `no reading`, or `none`; fewer than two boxes produces `- none (fewer than 2 objects).` The instruction is `Choose the single best next action for the robot.` Eligible options retain the specified fixed order.
+
+Files inspected, with total line counts; some supporting files were inspected only in part:
+
+```text
+docs/HANDOFF.md                                      68
+docs/WORKFLOW.md                                    303
+docs/REVIEWER.md                                     15
+docs/STATUS.md                                      449
+docs/DECISION_INDEX.md                               54
+docs/CLAUDE.md                                      127
+docs/DECISIONS.md                                  1669
+docs/LICENSES.md                                     85
+TASK.txt                                            95
+candidate.diff                                    1768
+delta_r2_r3.diff                                    134
+check_output.txt                                   192
+frozen_manifest.json                                42
+photo_table.md                                      36
+phone_check.txt                                     22
+main.py                                            688
+run_cycle_safety_test.py                            425
+run_mission.py                                     118
+test_heat_control.py                               601
+test_run_mission.py                                251
+picker.py                                          256
+relate.py                                          185
+test_picker.py                                     409
+detect_person.py                                   283
+heat_control.py                                    345
+detector_size_policy.py                             32
+server_manager.py                                 116
+stereo_depth.py                                    173
+nav_test.py                                         35
+test_detector_robotcam.py                          317
+test_chat_mtp.py                                   202
+benchmark/strategic_selector/v3/adapters.py          368
+benchmark/coresidency/coresidency.py                1290
+benchmark/relate_anything/desk2/desk_check.py         232
+benchmark/relate_anything/desk2/speed_block.py        495
+benchmark/relate_anything/speed1/variants.py           78
+benchmark/campaign/phase1.py                       1074
+benchmark/campaign/expected_hashes.json                9
+benchmark/relate_anything/desk2/parity_valid_relsgg-vits16.json  7988
+benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py  468
+benchmark/llm_objective_setting/conversation/chat_mtp/test_chat_mtp_runner.py  560
+benchmark/llm_objective_setting/conversation/chat_mtp/oneshot.sh  135
+benchmark/llm_objective_setting/conversation/chat_mtp/run_chat_mtp.sh  9
+../checks.sh                                        24
+/data/data/com.termux/files/home/sel-candidates/s1o/src/s1/schema.py  153
+/root/.codex/plugins/cache/ponytail/ponytail/5.2.0/skills/ponytail-review/SKILL.md  101
+```
+
+No files were changed. Hardware behavior, omitted photos/assets, original licence provenance, and live/copy hashes were not independently verified; owner threshold and greeting decisions remain pending.
+
+VERDICT: CHANGES REQUESTED

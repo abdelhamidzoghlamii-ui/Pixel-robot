@@ -1,0 +1,179 @@
+Two remaining SEVERE boundary bugs require changes. No files were changed. All permitted checks passed, but the tests miss these interleavings.
+
+1. [P1] **A completed pick can change the mode after Android reaches SEVERE.** `collect_pick()` uses `self.picker_severe`, which reflects the previous cycle’s `request_pick()`. If the monitor publishes SEVERE between cycles and a result is ready, collection applies that result before refreshing the flag. The second collection at the start of `run_cycle()` has the same ordering problem. This violates D2’s requirement to keep the current mode at SEVERE.
+
+main.py:534
+```python
+        applied = own_slot and not r['cancelled'] and not self.picker_severe
+```
+
+main.py:579
+```python
+                self.collect_pick()  # also in PAUSE/HOLD: every pick is traced when it ends
+```
+
+main.py:508
+```python
+            self.picker_severe = severe
+```
+
+Refresh the thermal gate before collecting results, and validate the current thermal reading when deciding whether to apply them. Add a regression where a successful result is ready when the monitor first reports SEVERE; assert that the mode stays unchanged and the result is traced with `applied=False`.
+
+2. [P1] **Cancellation during the final `/completion` request is lost.** Requests check permission before sending, but there is no generation check after `Gemma.decide()` returns. If `forbid()` happens while `/completion` is in flight, the worker still returns its chosen mode with `cancelled=False`. If SEVERE ends before that result is collected, the unchanged ACTIVE slot accepts it. A later `allow()` has therefore effectively revived cancelled work.
+
+picker.py:220
+```python
+            dist = self.gemma.decide(request['situation'] + '\n' + text, phrases)
+```
+
+picker.py:225
+```python
+            out['mode'] = request['eligible'][phrases.index(choice)]
+```
+
+picker.py:229
+```python
+            out['cancelled'] = isinstance(e, Cancelled)
+```
+
+Check the captured generation after the final request and before publishing success. Add a real-Gemma/fake-transport test that blocks `/completion`, calls `forbid()` followed by `allow()`, then releases the response. The result must remain cancelled and must never change the robot mode.
+
+The mission fake currently masks this distinction by directly rewriting its queued results when forbidden; the real picker does not do that.
+
+test_heat_control.py:419
+```python
+            r.update(cancelled=True, mode='EXPLORE', fallback='M2: Cancelled: optional work not allowed')
+```
+
+The remaining review checks support these conclusions:
+
+- Python retains motor authority. Modes shape Python rules; picker output never becomes a motor command. Person-stop checks both legacy tuples and every person detection, including a less confident second person. HOLD stops motors for the cycle and preserves mission continuation. Obstacle avoidance and stale-frame stopping remain ahead of forward execution. GREET’s stationary hold is consistent with the owner’s clarification.
+- PAUSE/HOLD transitions forbid worker work before stopping the camera. The worker receives frame/detection data and returns result dictionaries; it does not access motors, camera controls or heat state. Queues provide the request/result handoff. Generation cancellation improves round 1, subject to finding 2.
+- Startup and per-pick failures select EXPLORE without introducing a mission stop. `--no-picker` retains the original person-approach rules with the intended person-stop replacement; it constructs neither Gemma nor M2.
+- The authoritative diff leaves heat thresholds, SizePolicy, CAMERA_RATE, stale-frame handling, MOTOR_SPEED and CYCLE_MOVE_TIME unchanged.
+
+F1: The copied completion settings, letter-probability extraction, renormalisation and first-offered tie handling match S1O and coresidency. The prompt parity test passed, including truncation.
+
+picker.py:110
+```python
+        res = self.request('/completion', {'prompt': ids, 'n_predict': 1, 'n_probs': N_PROBS, 'post_sampling_probs': False,
+```
+
+F2: M2 preprocessing, graph validation, calibration and relation extraction match `desk_check`; context formatting and confidence-based box selection match phase1. The implementation uses BIG cores 6–7 and two intra-op threads, with separate worker/caller pinning. All three constant hashes match `expected_hashes.json`; the graph hash matches the parity record with `passed=true`. Hash checks precede pickle-enabled bank loading.
+
+relate.py:27
+```python
+CPUS = {6, 7}     # BIG (#131 L2)
+```
+
+relate.py:28
+```python
+THREADS = 2       # intra-op; ORT counts the calling thread as one of them
+```
+
+The requested `benchmark/relate_anything/speed1/speed_block.py` does not exist in this copy. `speed1/variants.py` delegates to the supplied `desk2/speed_block.py`, which is the source named by the candidate’s corrected provenance comment.
+
+benchmark/relate_anything/speed1/variants.py:68
+```python
+    return sb.build(NAME, cpus, threads, lambda name, threads: make_head(variant, threads))
+```
+
+M2 assets are `relateanything.onnx`, `relateanything.json` and `predicate_bank.npz` beneath:
+
+relate.py:20
+```python
+DIRECTORY = '/data/data/com.termux/files/home/models/relate_anything/relsgg-vits16'
+```
+
+F3: The base person-distance call is shown as removed in the authoritative diff, replaced by final-move area-bucket enforcement.
+
+candidate.diff:101
+```diff
+-                    dist_est = estimate_distance_single('person', r[7])
+```
+
+F4: The supplied coresidency campaign server command follows `server_manager`: four generation/batch threads, no taskset. There is no demonstrated taskset difference between these two supplied implementations.
+
+benchmark/coresidency/coresidency.py:404
+```python
+    `2>/dev/null &` replaced by a log file). No taskset: the robot does not pin the server."""
+```
+
+F5: `picker.py` includes attribution, source revision and the full MIT notice. No new production import targets benchmark modules or the external selector checkout. The external original LICENSE/repository metadata is absent from this copy, so its authenticity was not independently established here.
+
+picker.py:12
+```python
+  Copyright (c) 2026 Rami Mithalouni
+```
+
+The situation template is exactly:
+
+```text
+Mission: {mission}
+Scene: {label (position, bucket), ... | nothing detected}
+Ultrasonic distance ahead: {distance cm | no reading}
+Current action: {mode phrase} (for {seconds rounded to zero decimal places} s)
+Last moves: {last three moves, comma-separated | none}
+Rooms seen: {known room names, comma-separated | none}
+M2 relations:
+{formatted relations | - none above threshold. | - none (fewer than 2 objects).}
+```
+
+The instruction is `Choose the single best next action for the robot.` Options retain the fixed EXPLORE, APPROACH, GREET, LOOK order, excluding APPROACH/GREET when no person is visible.
+
+I reran `sh ../checks.sh`: syntax checks passed; unit-test counts were **22 / 17 / 27 / 10 / 10 / 27 / 32**, all OK. Navigation stdout remained **41 lines**, MD5 **fbbfe5b3248f1c930ac7c0d5fc67d4c6**. Base counts remain supplied evidence, not an independently rerun base checkout. Existing tests cover substantial safety behavior; neither remaining SEVERE interleaving is covered.
+
+Files inspected, with line counts (benchmark/documentation reads were targeted where applicable):
+
+```text
+TASK.txt — 95
+candidate.diff — 1721
+check_output.txt — 190
+frozen_manifest.json — 42
+photo_table.md — 36
+phone_check.txt — 22
+main.py — 684
+picker.py — 255
+relate.py — 185
+run_mission.py — 118
+run_cycle_safety_test.py — 425
+test_picker.py — 382
+test_heat_control.py — 586
+test_run_mission.py — 251
+detect_person.py — 283
+heat_control.py — 345
+detector_size_policy.py — 32
+server_manager.py — 116
+docs/HANDOFF.md — 68
+docs/WORKFLOW.md — 303
+docs/REVIEWER.md — 15
+docs/STATUS.md — 449
+docs/DECISION_INDEX.md — 54
+docs/CLAUDE.md — 127
+docs/DECISIONS.md — 1669
+benchmark/strategic_selector/v3/adapters.py — 368
+benchmark/coresidency/coresidency.py — 1290
+benchmark/relate_anything/desk2/desk_check.py — 232
+benchmark/relate_anything/desk2/speed_block.py — 495
+benchmark/relate_anything/speed1/variants.py — 78
+benchmark/campaign/phase1.py — 1074
+benchmark/campaign/expected_hashes.json — 9
+benchmark/relate_anything/desk2/parity_valid_relsgg-vits16.json — 7988
+```
+
+Additional files counted or exercised by the permitted checks:
+
+```text
+delta_r1_r2.diff — 529
+../checks.sh — 24
+nav_test.py — 35
+test_detector_robotcam.py — 317
+test_chat_mtp.py — 202
+benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py — 468
+benchmark/llm_objective_setting/conversation/chat_mtp/test_chat_mtp_runner.py — 560
+benchmark/llm_objective_setting/conversation/chat_mtp/oneshot.sh — 135
+benchmark/llm_objective_setting/conversation/chat_mtp/run_chat_mtp.sh — 9
+```
+
+Not checked: live hardware, absent photos/assets, external licence metadata or live-tree identity. Risk: the two SEVERE interleavings remain despite passing tests.
+VERDICT: CHANGES REQUESTED

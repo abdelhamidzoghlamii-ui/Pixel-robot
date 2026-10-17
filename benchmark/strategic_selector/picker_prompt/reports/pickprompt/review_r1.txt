@@ -1,0 +1,302 @@
+I've finished reading everything and the tests pass. Here is the full review.
+
+# PICKPROMPT-1 — Independent Reviewer report
+
+**Profile:** Reviewer, Claude Code CLI, claude-opus-5-5, effort medium, Ponytail off. **Base:** 2ce2b3b7d2cb9ef09c2613de85e106d0192e74c5. I made no edits, ran no git, servers or network, and launched no agents.
+
+## Check run
+
+The only command I ran was `python3 -B -m unittest discover -s benchmark/strategic_selector/picker_prompt -p test_harness.py`. Result: `Ran 4 tests in 0.039s` and `OK`. All 4 ran and none were skipped, so `test_saved_results` checked the saved results in `picker_prompt_results/`.
+
+## Files read
+
+| File | Lines |
+|---|---|
+| `docs/HANDOFF.md` | 68 |
+| `docs/WORKFLOW.md` | 303 |
+| `docs/REVIEWER.md` | 15 |
+| `TASK.txt` | 68 |
+| `candidate.diff` | 648 |
+| `frozen_manifest.json` | 20 |
+| `benchmark/strategic_selector/picker_prompt/harness.py` | 374 |
+| `benchmark/strategic_selector/picker_prompt/test_harness.py` | 153 |
+| `benchmark/strategic_selector/picker_prompt/README.md` | 103 |
+| `picker.py` | 257 |
+| `picker_prompt_results/freeze.json` | 276 |
+| `picker_prompt_results/events.jsonl` | 14 |
+| `picker_prompt_results/summary.json` | 298 |
+| `picker_prompt_results/calibration.json` | 62 |
+| `picker_prompt_results/timeout_recovery.txt` | 7 |
+| `picker_prompt_results/pre_recovery_results.json` | 26 |
+| `picker_prompt_results/scored_harness_initial.py` | 351 |
+| `picker_prompt_results/scored_harness_resume.py` | 374 |
+| `picker_prompt_results/run.stdout` | 6 |
+| `picker_prompt_results/run.stderr` | 0 |
+| `picker_prompt_results/run.exit` | 1 |
+| `picker_prompt_results/setup.stdout` | 8 |
+| `picker_prompt_results/stop.stdout` | 5 |
+| `picker_prompt_results/remaining_servers.txt` | 0 |
+| `picker_prompt_results/server_process.txt` | 1 |
+| `picker_prompt_results/server_process_resumed.txt` | 1 |
+| `picker_prompt_results/startup_failure/run.stderr` | 69 |
+| `picker_prompt_results/startup_failure/run.stdout` | 0 |
+| `picker_prompt_results/startup_failure/events.jsonl` | 1 |
+| `picker_prompt_results/scoring_timeout/run.stderr` | 49 |
+| `picker_prompt_results/scoring_timeout/run.stdout` | 3 |
+
+I only searched `relate.py`, `main.py` and `benchmark/strategic_selector/v3/adapters.py` for specific lines and did not read them in full, so they are not in the table. Those searches confirmed that `relate.context()` writes M2 lines as `- subj [i] pred obj [j].` or `- none above threshold.`, with a `TOO_FEW` message for fewer than two objects. They also confirmed that `main.request_pick` passes `picker.situation(...)` and `picker.eligible(person)`, and that the S1O completion body is n_predict 1, n_probs 1000, temperature 0, cache_prompt false. `picker.Gemma.decide` sends the same body.
+
+The scored-harness reads were split into two parts. For `scored_harness_initial.py` I read lines 1–199 and 200–351, so the whole file. For `scored_harness_resume.py` I read lines 215–374. Lines 1–214 of that file were not read directly; the test asserts it is byte-identical (same SHA) to the candidate `harness.py`, which I read in full.
+
+## Candidate integrity
+
+- **Diff vs. files:** `candidate.diff` adds exactly three new files: README (103 lines), harness (374) and test (153). These match the manifest line counts. The diff text matches the three files I read, line for line.
+- **Harness hash:** the manifest hash for `harness.py` (`44e30a1b…`) equals the resumed-source hash in `timeout_recovery.txt` and in `events.jsonl` line 5. The test also confirms `sha(harness.py) == sha(scored_harness_resume.py)`.
+- **Production files:** the diff touches no production file. I cannot run git, so "production unchanged" rests on the diff and manifest, not on an independent comparison with the base (see finding 7).
+
+## Each check
+
+**`label()` vs. section 2: correct.** Greeting recency uses a strict `< 300`, and `None` means never greeted:
+
+`benchmark/strategic_selector/picker_prompt/harness.py:39`
+```python
+    recent = s['person_greeted_s_ago'] is not None and s['person_greeted_s_ago'] < 300
+```
+
+R5 uses `>=` for both the room threshold and the look-around threshold, so the exact boundaries allow the action, as the README says:
+
+`benchmark/strategic_selector/picker_prompt/harness.py:49`
+```python
+    if not people and s['new_room_s_ago'] >= threshold and (s['last_look_s_ago'] is None or s['last_look_s_ago'] >= 60):
+```
+
+The other rules also match:
+- R1–R4 are checked in the specified order.
+- MS2 uses a 30-second threshold; the other missions use 60.
+- R6 is the fallback.
+- The function is pure, and `test_policy` checks the 299/300/301 and 59/60/61 boundaries for every mission.
+
+**Labels never depend on Gemma output: confirmed.**
+- Labels are computed inside `generate()` before any server exists.
+- `run()` re-checks every stored label against `label()`, and so does the test.
+
+**Set frozen before scoring: confirmed.**
+- `freeze.json` was written at 16:01:43. The first `before_first_gemma_call` event is at 16:02:01, in `startup_failure/events.jsonl`.
+- Every `scored` event carries the same set hash, `19773ea0…`.
+- `freeze.json`'s harness hash equals the initial source, and the test confirms that by hash.
+
+**DEV/TEST split: confirmed.**
+- The split is stratified by label, with one RNG seed, giving 18 DEV and 12 TEST per label. The test rechecks this.
+- No `*_TEST.jsonl` file exists.
+- `selection_frozen` is followed only by `finished`, so TEST was never scored.
+
+**V0 parity with `picker.py`: confirmed.**
+- `state(s,'V0')` is `picker.situation(...)` + `'\n'` + M2, which is what production builds:
+
+`picker.py:221`
+```python
+            dist = self.gemma.decide(request['situation'] + '\n' + text, phrases)
+```
+
+- V0 options come from `picker.MODES` in production order.
+- Every DEV item asserts that production and static assembly give the same token ids:
+
+`benchmark/strategic_selector/picker_prompt/harness.py:266`
+```python
+                    assert picker.Gemma.prompt_ids(gemma, text, phrases) == gemma.prompt_ids(text, phrases)
+```
+
+- V0 scoring itself goes through production `picker.Gemma.prompt_ids`.
+- The fake-transport unit test checks 4 tokenize calls for production against 1 for static, with identical ids.
+
+**Calibration uses only the content-free prompt: confirmed.**
+- Every situation line is reduced to `field: N/A`, and M2 bullet lines are dropped:
+
+`benchmark/strategic_selector/picker_prompt/harness.py:159`
+```python
+        text = '\n'.join(line.split(':', 1)[0] + ': N/A' for line in text.splitlines() if ':' in line)
+```
+
+- `calibration.json` shows identical N/A states plus the V2 rules block, with one baseline for each of the two eligible lists. V5 has its own reversed-list baselines.
+- The test recomputes the divide-and-renormalise step for every V4 and V5 row.
+
+**Selection rule: correctly applied.**
+- The calibration base is V2. V2 and V3 tie on macro recall at 0.4167; V2 has fewer median tokens (359.5 vs. 386.0). V1 is lower at 0.4028.
+
+`picker_prompt_results/summary.json:286`
+```json
+  "calibration_base": "V2",
+```
+
+- The ranking and qualification code:
+
+`benchmark/strategic_selector/picker_prompt/harness.py:209`
+```python
+    return min(names, key=lambda v: (-scores[v]['macro_recall'], scores[v]['median_tokens'], v))
+```
+
+`benchmark/strategic_selector/picker_prompt/harness.py:213`
+```python
+    qualified = [v for v, m in scores.items() if v != 'V5' and m['r1_violations'] == 0 and min(m['recall'].values()) >= .6]
+```
+
+- R1 violations for V0–V4 are 4, 4, 4, 6 and 6, so nothing qualifies, and the outcome does not depend on the recall gate.
+
+`picker_prompt_results/summary.json:296`
+```json
+  "outcome": "NO VARIANT QUALIFIES",
+```
+
+- V5 is excluded from selection, and its DEV choice changes are reported:
+
+`picker_prompt_results/summary.json:288`
+```json
+  "v5_changed": 15,
+```
+
+- Exactly V0–V5 were run; there are no extra variants.
+
+**Summary numbers recompute from the JSONL files: confirmed.** The test passed while recomputing:
+- metrics for every variant;
+- choices and calibration;
+- the winner and the calibration base;
+- `v5_changed`, and the presence or absence of TEST files;
+- event order;
+- the two speed medians.
+
+**Startup failure.** The traceback shows the run died at `/health` with connection refused, before any `/tokenize` call:
+
+`picker_prompt_results/startup_failure/run.stderr:49`
+```python
+    if post('/health').get('status') != 'ok':
+```
+
+So no model result was produced or discarded there.
+
+**Timeout recovery.**
+- The initial source failed in a non-V0 `decide` call:
+
+`picker_prompt_results/scoring_timeout/run.stderr:12`
+```python
+    dist = gemma.decide(text, phrases)
+```
+
+- That was after `scoring_timeout/run.stdout` showed V0–V2 finished, with 3 V3 rows saved:
+
+`picker_prompt_results/pre_recovery_results.json:24`
+```json
+    "rows": 3
+```
+
+- The initial source never wrote `speed.json` before its end, which explains why the V0 speed pairs were lost:
+
+`picker_prompt_results/scored_harness_initial.py:314`
+```python
+    write_json(out / 'speed.json', speed)
+```
+
+- The resumed source changes only the HTTP timeout, at run time:
+
+`benchmark/strategic_selector/picker_prompt/harness.py:243`
+```python
+    picker.TIMEOUT_S = 120
+```
+
+  This works because production reads the global on every request:
+
+`picker.py:68`
+```python
+    with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
+```
+
+- The AST test compares everything except `run` and `main`:
+
+`benchmark/strategic_selector/picker_prompt/test_harness.py:84`
+```python
+                        if not isinstance(n, ast.FunctionDef) or n.name not in ('run', 'main')]
+```
+
+  It passed, so labels, state, options, metrics, calibration constants, `best` and `select` are unchanged.
+
+- Recovered V0 probabilities must match the saved rows, and the run exited 0:
+
+`benchmark/strategic_selector/picker_prompt/harness.py:301`
+```python
+                    assert max(abs(raw[k] - saved[s['id']]['raw_probabilities'][k]) for k in keys) < 1e-6
+```
+
+- `resume_before_gemma_call` (event 5) comes before `calibration_base_selected` and `selection_frozen`, so no TEST call or selection happened before recovery.
+
+**Server stopped: supported.** `stop.stdout` shows "All servers stopped" and `remaining_servers.txt` is empty.
+
+**Timings: labelled correctly.** They are marked NOT measurements everywhere.
+
+## Findings
+
+**1. Medium — The set never tests two parts of R5.**
+- No item has a recent look-around: `last_look` is only ever None, 60, 61 or 180.
+
+`benchmark/strategic_selector/picker_prompt/harness.py:101`
+```python
+            last_look = rng.choice((None, 60, 61, 180))
+```
+
+- No item tests the MS2 window of 30–59 seconds: R6 items use only 0, 10 or 29, and R5 items use at least 60.
+
+`benchmark/strategic_selector/picker_prompt/harness.py:100`
+```python
+            new_room = rng.choice((60, 61, 120, 600)) if rule == 'R5' else rng.choice((0, 10, 29))
+```
+
+- I confirmed both by searching `set.jsonl`: 0 items with `last_look_s_ago` < 60, and 0 MS2 items with `new_room_s_ago` from 30 to 59.
+- As a result, every R6 item means "a new room was found recently". V1–V3's "Last look-around" fact and the MS2 30-second rule are never evaluated, and the README does not say so.
+- This does not change the outcome, because every V0–V4 variant fails on R1 violations anyway. It is not a task violation either, since the "≥10 items per rule" requirement is met. However, the coder report must disclose it, and any follow-up set should cover these cases.
+
+**2. Low — The 242/241 scene-line count is only partly backed by artifacts.** `freeze.json` records 241 under a misleading key. That number counts only usable object-bearing lines:
+
+`picker_prompt_results/freeze.json:6`
+```json
+  "distinct_scene_lines": 241,
+```
+
+The total of 242 distinct lines, and the claim that only `empty room, nothing detected` was excluded, appear in no artifact in this copy. The console log is not in the copy either. I cannot verify them.
+
+**3. Low — The startup-failure restart was done by hand and is not written up.** The initial source refuses to run in a folder that already has events:
+
+`picker_prompt_results/scored_harness_initial.py:223`
+```python
+        raise ValueError('run already started; refusing to rescore TEST or resume')
+```
+
+The scored run's `events.jsonl` starts fresh at 16:02:55, so the coder must have moved the first `events.jsonl` into `startup_failure/` by hand. The initial source also never writes `scored_harness_initial.py`, so that file was copied by hand too; it is validated by hash only. Both steps are harmless, since no Gemma call had happened. But unlike the timeout, this step has no written recovery note.
+
+**4. Low — One recovery claim cannot be checked.** This statement has no timestamp or hash in `events.jsonl` to back it:
+
+`picker_prompt_results/timeout_recovery.txt:7`
+```text
+The retained-result prefix manifest was recorded during V0 speed recovery, before any new V3 rows were appended.
+```
+
+The prefix hashes do match the current files. But the manifest was written after the resume started, so it does not on its own prove what the bytes were before the timeout.
+
+**5. Info — Report gaps when no variant wins.**
+- `best_macro_recall` gives the value (0.5278) but not which variant it belongs to (V4):
+
+`picker_prompt_results/summary.json:297`
+```json
+  "best_macro_recall": 0.5277777777777778
+```
+
+- `selected_prompts.json` is not produced in this case, so the report's "selected prompt examples" item must say N/A.
+
+**6. Info — V0 timings come from two different server sessions.** V0's per-row `ms` comes from the initial session (server PID 17892, 10 s timeout). The speed pairs come from the resumed session (PID 18629). Neither is a measurement, so this matters only if someone compares them.
+
+**7. Info — "No production file changed" is not independently checked.** The diff contains only new files, but I could not compare against the base with git.
+
+**8. Info — "Verbatim" policy text cannot be confirmed.** The README says its policy text is verbatim from the task. `TASK.txt` section 2 is a shorter wording with the same meaning. I can't confirm it is verbatim against the owner's original.
+
+## Conclusion
+
+The harness is correct against the task. Labels, freeze, split, V0 parity, calibration, selection, the "NO VARIANT QUALIFIES" outcome with TEST left unscored, and both recoveries are supported by the artifacts. The tests recompute all the summary numbers. None of the findings changes the result. Findings 1–4 should be disclosed in the coder report.
+
+VERDICT: APPROVED

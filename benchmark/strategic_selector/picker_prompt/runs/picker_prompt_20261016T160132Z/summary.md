@@ -1,0 +1,306 @@
+# PICKPROMPT-1
+
+Timings are NOT measurements (agent resident).
+
+NO VARIANT QUALIFIES
+
+```json
+{
+  "dev": {
+    "V0": {
+      "n": 72,
+      "accuracy": 0.4166666666666667,
+      "macro_recall": 0.4166666666666667,
+      "recall": {
+        "EXPLORE": 0.16666666666666666,
+        "APPROACH": 0.5555555555555556,
+        "GREET": 0.2222222222222222,
+        "LOOK": 0.7222222222222222
+      },
+      "precision": {
+        "EXPLORE": 0.23076923076923078,
+        "APPROACH": 0.3448275862068966,
+        "GREET": 0.4444444444444444,
+        "LOOK": 0.6190476190476191
+      },
+      "confusion": {
+        "EXPLORE": {
+          "EXPLORE": 3,
+          "APPROACH": 9,
+          "GREET": 1,
+          "LOOK": 5
+        },
+        "APPROACH": {
+          "EXPLORE": 3,
+          "APPROACH": 10,
+          "GREET": 4,
+          "LOOK": 1
+        },
+        "GREET": {
+          "EXPLORE": 2,
+          "APPROACH": 10,
+          "GREET": 4,
+          "LOOK": 2
+        },
+        "LOOK": {
+          "EXPLORE": 5,
+          "APPROACH": 0,
+          "GREET": 0,
+          "LOOK": 13
+        }
+      },
+      "r1_violations": 4,
+      "median_tokens": 151.0,
+      "p90_tokens": 162,
+      "median_ms": 2868.116131008719
+    },
+    "V1": {
+      "n": 72,
+      "accuracy": 0.4027777777777778,
+      "macro_recall": 0.4027777777777778,
+      "recall": {
+        "EXPLORE": 0.16666666666666666,
+        "APPROACH": 0.3888888888888889,
+        "GREET": 0.3333333333333333,
+        "LOOK": 0.7222222222222222
+      },
+      "precision": {
+        "EXPLORE": 0.23076923076923078,
+        "APPROACH": 0.30434782608695654,
+        "GREET": 0.4,
+        "LOOK": 0.6190476190476191
+      },
+      "confusion": {
+        "EXPLORE": {
+          "EXPLORE": 3,
+          "APPROACH": 8,
+          "GREET": 2,
+          "LOOK": 5
+        },
+        "APPROACH": {
+          "EXPLORE": 3,
+          "APPROACH": 7,
+          "GREET": 7,
+          "LOOK": 1
+        },
+        "GREET": {
+          "EXPLORE": 2,
+          "APPROACH": 8,
+          "GREET": 6,
+          "LOOK": 2
+        },
+        "LOOK": {
+          "EXPLORE": 5,
+          "APPROACH": 0,
+          "GREET": 0,
+          "LOOK": 13
+        }
+      },
+      "r1_violations": 4,
+      "median_tokens": 178.5,
+      "p90_tokens": 192,
+      "median_ms": 4156.454001495149
+    },
+    "V2": {
+      "n": 72,
+      "accuracy": 0.4166666666666667,
+      "macro_recall": 0.4166666666666667,
+      "recall": {
+        "EXPLORE": 0.3333333333333333,
+        "APPROACH": 0.5,
+        "GREET": 0.5555555555555556,
+        "LOOK": 0.2777777777777778
+      },
+      "precision": {
+        "EXPLORE": 0.2222222222222222,
+        "APPROACH": 0.47368421052631576,
+        "GREET": 0.5263157894736842,
+        "LOOK": 0.7142857142857143
+      },
+      "confusion": {
+        "EXPLORE": {
+          "EXPLORE": 6,
+          "APPROACH": 6,
+          "GREET": 4,
+          "LOOK": 2
+        },
+        "APPROACH": {
+          "EXPLORE": 4,
+          "APPROACH": 9,
+          "GREET": 5,
+          "LOOK": 0
+        },
+        "GREET": {
+          "EXPLORE": 4,
+          "APPROACH": 4,
+          "GREET": 10,
+          "LOOK": 0
+        },
+        "LOOK": {
+          "EXPLORE": 13,
+          "APPROACH": 0,
+          "GREET": 0,
+          "LOOK": 5
+        }
+      },
+      "r1_violations": 4,
+      "median_tokens": 359.5,
+      "p90_tokens": 373,
+      "median_ms": 8763.190026496886
+    },
+    "V3": {
+      "n": 72,
+      "accuracy": 0.4166666666666667,
+      "macro_recall": 0.4166666666666667,
+      "recall": {
+        "EXPLORE": 0.2222222222222222,
+        "APPROACH": 0.7777777777777778,
+        "GREET": 0.3888888888888889,
+        "LOOK": 0.2777777777777778
+      },
+      "precision": {
+        "EXPLORE": 0.21052631578947367,
+        "APPROACH": 0.42424242424242425,
+        "GREET": 0.5384615384615384,
+        "LOOK": 0.7142857142857143
+      },
+      "confusion": {
+        "EXPLORE": {
+          "EXPLORE": 4,
+          "APPROACH": 10,
+          "GREET": 2,
+          "LOOK": 2
+        },
+        "APPROACH": {
+          "EXPLORE": 0,
+          "APPROACH": 14,
+          "GREET": 4,
+          "LOOK": 0
+        },
+        "GREET": {
+          "EXPLORE": 2,
+          "APPROACH": 9,
+          "GREET": 7,
+          "LOOK": 0
+        },
+        "LOOK": {
+          "EXPLORE": 13,
+          "APPROACH": 0,
+          "GREET": 0,
+          "LOOK": 5
+        }
+      },
+      "r1_violations": 6,
+      "median_tokens": 386.0,
+      "p90_tokens": 400,
+      "median_ms": 8960.846420013695
+    },
+    "V4": {
+      "n": 72,
+      "accuracy": 0.5277777777777778,
+      "macro_recall": 0.5277777777777778,
+      "recall": {
+        "EXPLORE": 0.1111111111111111,
+        "APPROACH": 0.7222222222222222,
+        "GREET": 0.7777777777777778,
+        "LOOK": 0.5
+      },
+      "precision": {
+        "EXPLORE": 0.18181818181818182,
+        "APPROACH": 0.5416666666666666,
+        "GREET": 0.6086956521739131,
+        "LOOK": 0.6428571428571429
+      },
+      "confusion": {
+        "EXPLORE": {
+          "EXPLORE": 2,
+          "APPROACH": 8,
+          "GREET": 4,
+          "LOOK": 4
+        },
+        "APPROACH": {
+          "EXPLORE": 0,
+          "APPROACH": 13,
+          "GREET": 5,
+          "LOOK": 0
+        },
+        "GREET": {
+          "EXPLORE": 0,
+          "APPROACH": 3,
+          "GREET": 14,
+          "LOOK": 1
+        },
+        "LOOK": {
+          "EXPLORE": 9,
+          "APPROACH": 0,
+          "GREET": 0,
+          "LOOK": 9
+        }
+      },
+      "r1_violations": 6,
+      "median_tokens": 359.5,
+      "p90_tokens": 373,
+      "median_ms": 8338.20245800598
+    },
+    "V5": {
+      "n": 72,
+      "accuracy": 0.5277777777777778,
+      "macro_recall": 0.5277777777777778,
+      "recall": {
+        "EXPLORE": 0.2222222222222222,
+        "APPROACH": 0.6666666666666666,
+        "GREET": 0.5555555555555556,
+        "LOOK": 0.6666666666666666
+      },
+      "precision": {
+        "EXPLORE": 0.36363636363636365,
+        "APPROACH": 0.46153846153846156,
+        "GREET": 0.5555555555555556,
+        "LOOK": 0.7058823529411765
+      },
+      "confusion": {
+        "EXPLORE": {
+          "EXPLORE": 4,
+          "APPROACH": 8,
+          "GREET": 3,
+          "LOOK": 3
+        },
+        "APPROACH": {
+          "EXPLORE": 0,
+          "APPROACH": 12,
+          "GREET": 5,
+          "LOOK": 1
+        },
+        "GREET": {
+          "EXPLORE": 1,
+          "APPROACH": 6,
+          "GREET": 10,
+          "LOOK": 1
+        },
+        "LOOK": {
+          "EXPLORE": 6,
+          "APPROACH": 0,
+          "GREET": 0,
+          "LOOK": 12
+        }
+      },
+      "r1_violations": 5,
+      "median_tokens": 359.5,
+      "p90_tokens": 373,
+      "median_ms": 9024.216455509304
+    }
+  },
+  "calibration_base": "V2",
+  "selected": null,
+  "v5_changed": 15,
+  "timing_validity": "NOT A MEASUREMENT: agent resident; standard always precedes static",
+  "speed": {
+    "standard_median_ms": 3700.0964780017966,
+    "static_median_ms": 3667.8003155102488,
+    "parity_dev_items": 72
+  },
+  "test": null,
+  "outcome": "NO VARIANT QUALIFIES",
+  "best_macro_recall": 0.5277777777777778
+}
+```

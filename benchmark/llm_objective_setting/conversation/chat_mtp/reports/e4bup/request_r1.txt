@@ -1,0 +1,33 @@
+Independent read-only Reviewer. Ponytail OFF. Task E4B-UP Stage 1.
+EXECUTION PROFILE
+ROLE: Reviewer (independent, read-only)
+PLATFORM: Claude Code CLI (claude -p, isolated copy)
+MODEL: claude-opus-5-5
+EFFORT: medium
+PONYTAIL: off
+WHY: Owner choice; different model family from Coder.
+FALLBACK: none without owner decision; usage limit/auth failure means INCOMPLETE, stop.
+
+Read docs/HANDOFF.md, docs/WORKFLOW.md, docs/REVIEWER.md, TASK.txt; applicable STATUS, DECISION_INDEX, CLAUDE and relevant decisions per role. Read all six candidate source/test files completely, candidate.diff, frozen_manifest.json, e4bup_evidence/ actual checks, downloads and smoke evidence. Inspect surrounding context/callers as needed. You are in an isolated copy without .git. Do not edit/create/delete files, stage/commit/push, start servers or hardware, use root, network, or another agent.
+
+Allowed shell commands ONLY (exact unit-test invocations from this copy's root; no cd, chaining, pipelines or extra flags):
+/data/data/com.termux/files/usr/bin/python3 -B -m unittest run_cycle_safety_test test_detector_robotcam test_heat_control test_run_mission test_picker test_chat_mtp test_e4b_mtp
+/data/data/com.termux/files/usr/bin/python3 -B -m unittest discover -s benchmark/llm_objective_setting/conversation/chat_mtp -p test_chat_mtp_runner.py
+/data/data/com.termux/files/usr/bin/python3 -B -m unittest discover -s benchmark/strategic_selector/picker_prompt -p test_harness.py
+wc -l <file>
+sha256sum <file>
+For the last two replace <file> with one file path. Use Read/Grep/Glob for all other inspection. Any other shell command makes the round INVALID. -B forbids pyc; tests fake hardware/HTTP/subprocess and use disposable test tempfiles only, never modify source.
+
+Check exact mirrored E2B lines and flags: same b1609 dotprod binary, chat ctx4096, robot ctx2048, 4 threads/batch, parallel1, swa-full, cache-ram0, chat taskset rule. Chat E4B draft missing/wrong-size warns yellow, starts no draft, displays MTP off. Robot missing/wrong-size errors False and does not stop/start anything. Old menu entries and setup_q4/setup_q4_mtp/setup_e4b unchanged; new E4B appended to menu to preserve existing numbers. Usage lists setups and opt-in comment present. Check runner --model e4b hashes pinned weights at run start; default E2B commands/payload/report/output format and resume preserved. Check new tests actually exercise behaviors, not merely mirror implementation.
+
+Download verification: Hub commit bfc15c382204943c3a8fff0c750b94ae2364d7a3, metadata hub_model.json/hub_tree.json, expected byte counts/SHA from LFS, actual downloads.json. The model files are outside this copy/repo. Coder checked them against metadata and rechecked E2B before/after unchanged. You must distinguish source evidence from independently hashing external weights (do NOT access them). Smoke JSON + full logs prove both ctx2048 and ctx4096 commands, health, replies, drafts accepted, memory, stopped. Setup smoke intercepts os.system to capture the exact argv and log stderr; it skips only broad pkill after asserting no existing server, starts through start_setup unchanged and waits through wait_for_server. Chat smoke executes chat.server_cmd with the same taskset rule. No get_temp/root called. Timings are NOT measurements. The spec memory-fitting warning appears in the archived E2B baseline too and is followed by successful draft load/accepted tokens; inspect it.
+
+Before download insufficient disk caused a required stop. Owner subsequently explicitly authorized deleting old review working copies. This freed space to 11344572416 bytes, clearing the 9680000000-byte gate before downloads. No models or experiment/results files were deleted. Canonical docs, production mission/navigation/perception paths, .gitignore, llama build and archived files are unchanged. Candidate has six files only.
+
+Give a line count for EVERY file read (full or partial), one relative path per row in a table `File | Lines`. Use verified_line_counts.txt as a crosscheck (not as substitute for reading). Name searched-only files separately. Every file:line citation must use this mechanically checked format:
+`relative/path.py:N`
+```python
+exact single source line at N (including indentation)
+```
+No inline file:line citations or ranges. Quote every cited line and verify counts. Return complete independent review with findings/severity or clear approval, checks run and limitations.
+End with exactly one line VERDICT: APPROVED or VERDICT: CHANGES REQUESTED.

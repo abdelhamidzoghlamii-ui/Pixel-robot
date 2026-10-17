@@ -1,0 +1,37 @@
+Independent read-only Reviewer, Ponytail OFF. PICKPROMPT-2 Stage 2, base8a840407b0fade86c90ed981080aa27224da3c64. Claude Code CLI, claude-opus-5-5, effort medium, Ponytail off. No fallback without owner decision; auth/usage errors mean incomplete.
+Read docs/HANDOFF.md, docs/WORKFLOW.md, docs/REVIEWER.md then TASK.txt and relevant role/context docs. Read all three candidate files completely and compare candidate.diff and frozen_manifest.json. Read original harness.py/test_harness.py/README.md, picker.py and server_manager.py for actual surrounding behavior. Each attempt pins its source before calls. The final run has no code changes after its first call, and prompts are identical across both attempts. No production/PICKPROMPT-1/existing-test/docs/.gitignore edits, no downloads. Review only this isolated copy.
+
+Do not modify/create/delete source or artifacts, stage/commit/push, run git, servers, root, hardware, network or other agents. Allowed shell commands ONLY, exact unit invocations from copy root with no cd/chaining/pipelines/extra flags:
+python3 -B -m unittest discover -s benchmark/strategic_selector/picker_prompt -p test_harness2.py
+python3 -B -m unittest discover -s benchmark/strategic_selector/picker_prompt -p test_harness.py
+wc -l <file>
+sha256sum <file>
+Replace <file> with one concrete file path. Put all other inspection through Read/Grep/Glob. Any other Bash command INVALIDATES the round. Tests fake models/HTTP/processes and only write disposable temp fixtures; saved-result test reads actual artifacts. No real model calls.
+
+Actual completed artifacts: picker_prompt2_results/. The three original frozen inputs: picker_prompt1_inputs/ for independent byte/hash comparison; original PICKPROMPT-1 TEST was unscored. Supplied source/code hashes, setup/model memory records, events, calibration, raw per-item JSONL and summary. Inspect raw evidence, not only summary prose.
+
+Check all task requirements, especially:
+- Exact original set bytes and label() truths;120 items balanced72DEV/48TEST. No use of model outputs as ground truth.
+- A0=V0, A2=V2, A4=V2+calibration computed solely on E4B content-free prompts; A5 reversed eligible order with its own reversed baselines, diagnostic only. Letter scoring body unchanged, n_predict1/n_probs1000/temperature0/cache_promptfalse.
+- B1 V1+exact instruction, B2 V2 rule block. Fixed-order six-field grammar, action last, boolean types, no-person enum EXPLORE|LOOK, n_predict96/temp0/cache_promptfalse. Invalid JSON/type/order/duplicate/extra keys/action counts wrong and is never retried. HTTP failure stops incomplete instead of retrying.
+- Item-derived five fact truths, with full R5 condition; invalid outputs count wrong in fact accuracy. B3 uses ONLY Gemma facts passed through label(), not original item facts and no extra inference; diagnostic never selectable.
+- Selection among exactly seven fixed candidates: R1=0, each recall>=.6, JSON validity>=.95 for B, highestmacro, then median per-item totalprompt+generatedtokens, then name. At most one selected TEST variant, each item once; selection event before TEST; no TEST if none qualifies. TEST must not be retried/resumed.
+- summary recomputes from saved JSONL; labels, parsing, choices and calibration checked. Verify both summary numbers and underlying raw output/label correctness; do not accept saved choice/valid fields without checking.
+- Exact setup_q4/setup_e4b_q4 argv (ctx2048, no MTP), one server at a time, cleanup, no root/camera/motors/M2. Production timeout10 unchanged; custom DeskHTTP120. MemAvailable informational. Accuracy at temp0; ALL timings NOT measurements (agent resident).
+- Existing source byte-identical to base is confirmed by Coder pre-call/post-run scope checks and source hashes; no .git in copy. State what you cannot independently establish.
+
+Give line count for EVERY file read full/partial in a `File | Lines` table, one relative path per row, no ranges in path. verified_line_counts.txt is a crosscheck, not a replacement for reading. Count this file too if read. Counts use newline/wc convention; put partial-read notes outside path cells. Name searched-only files separately. Quote EVERY file:line citation in this mechanically checked form:
+`relative/path.py:N`
+```python
+exact single source line at N, preserving source indentation
+```
+No inline file:line citations or ranges. Markdown fence nesting indentation may precede the source indentation. Verify line counts/quotes before final response.
+Return full independent findings with severity, checks and limitations. End with EXACTLY one line VERDICT: APPROVED or VERDICT: CHANGES REQUESTED.
+
+Prior P1 source history: freeze.json pins the initial pre-recovery harness (e0488d2f...), while committed harness.py matches scored_harness_resume.py (44e30a1b...). Both prior source snapshots and prior summary are supplied in picker_prompt1_inputs/. pickprompt2_evidence/p1_source_history.txt records an independent AST equality check of label/state/options/suffix/StaticGemma across initial, resumed and committed versions. Stage2 uses and pins the final committed harness; it did not alter any P1 source.
+
+Controlled interrupted DEV attempt: interrupted_dev_attempt/ retains72 A0 and19 A2 rows, original source snapshots, freeze/events/logs and server cleanup. Coder stopped it before any JSON, selection or TEST to correct float drift in mathematically equal macro recalls. Only metrics() and an import changed in harness2.py; all other AST nodes, including every prompt, grammar, scoring body and selection rule, are identical. Exact Fraction mean now preserves the predeclared token/name tie-break. No invalid JSON was retried (none had been called). Full final DEV uses the same frozen set/prompts in a new folder. test_saved_results verifies both source versions and no JSON/TEST in the interrupted attempt. Inspect interrupted_attempt.json and the retained source; do not omit this history from the review.
+
+Session interruption/recovery: the original final-run parent process was interrupted by the session before completion; its E2B log ends 'Received second interrupt, terminating immediately'. Nine complete variants plus the first five B2-E2B rows survived. No summary/selection/TEST existed. Source remained byte-identical. pickprompt2_evidence/resume_interrupted.py imports the frozen harness and calls its original json_rows/server/summarize/selection functions; it appends ONLY the remaining67 DEV ids, retains all earlier rows and original logs, and performs the original selection/TEST gate. Read session_recovery.json and recovery validation evidence. One in-flight sixth DEV request had no completed response; its generation status is UNKNOWN, and this cannot be claimed as a perfectly uninterrupted run. No saved invalid JSON was retried and no TEST was repeated. Original E2B shutdown was forced and has no completed servers.jsonl cleanup record; recovery precheck confirmed no server remained. Recovery uses a separate DEV_RECOVERY server log and memory record. Inspect recovery source and verify prefix/full-file preservation; include this limitation in the review.
+
+Owner subsequently clarified the cause: five-hour Coder usage limit followed by a low-battery phone shutdown. This is owner testimony, not independently verified power-log evidence; see pickprompt2_evidence/owner_interruption_account.json. Preserve this distinction.

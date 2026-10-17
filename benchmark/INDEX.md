@@ -41,3 +41,12 @@ Loose files: `run_benchmark.py` and `live_capture.jpg` predate these archives (A
 part of any folder above.
 
 P23D keeps rerun commands/instructions and raw-data locations in each folder README to keep this table readable. UNVERIFIED means no additional outcome/date is inferred from an absent record.
+
+## ARCHIVE-2 additions (2026-10-17)
+
+| Folder | What | Date | Key result | Status |
+|---|---|---|---|---|
+| [heat_control/dryrun2_cam1mid/](heat_control/dryrun2_cam1mid/README.md) | CAM1-MID motors-off dry run, e208aaf; [run index](heat_control/dryrun2_cam1mid/runs/RUN_INDEX.md), [artifacts](heat_control/dryrun2_cam1mid/runs/ARTIFACTS.md) | 2026-10-15 | 5.26 h; 9,293 ACTIVE cycles; 29 pauses; 0 transition-rule violations; status 0; skin 34.76–37.07 °C after first pause; duty 0.838 from first pause | VALID one motors-off run; no ultrasonic; not motors-live |
+| [heat_control/dryrun3_picker1/](heat_control/dryrun3_picker1/README.md) | PICKER-1 motors-off with picker/M2, 2ce2b3b; [run index](heat_control/dryrun3_picker1/runs/RUN_INDEX.md), [artifacts](heat_control/dryrun3_picker1/runs/ARTIFACTS.md) | 2026-10-16 | 3.64 h; 372 picks, 0 failures, 3 cancellations; every pick EXPLORE, including 59 person-visible; 98 pauses; skin max 39.69 °C; status max LIGHT | VALID one functional/heat run; pick quality NOT EVALUATED; not motors-live; phone checks untimed |
+| [strategic_selector/picker_prompt/runs/](strategic_selector/picker_prompt/runs/README.md) | PICKPROMPT-1/2 desk tests and interrupted attempt; [run index](strategic_selector/picker_prompt/runs/RUN_INDEX.md), [artifacts](strategic_selector/picker_prompt/runs/ARTIFACTS.md) | 2026-10-16/17 | NO VARIANT QUALIFIES in either run; best macro recall 0.53 V4 / 0.61 A4; TEST unscored; B1 repeated-whitespace limit; one in-flight DEV request UNKNOWN | Accuracy VALID; timings NOT measurements; PICKPROMPT-1 no procedurally clean review, owner accepted round 1 |
+| [llm_objective_setting/conversation/chat_mtp/runs/archive2/](llm_objective_setting/conversation/chat_mtp/runs/archive2/README.md) | E4B Q4_0 MTP OFF/ON and E4B-UP evidence; [run index](llm_objective_setting/conversation/chat_mtp/runs/archive2/RUN_INDEX.md), [artifacts](llm_objective_setting/conversation/chat_mtp/runs/archive2/ARTIFACTS.md) | 2026-10-17 | gen 7.31 -> 10.57 tok/s (+45 %); acceptance 43.0 %; max PSS 3,898 / 4,948 MiB; J/token indicative; reply quality NOT EVALUATED | OFF VALID single run; ON INDICATIVE WARM START; smokes untimed, NOT measurements |

@@ -75,3 +75,5 @@ timings), `blocks.jsonl` (one line per block, with the 5 s samples), `report.txt
 - Untimed proot smoke (2026-10-14, agent resident, not a result): ON loaded in 8.25 s, B1 reply 104 tokens,
   `draft_n` 141, `draft_n_accepted` 56 in the non-streamed response; the server log line
   `[spec] failed to measure draft model memory` also appears in #120's archived log.
+
+ARCHIVE-2 status: E4B Q4_0 OFF VALID single run; ON INDICATIVE WARM START; E4B-UP smokes NOT measurements. [Run index](runs/archive2/RUN_INDEX.md), [artifacts](runs/archive2/ARTIFACTS.md).

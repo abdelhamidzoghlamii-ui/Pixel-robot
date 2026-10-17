@@ -1,0 +1,52 @@
+Independent read-only Reviewer, Ponytail off.
+Task PICKPROMPT-1; base 2ce2b3b7d2cb9ef09c2613de85e106d0192e74c5.
+Execution profile: Claude Code CLI, claude-opus-5-5, effort medium, Ponytail off.
+Do not edit/create/delete files, run git, servers, root, network or other agents. You may run only the harness unit tests.
+The only allowed Bash command (run exactly from this copy's root, no cd or chained commands):
+python3 -B -m unittest discover -s benchmark/strategic_selector/picker_prompt -p test_harness.py
+Use Read/Grep/Glob for all other inspection. Tests write nothing and recompute completed results when present.
+Read docs/HANDOFF.md, docs/WORKFLOW.md, docs/REVIEWER.md then TASK.txt.
+
+Check: label() matches section 2 exactly; labels never depend on Gemma output; the set
+was frozen before scoring (hashes); DEV/TEST split by seed and TEST used once; V0 reproduces picker.py token
+for token; calibration computed only from the content-free prompt; selection rule applied exactly as
+section 5; summary numbers recompute from the per-variant JSONL; no production file changed.
+
+Read the three candidate files completely and compare them to the complete candidate.diff and frozen_manifest.json.
+Inspect surrounding production context: picker.py, relate.context(), main.choose_move/request_pick,
+benchmark/strategic_selector/v3/adapters.py S1O. This is a new harness only; production code is unchanged.
+Artifacts live at picker_prompt_results/ in this copy; results are read-only and kept outside Git in the live repo.
+The optional saved-results unit test recomputes all metrics, calibration transformations, winner, TEST count/order,
+set/harness hashes and speed medians from the JSONL. Inspect the raw result artifacts as needed, not only summaries.
+Check README's stated interpretation: recent greeting <300 s, recent look <60 s; exact boundaries allow the action.
+No additional variants allowed; V0–V5 required; V5 is diagnostic. TEST must remain unscored if no variant qualifies.
+V4's best V1–V3 is macro recall then median tokens. Selection among V0–V4 also requires zero R1 violations and
+all four recalls >=0.6. Variant id only resolves otherwise identical ties. No metrics may be adjusted after results.
+Note initial startup_failure/: /health failed before any /tokenize or /completion. The same frozen set was then
+scored in a shell that kept the server alive. No model result was discarded. There are 242 total distinct source
+scene lines, of which 241 object-bearing lines were usable; the compound empty-room line was excluded.
+A second failure hit production's 10 s HTTP timeout after three V3 DEV rows. Recovery increased only the
+in-memory HTTP timeout to 120 s and added pre-calibration DEV continuation; all saved decisions were preserved.
+Read picker_prompt_results/timeout_recovery.txt and both scored_harness_initial.py/scored_harness_resume.py.
+The unit tests compare every module-level definition except run/main using AST dumps to prove labels, state,
+options, metrics, calibration constants and selection functions were unchanged. V0 speed pairs were repeated
+because their original timings were lost before the failure; recovered probabilities must match saved V0 rows.
+No TEST call or selection happened before recovery. Verify all this evidence and flag any unsupported claim.
+The live server was stopped after scoring. All timing figures are NOT measurements (agent resident).
+
+Give every file you read a line count in a table with columns `File` and `Lines` (one exact relative path per row,
+plain or backticked, numeric line count). Quote every file:line you cite. Use this mechanically checked citation format:
+`relative/path.py:N`
+```python
+exact single source line at N (including indentation)
+```
+No inline file:line citations or line ranges. Verify your own quoted line and count before answering.
+Number findings and severity if any. Return your full independent review; do not call another reviewer.
+End with exactly one line: VERDICT: APPROVED or VERDICT: CHANGES REQUESTED.
+
+ROUND 2: no candidate code, frozen set, prompt or scored result changed after round 1. Round 1 approved,
+with disclosures requested. Read picker_prompt_results/recovery_notes.md and scene_count_evidence.json.
+The final Coder report will include those disclosures and round 1 verbatim. Do not rerun model inference.
+Provide line counts for ALL files inspected, including files only searched with Grep (relate.py, main.py,
+benchmark/strategic_selector/v3/adapters.py, set.jsonl). Do not omit searched files from the line-count table.
+TASK.txt now includes the owner's verbatim section 2, independently copied from the user message for fidelity checking.

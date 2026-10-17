@@ -1,0 +1,136 @@
+INDEPENDENT REVIEW REQUEST — task PICKER-1, round 3 (last round allowed by the task)
+Base commit: 1969f68f8c53c1dbffc72b64dafd41295aafaddf (main = origin/main). Working directory: this isolated copy
+(tracked files of 1969f68 + the candidate files; no .git, no ignored files such as model weights or bench_photos).
+
+RULES
+You are an independent read-only Reviewer. Ponytail off; do not simplify anything. Do not edit, create or delete files,
+do not run git, servers, motors, camera, root, network access or other agents. Read with cat / sed -n / nl / wc / grep.
+You may rerun only these checks, all writing nothing (python3 -B, compile(); the unit tests use fakes only and write
+only to Python tempfile directories, which they delete), run from this copy's root:
+  sh ../checks.sh        (or its individual commands:)
+  /data/data/com.termux/files/usr/bin/python3 -B -c "import sys; compile(open(sys.argv[1]).read(), sys.argv[1], 'exec')" <file>
+  /data/data/com.termux/files/usr/bin/python3 -B -m unittest -v run_cycle_safety_test test_detector_robotcam test_heat_control test_run_mission test_chat_mtp test_picker
+  cd benchmark/llm_objective_setting/conversation/chat_mtp && /data/data/com.termux/files/usr/bin/python3 -B -m unittest -v test_chat_mtp_runner
+  /data/data/com.termux/files/usr/bin/python3 -B nav_test.py | md5sum
+Read TASK.txt fully. Check in particular: Python keeps motor authority in every mode; person-stop and obstacle rules
+cannot be bypassed by any pick; no picker/M2 in PAUSE/HOLD/SEVERE; the worker never touches motors/camera/heat state;
+fallbacks never stop the mission; --no-picker equals the base behaviour except person-stop; no runtime import from
+benchmark/ or from outside the repo; licence handling (MIT copy in picker.py); heat rules, SizePolicy, CAMERA_RATE,
+stale-frame STOP, MOTOR_SPEED, CYCLE_MOVE_TIME unchanged; copy fidelity of the copied code against its sources in
+this copy (benchmark/strategic_selector/v3/adapters.py class S1O, benchmark/coresidency/coresidency.py make_selector/
+select/post, benchmark/relate_anything/desk2/desk_check.py, benchmark/relate_anything/speed1/speed_block.py build,
+benchmark/campaign/phase1.py context() and run_cycle m2()); thread safety; test quality.
+For every file you read give its line count; for every file:line you cite quote the exact line. Citation format
+(checked mechanically): write `path:N` on its own line followed immediately by a fenced code block whose single line is
+exactly line N of that file. Number findings with a severity [P0]..[P3]. End with exactly one line:
+VERDICT: APPROVED or VERDICT: CHANGES REQUESTED
+
+FILES IN THIS COPY FOR THE REVIEW
+  TASK.txt              the task text, incl. the owner's answer on person-stop (mission continues)
+  candidate.diff        full diff vs 1969f68, new files included (1768 lines)
+  check_output.txt      the Coder's candidate check run (interpreter, compile, unit tests, nav_test md5)
+  frozen_manifest.json  path, SHA-256, line count of every changed/new file
+  photo_table.md        D4 photo table (Coder output; bench_photos are not in this copy)
+  phone_check.txt       untimed phone check output (Coder output, rerun on THIS round's code; agent resident, not a measurement)
+  delta_r2_r3.diff      the round-2 -> round-3 change only (134 lines; candidate.diff is authoritative)
+
+FROZEN MANIFEST (changed/new files)
+  main.py  sha256 9026d1c82cf61eb0887579c425e5d01fdc3bef14e1f7d506163bac5bfa00dc15  lines 688
+  run_cycle_safety_test.py  sha256 0ef59b59695ce7a1066aaabb8acdd3c35570e42205b45f81cfb9cac36afcba60  lines 425
+  run_mission.py  sha256 8a4b513509cb019067016c021f6cb3c0073d554ca053e3b94be51fba71a510dd  lines 118
+  test_heat_control.py  sha256 b677be25cebd315187f8b8b2e3574dcd5c5178f2058b81ec8da97202e6f5a60e  lines 601
+  test_run_mission.py  sha256 ce1d9e4069cf53ecaf9210c91ca653846e6df8ac8e00bec61b4776f64ce649b6  lines 251
+  picker.py  sha256 c312ec464ccb28f9dcd23837234b4b14a0651ee492d2eca81890ce43322c215d  lines 256
+  relate.py  sha256 0f4790bd9f8822f2131adcafa6813983a2b1d5b8a76abaaea074a44ea258ad20  lines 185
+  test_picker.py  sha256 f7bb4c3d03ffe1eeec811cf9d38ce4acd2d41969bec6362d47dac47911ad83f1  lines 409
+
+CODER CONTEXT (claims for you to verify, not facts)
+- Base checks at 1969f68 (same interpreter, native Termux Python 3.13.13 run from the Debian proot shell, on an archive
+  of 1969f68): run_cycle_safety_test 9, test_detector_robotcam 17, test_heat_control 20, test_run_mission 5,
+  test_chat_mtp 10, test_chat_mtp_runner 32 OK; nav_test stdout 41 lines, md5 fbbfe5b3248f1c930ac7c0d5fc67d4c6.
+  Candidate: 22 / 17 / 28 / 10 / 10 / 32 + test_picker 28, all OK; nav_test md5 unchanged (it only feeds results=[]).
+- Existing tests changed only where the interface changed: run_cycle_safety_test expects navigate_rules([], 20,
+  approach=True); test_heat_control's active_slot key set gains picks/picker_ms/m2_ms/fallbacks; test_run_mission
+  fakes gain set_mode/event and patch run_mission.build_picker (else the tests would contact a real server).
+- main.py line 2 inserts the live repo path /data/data/com.termux/files/home/robot at sys.path[0], so when tests run in
+  this copy, main.py's later imports (picker, detect_person, heat_control, ...) resolve to the live tree, which is
+  byte-identical to this copy for every file (frozen; the Coder hashes both trees before and after the round).
+- test_picker.test_prompt_ids_equal_system_one_open_build imports s1/schema.py from
+  /data/data/com.termux/files/home/sel-candidates/s1o/src (outside the repo, MIT, commit 77f1f7cc) in the TEST only, to
+  prove picker.Gemma.prompt_ids equals the original build() (also with a >1536-token state); it skips when absent.
+- Design decisions (judge them):
+  * HOLD is a new non-ending move: motors.stop() then sleep(CYCLE_MOVE_TIME) (dry: sleep), so the next RobotCam read
+    gets a new frame (a fast cycle would hit the stale-frame STOP). Used by GREET and by person-stop.
+  * Person-stop is applied in Robot.choose_move after the mode logic, to FORWARD/FWD_L/FWD_R, when any person's
+    area bucket is in PERSON_STOP_BUCKETS: the person legacy tuples plus (round 2) every person detection dict,
+    bucketed one by one through scene_from_detections. Old branch removed: estimate_distance_single('person', r[7])
+    with r[7] <= 640 gives >= 170*500/640 = 133 cm > PERSON_STOP_DIST 80, so it could never fire (#78); removing it
+    does not change --no-picker behaviour.
+  * GREET does not call navigate_rules (holds still; avoids the 60 s escape-timeout STOP while a person stands close).
+  * LOOK: navigate_rules(approach=False); its clear-path FORWARD becomes LEFT; obstacle-ladder moves pass unchanged;
+    after 4 LOOK cycles the mode becomes EXPLORE.
+  * mode None = --no-picker (navigate_rules approach=True, the base rules). With the picker on but unavailable at
+    start (server down, M2 build/parity/asset failure, worker pin failure): mode EXPLORE, picker None, logged once
+    (print + picker_config enabled False with the reason); the mission continues.
+  * Cadence: "ultrasonic blocks" = transition into distance < OBSTACLE_DIST; an event inside the 5 s gap, or while a
+    call is in flight / at SEVERE / before this slot's first 640 frame, stays pending (latest wins); the first call is
+    due at once ('start'); heartbeat 20 s after the previous call started.
+  * Picker gate (round 2): the mission thread calls Picker.allow() when ACTIVE starts and in every ACTIVE cycle below
+    SEVERE, Picker.forbid() before the camera stops on ACTIVE -> PAUSE/HOLD, in every ACTIVE cycle at SEVERE or above,
+    and in stop(). forbid() bumps a generation number; a running pick captured the generation at its start and checks
+    (generation unchanged and allowed) before M2, after M2, before every HTTP request (Gemma.request) and (round 3)
+    after Gemma.decide() returns, so a later allow() cannot revive it. Only a request already sent (<= 10 s) or an M2 inference already started can finish;
+    a cancelled pick has cancelled=True and is never applied.
+  * Request timeout 10 s is per HTTP request; one pick = 4 /tokenize + 1 /completion (as S1O).
+  * The M2 parity gate is a constant: the SHA-256 of all three M2 files must equal the campaign's
+    benchmark/campaign/expected_hashes.json entries; the graph hash equals parity_valid_relsgg-vits16.json
+    graph_sha256 (passed true). Checked before np.load(allow_pickle=True).
+  * relate.Relate borrows detect_person.PinnedDetector.affinity/check_affinity (same attribute names). The picker worker
+    thread is the M2 calling thread: it pins itself to {6,7} at start (verified via ready queue) and re-checks/re-pins
+    before every M2 call; an affinity error is a per-pick fallback.
+  * Pick results (round 2) are collected at the top of every mission-loop iteration in every phase, at the start of
+    run_cycle, and once more in run_mission.py's cleanup after the worker stopped. A result counts in active_slot and
+    may change the mode only if it belongs to the current, still-open ACTIVE slot, was not cancelled and (round 3) the
+    status read at collection time (Robot.severe_now(), the monitor's latest reading) is below SEVERE; otherwise it is only traced ('pick' with applied false).
+  * The worker receives plain data (slot, trigger, eligible, situation text, (PIL frame, detector dicts)) and returns
+    a dict; the main thread writes all trace lines.
+- Owner decisions still pending (not findings unless the code contradicts the task): PERSON_STOP_BUCKETS threshold
+  (photo_table.md), GREETING text.
+
+ROUND 1 (Codex gpt-6.1-sol, medium): CHANGES REQUESTED. Identity before/after unchanged; 18/19 citations exact, one
+cited picker.py:104 with the text of line 105, so the round is formally INVALID under WORKFLOW.md step 7. Its findings
+were all accepted and fixed (verify them in candidate.diff; delta_r1_r2.diff shows only the change):
+  1. [P1] A closer, less confident second person bypassed person-stop (label dedup). Changed: main.py run_cycle
+     builds `people` from the person tuples and from every person detection dict; choose_move(results, distance,
+     people). Test: run_cycle_safety_test test_a_closer_less_confident_second_person_still_stops (real
+     scene_from_detections, two dicts, every mode).
+  2. [P1] SEVERE did not gate a running pick and a result could change the mode at SEVERE. Changed: forbid() in
+     every ACTIVE cycle at SEVERE (cancels the running pick), allow() below; collect_pick applies only when not
+     cancelled and not at SEVERE. Test: test_heat_control test_severe_during_a_running_pick_cancels_it_and_keeps_the_mode.
+  3. [P1] New HTTP requests after PAUSE/HOLD began. Changed: generation-based cancellation checked before every HTTP
+     request (Gemma.request -> Gemma.check set per pick). Test: test_picker
+     test_forbid_during_tokenization_sends_no_further_request (real Gemma, fake transport, no /completion).
+  4. [P2] stop() could return while the worker ran. Changed: stop() forbids, so the sequence ends after the current
+     request (<= 10 s) or M2 call; join timeout stays TIMEOUT_S + 5 = 15 s. Test: test_picker
+     test_stop_during_an_http_sequence_ends_the_worker.
+  5. [P2] Picks crossing a phase boundary were mis-accounted or untraced. Changed: see "Pick results (round 2)"
+     above; run_mission.py calls robot.collect_pick() after pick.stop() and before heat.stop(). Tests: test_heat_control
+     test_pick_spanning_a_pause_is_traced_once_and_counted_nowhere_else; test_run_mission (collect_pick between
+     stop_camera and heat_stop on every exit).
+  Also: relate.py provenance comment now names benchmark/relate_anything/desk2/speed_block.py.
+Coder mutation checks (each reverted fix makes at least one test fail): person-stop on tuples only, no per-request
+check, SEVERE without forbid, applying regardless of slot/cancel/SEVERE, counting in any slot, no shutdown trace.
+
+ROUND 2 (Codex gpt-6.1-sol, medium): VALID (identity before/after unchanged; 15/15 citations exact). CHANGES REQUESTED,
+both findings accepted and fixed (delta_r2_r3.diff):
+  1. [P1] A ready result could change the mode when SEVERE first appeared (collect_pick used last cycle's flag).
+     Changed: Robot.severe_now() reads the monitor's latest status; request_pick and collect_pick both use it.
+     Test: test_heat_control test_result_ready_when_severe_first_appears_is_not_applied (result released at the first
+     SEVERE reading, before request_pick refreshed the flag; applied false, mode unchanged).
+  2. [P1] A forbid() during /completion was lost. Changed: picker.Picker.pick calls check() after Gemma.decide()
+     returns. Test: test_picker test_forbid_then_allow_during_completion_stays_cancelled (real Gemma, fake transport
+     blocking /completion, forbid() then allow(), release: cancelled true, mode EXPLORE).
+  The mission fake (test_heat_control FakePicker) no longer rewrites queued results in forbid(): like the real worker
+  it records a generation per request and marks a result cancelled at result() when the generation changed.
+Coder mutation checks: severe_now -> picker_severe in collect_pick, no check() after decide, no forbid at SEVERE,
+apply regardless: each makes at least one test fail.

@@ -1,0 +1,206 @@
+Changes are required. The passing tests miss multi-person safety and worker lifecycle cases.
+
+1. **[P1] A second, closer person can bypass person-stop.**
+
+Person-stop examines the legacy scene after it has discarded duplicate labels. With a higher-confidence far person followed by a lower-confidence close person, only the far person reaches this check. EXPLORE, APPROACH and `--no-picker` can therefore execute FORWARD despite a detected person exceeding the stop threshold.
+
+main.py:474
+```python
+        close = [r[3] for r in results if r[0] == 'person' and r[3] in PERSON_STOP_BUCKETS]
+```
+
+detect_person.py:208
+```python
+            continue
+```
+
+Evaluate the safety condition against every person detection before label deduplication. Add a regression using two detection dictionaries through the real scene conversion; the current person-stop tests inject already-converted tuples.
+
+2. **[P1] SEVERE blocks submissions but does not gate an existing worker or preserve the mode.**
+
+If status becomes SEVERE while M2 runs, the worker can subsequently start Gemma: its gate tests ACTIVE alone, and SEVERE can remain ACTIVE. A completed pick can also change the mode at SEVERE because result application checks only the slot number.
+
+picker.py:193
+```python
+            if not self.active.is_set():
+```
+
+main.py:506
+```python
+                                   ready=not (self.pick_inflight or severe or self.last_640 is None))
+```
+
+main.py:524
+```python
+        applied = r['slot'] == self.slot_n
+```
+
+Have the main thread publish whether optional work is permitted, and enforce it between worker stages and before applying results. Test a below-SEVERE submission followed by SEVERE during M2 and before result collection. The existing SEVERE test starts at SEVERE and submits only after recovery.
+
+3. **[P1] Gemma can start new HTTP requests after PAUSE/HOLD begins.**
+
+The worker checks ACTIVE before calling `decide()`, but `decide()` performs several tokenization requests followed by completion without another phase check. If PAUSE begins during tokenization, subsequent requests—including the expensive completion—still start while the camera is off. This exceeds the stated allowance for an already-sent request to finish.
+
+picker.py:198
+```python
+            dist = self.gemma.decide(request['situation'] + '\n' + text, phrases)
+```
+
+picker.py:104
+```python
+        res = self.post('/completion', {'prompt': ids, 'n_predict': 1, 'n_probs': N_PROBS, 'post_sampling_probs': False,
+```
+
+Check cancellation before each HTTP request, using request/slot identity so a later ACTIVE phase cannot revive cancelled work. Add a fake transport test that changes phase during tokenization and verifies no completion starts.
+
+4. **[P2] Worker shutdown can return while the worker is still running.**
+
+Cleanup waits 15 seconds, but an ordinary pick contains five sequential HTTP requests, each with a 10-second timeout. Clearing ACTIVE during `decide()` does not interrupt that sequence. Several individually successful slow requests can therefore outlast cleanup; the daemon may continue issuing requests or be terminated without clean completion.
+
+picker.py:219
+```python
+    def stop(self, timeout=TIMEOUT_S + 5):
+```
+
+picker.py:223
+```python
+        self.thread.join(timeout)
+```
+
+run_mission.py:93
+```python
+            cleanup_errors.append('[PICKER] worker still running after its timeout')
+```
+
+Make cancellation terminate the sequence after the current bounded request, and ensure cleanup observes worker termination. Test shutdown during an actual fake HTTP sequence; the existing worker-stop test stops an idle worker, while entry-point exit tests mock `stop()`.
+
+5. **[P2] Picks crossing a phase boundary are omitted or charged to the wrong active slot.**
+
+Results are collected only at the beginning of an ACTIVE cycle. A pick finishing during PAUSE is counted in the next slot when ACTIVE resumes, even though its result is rejected as belonging to an earlier slot. If the mission ends first, its result and fallback are never traced. Thus `pick` is not reliably emitted per call, and `active_slot` statistics can describe work from another slot.
+
+main.py:386
+```python
+        self.collect_pick()  # a pick that finished meanwhile changes the mode from this cycle on
+```
+
+main.py:525
+```python
+        self.slot['picks'] += 1
+```
+
+Separate result tracing/accounting from mode application. Preserve the originating slot and handle terminal results during pauses and shutdown. Add a delayed-result test spanning ACTIVE → PAUSE → ACTIVE, plus mission termination with a pick outstanding.
+
+The permitted check script completed successfully: candidate test counts were **21 / 17 / 25 / 10 / 10 / 25 / 32**, totaling **140**. Syntax checks passed; `nav_test.py` produced 41 lines and MD5 `fbbfe5b3248f1c930ac7c0d5fc67d4c6`. The supplied base counts total 93; I did not independently execute the base snapshot.
+
+The remaining requested comparisons support these conclusions:
+
+- **F1:** The copied completion payload, letter-probability normalization and first-offered tie handling match S1O/coresidency. The external prompt-builder parity test passed, including its long-state case.
+
+benchmark/strategic_selector/v3/adapters.py:182
+```python
+        body = {"prompt": ids, "n_predict": 1, "n_probs": self.N_PROBS, "post_sampling_probs": False,
+```
+
+- **F2:** The benchmark variant delegates construction to `speed_block`. That file actually resides under `desk2/` in this copy; the `speed1/speed_block.py` provenance comment is inaccurate. The copied preprocessing, calibration, inference postprocessing, context formatting and highest-confidence box selection match the sources examined. The deliberate fewer-than-two-box behavior matches the task. The three embedded hashes match the campaign manifest, and the graph hash matches the parity-passed record. Hash validation precedes pickle-enabled bank loading.
+
+benchmark/relate_anything/speed1/variants.py:68
+```python
+    return sb.build(NAME, cpus, threads, lambda name, threads: make_head(variant, threads))
+```
+
+relate.py:74
+```python
+            if sha256(os.path.join(directory, name)) != digest:
+```
+
+  M2 uses two threads on CPUs 6–7, checks its calling-thread affinity, and refuses main-thread pinning. Its asset directory is `/data/data/com.termux/files/home/models/relate_anything/relsgg-vits16`, containing `relateanything.onnx`, `relateanything.json` and `predicate_bank.npz`.
+
+- **F3:** The diff confirms removal of the centimetre-based person check. With the detector’s clamped legacy height at most 640, the old estimate was at least approximately 133 cm, exceeding the old 80 cm threshold.
+
+candidate.diff:101
+```diff
+-                    dist_est = estimate_distance_single('person', r[7])
+```
+
+- **F4:** The campaign uses the setup_q4 server command: four inference/batch threads, parallel 1, context 2048, SWA-full and cache RAM 0. It does not add a server taskset. `server_manager.py` is unchanged.
+
+benchmark/coresidency/coresidency.py:404
+```python
+    `2>/dev/null &` replaced by a log file). No taskset: the robot does not pin the server."""
+```
+
+- **F5:** `picker.py` contains the MIT permission/warranty text and upstream attribution. The original external LICENSE and repository metadata were not furnished in this copy, so I could not independently establish their authenticity.
+
+picker.py:12
+```text
+  Copyright (c) 2026 Rami Mithalouni
+```
+
+The situation template is:
+
+```text
+Mission: {mission}
+Scene: {label} ({position}, {bucket}), ...
+Ultrasonic distance ahead: {distance} cm
+Current action: {mode phrase} (for {seconds rounded to zero decimals} s)
+Last moves: {last three moves, comma-separated}
+Rooms seen: {room names, comma-separated}
+M2 relations:
+{formatted relations}
+```
+
+Empty values use `nothing detected`, `no reading` and `none` as applicable. Options retain the required fixed order, and the instruction is exactly `Choose the single best next action for the robot.`
+
+Python retains motor authority; the worker has no motor, camera or heat-state reference. Queue communication and immutable-by-use frame requests avoid an evident shared-data mutation race. Stale-frame STOP remains ahead of mode execution. HOLD preserves mission continuation. Ordinary request/M2/startup failures fall back to EXPLORE. The diff leaves heat thresholds/rules, SizePolicy, CAMERA_RATE, MOTOR_SPEED and CYCLE_MOVE_TIME unchanged. The `--no-picker` navigation path retains person approach, subject to finding 1.
+
+Verification has an isolation limitation: the pre-existing absolute import path can resolve dependencies from the live tree. I did not independently verify the claimed live/copy byte identity. The new production modules contain no benchmark or external-schema import.
+
+main.py:2
+```python
+sys.path.insert(0, '/data/data/com.termux/files/home/robot')
+```
+
+Line counts for every file inspected, including partially inspected sources:
+
+| File | Lines |
+|---|---:|
+| docs/HANDOFF.md | 68 |
+| docs/WORKFLOW.md | 303 |
+| docs/REVIEWER.md | 15 |
+| docs/CLAUDE.md | 127 |
+| docs/STATUS.md | 449 |
+| docs/DECISION_INDEX.md | 54 |
+| docs/DECISIONS.md | 1669 |
+| TASK.txt | 95 |
+| candidate.diff | 1558 |
+| check_output.txt | 185 |
+| frozen_manifest.json | 42 |
+| photo_table.md | 36 |
+| phone_check.txt | 22 |
+| main.py | 672 |
+| run_cycle_safety_test.py | 409 |
+| run_mission.py | 112 |
+| test_heat_control.py | 543 |
+| test_run_mission.py | 249 |
+| picker.py | 232 |
+| relate.py | 185 |
+| test_picker.py | 332 |
+| detect_person.py | 283 |
+| heat_control.py | 345 |
+| detector_size_policy.py | 32 |
+| stereo_depth.py | 173 |
+| server_manager.py | 116 |
+| benchmark/strategic_selector/v3/adapters.py | 368 |
+| benchmark/coresidency/coresidency.py | 1290 |
+| benchmark/relate_anything/desk2/desk_check.py | 232 |
+| benchmark/relate_anything/desk2/speed_block.py | 495 |
+| benchmark/relate_anything/speed1/variants.py | 78 |
+| benchmark/campaign/phase1.py | 1074 |
+| benchmark/campaign/runtime.py | 723 |
+| benchmark/campaign/expected_hashes.json | 9 |
+| benchmark/relate_anything/desk2/parity_valid_relsgg-vits16.json | 7988 |
+| ../checks.sh | 24 |
+
+No files were edited. Photos, model assets and hardware behavior were not independently checked; the supplied phone output is an untimed functional observation.
+
+VERDICT: CHANGES REQUESTED

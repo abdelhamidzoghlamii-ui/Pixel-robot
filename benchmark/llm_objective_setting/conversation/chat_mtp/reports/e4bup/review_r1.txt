@@ -1,0 +1,273 @@
+# Independent review: E4B-UP Stage 1, round 1
+
+**Reviewer:** Claude Code CLI, claude-opus-5-5, effort medium, Ponytail off. Isolated copy with no `.git`. I edited nothing and ran only the allowed commands.
+
+## Scope and identity
+
+I hashed all six candidate files with `sha256sum` and counted them with `wc -l`. Every result matches `frozen_manifest.json`. `frozen_manifest.json` and `e4bup_evidence/frozen_manifest_r1.json` have the same hash (`9b5d10af…`), as do `candidate.diff` and `e4bup_evidence/candidate_r1.diff` (`45d896a8…`). The diff touches exactly the six manifest files.
+
+## Mirrored E2B lines and flags
+
+**Chat.** The new menu entry is appended last, so existing menu numbers are kept. It uses context 4096, the same as the E2B Q4_0 entry:
+
+`chat.py:17`
+```python
+    ('Gemma 4 E4B Q4_0', 'gemma-4-E4B-it-Q4_0.gguf', 'gemma', 4096),
+```
+
+The E4B entry goes through the same `server_cmd()` base list as E2B: b1609 dotprod binary, 4 threads and batch threads, parallel 1, `--swa-full`, `--cache-ram 0`. Only the drafter list differs:
+
+`chat.py:82`
+```python
+    draft_args = E4B_MTP_ARGS if m['file'] == E4B_MTP_MODEL else MTP_ARGS
+```
+
+The taskset rule is unchanged and shared by both entries. A missing or wrong-size drafter gives a yellow warning, the server starts without the drafter, and the header shows `MTP off`:
+
+`chat.py:108`
+```python
+    if draft and not (e4b_mtp_draft_ok() if e4b else mtp_draft_ok()):
+```
+
+**Robot setups.** `setup_e4b_q4` and `setup_e4b_q4_mtp` mirror `setup_q4` with context 2048. The drafter check runs before `start_server()`, so before `kill_servers()`. A bad drafter therefore stops nothing and starts nothing, and the setup returns `False`:
+
+`server_manager.py:116`
+```python
+        if not e4b_mtp_draft_ok():
+```
+
+The opt-in comment is present:
+
+`server_manager.py:108`
+```python
+    # E4B Q4_0: opt-in, not the robot default.
+```
+
+The drafter size matches the Hub LFS size:
+
+`server_manager.py:27`
+```python
+E4B_MTP_DRAFT_SIZE = 98653248
+```
+
+The usage line lists all setups:
+
+`server_manager.py:139`
+```python
+        print("Usage: python3 server_manager.py [setup_q4|setup_q4_mtp|setup_e4b|setup_e4b_q4|setup_e4b_q4_mtp|stop]")
+```
+
+`setup_q4`, `setup_q4_mtp` and `setup_e4b` are untouched in the diff. The only change near them is an added "Opt-in:" line in the unknown-setup branch.
+
+## Runner (`chat_mtp.py`)
+
+`--model` defaults to `e2b`:
+
+`benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py:396`
+```python
+    ap.add_argument('--model', choices=('e2b', 'e4b'), default='e2b', help='Q4_0 chat model (default: e2b)')
+```
+
+The default path is the same as before:
+- `model_key('e2b')` gives the same error text as the old `MODEL` path.
+- `command()`, `check_hashes(SHA256)`, the report header and the `chat_mtp_` folder prefix are unchanged.
+- `--resume` compares the same manifest, so old E2B runs still resume.
+- Resuming across models is refused, because the recorded commands differ.
+
+E4B hashes are checked at run start, after the refusal checks and before any core wait or server start:
+
+`benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py:422`
+```python
+        hashes = check_hashes(a.model)
+```
+
+The pinned values match the Hub LFS metadata:
+
+`benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py:65`
+```python
+              '4a403d2e4d80281063e4f517b1c061ded8476b4011a4fc2ba7dbff707075547e',
+```
+
+`benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py:66`
+```python
+              sm.E4B_MTP_DRAFT: 'b6a723115efa510d3b3215db1e26790dae84cd08c2134a764f3d194f1f0c3376'}
+```
+
+`oneshot.sh` forwards its arguments through `run_chat_mtp.sh` to `chat_mtp.py`, so the owner command is `oneshot.sh --model e4b` (plus `--smoke` if wanted).
+
+## Download metadata
+
+- `hub_model.json` has `"sha": "bfc15c382204943c3a8fff0c750b94ae2364d7a3"`.
+- In `hub_tree.json`, `gemma-4-E4B-it-Q4_0.gguf` has LFS size 4836002944 and SHA `4a403d2e…`. `MTP/mtp-gemma-4-E4B-it-Q8_0.gguf` has LFS size 98653248 and SHA `b6a72311…`.
+- `downloads.json` and the `VERIFIED` lines in `download.log` show the same URLs (resolved at the pinned commit), byte counts and SHA-256 values.
+- `hub_e2b_current.json` shows the publisher's E2B file is now 3041378400 bytes. The task's do-not-replace rule is consistent with that.
+- `e2b_before.sha256` matches the runner's E2B constants.
+
+**I did not hash the external weights.** Everything above is consistency of the Coder's records, not an independent hash.
+
+## Smoke evidence (not a measurement)
+
+- **Setup run, `setup_e4b_q4_mtp`.** The recorded command has no taskset, context 2048, and the E4B drafter flags. The server log shows `n_ctx_slot = 2048`, the draft model loaded, and a reply was generated. Draft acceptance 17/93. The process exited 0 and `servers_left` is empty.
+- **Chat run.** The command is `taskset -c 4-7` plus context 4096 plus the drafter. The log shows `n_ctx_slot = 4096` and draft acceptance 24/90. The process stopped and `servers_left` is empty.
+- **Memory.** MemAvailable went 3728888 → 1984064 kB in the setup run and 4671796 → 1839092 kB in the chat run, with the agent resident.
+- **Memory-fitting warning.** This E4B log line:
+
+  `e4bup_evidence/setup_e4b_q4_mtp.server.log:8`
+  ```python
+  0.00.968.779 E llama_init_from_model: failed to initialize the context: Gemma4Assistant requires ctx_other to be set (this warning is normal during memory fitting)
+  ```
+
+  is identical in kind to the archived E2B baseline:
+
+  `benchmark/llm_objective_setting/conversation/chat_mtp/runs/chat_mtp_20261014T224541Z/server_block01_ON.log:8`
+  ```python
+  0.00.940.007 E llama_init_from_model: failed to initialize the context: Gemma4Assistant requires ctx_other to be set (this warning is normal during memory fitting)
+  ```
+
+  In both logs it is followed by a successful draft load and accepted tokens, so it is harmless.
+
+## Do the tests exercise behaviour?
+
+Mostly, yes:
+- `test_e4b_mtp.py` runs the real `start_server` and `start_setup` with faked filesystem, `os.system`, `Popen` and HTTP.
+- The base menu entries and the setup command strings are pinned as literals, not derived from the implementation.
+- The bad-drafter refusal is checked as `calls == []`, which also covers no pkill:
+
+  `test_e4b_mtp.py:86`
+  ```python
+              self.assertEqual(calls, [])
+  ```
+
+- The chat fallback test checks the E4B drafter path, the yellow warning and `mtp_on == False` for sizes None, 0, ±1.
+- The taskset fallback is tested.
+- The runner tests check the pinned hashes, refusal on mismatch or missing file, and that the CLI calls `check_hashes('e4b')` and records the E4B commands.
+
+## Findings
+
+No Critical, High or Medium findings.
+
+1. **Low: runner docstring is stale.** The docstring is also argparse's `description`. It does not mention `--model e4b`, the `chat_mtp_e4b_` folder, or that the E4B hashes are pinned Hub LFS values rather than `conv_mtp/ARTIFACTS.md` values:
+
+   `benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py:26`
+   ```python
+   Usage: chat_mtp.py [--smoke] [--resume RUN_DIR] [--thermal-log PATH]
+   ```
+
+   `benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py:24`
+   ```python
+   model or drafter SHA-256 not the conv_mtp/ARTIFACTS.md values.
+   ```
+
+   `README.md` and `RUN.md` in that folder are also unchanged. The CLI `--help` still lists `--model`. This is cosmetic and can go as a DOC DIFF or a later fix.
+
+2. **Low: some E2B-default checks are self-referential.** This line compares the default against itself:
+
+   `benchmark/llm_objective_setting/conversation/chat_mtp/test_chat_mtp_runner.py:562`
+   ```python
+               self.assertEqual(cm.command(config, 'e2b'), cm.command(config))
+   ```
+
+   No test asserts that a default `main()` calls `check_hashes('e2b')` or uses the `chat_mtp_` prefix. The usage test checks the unknown-setup message, not the `__main__` usage line:
+
+   `test_e4b_mtp.py:92`
+   ```python
+           self.assertIn('setup_e4b_q4, setup_e4b_q4_mtp', self.launch('unknown')[2])
+   ```
+
+   Mitigation: the existing E2B command, G1 flags, hash and report-header tests pin the default behaviour, and I confirmed the default branches by inspection. The script behind `invariance.txt` is not in the copy, so I could not check its PASS claim.
+
+3. **Low: evidence gaps.**
+   - There is no E2B "after" hash record in `e4bup_evidence/`, only `e2b_before.sha256`.
+   - The free-space figures (11344572416 bytes against the 9680000000-byte gate) and the owner's deletion authorisation appear only in your request, not in the evidence.
+   - The smoke driver's source is not in the copy. Its claimed behaviour (intercepting `os.system`, skipping only the broad pkill, no `get_temp`/root calls) is consistent with the logs but not verifiable from source. For example, the server log has stderr content even though the setup command redirects `2>/dev/null`.
+
+   The Coder report should include all three.
+
+4. **Info: memory headroom.** MemAvailable after load was about 1.84–1.98 GB with the agent resident. The archived E2B co-residency minimum (#125) was 2523 MiB. Robot co-residency with E4B is not established, so `setup_e4b_q4*` must stay described as opt-in and unvalidated.
+
+5. **Info: runner timing under heat.** Block timing is tuned for E2B:
+
+   `benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py:69`
+   ```python
+   BLOCK_S, LAST_START_S, SMOKE_GATE_S = 180, 150, 20
+   ```
+
+   At E4B speeds (about 5.7–7.5 tok/s in the smoke runs, which are not measurements), a 512-token reply under throttling could miss the 175 s deadline. The run then stops with a RuntimeError. That fails safe and is not a defect, but the owner should know.
+
+## Checks I ran (all exit 0)
+
+| Command | Result |
+|---|---|
+| `python3 -B -m unittest run_cycle_safety_test test_detector_robotcam test_heat_control test_run_mission test_picker test_chat_mtp test_e4b_mtp` | Ran 123, OK |
+| `… discover -s benchmark/llm_objective_setting/conversation/chat_mtp -p test_chat_mtp_runner.py` | Ran 35, OK |
+| `… discover -s benchmark/strategic_selector/picker_prompt -p test_harness.py` | Ran 4, OK (skipped=1) |
+
+These match the Coder's results:
+- **Main suites:** base native 117 tests. Candidate 22+17+29+10+29+10 = 117, plus 6 new = 123.
+- **Runner:** 32 → 35.
+- **Harness:** 4 skip 1 at both base and candidate.
+- **Proot-only base runs:** `base_main_tests.txt` and `base_runner_tests.txt` show import errors in proot. That is an environment limit, and the native reruns supersede them.
+- **Nav output:** `sha256sum` of `base_nav_stdout.txt` and `candidate_nav_stdout.txt` match (`86a2bf53…`). I cannot compute MD5 within the allowed commands, so I did not check the `fbbfe5b3…` value directly.
+
+## Files read
+
+| File | Lines |
+|---|---|
+| TASK.txt | 37 |
+| docs/HANDOFF.md | 68 |
+| docs/WORKFLOW.md | 303 |
+| docs/REVIEWER.md | 15 |
+| docs/STATUS.md (partial 115–139 + grep) | 449 |
+| docs/DECISION_INDEX.md | 54 |
+| docs/DECISIONS.md (partial 1650–1669, #137) | 1669 |
+| docs/CLAUDE.md | 127 |
+| CLAUDE.md | 4 |
+| candidate.diff | 468 |
+| frozen_manifest.json | 38 |
+| verified_line_counts.txt (partial 1–591 + grep) | 3015 |
+| chat.py | 395 |
+| server_manager.py | 141 |
+| test_chat_mtp.py | 210 |
+| test_e4b_mtp.py | 96 |
+| benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py | 478 |
+| benchmark/llm_objective_setting/conversation/chat_mtp/test_chat_mtp_runner.py | 611 |
+| benchmark/llm_objective_setting/conversation/chat_mtp/run_chat_mtp.sh | 9 |
+| e4bup_evidence/downloads.json | 16 |
+| e4bup_evidence/download.log | 12 |
+| e4bup_evidence/e2b_before.sha256 | 2 |
+| e4bup_evidence/hub_e2b_current.json | 12 |
+| e4bup_evidence/hub_model.json | 200 |
+| e4bup_evidence/hub_tree.json (partial 1–12 + grep context) | 1459 |
+| e4bup_evidence/invariance.txt | 3 |
+| e4bup_evidence/smoke.json | 285 |
+| e4bup_evidence/smoke.stdout.txt | 14 |
+| e4bup_evidence/setup_e4b_q4_mtp.server.log | 36 |
+| e4bup_evidence/chat_e4b_q4_mtp.server.log | 36 |
+| e4bup_evidence/test_commands.json | 109 |
+| e4bup_evidence/candidate_test_e4b_mtp_tests.txt | 5 |
+| e4bup_evidence/candidate_test_chat_mtp_tests.txt | 5 |
+| e4bup_evidence/candidate_runner_tests.txt | 7 |
+| e4bup_evidence/base_runner_native_tests.txt | 7 |
+| e4bup_evidence/base_runner_tests.txt | 26 |
+| e4bup_evidence/base_main_tests.txt | 87 |
+
+**Line-count crosscheck:** all counts above agree with `verified_line_counts.txt` except two:
+- `download.log`: `wc` gives 12, the list gives 171, because curl progress output uses `\r` and the list apparently splits on it.
+- `verified_line_counts.txt`: not listed in itself; `wc` gives 3015.
+
+**Searched only (grep/glob, not read in full):**
+- In `e4bup_evidence/`: base_main_native_tests.txt, candidate_run_cycle_safety_test_tests.txt, candidate_test_detector_robotcam_tests.txt, candidate_test_heat_control_tests.txt, candidate_test_run_mission_tests.txt, candidate_test_picker_tests.txt, candidate_harness_tests.txt, base_harness_tests.txt, base_harness_native_tests.txt.
+- In `benchmark/llm_objective_setting/conversation/chat_mtp/`: oneshot.sh, and runs/chat_mtp_20261014T224541Z/server_block01_ON.log.
+- Repo-wide grep for `server_manager`, `start_setup`, `MODEL_FILES` and `MTP_MODEL` callers. No caller depends on changed behaviour.
+
+## Limitations
+
+- No `.git`, so I could not diff the prohibited paths against base myself. I rely on the six-file diff and the Coder's invariance claim; the script behind it is not in the copy.
+- I did not access or hash the external weights.
+- The smoke driver source is not in the copy.
+- No hardware, server or network use.
+- Timings and memory figures are not measurements.
+
+My recommendation is approval, with findings 1–3 as follow-ups for the Coder report or Doc Keeper. This is a review result only, not permission to commit.
+
+VERDICT: APPROVED
