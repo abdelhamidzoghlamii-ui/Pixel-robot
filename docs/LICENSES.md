@@ -42,6 +42,7 @@ index entry, or a blog post. PENDING is the honest value until that has happened
 | `examples/llama.android` | MIT, as part of llama.cpp | `ggml-org/llama.cpp` | Same as llama.cpp; note in-repo which files were derived from it | PENDING |
 | `SimpleUsbTerminal` | **PENDING** | `kai-morich/SimpleUsbTerminal` | PENDING — **do not copy any code until this row is filled in** | PENDING |
 | `PARSE_SYS` prompt and JSON contract | Own work | Pixel Robot prototype, `main.py` | None | 2026-08-16 |
+| system-one-open S1O letter scoring and `s1/schema.py` prompt builder | MIT, Copyright (c) 2026 Rami Mithalouni | `github.com/mithalouni/system-one-open` @ `77f1f7cc`, copied and trimmed into `picker.py` (full MIT text embedded there) | Retain copyright and licence text; `picker.py` notes what was derived | 2026-10-15 (Coder read LICENSE at that checkout) |
 
 ## Excluded — recorded so the trap is not rediscovered
 

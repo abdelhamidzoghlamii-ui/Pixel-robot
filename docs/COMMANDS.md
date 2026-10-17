@@ -68,12 +68,14 @@ If it's in use, find the holder and kill it **by PID** — see §8.
 
 The LLM server must be running before `run_mission.py` for voice/objective handling;
 the navigation loop uses Python rules (#104, #111). (See §4 for `chat.py`/`robot-chat`: Loading a chat model calls `pkill` on the b1609 dotprod binary, killing the robot LLM server from `server_manager.py`. If another server still occupies port 8080, chat refuses to start. Do not launch chat during a robot mission.)
-Always run `setup_q4` before a mission; it stops any leftover chat server and loads the robot model. Quit any open `robot-chat` session before `setup_q4` or a mission; an open session may reuse or kill the robot server on its next message.
+Always run `setup_q4` before a mission; it stops any leftover chat server and loads the robot model. The mission picker (#138) uses this server; without it the mission prints `[PICKER] disabled` and continues in EXPLORE. Quit any open `robot-chat` session before `setup_q4` or a mission; an open session may reuse or kill the robot server on its next message.
 
 | Command | What it does |
 |---|---|
 | `python3 server_manager.py setup_q4` ✅ | **Robot default.** Gemma 4 E2B Q4_0, 2.8 GB, ~12 tok/s.* |
 | `python3 server_manager.py setup_q4_mtp` | Opt-in: `setup_q4` plus the MTP drafter (#137); refuses to start if the drafter file is missing or not 97817664 bytes. Not the robot default. |
+| `python3 server_manager.py setup_e4b_q4` | Opt-in: Gemma 4 E4B Q4_0, 4.8 GB, 7.31 tok/s at chat settings (#141). Not the robot default; too hot and too big for the drive loop. |
+| `python3 server_manager.py setup_e4b_q4_mtp` | Opt-in: `setup_e4b_q4` plus the E4B MTP drafter; refuses to start if the drafter is missing or not 98653248 bytes (#141). |
 | `python3 server_manager.py setup_e4b` ⚠️ | Gemma 4 E4B Q4_K_M, 5.0 GB, ~5.4 tok/s.* Not used by chat.py (chat starts its own server); too slow for the control loop. |
 | `python3 server_manager.py stop` ✅ | Kills all llama-server processes. |
 
@@ -110,7 +112,7 @@ curl -s http://127.0.0.1:8080/health && echo " — server up"
 
 | Command | Root? | What it does |
 |---|---|---|
-| `run_mission.py "<mission>"` | yes | **Autonomous entry point.** `--dry` runs the full loop with no motor commands and needs no root. |
+| `run_mission.py "<mission>"` | yes | **Autonomous entry point.** `--dry` runs the full loop with no motor commands and needs no root. The picker with M2 is on by default (#138); `--no-picker` runs the old rules (person approach) and loads neither. |
 | `teleop.py` ✅ | yes | **Mode 1 teleop.** Pixel hotspot + web UI; drive from a second phone's browser. Diagonals, speed slider, live HC-SR04 readout. Needs neither the server nor the AI stack. |
 | `motors.py` ✅ | yes | Serial self-test: connect, PING, distance, forward 1 s, rotate left 0.5 s. |
 | `dist_raw.py` ✅ | yes | Dumps raw serial lines for 5 s. Use to see `DIST:` exactly as the firmware sends it. |
@@ -271,7 +273,7 @@ helpers or re-send itself.
 `python3 chat.py` — Python interactive chat.
 Both entry points use the same script and start their own server on port 8080.
 
-**Server details:** Uses the b1609 dotprod binary, 4 generation/batch threads, parallel 1, SWA full, cache RAM 0, and CPU affinity 4–7 when Android allows those cores. The diagnostic log is `~/robot-chat-server.log`. For Gemma 4 E2B Q4_0 the server also loads the MTP drafter (`--model-draft ~/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf --spec-type draft-mtp --spec-draft-n-max 3`, #137); if the file is missing or the wrong size, chat warns and starts without it. The header shows `MTP on` / `MTP off`. The header and per-reply status show `MemAvailable` from `/proc/meminfo` in GiB (still displays RAM when thermal reads fail). See STATUS.md for model-specific ctx sizes.
+**Server details:** Uses the b1609 dotprod binary, 4 generation/batch threads, parallel 1, SWA full, cache RAM 0, and CPU affinity 4–7 when Android allows those cores. The diagnostic log is `~/robot-chat-server.log`. For Gemma 4 E2B Q4_0 the server also loads the MTP drafter (`--model-draft ~/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf --spec-type draft-mtp --spec-draft-n-max 3`, #137); if the file is missing or the wrong size, chat warns and starts without it. The header shows `MTP on` / `MTP off`. The Gemma 4 E4B Q4_0 entry also loads its drafter (`~/models/mtp/mtp-gemma-4-E4B-it-Q8_0.gguf`, #141). Timed chat speed runner: `bash ~/robot/benchmark/llm_objective_setting/conversation/chat_mtp/oneshot.sh` (E2B) or add `--model e4b`; native Termux, no agent running. The header and per-reply status show `MemAvailable` from `/proc/meminfo` in GiB (still displays RAM when thermal reads fail). See STATUS.md for model-specific ctx sizes.
 
 In-chat commands (apply to both):
 

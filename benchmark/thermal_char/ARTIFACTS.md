@@ -146,3 +146,4 @@ Historical sections above retain their exact original archive-time records; some
 | `thermal_char_executed_cbf73d12b5bc.py` | `existing repository / P23D generated documentation or offline evidence` | 43763 | `cbf73d12b5bcebb80db1d3c09f5b1e72f0231df915c490669c925f1bd9365d1d` |
 
 HEAT_EVIDENCE.md re-hashed 2026-10-15 after MTP-ARCHIVE: 17631 B, SHA-256 276173a9ea7c46d92f168c3eae9a24a607298b0ed91bd4ab243815161c1d4252; the 5e749f5c... rows above are stale (the file changed in 92492ec, to 16456 B, SHA-256 f55954bc5b87ba565d7b1b30bdf0345d5ce86e2e53852c547e23bcfaf7cf6078, and in MTP-ARCHIVE).
+HEAT_EVIDENCE.md re-hashed 2026-10-17 after ARCHIVE-2 (3a1381a): 19971 B, SHA-256 acc586d4059020727ca143ccda0e3dacf125a2a54e57fadf89b861ed913a2c3d; the 2026-10-15 line above is stale.

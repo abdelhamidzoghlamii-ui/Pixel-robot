@@ -1667,3 +1667,104 @@ Format: `NN. [area] decision — why`
      also fixes a missing comma in the runner's report header (cosmetic) and appends a re-hash line for
      HEAT_EVIDENCE.md to `benchmark/thermal_char/ARTIFACTS.md`. Supersedes #120's "not deployed" for
      robot-chat only; #120 remains unchanged.
+
+138. **Gemma picker with RelateAnything M2 (L2) and the person-stop area bucket wired into the mission loop (PICKER-1).**
+     Owner decisions 2026-10-15: wire the picker into the cycle with the modes that exist now (EXPLORE,
+     APPROACH, GREET, LOOK); call on events plus every 20 s; M2 in layout L2 now (#131); person-stop in the
+     same task. Person-stop HOLD stops the motors for that cycle and the mission continues, in every mode
+     including `--no-picker`. `PERSON_STOP_BUCKETS = ('close', 'very close')`. Greeting text
+     "Hello, nice to see you." Commit `2ce2b3b` (Coder Claude Code `claude-opus-5-5` high, later switched
+     to medium by the owner; reviewer Codex `gpt-6.1-sol` medium; round 1 INVALID (one citation quoted
+     the wrong line), rounds 2 and 3 CHANGES REQUESTED, round 4 APPROVED; the owner authorised round 4
+     for exactly the two round-3 fixes).
+     New `picker.py`: one background worker thread, pinned to BIG cpus 6–7, runs M2 and then Gemma letter
+     scoring (S1O as in the campaign: one /completion, n_predict 1, n_probs 1000; prompt builder copied from
+     system-one-open @77f1f7cc, MIT, notice embedded). Options in the fixed order EXPLORE, APPROACH, GREET,
+     LOOK; APPROACH and GREET only while a person is detected. Cadence: an event (person appears or leaves,
+     ultrasonic becomes blocked) calls at once but no sooner than 5 s after the last call; otherwise every
+     20 s; one pick in flight; 10 s timeout per HTTP request. Picks run only in ACTIVE and below Android
+     status SEVERE: the mission forbids the worker at SEVERE right after `heat.decide()` and before the camera
+     stops on ACTIVE -> PAUSE/HOLD; a cancelled pick is never revived. Any server or M2 failure falls back to
+     EXPLORE, never a stop; the mission also continues in EXPLORE when the server is not up at start. New
+     `relate.py`: M2 head copied from desk_check; the SHA-256 of the three model files must equal the
+     parity-checked files (#130) before loading; files stay outside the repo. Fewer than 2 boxes: no M2 run;
+     more than 32: the 32 most confident. `main.py`: the mode only shapes the Python rules (EXPLORE and LOOK
+     ignore people; APPROACH and `--no-picker` keep person approach; GREET holds and speaks once; LOOK
+     rotates for 4 cycles, then EXPLORE); new move HOLD (motors stop for the cycle; never ends the mission).
+     Person-stop (#79) replaces `PERSON_STOP_DIST`: a forward move (FORWARD, FWD_L, FWD_R) becomes HOLD
+     while any person detection is in `close` or `very close`. Obstacle rules and the stale-frame STOP are
+     unchanged and decide before person-stop; GREET directly holds. Picks never produce motor commands.
+     `run_mission.py`: picker on by default, `--no-picker` for the old rules. New trace events `picker_config`,
+     `pick`, `mode`, `person_stop`, `picker_severe`; `active_slot` gains picks, picker ms, M2 ms and fallbacks.
+     Checks at commit: offline only, 149 unit tests (93 at base) and an unchanged `nav_test.py` output;
+     one untimed phone check with the agent resident (not a measurement). Bench-photo table (visual distance
+     labels, ±30–50 cm, subject mostly reclining): `close` stops in 26 of 34 detector rows, including people
+     labelled 170–260 cm; `very close` in 7 of 34 and misses both 45/55 cm photos; at 45 cm the 320 frame
+     gave `medium`. The 25 cm ultrasonic stop still applies. The motors-off run is #139.
+     Motors-live HOLD/GREET/LOOK not run. Supersedes #79 "not implemented", #109's "not wired" and #130's
+     "not deployed" for this prototype; those entries remain unchanged. M2 weight licence for shipped use
+     still not evaluated. Evidence: benchmark/heat_control/dryrun3_picker1/reports/picker1/
+     (Coder report, requests, reviews, manifests).
+
+139. **Motors-off dry runs of CAM1-MID and PICKER-1: camera/detector settings hold; the picker always chose EXPLORE and cut the ACTIVE share from 0.84 to 0.48.**
+     Archived in `3a1381a` (ARCHIVE-2), labels verified number by number against the files.
+     (a) `benchmark/heat_control/dryrun2_cam1mid/`, fixed label L1:
+
+     Motors-off `run_mission.py --dry`, code e208aaf (CAM1-MID), owner-run, native Termux, 2026-10-15 10:56–16:11Z, 5.26 h, stopped by Ctrl-C. 9,293 ACTIVE cycles; 29 heat pauses; 0 rule violations; Android status 0 throughout; skin 34.76–37.07 °C after the first pause; first pause after 5,099 s; later ACTIVE slots median 376 s; ACTIVE duty 0.838 from the first pause. 0 camera stops; max frame age 1.31 s; slot-median detect 139–148 ms (320) and 518–554 ms (640); cycle period 1.80 s. Detector affinity drifted to cpus 0–7 in slot 17 and was re-pinned OK at the next camera start. VALID for CAM1-MID as one motors-off run; no ultrasonic (dry: 999 cm); not a motors-live result.
+
+     (b) `benchmark/heat_control/dryrun3_picker1/`, fixed label L2:
+
+     Motors-off `run_mission.py --dry` with the picker and M2, code 2ce2b3b (PICKER-1), setup_q4 server, owner-run, native Termux, 2026-10-16 10:31:51–14:10:17Z, 3.64 h, stopped by Ctrl-C (Ctrl-C also stopped `tee`: the console log lacks the shutdown lines; the heat trace is complete). Owner stood in front of the camera about 3 times. 372 picks traced, 0 failures; 3 picks cancelled at an ACTIVE->PAUSE change, as designed. Every pick chose EXPLORE, including all 59 picks with a person in view (EXPLORE probability 0.93–0.98, median 0.95): the mode never changed. Gemma per pick median 2,767 ms (1,842–6,047; p90 3,289); M2 median 730 ms (693–1,130); prompt 116–214 tokens. Person-stop held a forward move 168 times (close 105, very close 63). Heat: 98 pauses, first after 176 s; 86 of 98 pauses began at the 60 s minimum ACTIVE time; ACTIVE share 0.48 of the run; skin peaked at 39.69 °C right after a minimum-length ACTIVE slot; Android status max 1 (LIGHT), never SEVERE. 3,457 ACTIVE cycles, cycle period 1.82 s; slot-median detect 141–171 ms (320) and 526–679 ms (640); max frame age 1.37 s; 0 camera stops; YOLO affinity cpus 4–5 in all 99 slots; M2 cpus 6–7, no re-pin. VALID as one motors-off functional and heat run; pick quality NOT EVALUATED there (see the desk tests); not a motors-live result. Phone checks (S7) are untimed functional checks with the agent resident, NOT measurements.
+
+     Transition rules replayed with each run's exact heat_control.py: 0 violations (58 and 196 transitions);
+     unlogged 1 s checks cannot be replayed. Both: motors off, no ultrasonic (999 cm), not a motors-live
+     result. Conclusion: the picker as built adds heat and changes nothing; see #140.
+     Supersedes #136's "not yet run in a mission" (motors-off only); #136 unchanged.
+
+140. **Picker desk tests: no prompt or model qualifies; owner direction — Gemma becomes the robot's "mind", the per-cycle picker is shelved.**
+     PICKPROMPT-1 (`0fc03dc`, E2B letter scoring, 72 DEV items of a frozen 120-item policy set; Coder Codex
+     `gpt-6.1-sol` medium, reviewer Claude Code `claude-opus-5-5` medium; three APPROVED rounds, none
+     procedurally clean, owner accepted round 1 on 2026-10-16) and PICKPROMPT-2 (`3fab51a`, E4B letter
+     scoring and "facts first, then action" JSON for E2B and E4B; round 1 VALID APPROVED).
+     Labels L3 and L4 from `benchmark/strategic_selector/picker_prompt/runs/RUN_INDEX.md`, verbatim:
+
+     PICKPROMPT-1 desk test (E2B, letter scoring, harness 0fc03dc), 72 DEV items: NO VARIANT QUALIFIES; best macro recall 0.53 (V4); R1 ("do not disturb") violations 4–6 in every variant; reversed options changed 15/72 choices; TEST (48) unscored. Accuracy VALID (temperature 0); timings NOT measurements. Review: no procedurally clean round; owner accepted round 1 (2026-10-16).
+
+     PICKPROMPT-2 desk test (harness 3fab51a): NO VARIANT QUALIFIES; best selectable macro recall 0.61 (A4, E4B letters + rules + calibration) with 7 R1 violations; every selectable variant 3–7 R1 violations; TEST (48) unscored. All 25 invalid B1 outputs ran out of tokens on grammar-allowed repeated whitespace (harness limitation; B1 validity, fact accuracy and B3 are affected). B2-E4B fact accuracy: visible 1.00, close 0.97, greeted 0.78, mission allows people 0.72, R5 0.86. Accuracy VALID; timings NOT measurements. One in-flight DEV request at the session interruption: UNKNOWN. The _interrupted folder is an earlier stopped attempt (metric arithmetic fix only), kept as evidence.
+
+     Key facts: NO VARIANT QUALIFIES in either test; best macro recall 0.53 (E2B) and 0.61 (E4B letters +
+     rules + calibration); every selectable variant approached or greeted in the "do not disturb" mission
+     (R1, 3–7 per variant); reversing option order changed 14–15 of 72 choices; E4B with rules reads the
+     situation well (person visible 1.00, close 0.97) but still picks wrong actions; JSON results for B1 are
+     confounded by a harness grammar limit (25 invalid outputs). The 48 TEST items remain unscored. Static
+     tokenization of the fixed prompt parts did not establish a speed gain (not a measurement).
+     Owner direction 2026-10-16: Gemma becomes the robot's "mind", called at events (talk, describe the
+     scene, remember, plan as JSON); Python keeps every move decision. The per-cycle picker is a possible
+     later upgrade ("Gemma reads, Python decides" is the promising form). E4B was investigated (#141).
+     Fine-tuning (Laya, Von or Gemma) is deferred to a later robot version. The picker code stays in the
+     robot and is still ON by default (`run_mission.py`); whether to make `--no-picker` the default is an
+     open owner decision. The "mind" is not designed yet.
+
+141. **Gemma 4 E4B Q4_0 + MTP drafter in robot-chat, opt-in robot setups; timed: 7.31 -> 10.57 tok/s; too hot and too big for the robot loop.**
+     Owner decision 2026-10-16: upgrade E4B like E2B before the desk test. Commit `8a84040` (Coder Codex
+     `gpt-6.1-sol` medium, reviewer Claude Code `claude-opus-5-5` medium, round 1 VALID APPROVED). Files from
+     unsloth/gemma-4-E4B-it-GGUF pinned to revision bfc15c38…: `gemma-4-E4B-it-Q4_0.gguf` 4,836,002,944 B
+     SHA-256 4a403d2e…, `MTP/mtp-gemma-4-E4B-it-Q8_0.gguf` 98,653,248 B SHA-256 b6a72311…; local E2B files
+     unchanged (the publisher's current E2B Q4_0 differs from ours: 3,041,378,400 vs 2,841,481,184 B; ours
+     were kept). robot-chat: new entry "Gemma 4 E4B Q4_0" (ctx 4096, drafter on; missing/wrong-size
+     drafter warns and starts without it). server_manager: `setup_e4b_q4` and `setup_e4b_q4_mtp` (ctx 2048;
+     the MTP setup refuses to start without a valid drafter); opt-in only; `setup_q4` (E2B) stays the robot
+     default. chat_mtp runner gained `--model e4b`. Timed owner run, label L5 from
+     `benchmark/llm_objective_setting/conversation/chat_mtp/runs/archive2/RUN_INDEX.md`, verbatim:
+
+     E4B Q4_0 OFF vs ON (MTP drafter), runner 8a84040, chat settings (ctx 4096, temperature 0.7, n_predict 512, cores 4–7), owner-run native Termux, 13/13 prompts per config, one block each. OFF: gen 7.31 tok/s, load 9.7 s, prompt 0.81 s — VALID single run. ON: gen 10.57 tok/s (+45 %), draft acceptance 43.0 %, load 10.2 s, prompt 0.77 s — INDICATIVE: WARM START (skin 27.42 °C vs 25.9 °C gate after 486 s). Memory (max PSS) 3,898 vs 4,948 MiB, min MemAvailable 1,923 / 1,920 MiB; J/token 1.29 -> 0.85 INDICATIVE ONLY. Heat: the OFF block raised skin 24.43 -> 36.58 °C in 140 s; Android status 0. Reply quality NOT EVALUATED. thermal_20261017.log z9/z10/z11 are CPU-core readings, NOT TRUSTED as a heat state.
+
+     OFF gen 7.31 tok/s VALID single run; ON 10.57 tok/s (+45 %), acceptance 43.0 % INDICATIVE (WARM START);
+     PSS 3,898 / 4,948 MiB; min MemAvailable about 1.9 GB; the OFF block raised skin 24.43 -> 36.58 °C in
+     140 s. Robot co-residency with YOLO, M2 and RobotCam NOT tested; with about 5 GB server memory and this
+     heat it is not suitable for the drive loop. Supersedes #115's "E4B kept, not recommended" for chat only.
+     Storage note (owner decision 2026-10-17 to delete unused Gemma 2B files; read-only listing this session):
+     absent: `~/models/gemma-4-e2b-it-q4_k_m.gguf`, `~/models/gemma-4-e2b-it-q8_0.gguf`, `~/models/mmproj-*`
+     and `~/models/gemma4-*-lora.gguf` (no matches for either glob). Present:
+     `~/models/gemma-4-e4b-it-q4_k_m.gguf` (5,335,285,440 B), `~/models/gemma-4-E4B-it-Q4_0.gguf`
+     (4,836,002,944 B), `~/models/mtp/mtp-gemma-4-E4B-it-Q8_0.gguf` (98,653,248 B).

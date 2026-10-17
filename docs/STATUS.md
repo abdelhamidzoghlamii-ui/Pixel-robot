@@ -58,24 +58,31 @@ from earlier commits.
 
 **Per-cycle flow** (`main.py: Robot.run_cycle`):
 ```
-RobotCam frame (640×480, 1/s, fail-closed reader) → YOLO yolo11s (320, 640 every 5 s or in person search; 2 threads on MID cores 4–5) → navigate_rules (pure Python, instant) → execute move
+RobotCam frame (640×480, 1/s, fail-closed reader) → YOLO yolo11s (320, 640 every 5 s or in person search; 2 threads on MID cores 4–5) → navigate_rules (pure Python, instant; shaped by the picker's mode) → person-stop (area bucket) → execute move
+Picker (background worker, BIG cpus 6–7; ACTIVE only, never at Android status SEVERE): RelateAnything M2 on the latest 640 frame → Gemma letter scoring of EXPLORE / APPROACH / GREET / LOOK → mode for the next cycles (events, min gap 5 s; heartbeat 20 s). In the motors-off run it always chose EXPLORE (#139, #140).
 ```
 
 | Layer | Handles | Cost |
 |---|---|---|
 | YOLO yolo11s (320/640 policy, both sessions resident; yolo11m kept for rollback) | object/person detection, position, coarse distance | every cycle |
 | RobotCam app (Camera2 foreground service) | 640×480 frames, 1/s (#136); missing/old/repeated frame → STOP | continuous while a mission runs |
-| Python `navigate_rules` | obstacle stop, person approach, room signature logging | every cycle, 0ms |
-| Gemma 4 E2B (Q4_0, default since 2026-09-26) | voice→intent only, outside navigation | on demand |
+| Python `navigate_rules` | obstacle stop, person approach (APPROACH mode or `--no-picker`), room signature logging | every cycle, 0ms |
+| Person-stop (#79, #138) | any person in bucket `close`/`very close` turns a forward move into HOLD (stop for the cycle; the mission continues) | every cycle |
+| Gemma 4 E2B (Q4_0, default since 2026-09-26) | mission picker (letter scoring of the offered modes, #138) and voice→intent; never a motor command | picker: median 2.8 s per pick in the motors-off run (#139) |
+| RelateAnything M2 (relsgg-vits16, fp32, `relate.py`) | object-relation text for the picker (layout L2, #131, #138) | before each pick; median 0.73 s in the motors-off run (#139) |
 | Whisper.cpp (base) | 5s voice capture → text | on demand |
 | Gemma `PARSE_SYS` | voice text → JSON action array | on demand |
 | `termux-tts-speak` | speech output | on demand |
 
-DECISIONS #109 opens a separate, unimplemented high-level mission-script
-selector. It is still not wired to the robot. After #112–#116 the lead
-candidate is Gemma scoring the offered options by letter probability; Laya and
-Von continue only on the fine-tuning track (#113). A single resident Gemma for
-both conversation and selection is under evaluation, not decided (#116).
+The high-level selector (#109) is wired into the mission loop as the picker
+(#138, `2ce2b3b`), on by default; `--no-picker` keeps the old rules. In the
+motors-off run it chose EXPLORE every time and cut the ACTIVE share to 0.48
+(#139); desk tests found no prompt or model that qualifies (#140). Owner
+direction (#140): Gemma becomes the robot's "mind", called at events (talk,
+describe, remember, plan); Python keeps every move. The mind is not designed
+yet; whether `--no-picker` becomes the default is open. Fine-tuning (Laya, Von
+or Gemma) is deferred to a later robot version. One resident Gemma for talk and
+selection was decided in #125.
 The current repo describes a mecanum prototype; the phone-mounted RC car with
 2D LiDAR is a proposed redesign.
 
@@ -84,7 +91,9 @@ The current repo describes a mecanum prototype; the phone-mounted RC car with
 **Navigation** (`main.py`)
 ```
 OBSTACLE_DIST     25 cm     hard stop threshold
-PERSON_STOP_DIST  80 cm     stop when person this close
+PERSON_STOP_BUCKETS ('close', 'very close')  any person in these area buckets → forward move becomes HOLD (#79, #138)
+LOOK_CYCLES       4         LOOK rotates in place, then EXPLORE (#138)
+picker            on by default; `--no-picker` = old rules; server from setup_q4 (#138)
 STEREO_BASELINE   5.0 cm    strafe distance for depth   (UNVERIFIED)
 MOTOR_SPEED       130       FORWARD/BACK
 rotation speed    120       hardcoded literal in Robot.move(), not a constant
@@ -124,6 +133,8 @@ setup_q4     Gemma 4 E2B Q4_0    2.8GB  ~12 gen tok/s  ← robot default (since 
 setup_q4_mtp setup_q4 + MTP drafter  opt-in, not the robot default (#137)
 Gemma E2B Q4_0 on this build: selector letter-scoring 1408 ms median (DECISIONS #119). MTP drafter measured +46% gen speed, +609 MiB, identical output (DECISIONS #120); on in robot-chat, opt-in for the robot (`setup_q4_mtp`), not in the robot default (#137). At chat settings: +43% gen speed, memory cost not established (#137). Build names: b1609 = upstream b10194, b2351 = upstream b10936 (#119).
 setup_e4b    Gemma 4 E4B Q4_K_M  5.0GB  ~5.4 gen tok/s ← kept, not recommended (#115)
+setup_e4b_q4     Gemma 4 E4B Q4_0  4.8GB  7.31 gen tok/s at chat settings ← opt-in, not the robot default (#141)
+setup_e4b_q4_mtp setup_e4b_q4 + E4B MTP drafter  10.57 gen tok/s INDICATIVE; opt-in (#141)
 (setup_qwen3b / setup_qwen1b and the Qwen2.5 files were removed 2026-09-26.
 Qwen3.5 2B and 4B GGUFs at ~/models/qwen35/ are eval-only, not wired into
 server_manager; Qwen3.5-0.8B was deleted. See DECISIONS #106, #115.
@@ -234,7 +245,7 @@ observations and follow-up are retained in
 - Manual selector playground `robot-jevlike`
   (`benchmark/strategic_selector/manual/jevlike/`): runs one input through any
   installed selector model side by side. Research only, not a benchmark.
-- **Standalone chat** (`robot-chat`): Menu filters against installed models (Gemma E2B Q4_0/Q4_K_M/Q8_0, Gemma E4B Q4_K_M, Qwen3.5 2B Q4_K_M, Qwen3.5 4B Q4_K_M/Q5_K_M/Q6_K, Mistral 7B Q4_K_M). None of the menu entries other than the robot's deployed model (Gemma E2B Q4_0) are deployed to the robot loop. Image chat is unavailable in this interface. The Gemma E2B Q4_0 entry runs the MTP drafter (#137); without the drafter file chat warns and starts without it.
+- **Standalone chat** (`robot-chat`): Menu filters against installed models (Gemma E2B Q4_0, Gemma E4B Q4_K_M/Q4_0, Qwen3.5 2B Q4_K_M, Qwen3.5 4B Q4_K_M/Q5_K_M/Q6_K, Mistral 7B Q4_K_M). None of the menu entries other than the robot's deployed model (Gemma E2B Q4_0) are deployed to the robot loop. Image chat is unavailable in this interface. The Gemma E2B Q4_0 and Gemma E4B Q4_0 entries run their MTP drafters (#137, #141); without the drafter file chat warns and starts without it. The menu shows only models present on disk.
 - Benchmark archive index: `benchmark/INDEX.md` lists every archive folder,
   its key result and status.
 - Root restored on Android 17; real SoC temps readable (zone9 BIG / 10 MID /
@@ -346,11 +357,13 @@ observations and follow-up are retained in
 - **Two JSON schemas in circulation.** `main.py: PARSE_SYS` emits
   `{"type": ..., "name": ..., "room": ...}`; the benchmark scripts used
   `{"action": ..., "target": ...}`. Not reconciled.
-- **FOCAL_PX uncalibrated; PERSON_STOP_DIST unreachable as coded.** Overshoot
-  +55% to +1000% across 12 measured photos, minimum estimate 164 cm against an
-  80 cm threshold, so the person-stop branch never fires. People are handled by
-  the 25 cm ultrasonic branch as generic obstacles. Person-stop is to move to the
-  area bucket (#79) — decided, not implemented. See DECISIONS #78, #79, #80.
+- **FOCAL_PX uncalibrated; person-stop now uses the area bucket.** Overshoot
+  +55% to +1000% across 12 measured photos. Person-stop no longer uses the
+  distance estimate (#138): in the bench-photo table (visual distance labels)
+  `close` stops in 26 of 34 detector rows, including people labelled 170–260 cm;
+  `very close` in 7 of 34. At 45 cm one 320 frame gave `medium` (no stop). The
+  area bucket tracks distance poorly; the 25 cm ultrasonic stop still applies.
+  In the motors-off run it held 168 forward moves (#139). See DECISIONS #78, #79, #80, #138.
 - **QAT/MTP evaluation gated, not started.** The earlier QAT Q4_0 E2B proposal
   required a valid nav benchmark for an LLM model swap. After #104, that is a
   historical model-in-loop gate, not a gate for the intended Python navigation
@@ -399,8 +412,9 @@ observations and follow-up are retained in
   README.
 - YOLO power map done (#128): chosen setting 1 frame/s, 640 every 5 s, MID
   cores (4–5); continuous use reaches skin about 37 °C in about 17 min, so
-  heat pauses are needed (#129). Deployed in `e208aaf` (#136); not yet run in a
-  mission: a motors-off `run_mission.py --dry` with this code is pending.
+  heat pauses are needed (#129). Deployed in `e208aaf` (#136); motors-off dry run
+  5.26 h archived (#139: 0 camera stops, cycle 1.80 s, ACTIVE duty 0.838 from the
+  first pause). Motors-live run pending.
 - Heat rules and pauses implemented (#135, commit `6f81f2a`); motors-off dry run
   archived in `benchmark/heat_control/dryrun1/` (`92492ec`). Torch for dark
   scenes not designed (#129).
@@ -409,8 +423,12 @@ observations and follow-up are retained in
 - RobotCam screen-off capture is untested; frame loss ends a mission
   (fail-closed, no retry by design).
 - RelateAnything M2 (relsgg-vits16, our fp32 export): speed, RAM and co-residency
-  measured (#130–#132); benchmark candidate, not deployed; weight licence for
+  measured (#130–#132); used by the picker (`relate.py`, L2, #138); model files
+  stay outside the repo and are checked by SHA-256 at load; weight licence for
   shipped use not evaluated.
+- Picker (#138): motors-off run done (#139) — always EXPLORE, ACTIVE share 0.48;
+  no qualifying prompt or model in the desk tests (#140). Open owner decision:
+  make `--no-picker` the default. Next: design the Gemma "mind" (#140).
 - Gemma fine-tuning restarts from scratch; old LoRA notebooks discarded (#124).
 
 ## Work priorities
@@ -421,8 +439,9 @@ or permission to execute hardware work.
 1. Keep `nav_test.py` and the #81 `run_cycle()` regression passing before the
    first motors-live autonomous run. The code defect is fixed, but no hardware
    validation has been performed (DECISIONS #88).
-2. Implement the person-stop area-bucket decision (#79). Choose 'very close' versus
-   'close' against `bench_photos/`; the choice remains pending.
+2. Person-stop area bucket implemented (#138, `2ce2b3b`) with `close` (owner
+   decision 2026-10-15, after the `bench_photos/` table); motors-off only (#139).
+   A better distance signal needs tape-measured photos.
 3. Build the replacement navigation benchmark described in
    [BENCHMARK_PLAN.md](BENCHMARK_PLAN.md): real photos → real `detect_scene()` →
    real `navigate_rules()`, with distance injected. The proposed scores are token

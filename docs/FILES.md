@@ -15,6 +15,8 @@ are marked *(entry point)*.
 | `detect_person.py` | YOLO11s ONNX inference at 320/640: `detect_scene`, `scene_to_text`, `person_direction`, cached sessions, legacy `detect_person` shim. | `main.py`, `mission_test.py`, `stereo_depth.py`, `test_suite.py`, `test_suite_m.py` |
 | `stereo_depth.py` | Two-frame stereo + object-height→distance estimation (`stereo_scan`, `scene_with_depth`, `estimate_distance_single`). | `main.py`, `mission_test.py` |
 | `run_mission.py` | Autonomous launcher: wires `Motors`+`Robot`, runs a mission from argv (`--dry` = no motors). | nobody *(entry point)* |
+| `picker.py` | Mission picker (#138): `Gemma` letter scoring (S1O, MIT-derived prompt builder), `Cadence`, `Picker` worker thread (M2 then Gemma, pinned to cpus 6–7). | `main.py`, `run_mission.py`, `test_picker.py`, `test_run_mission.py`, `test_heat_control.py` |
+| `relate.py` | RelateAnything M2 head for the picker (#138): SHA-256 gate, ORT worker + caller pinned to cpus 6–7, `relations()`/`context()`. | `run_mission.py`, `test_picker.py`, `test_run_mission.py` |
 | `teleop.py` | HTTP server for manual driving — web UI, obstacle-gated forward, camera passthrough. | nobody *(entry point)* |
 | `chat.py` | Interactive terminal chat client for the local llama-server: model menu, server start/kill, camera/vision. | nobody *(entry point)* |
 | `robotcam_reader.py` | RobotCam JPEG-only, fail-closed frame reader. | `main.py` |
@@ -76,7 +78,7 @@ are marked *(entry point)*.
 | `yolo_scene_test.py` | One-shot YOLO scene detection on a fixed test photo, prints detections. | nobody *(entry point)* — overlaps `diagnose_yolo.py` |
 | `bench_detector_robotcam.py` | Motors-off detector and RobotCam check in native Termux. | nobody *(entry point)* |
 | `check_robotcam_root_dry.sh` | `su -c --dry` mission check with RobotCam. | nobody *(entry point)* |
-| `test_detector_robotcam.py`, `test_run_mission.py`, `test_chat_mtp.py` | Detector/RobotCam (incl. `PinnedDetector`), mission and chat/server MTP unit tests. | nobody *(tests)* |
+| `test_detector_robotcam.py`, `test_run_mission.py`, `test_chat_mtp.py`, `test_picker.py`, `test_e4b_mtp.py` | Detector/RobotCam (incl. `PinnedDetector`), mission, chat/server MTP (E2B and E4B) and picker/M2 unit tests. | nobody *(tests)* |
 | `benchmark/robotcam/`, `benchmark/yolo_speed/` | RobotCam test and YOLO benchmark tools. | nobody *(tools)* |
 | `.github/workflows/robotcam.yml` | CI APK build for RobotCam. | GitHub Actions |
 
@@ -84,7 +86,7 @@ are marked *(entry point)*.
 
 | File | What it does | Imported/called by |
 |---|---|---|
-| `server_manager.py` | Programmatic llama-server lifecycle (kill/start/wait, named setup configs), CLI `server_manager.py <setup>`. | `chat.py` (`MTP_ARGS`, `MTP_DRAFT`, `mtp_draft_ok`), `test_chat_mtp.py`, `benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py`; owner CLI `server_manager.py <setup>`. `run_mission.py`/`main.py` still assume the server is already up |
+| `server_manager.py` | Programmatic llama-server lifecycle (kill/start/wait, named setup configs), CLI `server_manager.py <setup>`. | `chat.py` (`MTP_ARGS`, `MTP_DRAFT`, `mtp_draft_ok`, `E4B_MTP_ARGS`, `E4B_MTP_DRAFT`, `e4b_mtp_draft_ok`), `test_chat_mtp.py`, `test_e4b_mtp.py`, `benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py`; owner CLI `server_manager.py <setup>`. `run_mission.py`/`main.py` still assume the server is already up |
 | `llm.py` | Old command parser: GBNF-grammar-constrained JSON actions via ChatML `<|im_start|>` prompt; needs `~/actions.gbnf`. | nobody — **superseded** by `main.parse_command` (Gemma `<start_of_turn>` format, no grammar) |
 | `voice.py` | Standalone `listen(duration)`: mic → ffmpeg → whisper-cli transcription. | nobody — **superseded**: `main.listen()` is a copy with the same paths |
 | `detect_scene.py` | Earlier YOLO module: `detect()→(results, elapsed)`, 4-tuple detections, no session cache. | nobody — **superseded** by `detect_person.py` (only the *symbol* `detect_scene`, defined in `detect_person.py`, is used) |
