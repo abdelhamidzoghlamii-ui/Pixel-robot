@@ -1,0 +1,117 @@
+{
+  "source": "b1609-e1a1abb7 POST /apply-template, chat_template_kwargs.enable_thinking=false",
+  "model": "gemma-4-E2B-it-Q4_0.gguf",
+  "cases": [
+    {
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hi"
+          }
+        ],
+        "add_generation_prompt": true,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "prompt": "<|turn>user\nHi<turn|>\n<|turn>model\n"
+    },
+    {
+      "request": {
+        "messages": [
+          {
+            "role": "system",
+            "content": "S"
+          },
+          {
+            "role": "user",
+            "content": "Hi"
+          }
+        ],
+        "add_generation_prompt": true,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "prompt": "<|turn>system\nS<turn|>\n<|turn>user\nHi<turn|>\n<|turn>model\n"
+    },
+    {
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hi"
+          },
+          {
+            "role": "assistant",
+            "content": "Yo"
+          },
+          {
+            "role": "user",
+            "content": "Again"
+          }
+        ],
+        "add_generation_prompt": true,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      },
+      "prompt": "<|turn>user\nHi<turn|>\n<|turn>model\nYo<turn|>\n<|turn>user\nAgain<turn|>\n<|turn>model\n"
+    }
+  ],
+  "thinking_on_not_used_by_robot": {
+    "label": "not used by the robot",
+    "source": "b1609-e1a1abb7 POST /apply-template, default template options",
+    "cases": [
+      {
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "Hi"
+            }
+          ],
+          "add_generation_prompt": true
+        },
+        "prompt": "<|turn>system\n<|think|>\n<turn|>\n<|turn>user\nHi<turn|>\n<|turn>model\n"
+      },
+      {
+        "request": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "S"
+            },
+            {
+              "role": "user",
+              "content": "Hi"
+            }
+          ],
+          "add_generation_prompt": true
+        },
+        "prompt": "<|turn>system\n<|think|>\nS<turn|>\n<|turn>user\nHi<turn|>\n<|turn>model\n"
+      },
+      {
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "Hi"
+            },
+            {
+              "role": "assistant",
+              "content": "Yo"
+            },
+            {
+              "role": "user",
+              "content": "Again"
+            }
+          ],
+          "add_generation_prompt": true
+        },
+        "prompt": "<|turn>system\n<|think|>\n<turn|>\n<|turn>user\nHi<turn|>\n<|turn>model\nYo<turn|>\n<|turn>user\nAgain<turn|>\n<|turn>model\n"
+      }
+    ]
+  }
+}

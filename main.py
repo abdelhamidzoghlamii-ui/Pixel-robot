@@ -127,14 +127,14 @@ EXAMPLES:
 
 def parse_command(text, timeout=40):
     prompt = (
-        '<start_of_turn>user\n' + PARSE_SYS +
+        '<|turn>user\n' + PARSE_SYS +
         '\nCommand: "' + text + '"'
-        '<end_of_turn>\n<start_of_turn>model\n[' 
+        '<turn|>\n<|turn>model\n['
     )
     try:
         resp = requests.post(GEMMA_URL, json={
             'prompt': prompt, 'n_predict': 300,
-            'temperature': 0.05, 'stop': ['<end_of_turn>', '\n\n']
+            'temperature': 0.05, 'stop': ['<turn|>', '\n\n']
         }, timeout=timeout)
         raw = resp.json()['content']
         # Model starts after [ which we injected

@@ -165,14 +165,14 @@ def build_prompt(model_type, messages):
         prompt = ''
         for msg in messages:
             role = msg['role']
-            content = msg['content']
+            content = msg['content'].strip()
             if role == 'system':
-                prompt += f'<start_of_turn>user\n{content}<end_of_turn>\n<start_of_turn>model\nUnderstood.<end_of_turn>\n'
+                prompt += f'<|turn>system\n{content}<turn|>\n'
             elif role == 'user':
-                prompt += f'<start_of_turn>user\n{content}<end_of_turn>\n'
+                prompt += f'<|turn>user\n{content}<turn|>\n'
             elif role == 'assistant':
-                prompt += f'<start_of_turn>model\n{content}<end_of_turn>\n'
-        prompt += '<start_of_turn>model\n'
+                prompt += f'<|turn>model\n{content}<turn|>\n'
+        prompt += '<|turn>model\n'
         return prompt
 
     elif model_type == 'qwen':
@@ -204,7 +204,7 @@ def build_prompt(model_type, messages):
 
 def get_stop_tokens(model_type):
     stops = {
-        'gemma':   ['<end_of_turn>'],
+        'gemma':   ['<turn|>'],
         'qwen':    ['<|im_end|>'],
         'mistral': ['</s>', '[INST]'],
     }

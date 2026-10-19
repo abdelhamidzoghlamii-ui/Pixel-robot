@@ -46,8 +46,8 @@ class CommandPayloadTest(unittest.TestCase):
         p = cm.payload('How far can you see?')
         self.assertEqual(p, chat.chat_payload(chat.build_prompt('gemma', [{'role': 'user', 'content': 'How far can you see?'}]),
                                               'gemma'))
-        self.assertEqual(p, {'prompt': '<start_of_turn>user\nHow far can you see?<end_of_turn>\n<start_of_turn>model\n',
-                             'n_predict': 512, 'temperature': 0.7, 'stop': ['<end_of_turn>'], 'stream': False})
+        self.assertEqual(p, {'prompt': '<|turn>user\nHow far can you see?<turn|>\n<|turn>model\n',
+                             'n_predict': 512, 'temperature': 0.7, 'stop': ['<turn|>'], 'stream': False})
         with mock.patch.object(chat, 'chat_payload', return_value='P') as f:
             self.assertEqual(cm.payload('x'), 'P')
         f.assert_called_once()
