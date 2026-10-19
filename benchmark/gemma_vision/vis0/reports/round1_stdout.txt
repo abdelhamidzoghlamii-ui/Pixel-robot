@@ -1,0 +1,35 @@
+VERDICT: REVISE
+
+Reviewed candidate sizes: `vis0.py` 1,381 lines; `test_vis0.py` 311 lines; `README.md` 60 lines. No files modified.
+
+1. **[P2] `--out` bypasses the permitted repository write boundary.**  
+   `benchmark/gemma_vision/vis0/vis0.py:1372` accepts an unrestricted directory: `parser.add_argument('--out', type=Path, default=None, ...)`. Line 1183 immediately calls `out_dir.mkdir(parents=True, exist_ok=True)`, and line 1288 writes `write_json(out_dir / 'results.json', results_payload)`. Consequently, `--out benchmark/other` creates repository files outside VIS-0; an existing output file can also be overwritten. Resolve and validate the destination beneath `benchmark/gemma_vision/vis0/` before writing, retaining the explicitly required Download PDF copy.
+
+2. **[P2] HTTP request errors are incorrectly counted as server crashes.**  
+   `benchmark/gemma_vision/vis0/vis0.py:878` begins `is_crash = not alive or isinstance(`, and line 879 includes `urllib.error.URLError`. `HTTPError` inherits from `URLError`, so an HTTP 400/500 response counts as a crash even when the owned server remains alive. Line 907 then calls `server.stop()`, and line 911 can set `stop_reason = 'two_consecutive_crashes_at_budget'`. This can terminate a budget after two rejected requests and misreport feasibility. Distinguish HTTP errors from process crashes; add an offline live-server/error-response case. The existing crash fixture only raises `ConnectionResetError('connection reset by peer')` at `benchmark/gemma_vision/vis0/test_vis0.py:232`.
+
+3. **[P2] Required frame identity and resolution are not enforced.**  
+   `benchmark/gemma_vision/vis0/vis0.py:366` selects files using `fn.startswith(wanted)`, then line 369 takes `matched_stem = candidates[0]`. A missing required frame can therefore be replaced by another prefix match. Line 386 merely copies `'frame_size': rec.get('frame_size')`; it does not validate the actual JPEG dimensions. Require the specified frame identity and check the actual 640 px input dimensions before requests.
+
+4. **[P2] `server.log` lacks the required timing/memory qualification.**  
+   `benchmark/gemma_vision/vis0/vis0.py:611` writes a banner containing only `START {self.label} (budget={self.budget})`; line 612 adds `CMD: {' '.join(self.cmd)}`. Lines 623–624 route server output directly into that file with `stdout=self.log_handle` and `stderr=subprocess.STDOUT`. Thus raw server timing and memory figures have no qualification in this standalone artifact. Include the exact `NOT A MEASUREMENT (agent resident)` label in every server-instance banner.
+
+The remaining requirements have the following static support:
+
+| Requirement | Evidence |
+|---|---|
+| Motors off; avoids robot lifecycle helpers | Project imports are `import server_manager`, `import chat`, and `from chat import build_prompt, get_stop_tokens` at `vis0.py:34–36`. Launch uses `self.proc = subprocess.Popen(` at line 620; cleanup targets that handle with `self.proc.terminate()` / `self.proc.kill()` at lines 680/684. The dangerous shared helper is `os.system("pkill -f llama-server 2>/dev/null")` at `server_manager.py:34`; the candidate does not call it. |
+| Loopback 8090, timeout, 8080 precheck | `TEST_PORT = 8090`, `TEST_HOST = '127.0.0.1'`, and `SERVER_TIMEOUT_S = 3600` at `vis0.py:105–108`; `check_port_8080_stopped(ROBOT_PORT)` at line 605. |
+| External weights and provenance | External model/projector paths at `vis0.py:66` and `:72`; verification rejects mismatches with `if actual_bytes != exp_bytes or actual_sha != exp_sha:` at line 1204. Manifest records `'source_repo'`, `'file_name'`, `'bytes'`, and `'sha256'` at lines 1323–1327 and 1331–1335. |
+| Step A template evidence | `props = get_fn('/props')` at `vis0.py:714`; tokenizer request at line 731; apply-template request at line 735. Returned strings are retained as `'chat_template': chat_template` and `'rendered_prompt': rendered_hi` at lines 778/782. |
+| OLD/NEW text comparison | `old_prompt = rec['gemma_prompts']['Y-ONLY']` at `vis0.py:336`; `if rebuilt != old_prompt:` rejects reconstruction differences at line 344. OLD and NEW requests occur at lines 743/751; replies are retained at lines 762/763. |
+| Deterministic request bodies | OLD uses `'temperature': 0`, `'top_k': 1`, `'seed': 0`, `'n_predict': 96`, `'cache_prompt': False` at `vis0.py:232–236`; NEW has corresponding settings at lines 245–250. Vision uses `{'type': 'image_url', 'image_url': {'url': data_uri}}` at line 262 and required settings at lines 267–272. |
+| Budgets, metrics, bounded recovery | `VISION_BUDGETS = (70, 140, 280)` at `vis0.py:149`; both image-budget flags at line 215. Per-call metrics appear at lines 854–863, including `'image_encode_ms_not_a_measurement'`. Recovery is bounded by `if consecutive_crashes >= 2:` and `if restarted_once:` at lines 909/913. |
+| Optional pass and output generation | `if all_budgets_ok and not skip_optional:` at `vis0.py:1260`. PDF uses Pillow’s `pages[0].save(... format='PDF' ...)` at line 1167, checks size at line 1168, and copies to Download at line 1293. |
+| Offline test coverage and README label | Tests include `test_request_body_builders` at `test_vis0.py:122`, data-URI roundtrip at line 97, labels at line 74, crash handling at line 216, and PDF generation at line 247. `README.md:3` contains the exact required label string. |
+
+Tracked-file invariance cannot be established without the base/diff or Git metadata. Actual saved-frame compatibility also remains unverified: the loader requires `results.json` at `vis0.py:351`, and those inputs were intentionally excluded. I found no apparent secrets, emails, account identifiers, or heat/power claims in the three candidates.
+
+Tests were not executed: available Python commands failed to start, and the suite creates temporary files (`test_vis0.py:217`: `with tempfile.TemporaryDirectory() as tmp:`). Hardware behavior and generated artifacts remain unverified.
+
+VERDICT: REVISE

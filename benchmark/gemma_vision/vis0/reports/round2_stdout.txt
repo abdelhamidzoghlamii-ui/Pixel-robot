@@ -1,0 +1,38 @@
+Read-only review completed. No files were created, modified, or deleted.
+
+Candidate files reviewed:
+
+| File | Lines |
+|---|---:|
+| `benchmark/gemma_vision/vis0/vis0.py` | 1,419 |
+| `benchmark/gemma_vision/vis0/test_vis0.py` | 435 |
+| `benchmark/gemma_vision/vis0/README.md` | 60 |
+
+**[P2] The port-8080 guard can accept a running robot server as stopped.**
+
+At `benchmark/gemma_vision/vis0/vis0.py:502`, the guard calls:
+
+```python
+with urllib.request.urlopen(f'http://127.0.0.1:{port}/health', timeout=2) as resp:
+```
+
+But `vis0.py:508–509` handles failures with:
+
+```python
+except urllib.error.URLError:
+    return True
+```
+
+`HTTPError` inherits from `URLError`. Consequently, a server responding with HTTP 503—or another HTTP error—passes this guard despite demonstrably occupying port 8080. The same guard precedes test-server startup at `vis0.py:627`:
+
+```python
+check_port_8080_stopped(ROBOT_PORT)
+```
+
+This permits the vision server to start alongside the robot server, violating the documented prerequisite in `benchmark/gemma_vision/vis0/README.md:48`: “Run 2-frame smoke check (requires port 8080 stopped)”.
+
+Reject HTTP responses regardless of status, and treat only a confirmed absence of a listener as stopped. Add regression coverage for HTTP 503 and connection refusal.
+
+The supplied test evidence reports 14 passing tests in each checkout: `_review_context/TEST_OUTPUT.txt:19`, “Ran 14 tests in 1.184s”, and `:41`, “Ran 14 tests in 1.215s”. I did not rerun the suite because it creates files—for example, `test_vis0.py:94`: `with tempfile.TemporaryDirectory() as tmp:`. The attempted in-memory verification command did not execute (exit 182), so this finding rests on static inspection.
+
+VERDICT: REVISE

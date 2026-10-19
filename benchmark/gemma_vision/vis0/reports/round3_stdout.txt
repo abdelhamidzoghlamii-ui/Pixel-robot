@@ -1,0 +1,23 @@
+No blocking correctness or safety findings. Ponytail remained off; this review made no file changes.
+
+Candidate files reviewed completely:
+
+| File | Lines | Diff citation |
+|---|---:|---|
+| `benchmark/gemma_vision/vis0/vis0.py` | 1,437 | `_review_context/CANDIDATE_DIFF.patch:6`: `@@ -0,0 +1,1437 @@` |
+| `benchmark/gemma_vision/vis0/test_vis0.py` | 462 | `_review_context/CANDIDATE_DIFF.patch:1449`: `@@ -0,0 +1,462 @@` |
+| `benchmark/gemma_vision/vis0/README.md` | 60 | `_review_context/CANDIDATE_DIFF.patch:1917`: `@@ -0,0 +1,60 @@` |
+
+The Round 2 finding is resolved:
+
+- HTTP responses fail closed: `benchmark/gemma_vision/vis0/vis0.py:508` explicitly catches `except urllib.error.HTTPError as e:` before the URL-error handler.
+- Unexpected connection failures are rejected: `benchmark/gemma_vision/vis0/vis0.py:521` requires `if not isinstance(reason, ConnectionRefusedError):`, then raises.
+- Connection refusal additionally requires a free port: `benchmark/gemma_vision/vis0/vis0.py:526` calls `check_port_free(port)`.
+
+Regression coverage checks HTTP 503 rejection, timeout rejection, and refusal plus the port check: `benchmark/gemma_vision/vis0/test_vis0.py:446` asserts `'503'`, line 452 asserts `'unexpected URLError'`, and line 457 asserts `mock_free.assert_called_once_with(8080)`.
+
+The supplied test evidence reports 15 passing tests in each checkout: `_review_context/TEST_OUTPUT.txt:20` says `Ran 15 tests in 1.195s`, followed by `OK` at line 22; lines 43 and 45 report the isolated-copy pass. I did not rerun the suite because tests create temporary files—for example, `benchmark/gemma_vision/vis0/test_vis0.py:95` uses `with tempfile.TemporaryDirectory() as tmp:`.
+
+Validation remains bounded: `_review_context/SMOKE_MANIFEST.json:9` records `"limit": 2`. This establishes smoke coverage, not a completed ten-frame evaluation. Quality grading remains pending, and timing/memory figures remain explicitly excluded as measurements (`benchmark/gemma_vision/vis0/README.md:3`: “timings and memory NOT measurements (agent resident); quality grading pending (Local AI)”).
+
+VERDICT: APPROVED

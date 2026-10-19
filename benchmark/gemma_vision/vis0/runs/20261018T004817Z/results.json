@@ -1,0 +1,917 @@
+{
+  "task": "VIS-0",
+  "labels": "Template check VALID (deterministic); vision replies VALID as outputs (temperature 0); timings and memory NOT measurements (agent resident); quality grading pending (Local AI)",
+  "timing_label": "NOT A MEASUREMENT (agent resident)",
+  "limit": 2,
+  "template_check": {
+    "verdict": "CONFIRMED",
+    "verdict_statement": "CONFIRMED: Gemma 3 markers (<start_of_turn>, <end_of_turn>) are tokenized as multiple plain-text pieces, whereas Gemma 4 markers (<|turn>, <turn|>) are single special tokens and are used by the GGUF chat_template.",
+    "props_summary": {
+      "model_alias": "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+      "model_path": "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+      "model_ftype": "Q4_0",
+      "total_slots": 1,
+      "n_ctx": 4096,
+      "build_info": "b1-797de63",
+      "bos_token": "<bos>",
+      "eos_token": "<eos>",
+      "modalities": {
+        "vision": true,
+        "video": false,
+        "audio": true
+      }
+    },
+    "chat_template": "{#\n  Template: Google Gemma 4 Canonical Chat Template\n  Author: Google Gemma Engineering Team\n  Published: 2026-07-09\n  Context: Fixed tool-calling loops, turn closures, and thinking content-ordering.\n#}\n{%- macro format_parameters(properties, required, filter_keys=false) -%}\n    {%- set standard_keys = ['description', 'type', 'properties', 'required', 'nullable'] -%}\n    {%- set ns = namespace(found_first=false) -%}\n    {%- for key, value in properties | dictsort -%}\n        {%- set add_comma = false -%}\n        {%- if not filter_keys or key not in standard_keys -%}\n            {%- if ns.found_first %},{% endif -%}\n            {%- set ns.found_first = true -%}\n            {{ key }}:{\n            {%- if value['description'] -%}\n                description:<|\"|>{{ value['description'] }}<|\"|>\n                {%- set add_comma = true -%}\n            {%- endif -%}\n            {%- if value['type'] | upper == 'STRING' -%}\n                {%- if value['enum'] -%}\n                    {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n                    enum:{{ format_argument(value['enum']) }}\n                {%- endif -%}\n            {%- elif value['type'] | upper == 'ARRAY' -%}\n                {%- if value['items'] is mapping and value['items'] -%}\n                    {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n                    items:{\n                    {%- set ns_items = namespace(found_first=false) -%}\n                    {%- for item_key, item_value in value['items'] | dictsort -%}\n                        {%- if item_value is not none -%}\n                            {%- if ns_items.found_first %},{% endif -%}\n                            {%- set ns_items.found_first = true -%}\n                            {%- if item_key == 'properties' -%}\n                                properties:{\n                                {%- if item_value is mapping -%}\n                                    {{- format_parameters(item_value, value['items']['required'] | default([])) -}}\n                                {%- endif -%}\n                                }\n                            {%- elif item_key == 'required' -%}\n                                required:[\n                                {%- for req_item in item_value -%}\n                                    <|\"|>{{- req_item -}}<|\"|>\n                                    {%- if not loop.last %},{% endif -%}\n                                {%- endfor -%}\n                                ]\n                            {%- elif item_key == 'type' -%}\n                                {%- if item_value is string -%}\n                                    type:{{ format_argument(item_value | upper) }}\n                                {%- else -%}\n                                    type:{{ format_argument(item_value | map('upper') | list) }}\n                                {%- endif -%}\n                            {%- else -%}\n                                {{ item_key }}:{{ format_argument(item_value) }}\n                            {%- endif -%}\n                        {%- endif -%}\n                    {%- endfor -%}\n                    }\n                {%- endif -%}\n            {%- endif -%}\n            {%- if value['nullable'] %}\n                {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n                nullable:true\n            {%- endif -%}\n            {%- if value['type'] | upper == 'OBJECT' -%}\n                {%- if value['properties'] is defined and value['properties'] is mapping -%}\n                    {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n                    properties:{\n                    {{- format_parameters(value['properties'], value['required'] | default([])) -}}\n                    }\n                {%- elif value is mapping -%}\n                    {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n                    properties:{\n                    {{- format_parameters(value, value['required'] | default([]), filter_keys=true) -}}\n                    }\n                {%- endif -%}\n                {%- if value['required'] -%}\n                    {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n                    required:[\n                    {%- for item in value['required'] | default([]) -%}\n                        <|\"|>{{- item -}}<|\"|>\n                        {%- if not loop.last %},{% endif -%}\n                    {%- endfor -%}\n                    ]\n                {%- endif -%}\n            {%- endif -%}\n            {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n            type:<|\"|>{{ value['type'] | upper }}<|\"|>}\n        {%- endif -%}\n    {%- endfor -%}\n{%- endmacro -%}\n{%- macro format_function_declaration(tool_data) -%}\n    declaration:{{- tool_data['function']['name'] -}}{description:<|\"|>{{- tool_data['function']['description'] -}}<|\"|>\n    {%- set params = tool_data['function']['parameters'] -%}\n    {%- if params -%}\n        ,parameters:{\n        {%- if params['properties'] -%}\n            properties:{ {{- format_parameters(params['properties'], params['required']) -}} },\n        {%- endif -%}\n        {%- if params['required'] -%}\n            required:[\n            {%- for item in params['required'] -%}\n                <|\"|>{{- item -}}<|\"|>\n                {{- ',' if not loop.last -}}\n            {%- endfor -%}\n            ],\n        {%- endif -%}\n        {%- if params['type'] -%}\n            type:<|\"|>{{- params['type'] | upper -}}<|\"|>}\n        {%- endif -%}\n    {%- endif -%}\n    {%- if 'response' in tool_data['function'] -%}\n        {%- set response_declaration = tool_data['function']['response'] -%}\n        ,response:{\n        {%- if response_declaration['description'] -%}\n            description:<|\"|>{{- response_declaration['description'] -}}<|\"|>,\n        {%- endif -%}\n        {%- if response_declaration['type'] | upper == 'OBJECT' -%}\n            type:<|\"|>{{- response_declaration['type'] | upper -}}<|\"|>}\n        {%- endif -%}\n    {%- endif -%}\n    }\n{%- endmacro -%}\n{%- macro format_argument(argument, escape_keys=True) -%}\n    {%- if argument is none -%}\n        {{- 'null' -}}\n    {%- elif argument is string -%}\n        {{- '<|\"|>' + argument + '<|\"|>' -}}\n    {%- elif argument is boolean -%}\n        {{- 'true' if argument else 'false' -}}\n    {%- elif argument is mapping -%}\n        {{- '{' -}}\n        {%- set ns = namespace(found_first=false) -%}\n        {%- for key, value in argument | dictsort -%}\n            {%- if ns.found_first %},{% endif -%}\n            {%- set ns.found_first = true -%}\n            {%- if escape_keys -%}\n                {{- '<|\"|>' + key + '<|\"|>' -}}\n            {%- else -%}\n                {{- key -}}\n            {%- endif -%}\n            :{{- format_argument(value, escape_keys=escape_keys) -}}\n        {%- endfor -%}\n        {{- '}' -}}\n    {%- elif argument is sequence -%}\n        {{- '[' -}}\n        {%- for item in argument -%}\n            {{- format_argument(item, escape_keys=escape_keys) -}}\n            {%- if not loop.last %},{% endif -%}\n        {%- endfor -%}\n        {{- ']' -}}\n    {%- else -%}\n        {{- argument -}}\n    {%- endif -%}\n{%- endmacro -%}\n{%- macro strip_thinking(text) -%}\n    {%- set ns = namespace(result='') -%}\n    {%- for part in text.split('<channel|>') -%}\n        {%- if '<|channel>' in part -%}\n            {%- set ns.result = ns.result + part.split('<|channel>')[0] -%}\n        {%- else -%}\n            {%- set ns.result = ns.result + part -%}\n        {%- endif -%}\n    {%- endfor -%}\n    {{- ns.result | trim -}}\n{%- endmacro -%}\n\n{%- macro format_tool_response_block(tool_name, response) -%}\n    {{- '<|tool_response>' -}}\n    {%- if response is mapping -%}\n        {{- 'response:' + tool_name + '{' -}}\n        {%- for key, value in response | dictsort -%}\n            {{- key -}}:{{- format_argument(value, escape_keys=False) -}}\n            {%- if not loop.last %},{% endif -%}\n        {%- endfor -%}\n        {{- '}' -}}\n    {%- else -%}\n        {{- 'response:' + tool_name + '{value:' + format_argument(response, escape_keys=False) + '}' -}}\n    {%- endif -%}\n    {{- '<tool_response|>' -}}\n{%- endmacro -%}\n\n{#- ===== SETUP ===== -#}\n{%- set ns = namespace(prev_message_type=None, prev_non_tool_role=None) -%}\n{%- set loop_messages = messages -%}\n{%- set enable_thinking = enable_thinking | default(false) -%}\n{%- set preserve_thinking = preserve_thinking | default(false) -%}\n{{- bos_token -}}\n{#- Handle System/Tool Definitions Block -#}\n{%- if enable_thinking or tools or (messages and messages[0]['role'] in ['system', 'developer']) -%}\n    {{- '<|turn>system\\n' -}}\n    {#- Inject Thinking token at the very top of the FIRST system turn -#}\n    {%- if enable_thinking -%}\n        {{- '<|think|>\\n' -}}\n        {%- set ns.prev_message_type = 'think' -%}\n    {%- endif -%}\n    {%- if messages and messages[0]['role'] in ['system', 'developer'] -%}\n        {%- if messages[0]['content'] is string -%}\n            {{- messages[0]['content'] | trim -}}\n        {%- elif messages[0]['content'] is sequence -%}\n            {%- for item in messages[0]['content'] -%}\n                {{- item['text'] | trim + ' '-}}\n            {%- endfor -%}\n        {%- endif -%}\n        {%- set loop_messages = messages[1:] -%}\n    {%- endif -%}\n    {%- if tools -%}\n        {%- for tool in tools %}\n            {{- '<|tool>' -}}\n            {{- format_function_declaration(tool) | trim -}}\n            {{- '<tool|>' -}}\n        {%- endfor %}\n        {%- set ns.prev_message_type = 'tool' -%}\n    {%- endif -%}\n    {{- '<turn|>\\n' -}}\n{%- endif %}\n\n{#- Pre-scan: find last user message index for reasoning guard -#}\n{%- set ns_turn = namespace(last_user_idx=-1) -%}\n{%- for i in range(loop_messages | length) -%}\n    {%- if loop_messages[i]['role'] == 'user' -%}\n        {%- set ns_turn.last_user_idx = i -%}\n    {%- endif -%}\n{%- endfor -%}\n\n{#- Loop through messages -#}\n{%- for message in loop_messages -%}\n    {%- if message['role'] != 'tool' -%}\n    {%- set ns.prev_message_type = None -%}\n    {%- set role = 'model' if message['role'] == 'assistant' else message['role'] -%}\n    {#- Detect continuation using tracked state \u2014 O(1) instead of O(n) backward scan -#}\n    {%- set continue_same_model_turn = (role == 'model' and ns.prev_non_tool_role == 'assistant') -%}\n    {%- if not continue_same_model_turn -%}\n        {{- '<|turn>' + role + '\\n' }}\n    {%- endif -%}\n\n    {#- Render reasoning/reasoning_content as thinking channel -#}\n    {%- set thinking_text = message.get('reasoning') or message.get('reasoning_content') -%}\n    {%- set thinking_gate = (loop.index0 > ns_turn.last_user_idx) or (preserve_thinking and message.get('tool_calls')) -%}\n    {%- if thinking_text and thinking_gate -%}\n        {{- '<|channel>thought\\n' + thinking_text + '\\n<channel|>' -}}\n    {%- endif -%}\n\n            {%- if message.get('tool_calls') -%}\n                {%- for tool_call in message.get('tool_calls') -%}\n                    {%- set function = tool_call['function'] -%}\n                    {{- '<|tool_call>call:' + function['name'] + '{' -}}\n                    {%- if function['arguments'] is mapping -%}\n                        {%- set ns_args = namespace(found_first=false) -%}\n                        {%- for key, value in function['arguments'] | dictsort -%}\n                            {%- if ns_args.found_first %},{% endif -%}\n                            {%- set ns_args.found_first = true -%}\n                            {{- key -}}:{{- format_argument(value, escape_keys=False) -}}\n                        {%- endfor -%}\n                    {%- elif function['arguments'] is none -%}\n                    {%- else -%}\n                        {{- raise_exception(\n                            \"chat_template: tool_calls[].function.arguments must be a \"\n                            \"JSON object (mapping), not a string. Deserialize arguments \"\n                            \"before passing to the template.\"\n                        ) -}}\n                    {%- endif -%}\n                    {{- '}<tool_call|>' -}}\n                {%- endfor -%}\n                {%- set ns.prev_message_type = 'tool_call' -%}\n            {%- endif -%}\n\n            {%- set ns_tr_out = namespace(flag=false) -%}\n            {%- if message.get('tool_responses') -%}\n                {#- Legacy: tool_responses embedded on the assistant message (Google/Gemma native) -#}\n                {%- for tool_response in message.get('tool_responses') -%}\n                    {{- format_tool_response_block(tool_response['name'] | default('unknown', true), tool_response['response']) -}}\n                    {%- set ns_tr_out.flag = true -%}\n                    {%- set ns.prev_message_type = 'tool_response' -%}\n                {%- endfor -%}\n            {%- elif message.get('tool_calls') -%}\n                {#- OpenAI Chat Completions: forward-scan consecutive role:tool messages -#}\n                {%- set ns_tool_scan = namespace(stopped=false) -%}\n                {%- for k in range(loop.index0 + 1, loop_messages | length) -%}\n                    {%- if ns_tool_scan.stopped -%}\n                    {%- elif loop_messages[k]['role'] != 'tool' -%}\n                        {%- set ns_tool_scan.stopped = true -%}\n                    {%- else -%}\n                        {%- set follow = loop_messages[k] -%}\n                        {#- Resolve tool_call_id to function name -#}\n                        {%- set ns_tname = namespace(name=follow.get('name') or 'unknown') -%}\n                        {%- for tc in message.get('tool_calls') -%}\n                            {%- if tc.get('id') == follow.get('tool_call_id') -%}\n                                {%- set ns_tname.name = tc['function']['name'] -%}\n                            {%- endif -%}\n                        {%- endfor -%}\n                        {#- Handle content as string or content-parts array -#}\n                        {%- set tool_body = follow.get('content') -%}\n                        {%- if tool_body is string -%}\n                            {{- format_tool_response_block(ns_tname.name, tool_body) -}}\n                        {%- elif tool_body is sequence and tool_body is not string -%}\n                            {%- set ns_txt = namespace(s='') -%}\n                            {%- for part in tool_body -%}\n                                {%- if part.get('type') == 'text' -%}\n                                    {%- set ns_txt.s = ns_txt.s + (part.get('text') | default('')) -%}\n                                {%- endif -%}\n                            {%- endfor -%}\n                            {{- format_tool_response_block(ns_tname.name, ns_txt.s) -}}\n                            {%- for part in tool_body -%}\n                                {%- if part.get('type') in ['image', 'image_url'] -%}\n                                    {{- '<|image|>' -}}\n                                {%- elif part.get('type') in ['audio', 'input_audio'] -%}\n                                    {{- '<|audio|>' -}}\n                                {%- elif part.get('type') == 'video' -%}\n                                    {{- '<|video|>' -}}\n                                {%- endif -%}\n                            {%- endfor -%}\n                        {%- else -%}\n                            {{- format_tool_response_block(ns_tname.name, tool_body) -}}\n                        {%- endif -%}\n                        {%- set ns_tr_out.flag = true -%}\n                        {%- set ns.prev_message_type = 'tool_response' -%}\n                    {%- endif -%}\n                {%- endfor -%}\n            {%- endif -%}\n\n            {%- set captured_content -%}\n            {%- if message.get('content') is string -%}\n                {%- if role == 'model' -%}\n                    {{- strip_thinking(message['content']) -}}\n                {%- else -%}\n                    {{- message['content'] | trim -}}\n                {%- endif -%}\n            {%- elif message.get('content') is sequence -%}\n                {%- for item in message['content'] -%}\n                    {%- if item.get('type') == 'text' -%}\n                        {%- if role == 'model' -%}\n                            {{- strip_thinking(item['text']) -}}\n                        {%- else -%}\n                            {{- item['text'] | trim -}}\n                        {%- endif -%}\n                    {%- elif item.get('type') in ['image', 'image_url'] -%}\n                        {{- '<|image|>' -}}\n                    {%- elif item.get('type') in ['audio', 'input_audio'] -%}\n                        {{- '<|audio|>' -}}\n                    {%- elif item.get('type') == 'video' -%}\n                        {{- '<|video|>' -}}\n                    {%- endif -%}\n                {%- endfor -%}\n            {%- endif -%}\n            {%- endset -%}\n\n            {{- captured_content -}}\n            {%- set has_content = captured_content | trim | length > 0 -%}\n\n        {#- Forward-scan: find next non-tool message role for continuation detection -#}\n        {%- set next_nt = namespace(role=None, found=false) -%}\n        {%- for j in range(loop.index0 + 1, loop_messages | length) -%}\n            {%- if not next_nt.found -%}\n                {%- if loop_messages[j]['role'] != 'tool' -%}\n                    {%- set next_nt.role = loop_messages[j]['role'] -%}\n                    {%- set next_nt.found = true -%}\n                {%- endif -%}\n            {%- endif -%}\n        {%- endfor -%}\n\n        {%- set continues_into_next = (\n            role == 'model'\n            and next_nt.role == 'assistant'\n            and (not message.get('tool_calls') or ns_tr_out.flag)\n        ) -%}\n\n        {%- if ns.prev_message_type == 'tool_call' and not ns_tr_out.flag -%}\n            {{- '<|tool_response>' -}}\n        {%- elif continues_into_next -%}\n        {%- elif not (ns_tr_out.flag and not has_content and not next_nt.found) -%}\n            {{- '<turn|>\\n' -}}\n        {%- endif -%}\n\n    {#- Track previous non-tool role for next iteration (avoids O(n) backward scan) -#}\n    {%- set ns.prev_non_tool_role = message['role'] -%}\n    {%- endif -%}\n{%- endfor -%}\n\n{%- if add_generation_prompt -%}\n    {%- if ns.prev_message_type != 'tool_response' and ns.prev_message_type != 'tool_call' -%}\n        {{- '<|turn>model\\n' -}}\n    {%- elif ns.prev_message_type == 'tool_response' and enable_thinking -%}\n        {{- '<|channel>thought\\n' -}}\n    {%- endif -%}\n{%- endif -%}",
+    "tokenize_checks": [
+      {
+        "input": "<start_of_turn>user",
+        "tag": "<start_of_turn>",
+        "token_count": 8,
+        "tokens": [
+          {
+            "id": 236820,
+            "piece": "<"
+          },
+          {
+            "id": 3041,
+            "piece": "start"
+          },
+          {
+            "id": 236779,
+            "piece": "_"
+          },
+          {
+            "id": 1340,
+            "piece": "of"
+          },
+          {
+            "id": 236779,
+            "piece": "_"
+          },
+          {
+            "id": 887,
+            "piece": "turn"
+          },
+          {
+            "id": 236813,
+            "piece": ">"
+          },
+          {
+            "id": 2364,
+            "piece": "user"
+          }
+        ],
+        "pieces": [
+          "<",
+          "start",
+          "_",
+          "of",
+          "_",
+          "turn",
+          ">",
+          "user"
+        ],
+        "tag_is_single_special_token": false,
+        "whole_input_is_single_token": false,
+        "classification": "several plain-text pieces (8 pieces)"
+      },
+      {
+        "input": "<end_of_turn>",
+        "tag": "<end_of_turn>",
+        "token_count": 7,
+        "tokens": [
+          {
+            "id": 236820,
+            "piece": "<"
+          },
+          {
+            "id": 643,
+            "piece": "end"
+          },
+          {
+            "id": 236779,
+            "piece": "_"
+          },
+          {
+            "id": 1340,
+            "piece": "of"
+          },
+          {
+            "id": 236779,
+            "piece": "_"
+          },
+          {
+            "id": 887,
+            "piece": "turn"
+          },
+          {
+            "id": 236813,
+            "piece": ">"
+          }
+        ],
+        "pieces": [
+          "<",
+          "end",
+          "_",
+          "of",
+          "_",
+          "turn",
+          ">"
+        ],
+        "tag_is_single_special_token": false,
+        "whole_input_is_single_token": false,
+        "classification": "several plain-text pieces (7 pieces)"
+      },
+      {
+        "input": "<|turn>user",
+        "tag": "<|turn>",
+        "token_count": 2,
+        "tokens": [
+          {
+            "id": 105,
+            "piece": "<|turn>"
+          },
+          {
+            "id": 2364,
+            "piece": "user"
+          }
+        ],
+        "pieces": [
+          "<|turn>",
+          "user"
+        ],
+        "tag_is_single_special_token": true,
+        "whole_input_is_single_token": false,
+        "classification": "ONE special token (<|turn>) + role token (2 tokens total)"
+      },
+      {
+        "input": "<turn|>",
+        "tag": "<turn|>",
+        "token_count": 1,
+        "tokens": [
+          {
+            "id": 106,
+            "piece": "<turn|>"
+          }
+        ],
+        "pieces": [
+          "<turn|>"
+        ],
+        "tag_is_single_special_token": true,
+        "whole_input_is_single_token": true,
+        "classification": "ONE special token"
+      },
+      {
+        "input": "<|turn>model",
+        "tag": "<|turn>",
+        "token_count": 2,
+        "tokens": [
+          {
+            "id": 105,
+            "piece": "<|turn>"
+          },
+          {
+            "id": 4368,
+            "piece": "model"
+          }
+        ],
+        "pieces": [
+          "<|turn>",
+          "model"
+        ],
+        "tag_is_single_special_token": true,
+        "whole_input_is_single_token": false,
+        "classification": "ONE special token (<|turn>) + role token (2 tokens total)"
+      }
+    ],
+    "apply_template_hi": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hi"
+        }
+      ],
+      "rendered_prompt": "<|turn>user\nHi<turn|>\n<|turn>model\n"
+    },
+    "text_ab": [
+      {
+        "frame_stem": "bench_photos__blocked_1",
+        "photo": "bench_photos/blocked_1.jpg",
+        "yolo_lines": "- cup [0], center, far\n- chair [1], right, medium\n- laptop [2], center, close\n- potted plant [3], center, medium\n- scissors [4], center, far\n- potted plant [5], right, far\n- potted plant [6], right, far\n- cup [7], center, far\n- cup [8], center, far\n- couch [9], left, medium\n- book [10], center, far\n- cell phone [11], left, far\n- chair [12], left, medium\n- chair [13], left, far\n- remote [14], center, far\n- vase [15], center, far\n- dining table [16], center, very close",
+        "old_completion": {
+          "reply": "The dining table is very close in front of the robot.",
+          "raw_content": "The dining table is very close in front of the robot.",
+          "stop_type": "eos",
+          "stopping_word": "",
+          "tokens_evaluated": 231,
+          "tokens_predicted": 13,
+          "prompt_ms_not_a_measurement": 3265.142,
+          "predicted_ms_not_a_measurement": 986.652,
+          "predicted_per_second_not_a_measurement": 12.16234295374661,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 4309.338096005376
+        },
+        "new_chat_completions": {
+          "reply": "In front of the robot is a dining table very close, a laptop close, and a potted plant in the center, medium.",
+          "raw_content": "In front of the robot is a dining table very close, a laptop close, and a potted plant in the center, medium.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 213,
+          "completion_tokens": 27,
+          "prompt_ms_not_a_measurement": 2862.626,
+          "predicted_ms_not_a_measurement": 2074.26,
+          "predicted_per_second_not_a_measurement": 12.534590649195374,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 4959.958946004917
+        },
+        "m2q1_saved_replies": {
+          "X": "The dining table is very close, and there is a laptop, scissors, remote, and a cup resting on it.",
+          "Y": "The dining table is very close in front of the robot."
+        },
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__empty_2",
+        "photo": "bench_photos/empty_2.jpg",
+        "yolo_lines": "- bowl [0], right, far\n- suitcase [1], right, medium",
+        "old_completion": {
+          "reply": "The robot is looking at the bowl.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nThe bowl is in front of the robot.\n<start_of_turn>user\nThe bowl is in front of the robot.\n<start_of_turn>user\nThe bowl is in front of the robot.\n<start_of_turn>user\nThe bowl is",
+          "raw_content": "The robot is looking at the bowl.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nThe bowl is in front of the robot.\n<start_of_turn>user\nThe bowl is in front of the robot.\n<start_of_turn>user\nThe bowl is in front of the robot.\n<start_of_turn>user\nThe bowl is",
+          "stop_type": "limit",
+          "stopping_word": "",
+          "tokens_evaluated": 83,
+          "tokens_predicted": 96,
+          "prompt_ms_not_a_measurement": 1206.161,
+          "predicted_ms_not_a_measurement": 7774.07,
+          "predicted_per_second_not_a_measurement": 12.22011121587534,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 8999.233728995023
+        },
+        "new_chat_completions": {
+          "reply": "In front of the robot is a bowl to the right and far, and a suitcase to the right and medium.",
+          "raw_content": "In front of the robot is a bowl to the right and far, and a suitcase to the right and medium.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 65,
+          "completion_tokens": 24,
+          "prompt_ms_not_a_measurement": 978.984,
+          "predicted_ms_not_a_measurement": 1732.874,
+          "predicted_per_second_not_a_measurement": 13.272748047463347,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 2732.502361002844
+        },
+        "m2q1_saved_replies": {
+          "X": "The robot is looking at the bowl and the suitcase.",
+          "Y": "The robot is looking at the bowl.\n\nWhat is in front of the robot?\n\nThe bowl is in front of the robot.\n\nThe bowl is in front of the robot.\n\nThe bowl is in front of the robot.\n\nThe bowl is"
+        },
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      }
+    ],
+    "timing_label": "NOT A MEASUREMENT (agent resident)"
+  },
+  "vision_budgets": {
+    "70": {
+      "budget": 70,
+      "with_yolo": false,
+      "optional": false,
+      "crashes": 0,
+      "stopped_early": false,
+      "stop_reason": null,
+      "servers": [
+        {
+          "label": "vision_budget_70",
+          "budget": 70,
+          "command": [
+            "timeout",
+            "3600",
+            "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+            "-m",
+            "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+            "--mmproj",
+            "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8090",
+            "--ctx-size",
+            "4096",
+            "--threads",
+            "4",
+            "--threads-batch",
+            "4",
+            "--parallel",
+            "1",
+            "--swa-full",
+            "--cache-ram",
+            "0",
+            "--reasoning",
+            "off",
+            "-lv",
+            "4",
+            "--image-min-tokens",
+            "70",
+            "--image-max-tokens",
+            "70"
+          ],
+          "started_utc": "2026-10-18T00:48:49Z",
+          "ended_utc": "2026-10-18T00:49:39Z",
+          "startup_s_not_a_measurement": 6.728716921999876,
+          "server_pid": 25052,
+          "server_name": "llama-server",
+          "peak_vmhwm_kib_not_a_measurement": 4755224,
+          "exit_code": 1,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        }
+      ],
+      "calls": [
+        {
+          "frame_stem": "bench_photos__blocked_1",
+          "photo": "bench_photos/blocked_1.jpg",
+          "budget": 70,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a wooden table with a laptop, a blue object, and some other items like a glass and scissors.",
+          "raw_content": "In front of the robot, there is a wooden table with a laptop, a blue object, and some other items like a glass and scissors.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 96,
+          "completion_tokens": 30,
+          "image_tokens_logged": 63,
+          "image_tokens_batches": [
+            63
+          ],
+          "prompt_ms_not_a_measurement": 18723.133,
+          "predicted_ms_not_a_measurement": 2222.085,
+          "predicted_per_second_not_a_measurement": 13.050805887263538,
+          "wall_ms_not_a_measurement": 21109.387014003005,
+          "image_encode_ms_not_a_measurement": 17254.677,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__empty_2",
+          "photo": "bench_photos/empty_2.jpg",
+          "budget": 70,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a collection of items, including a white and blue patterned object, and a black object.",
+          "raw_content": "In front of the robot, there is a collection of items, including a white and blue patterned object, and a black object.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 96,
+          "completion_tokens": 27,
+          "image_tokens_logged": 63,
+          "image_tokens_batches": [
+            63
+          ],
+          "prompt_ms_not_a_measurement": 18714.111,
+          "predicted_ms_not_a_measurement": 1944.92,
+          "predicted_per_second_not_a_measurement": 13.368159101659709,
+          "wall_ms_not_a_measurement": 20724.09966000123,
+          "image_encode_ms_not_a_measurement": 17364.082,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        }
+      ],
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    },
+    "140": {
+      "budget": 140,
+      "with_yolo": false,
+      "optional": false,
+      "crashes": 0,
+      "stopped_early": false,
+      "stop_reason": null,
+      "servers": [
+        {
+          "label": "vision_budget_140",
+          "budget": 140,
+          "command": [
+            "timeout",
+            "3600",
+            "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+            "-m",
+            "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+            "--mmproj",
+            "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8090",
+            "--ctx-size",
+            "4096",
+            "--threads",
+            "4",
+            "--threads-batch",
+            "4",
+            "--parallel",
+            "1",
+            "--swa-full",
+            "--cache-ram",
+            "0",
+            "--reasoning",
+            "off",
+            "-lv",
+            "4",
+            "--image-min-tokens",
+            "140",
+            "--image-max-tokens",
+            "140"
+          ],
+          "started_utc": "2026-10-18T00:49:39Z",
+          "ended_utc": "2026-10-18T00:51:29Z",
+          "startup_s_not_a_measurement": 6.6857635529959225,
+          "server_pid": 25092,
+          "server_name": "llama-server",
+          "peak_vmhwm_kib_not_a_measurement": 4850520,
+          "exit_code": 0,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        }
+      ],
+      "calls": [
+        {
+          "frame_stem": "bench_photos__blocked_1",
+          "photo": "bench_photos/blocked_1.jpg",
+          "budget": 140,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a wooden table with various items, including a laptop, a blue and black keyboard, a glass of water, and some scissors.",
+          "raw_content": "In front of the robot, there is a wooden table with various items, including a laptop, a blue and black keyboard, a glass of water, and some scissors.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 187,
+          "completion_tokens": 35,
+          "image_tokens_logged": 154,
+          "image_tokens_batches": [
+            154
+          ],
+          "prompt_ms_not_a_measurement": 46265.9,
+          "predicted_ms_not_a_measurement": 2627.112,
+          "predicted_per_second_not_a_measurement": 12.941968214526065,
+          "wall_ms_not_a_measurement": 48988.5837230031,
+          "image_encode_ms_not_a_measurement": 43460.716,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__empty_2",
+          "photo": "bench_photos/empty_2.jpg",
+          "budget": 140,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a collection of items, including a white and black object that looks like a piece of equipment or a bag, and a pile of dark clothing.",
+          "raw_content": "In front of the robot, there is a collection of items, including a white and black object that looks like a piece of equipment or a bag, and a pile of dark clothing.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 187,
+          "completion_tokens": 38,
+          "image_tokens_logged": 154,
+          "image_tokens_batches": [
+            154
+          ],
+          "prompt_ms_not_a_measurement": 50885.383,
+          "predicted_ms_not_a_measurement": 2970.853,
+          "predicted_per_second_not_a_measurement": 12.454335505661168,
+          "wall_ms_not_a_measurement": 53905.58600400254,
+          "image_encode_ms_not_a_measurement": 47738.872,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        }
+      ],
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    },
+    "280": {
+      "budget": 280,
+      "with_yolo": false,
+      "optional": false,
+      "crashes": 0,
+      "stopped_early": false,
+      "stop_reason": null,
+      "servers": [
+        {
+          "label": "vision_budget_280",
+          "budget": 280,
+          "command": [
+            "timeout",
+            "3600",
+            "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+            "-m",
+            "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+            "--mmproj",
+            "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8090",
+            "--ctx-size",
+            "4096",
+            "--threads",
+            "4",
+            "--threads-batch",
+            "4",
+            "--parallel",
+            "1",
+            "--swa-full",
+            "--cache-ram",
+            "0",
+            "--reasoning",
+            "off",
+            "-lv",
+            "4",
+            "--image-min-tokens",
+            "280",
+            "--image-max-tokens",
+            "280"
+          ],
+          "started_utc": "2026-10-18T00:51:29Z",
+          "ended_utc": "2026-10-18T00:55:18Z",
+          "startup_s_not_a_measurement": 7.718709963999572,
+          "server_pid": 25119,
+          "server_name": "llama-server",
+          "peak_vmhwm_kib_not_a_measurement": 4662740,
+          "exit_code": 1,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        }
+      ],
+      "calls": [
+        {
+          "frame_stem": "bench_photos__blocked_1",
+          "photo": "bench_photos/blocked_1.jpg",
+          "budget": 280,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a wooden table with a laptop, various cables, a blue and black keyboard, a mouse, a glass of water, and some kitchen items like a knife and a cutting board.",
+          "raw_content": "In front of the robot, there is a wooden table with a laptop, various cables, a blue and black keyboard, a mouse, a glass of water, and some kitchen items like a knife and a cutting board.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 333,
+          "completion_tokens": 45,
+          "image_tokens_logged": 300,
+          "image_tokens_batches": [
+            300
+          ],
+          "prompt_ms_not_a_measurement": 105910.552,
+          "predicted_ms_not_a_measurement": 3615.937,
+          "predicted_per_second_not_a_measurement": 12.16835359686853,
+          "wall_ms_not_a_measurement": 109777.13013999892,
+          "image_encode_ms_not_a_measurement": 100219.785,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__empty_2",
+          "photo": "bench_photos/empty_2.jpg",
+          "budget": 280,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a light-colored rug on the floor and a stack of folded clothes.",
+          "raw_content": "In front of the robot, there is a light-colored rug on the floor and a stack of folded clothes.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 333,
+          "completion_tokens": 24,
+          "image_tokens_logged": 300,
+          "image_tokens_batches": [
+            300
+          ],
+          "prompt_ms_not_a_measurement": 108940.918,
+          "predicted_ms_not_a_measurement": 1889.963,
+          "predicted_per_second_not_a_measurement": 12.169550409187906,
+          "wall_ms_not_a_measurement": 110909.7674279983,
+          "image_encode_ms_not_a_measurement": 103389.747,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        }
+      ],
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    }
+  },
+  "optional_140_yolo": {
+    "budget": 140,
+    "with_yolo": true,
+    "optional": true,
+    "crashes": 0,
+    "stopped_early": false,
+    "stop_reason": null,
+    "servers": [
+      {
+        "label": "vision_budget_140_yolo",
+        "budget": 140,
+        "command": [
+          "timeout",
+          "3600",
+          "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+          "-m",
+          "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+          "--mmproj",
+          "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8090",
+          "--ctx-size",
+          "4096",
+          "--threads",
+          "4",
+          "--threads-batch",
+          "4",
+          "--parallel",
+          "1",
+          "--swa-full",
+          "--cache-ram",
+          "0",
+          "--reasoning",
+          "off",
+          "-lv",
+          "4",
+          "--image-min-tokens",
+          "140",
+          "--image-max-tokens",
+          "140"
+        ],
+        "started_utc": "2026-10-18T00:55:18Z",
+        "ended_utc": "2026-10-18T00:57:27Z",
+        "startup_s_not_a_measurement": 8.717107711003337,
+        "server_pid": 25316,
+        "server_name": "llama-server",
+        "peak_vmhwm_kib_not_a_measurement": 4515824,
+        "exit_code": 0,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      }
+    ],
+    "calls": [
+      {
+        "frame_stem": "bench_photos__blocked_1",
+        "photo": "bench_photos/blocked_1.jpg",
+        "budget": 140,
+        "with_yolo": true,
+        "status": "ok",
+        "crashed": false,
+        "reply": "In front of the robot is a wooden dining table with a laptop, various cups, a vase, and some potted plants. There are also chairs and a couch visible around the table.",
+        "raw_content": "In front of the robot is a wooden dining table with a laptop, various cups, a vase, and some potted plants. There are also chairs and a couch visible around the table.",
+        "reasoning_content": null,
+        "finish_reason": "stop",
+        "prompt_tokens": 359,
+        "completion_tokens": 38,
+        "image_tokens_logged": 154,
+        "image_tokens_batches": [
+          154
+        ],
+        "prompt_ms_not_a_measurement": 57869.313,
+        "predicted_ms_not_a_measurement": 3074.856,
+        "predicted_per_second_not_a_measurement": 12.033083825714114,
+        "wall_ms_not_a_measurement": 61038.388131994,
+        "image_encode_ms_not_a_measurement": 51440.969,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__empty_2",
+        "photo": "bench_photos/empty_2.jpg",
+        "budget": 140,
+        "with_yolo": true,
+        "status": "ok",
+        "crashed": false,
+        "reply": "In front of the robot, there is a white suitcase and a pile of dark clothing.",
+        "raw_content": "In front of the robot, there is a white suitcase and a pile of dark clothing.",
+        "reasoning_content": null,
+        "finish_reason": "stop",
+        "prompt_tokens": 211,
+        "completion_tokens": 19,
+        "image_tokens_logged": 154,
+        "image_tokens_batches": [
+          154
+        ],
+        "prompt_ms_not_a_measurement": 57025.07,
+        "predicted_ms_not_a_measurement": 1361.387,
+        "predicted_per_second_not_a_measurement": 13.221809816018515,
+        "wall_ms_not_a_measurement": 58463.24864499911,
+        "image_encode_ms_not_a_measurement": 53472.579,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      }
+    ],
+    "timing_label": "NOT A MEASUREMENT (agent resident)"
+  },
+  "peak_vmhwm_kib_not_a_measurement": 4850520,
+  "servers": [
+    {
+      "label": "step_a_template_check",
+      "budget": 70,
+      "command": [
+        "timeout",
+        "3600",
+        "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+        "-m",
+        "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+        "--mmproj",
+        "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8090",
+        "--ctx-size",
+        "4096",
+        "--threads",
+        "4",
+        "--threads-batch",
+        "4",
+        "--parallel",
+        "1",
+        "--swa-full",
+        "--cache-ram",
+        "0",
+        "--reasoning",
+        "off",
+        "-lv",
+        "4",
+        "--image-min-tokens",
+        "70",
+        "--image-max-tokens",
+        "70"
+      ],
+      "started_utc": "2026-10-18T00:48:21Z",
+      "ended_utc": "2026-10-18T00:48:49Z",
+      "startup_s_not_a_measurement": 7.181966515003296,
+      "server_pid": 25016,
+      "server_name": "llama-server",
+      "peak_vmhwm_kib_not_a_measurement": 4173764,
+      "exit_code": 1,
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    },
+    {
+      "label": "vision_budget_70",
+      "budget": 70,
+      "command": [
+        "timeout",
+        "3600",
+        "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+        "-m",
+        "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+        "--mmproj",
+        "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8090",
+        "--ctx-size",
+        "4096",
+        "--threads",
+        "4",
+        "--threads-batch",
+        "4",
+        "--parallel",
+        "1",
+        "--swa-full",
+        "--cache-ram",
+        "0",
+        "--reasoning",
+        "off",
+        "-lv",
+        "4",
+        "--image-min-tokens",
+        "70",
+        "--image-max-tokens",
+        "70"
+      ],
+      "started_utc": "2026-10-18T00:48:49Z",
+      "ended_utc": "2026-10-18T00:49:39Z",
+      "startup_s_not_a_measurement": 6.728716921999876,
+      "server_pid": 25052,
+      "server_name": "llama-server",
+      "peak_vmhwm_kib_not_a_measurement": 4755224,
+      "exit_code": 1,
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    },
+    {
+      "label": "vision_budget_140",
+      "budget": 140,
+      "command": [
+        "timeout",
+        "3600",
+        "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+        "-m",
+        "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+        "--mmproj",
+        "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8090",
+        "--ctx-size",
+        "4096",
+        "--threads",
+        "4",
+        "--threads-batch",
+        "4",
+        "--parallel",
+        "1",
+        "--swa-full",
+        "--cache-ram",
+        "0",
+        "--reasoning",
+        "off",
+        "-lv",
+        "4",
+        "--image-min-tokens",
+        "140",
+        "--image-max-tokens",
+        "140"
+      ],
+      "started_utc": "2026-10-18T00:49:39Z",
+      "ended_utc": "2026-10-18T00:51:29Z",
+      "startup_s_not_a_measurement": 6.6857635529959225,
+      "server_pid": 25092,
+      "server_name": "llama-server",
+      "peak_vmhwm_kib_not_a_measurement": 4850520,
+      "exit_code": 0,
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    },
+    {
+      "label": "vision_budget_280",
+      "budget": 280,
+      "command": [
+        "timeout",
+        "3600",
+        "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+        "-m",
+        "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+        "--mmproj",
+        "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8090",
+        "--ctx-size",
+        "4096",
+        "--threads",
+        "4",
+        "--threads-batch",
+        "4",
+        "--parallel",
+        "1",
+        "--swa-full",
+        "--cache-ram",
+        "0",
+        "--reasoning",
+        "off",
+        "-lv",
+        "4",
+        "--image-min-tokens",
+        "280",
+        "--image-max-tokens",
+        "280"
+      ],
+      "started_utc": "2026-10-18T00:51:29Z",
+      "ended_utc": "2026-10-18T00:55:18Z",
+      "startup_s_not_a_measurement": 7.718709963999572,
+      "server_pid": 25119,
+      "server_name": "llama-server",
+      "peak_vmhwm_kib_not_a_measurement": 4662740,
+      "exit_code": 1,
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    },
+    {
+      "label": "vision_budget_140_yolo",
+      "budget": 140,
+      "command": [
+        "timeout",
+        "3600",
+        "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+        "-m",
+        "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+        "--mmproj",
+        "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8090",
+        "--ctx-size",
+        "4096",
+        "--threads",
+        "4",
+        "--threads-batch",
+        "4",
+        "--parallel",
+        "1",
+        "--swa-full",
+        "--cache-ram",
+        "0",
+        "--reasoning",
+        "off",
+        "-lv",
+        "4",
+        "--image-min-tokens",
+        "140",
+        "--image-max-tokens",
+        "140"
+      ],
+      "started_utc": "2026-10-18T00:55:18Z",
+      "ended_utc": "2026-10-18T00:57:27Z",
+      "startup_s_not_a_measurement": 8.717107711003337,
+      "server_pid": 25316,
+      "server_name": "llama-server",
+      "peak_vmhwm_kib_not_a_measurement": 4515824,
+      "exit_code": 0,
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+No blocking correctness or safety findings. The three Round 1 fixes are present.
+
+Candidate files reviewed in full:
+
+| File | Line count |
+|---|---:|
+| `benchmark/relate_anything/quality1/quality1.py` | 695 |
+| `benchmark/relate_anything/quality1/test_quality1.py` | 302 |
+| `benchmark/relate_anything/quality1/README.md` | 48 |
+
+1. **M2 correctness:** The harness uses the imported `relate.Head`, preserving its three-file SHA-256 check, and never constructs `relate.Relate` or calls its pinning methods. The fewer-than-two branch skips inference and returns `relate.TOO_FEW`. Selection above 32 boxes matches the reference exactly.
+
+   `benchmark/relate_anything/quality1/quality1.py:139-141`:
+   ```python
+       if len(detections) > relate.MAX_BOXES:
+           keep = sorted(sorted(range(len(detections)), key=lambda i: -detections[i]['conf'])[:relate.MAX_BOXES])
+           detections = [detections[i] for i in keep]
+   ```
+
+   `relate.py:179-181`:
+   ```python
+           if len(detections) > MAX_BOXES:
+               keep = sorted(sorted(range(len(detections)), key=lambda i: -detections[i]['conf'])[:MAX_BOXES])
+               detections = [detections[i] for i in keep]
+   ```
+
+   Output uses `relate.chosen()` and `relate.context()`. Both M2 executions are compared, including indices, predicates, scores, thresholds and pass flags; differing second-run rows are retained.
+
+   `benchmark/relate_anything/quality1/quality1.py:532-534`:
+   ```python
+           m2_1 = run_m2_once(head, decoded, detections)
+           m2_2 = run_m2_once(head, decoded, detections)
+           m2_same = rows_identical(m2_1['rows'], m2_2['rows'])
+   ```
+
+2. **Blindness:** The mapping uses seed `20261017`, one coin for each qualifying photo in sorted order. Results contain the required variant prompts and X/Y replies, without serializing their mapping. Neither PDF builder receives the key. The strengthened test captures rendered text and checks the complete A/B text sequence.
+
+   `benchmark/relate_anything/quality1/quality1.py:270-275`:
+   ```python
+       rng = random.Random(seed)
+       key = {}
+       for photo in sorted(qualifying_photos):
+           first = rng.choice(('Y-ONLY', 'Y+M2'))
+           second = 'Y+M2' if first == 'Y-ONLY' else 'Y-ONLY'
+           key[photo] = {'X': first, 'Y': second}
+   ```
+
+3. **Tracked files:** The supplied diff contains only the three new candidate files. The supplied Git proof reports an empty tracked diff. I independently hashed all seven reference files; every hash matches that proof. The candidate harness hash also matches the smoke manifest. Live Git state could not be independently rechecked here.
+
+4. **Motor/server safety:** No candidate code opens USB, imports motor control, starts or kills servers, or invokes the imported server-control functions. Network operations check the existing localhost server and request completions.
+
+5. **Privacy:** No secrets, email addresses or account identifiers were found in the candidate text or supplied smoke outputs. This was a textual review; generated PDF/image artifacts were not visually inspected.
+
+6. **Timing and claims:** Recorded inference, completion and elapsed timings carry the required label. No candidate heat or power claims were found.
+
+   `benchmark/relate_anything/quality1/quality1.py:54`:
+   ```python
+   TIMING_LABEL = 'NOT A MEASUREMENT (agent resident)'
+   ```
+
+The supplied evidence reports seven passing tests in both checkouts and three successful smoke photos, with identical repeated M2 rows and Gemma replies. The truncated-token regression is present. I did not rerun tests: they create temporary files, and interpreter execution was rejected here. No files were changed. Full-dataset execution and blind grading remain pending.
+
+VERDICT: APPROVED

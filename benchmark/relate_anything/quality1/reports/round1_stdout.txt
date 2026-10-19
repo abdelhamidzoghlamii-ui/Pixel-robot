@@ -1,0 +1,58 @@
+Review completed read-only. Candidate line counts:
+
+| File | Lines |
+|---|---:|
+| `benchmark/relate_anything/quality1/quality1.py` | 668 |
+| `benchmark/relate_anything/quality1/test_quality1.py` | 247 |
+| `benchmark/relate_anything/quality1/README.md` | 48 |
+
+**1. Must fix: imports can escape the reviewed checkout and invalidate provenance.**
+
+`benchmark/relate_anything/quality1/quality1.py:30-33`:
+```python
+from chat import build_prompt, get_stop_tokens
+import detect_person
+from picker import URL
+import relate
+```
+
+Importing `chat` executes `chat.py:3`:
+```python
+sys.path.insert(0, '/data/data/com.termux/files/home/robot')
+```
+
+Consequently, when that live directory is accessible, the subsequent imports can load `detect_person`, `picker`, and `relate` from the live repository instead of the isolated copy. The transitive `server_manager` import can escape too.
+
+Meanwhile, `benchmark/relate_anything/quality1/quality1.py:614` hashes files relative to the harness checkout:
+```python
+        'code_sha256': {rel_p: relate.sha256(ROBOT / rel_p) for rel_p in imported_files},
+```
+
+This can record hashes for different code than actually executed. It also prevents the isolated tests from reliably checking the frozen reference implementation.
+
+Fix this within the new candidate files: ensure the imported project modules resolve to the intended checkout despite `chat`’s path mutation, and verify/hash their actual source paths. Add a regression check for module origins without editing tracked files.
+
+**2. Test weakness: PDF byte searches do not verify visible blindness.**
+
+`benchmark/relate_anything/quality1/test_quality1.py:204-206`:
+```python
+            for forbidden in (b'Y-ONLY', b'Y+M2', b'key.json'):
+                self.assertNotIn(forbidden, m2_bytes)
+                self.assertNotIn(forbidden, ab_bytes)
+```
+
+PIL renders the page text into pixels. A visibly printed variant label need not appear as an ASCII string in the PDF bytes, so these assertions can pass despite a leak. Capture drawing calls and inspect their text, or otherwise test the rendered content.
+
+The requested checks otherwise gave these results:
+
+- **M2 correctness:** The inspected source constructs imported `relate.Head`, never `relate.Relate`. The reference Head checks all three SHA-256 hashes before loading. The candidate matches the reference’s fewer-than-two handling, highest-confidence 32-box selection with detector order preserved, and use of `relate.context`/`relate.chosen`. Qualifying photos receive two M2 calls; comparisons include indices, predicates, scores, thresholds, and pass flags. These conclusions are subject to finding 1’s import-resolution problem.
+- **Blindness:** Assignment uses `random.Random(20261017)`, one choice per qualifying photo in sorted order. The explicit X/Y mapping is written only to `key.json`. The inspected PDF builders do not draw the mapping or variant names. The A/B builder draws the annotated frame and X/Y replies without adding an object list or M2 block. Supplied results’ replies contain no variant labels. Both prompts are retained separately, as requested.
+- **Tracked files:** The supplied patch contains only the three new candidate files. Six current source hashes match the smoke manifest. This copy has no `.git`, so I cannot independently establish that every protected tracked file is byte-identical to the stated base.
+- **Hardware/server safety:** No candidate motor, mission, teleop, USB, server-launch, or server-kill path was found. Importing the inspected chat/server modules does not launch their command-line entry points. Initial server checks stop with owner instructions when unavailable or the model basename differs.
+- **Privacy:** No secrets, emails, or account names were found in the candidate files or supplied smoke text/JSON.
+- **Timing:** Harness durations carry the exact required label, `NOT A MEASUREMENT (agent resident)`. No candidate heat or power claims were found.
+- **Evidence:** Supplied output reports six passing tests and three qualifying smoke photos, all with identical repeated M2 rows and Gemma replies. One saved reply retains a trailing `<` fragment; template cleanup deserves a regression case.
+
+I did not rerun the file-writing tests or harness, inspect the absent PDFs, or establish base-file identity from Git. No files were created, modified, or deleted; the import/provenance issue remains unresolved.
+
+VERDICT: CHANGES REQUESTED

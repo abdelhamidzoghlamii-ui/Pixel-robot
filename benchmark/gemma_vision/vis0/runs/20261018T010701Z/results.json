@@ -1,0 +1,1973 @@
+{
+  "task": "VIS-0",
+  "labels": "Template check VALID (deterministic); vision replies VALID as outputs (temperature 0); timings and memory NOT measurements (agent resident); quality grading pending (Local AI)",
+  "timing_label": "NOT A MEASUREMENT (agent resident)",
+  "limit": null,
+  "template_check": {
+    "verdict": "CONFIRMED",
+    "verdict_statement": "CONFIRMED: Gemma 3 markers (<start_of_turn>, <end_of_turn>) are tokenized as multiple plain-text pieces, whereas Gemma 4 markers (<|turn>, <turn|>) are single special tokens and are used by the GGUF chat_template.",
+    "props_summary": {
+      "model_alias": "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+      "model_path": "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+      "model_ftype": "Q4_0",
+      "total_slots": 1,
+      "n_ctx": 4096,
+      "build_info": "b1-797de63",
+      "bos_token": "<bos>",
+      "eos_token": "<eos>",
+      "modalities": {
+        "vision": true,
+        "video": false,
+        "audio": true
+      }
+    },
+    "chat_template": "{#\n  Template: Google Gemma 4 Canonical Chat Template\n  Author: Google Gemma Engineering Team\n  Published: 2026-07-09\n  Context: Fixed tool-calling loops, turn closures, and thinking content-ordering.\n#}\n{%- macro format_parameters(properties, required, filter_keys=false) -%}\n    {%- set standard_keys = ['description', 'type', 'properties', 'required', 'nullable'] -%}\n    {%- set ns = namespace(found_first=false) -%}\n    {%- for key, value in properties | dictsort -%}\n        {%- set add_comma = false -%}\n        {%- if not filter_keys or key not in standard_keys -%}\n            {%- if ns.found_first %},{% endif -%}\n            {%- set ns.found_first = true -%}\n            {{ key }}:{\n            {%- if value['description'] -%}\n                description:<|\"|>{{ value['description'] }}<|\"|>\n                {%- set add_comma = true -%}\n            {%- endif -%}\n            {%- if value['type'] | upper == 'STRING' -%}\n                {%- if value['enum'] -%}\n                    {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n                    enum:{{ format_argument(value['enum']) }}\n                {%- endif -%}\n            {%- elif value['type'] | upper == 'ARRAY' -%}\n                {%- if value['items'] is mapping and value['items'] -%}\n                    {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n                    items:{\n                    {%- set ns_items = namespace(found_first=false) -%}\n                    {%- for item_key, item_value in value['items'] | dictsort -%}\n                        {%- if item_value is not none -%}\n                            {%- if ns_items.found_first %},{% endif -%}\n                            {%- set ns_items.found_first = true -%}\n                            {%- if item_key == 'properties' -%}\n                                properties:{\n                                {%- if item_value is mapping -%}\n                                    {{- format_parameters(item_value, value['items']['required'] | default([])) -}}\n                                {%- endif -%}\n                                }\n                            {%- elif item_key == 'required' -%}\n                                required:[\n                                {%- for req_item in item_value -%}\n                                    <|\"|>{{- req_item -}}<|\"|>\n                                    {%- if not loop.last %},{% endif -%}\n                                {%- endfor -%}\n                                ]\n                            {%- elif item_key == 'type' -%}\n                                {%- if item_value is string -%}\n                                    type:{{ format_argument(item_value | upper) }}\n                                {%- else -%}\n                                    type:{{ format_argument(item_value | map('upper') | list) }}\n                                {%- endif -%}\n                            {%- else -%}\n                                {{ item_key }}:{{ format_argument(item_value) }}\n                            {%- endif -%}\n                        {%- endif -%}\n                    {%- endfor -%}\n                    }\n                {%- endif -%}\n            {%- endif -%}\n            {%- if value['nullable'] %}\n                {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n                nullable:true\n            {%- endif -%}\n            {%- if value['type'] | upper == 'OBJECT' -%}\n                {%- if value['properties'] is defined and value['properties'] is mapping -%}\n                    {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n                    properties:{\n                    {{- format_parameters(value['properties'], value['required'] | default([])) -}}\n                    }\n                {%- elif value is mapping -%}\n                    {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n                    properties:{\n                    {{- format_parameters(value, value['required'] | default([]), filter_keys=true) -}}\n                    }\n                {%- endif -%}\n                {%- if value['required'] -%}\n                    {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n                    required:[\n                    {%- for item in value['required'] | default([]) -%}\n                        <|\"|>{{- item -}}<|\"|>\n                        {%- if not loop.last %},{% endif -%}\n                    {%- endfor -%}\n                    ]\n                {%- endif -%}\n            {%- endif -%}\n            {%- if add_comma %},{%- else -%} {%- set add_comma = true -%} {% endif -%}\n            type:<|\"|>{{ value['type'] | upper }}<|\"|>}\n        {%- endif -%}\n    {%- endfor -%}\n{%- endmacro -%}\n{%- macro format_function_declaration(tool_data) -%}\n    declaration:{{- tool_data['function']['name'] -}}{description:<|\"|>{{- tool_data['function']['description'] -}}<|\"|>\n    {%- set params = tool_data['function']['parameters'] -%}\n    {%- if params -%}\n        ,parameters:{\n        {%- if params['properties'] -%}\n            properties:{ {{- format_parameters(params['properties'], params['required']) -}} },\n        {%- endif -%}\n        {%- if params['required'] -%}\n            required:[\n            {%- for item in params['required'] -%}\n                <|\"|>{{- item -}}<|\"|>\n                {{- ',' if not loop.last -}}\n            {%- endfor -%}\n            ],\n        {%- endif -%}\n        {%- if params['type'] -%}\n            type:<|\"|>{{- params['type'] | upper -}}<|\"|>}\n        {%- endif -%}\n    {%- endif -%}\n    {%- if 'response' in tool_data['function'] -%}\n        {%- set response_declaration = tool_data['function']['response'] -%}\n        ,response:{\n        {%- if response_declaration['description'] -%}\n            description:<|\"|>{{- response_declaration['description'] -}}<|\"|>,\n        {%- endif -%}\n        {%- if response_declaration['type'] | upper == 'OBJECT' -%}\n            type:<|\"|>{{- response_declaration['type'] | upper -}}<|\"|>}\n        {%- endif -%}\n    {%- endif -%}\n    }\n{%- endmacro -%}\n{%- macro format_argument(argument, escape_keys=True) -%}\n    {%- if argument is none -%}\n        {{- 'null' -}}\n    {%- elif argument is string -%}\n        {{- '<|\"|>' + argument + '<|\"|>' -}}\n    {%- elif argument is boolean -%}\n        {{- 'true' if argument else 'false' -}}\n    {%- elif argument is mapping -%}\n        {{- '{' -}}\n        {%- set ns = namespace(found_first=false) -%}\n        {%- for key, value in argument | dictsort -%}\n            {%- if ns.found_first %},{% endif -%}\n            {%- set ns.found_first = true -%}\n            {%- if escape_keys -%}\n                {{- '<|\"|>' + key + '<|\"|>' -}}\n            {%- else -%}\n                {{- key -}}\n            {%- endif -%}\n            :{{- format_argument(value, escape_keys=escape_keys) -}}\n        {%- endfor -%}\n        {{- '}' -}}\n    {%- elif argument is sequence -%}\n        {{- '[' -}}\n        {%- for item in argument -%}\n            {{- format_argument(item, escape_keys=escape_keys) -}}\n            {%- if not loop.last %},{% endif -%}\n        {%- endfor -%}\n        {{- ']' -}}\n    {%- else -%}\n        {{- argument -}}\n    {%- endif -%}\n{%- endmacro -%}\n{%- macro strip_thinking(text) -%}\n    {%- set ns = namespace(result='') -%}\n    {%- for part in text.split('<channel|>') -%}\n        {%- if '<|channel>' in part -%}\n            {%- set ns.result = ns.result + part.split('<|channel>')[0] -%}\n        {%- else -%}\n            {%- set ns.result = ns.result + part -%}\n        {%- endif -%}\n    {%- endfor -%}\n    {{- ns.result | trim -}}\n{%- endmacro -%}\n\n{%- macro format_tool_response_block(tool_name, response) -%}\n    {{- '<|tool_response>' -}}\n    {%- if response is mapping -%}\n        {{- 'response:' + tool_name + '{' -}}\n        {%- for key, value in response | dictsort -%}\n            {{- key -}}:{{- format_argument(value, escape_keys=False) -}}\n            {%- if not loop.last %},{% endif -%}\n        {%- endfor -%}\n        {{- '}' -}}\n    {%- else -%}\n        {{- 'response:' + tool_name + '{value:' + format_argument(response, escape_keys=False) + '}' -}}\n    {%- endif -%}\n    {{- '<tool_response|>' -}}\n{%- endmacro -%}\n\n{#- ===== SETUP ===== -#}\n{%- set ns = namespace(prev_message_type=None, prev_non_tool_role=None) -%}\n{%- set loop_messages = messages -%}\n{%- set enable_thinking = enable_thinking | default(false) -%}\n{%- set preserve_thinking = preserve_thinking | default(false) -%}\n{{- bos_token -}}\n{#- Handle System/Tool Definitions Block -#}\n{%- if enable_thinking or tools or (messages and messages[0]['role'] in ['system', 'developer']) -%}\n    {{- '<|turn>system\\n' -}}\n    {#- Inject Thinking token at the very top of the FIRST system turn -#}\n    {%- if enable_thinking -%}\n        {{- '<|think|>\\n' -}}\n        {%- set ns.prev_message_type = 'think' -%}\n    {%- endif -%}\n    {%- if messages and messages[0]['role'] in ['system', 'developer'] -%}\n        {%- if messages[0]['content'] is string -%}\n            {{- messages[0]['content'] | trim -}}\n        {%- elif messages[0]['content'] is sequence -%}\n            {%- for item in messages[0]['content'] -%}\n                {{- item['text'] | trim + ' '-}}\n            {%- endfor -%}\n        {%- endif -%}\n        {%- set loop_messages = messages[1:] -%}\n    {%- endif -%}\n    {%- if tools -%}\n        {%- for tool in tools %}\n            {{- '<|tool>' -}}\n            {{- format_function_declaration(tool) | trim -}}\n            {{- '<tool|>' -}}\n        {%- endfor %}\n        {%- set ns.prev_message_type = 'tool' -%}\n    {%- endif -%}\n    {{- '<turn|>\\n' -}}\n{%- endif %}\n\n{#- Pre-scan: find last user message index for reasoning guard -#}\n{%- set ns_turn = namespace(last_user_idx=-1) -%}\n{%- for i in range(loop_messages | length) -%}\n    {%- if loop_messages[i]['role'] == 'user' -%}\n        {%- set ns_turn.last_user_idx = i -%}\n    {%- endif -%}\n{%- endfor -%}\n\n{#- Loop through messages -#}\n{%- for message in loop_messages -%}\n    {%- if message['role'] != 'tool' -%}\n    {%- set ns.prev_message_type = None -%}\n    {%- set role = 'model' if message['role'] == 'assistant' else message['role'] -%}\n    {#- Detect continuation using tracked state \u2014 O(1) instead of O(n) backward scan -#}\n    {%- set continue_same_model_turn = (role == 'model' and ns.prev_non_tool_role == 'assistant') -%}\n    {%- if not continue_same_model_turn -%}\n        {{- '<|turn>' + role + '\\n' }}\n    {%- endif -%}\n\n    {#- Render reasoning/reasoning_content as thinking channel -#}\n    {%- set thinking_text = message.get('reasoning') or message.get('reasoning_content') -%}\n    {%- set thinking_gate = (loop.index0 > ns_turn.last_user_idx) or (preserve_thinking and message.get('tool_calls')) -%}\n    {%- if thinking_text and thinking_gate -%}\n        {{- '<|channel>thought\\n' + thinking_text + '\\n<channel|>' -}}\n    {%- endif -%}\n\n            {%- if message.get('tool_calls') -%}\n                {%- for tool_call in message.get('tool_calls') -%}\n                    {%- set function = tool_call['function'] -%}\n                    {{- '<|tool_call>call:' + function['name'] + '{' -}}\n                    {%- if function['arguments'] is mapping -%}\n                        {%- set ns_args = namespace(found_first=false) -%}\n                        {%- for key, value in function['arguments'] | dictsort -%}\n                            {%- if ns_args.found_first %},{% endif -%}\n                            {%- set ns_args.found_first = true -%}\n                            {{- key -}}:{{- format_argument(value, escape_keys=False) -}}\n                        {%- endfor -%}\n                    {%- elif function['arguments'] is none -%}\n                    {%- else -%}\n                        {{- raise_exception(\n                            \"chat_template: tool_calls[].function.arguments must be a \"\n                            \"JSON object (mapping), not a string. Deserialize arguments \"\n                            \"before passing to the template.\"\n                        ) -}}\n                    {%- endif -%}\n                    {{- '}<tool_call|>' -}}\n                {%- endfor -%}\n                {%- set ns.prev_message_type = 'tool_call' -%}\n            {%- endif -%}\n\n            {%- set ns_tr_out = namespace(flag=false) -%}\n            {%- if message.get('tool_responses') -%}\n                {#- Legacy: tool_responses embedded on the assistant message (Google/Gemma native) -#}\n                {%- for tool_response in message.get('tool_responses') -%}\n                    {{- format_tool_response_block(tool_response['name'] | default('unknown', true), tool_response['response']) -}}\n                    {%- set ns_tr_out.flag = true -%}\n                    {%- set ns.prev_message_type = 'tool_response' -%}\n                {%- endfor -%}\n            {%- elif message.get('tool_calls') -%}\n                {#- OpenAI Chat Completions: forward-scan consecutive role:tool messages -#}\n                {%- set ns_tool_scan = namespace(stopped=false) -%}\n                {%- for k in range(loop.index0 + 1, loop_messages | length) -%}\n                    {%- if ns_tool_scan.stopped -%}\n                    {%- elif loop_messages[k]['role'] != 'tool' -%}\n                        {%- set ns_tool_scan.stopped = true -%}\n                    {%- else -%}\n                        {%- set follow = loop_messages[k] -%}\n                        {#- Resolve tool_call_id to function name -#}\n                        {%- set ns_tname = namespace(name=follow.get('name') or 'unknown') -%}\n                        {%- for tc in message.get('tool_calls') -%}\n                            {%- if tc.get('id') == follow.get('tool_call_id') -%}\n                                {%- set ns_tname.name = tc['function']['name'] -%}\n                            {%- endif -%}\n                        {%- endfor -%}\n                        {#- Handle content as string or content-parts array -#}\n                        {%- set tool_body = follow.get('content') -%}\n                        {%- if tool_body is string -%}\n                            {{- format_tool_response_block(ns_tname.name, tool_body) -}}\n                        {%- elif tool_body is sequence and tool_body is not string -%}\n                            {%- set ns_txt = namespace(s='') -%}\n                            {%- for part in tool_body -%}\n                                {%- if part.get('type') == 'text' -%}\n                                    {%- set ns_txt.s = ns_txt.s + (part.get('text') | default('')) -%}\n                                {%- endif -%}\n                            {%- endfor -%}\n                            {{- format_tool_response_block(ns_tname.name, ns_txt.s) -}}\n                            {%- for part in tool_body -%}\n                                {%- if part.get('type') in ['image', 'image_url'] -%}\n                                    {{- '<|image|>' -}}\n                                {%- elif part.get('type') in ['audio', 'input_audio'] -%}\n                                    {{- '<|audio|>' -}}\n                                {%- elif part.get('type') == 'video' -%}\n                                    {{- '<|video|>' -}}\n                                {%- endif -%}\n                            {%- endfor -%}\n                        {%- else -%}\n                            {{- format_tool_response_block(ns_tname.name, tool_body) -}}\n                        {%- endif -%}\n                        {%- set ns_tr_out.flag = true -%}\n                        {%- set ns.prev_message_type = 'tool_response' -%}\n                    {%- endif -%}\n                {%- endfor -%}\n            {%- endif -%}\n\n            {%- set captured_content -%}\n            {%- if message.get('content') is string -%}\n                {%- if role == 'model' -%}\n                    {{- strip_thinking(message['content']) -}}\n                {%- else -%}\n                    {{- message['content'] | trim -}}\n                {%- endif -%}\n            {%- elif message.get('content') is sequence -%}\n                {%- for item in message['content'] -%}\n                    {%- if item.get('type') == 'text' -%}\n                        {%- if role == 'model' -%}\n                            {{- strip_thinking(item['text']) -}}\n                        {%- else -%}\n                            {{- item['text'] | trim -}}\n                        {%- endif -%}\n                    {%- elif item.get('type') in ['image', 'image_url'] -%}\n                        {{- '<|image|>' -}}\n                    {%- elif item.get('type') in ['audio', 'input_audio'] -%}\n                        {{- '<|audio|>' -}}\n                    {%- elif item.get('type') == 'video' -%}\n                        {{- '<|video|>' -}}\n                    {%- endif -%}\n                {%- endfor -%}\n            {%- endif -%}\n            {%- endset -%}\n\n            {{- captured_content -}}\n            {%- set has_content = captured_content | trim | length > 0 -%}\n\n        {#- Forward-scan: find next non-tool message role for continuation detection -#}\n        {%- set next_nt = namespace(role=None, found=false) -%}\n        {%- for j in range(loop.index0 + 1, loop_messages | length) -%}\n            {%- if not next_nt.found -%}\n                {%- if loop_messages[j]['role'] != 'tool' -%}\n                    {%- set next_nt.role = loop_messages[j]['role'] -%}\n                    {%- set next_nt.found = true -%}\n                {%- endif -%}\n            {%- endif -%}\n        {%- endfor -%}\n\n        {%- set continues_into_next = (\n            role == 'model'\n            and next_nt.role == 'assistant'\n            and (not message.get('tool_calls') or ns_tr_out.flag)\n        ) -%}\n\n        {%- if ns.prev_message_type == 'tool_call' and not ns_tr_out.flag -%}\n            {{- '<|tool_response>' -}}\n        {%- elif continues_into_next -%}\n        {%- elif not (ns_tr_out.flag and not has_content and not next_nt.found) -%}\n            {{- '<turn|>\\n' -}}\n        {%- endif -%}\n\n    {#- Track previous non-tool role for next iteration (avoids O(n) backward scan) -#}\n    {%- set ns.prev_non_tool_role = message['role'] -%}\n    {%- endif -%}\n{%- endfor -%}\n\n{%- if add_generation_prompt -%}\n    {%- if ns.prev_message_type != 'tool_response' and ns.prev_message_type != 'tool_call' -%}\n        {{- '<|turn>model\\n' -}}\n    {%- elif ns.prev_message_type == 'tool_response' and enable_thinking -%}\n        {{- '<|channel>thought\\n' -}}\n    {%- endif -%}\n{%- endif -%}",
+    "tokenize_checks": [
+      {
+        "input": "<start_of_turn>user",
+        "tag": "<start_of_turn>",
+        "token_count": 8,
+        "tokens": [
+          {
+            "id": 236820,
+            "piece": "<"
+          },
+          {
+            "id": 3041,
+            "piece": "start"
+          },
+          {
+            "id": 236779,
+            "piece": "_"
+          },
+          {
+            "id": 1340,
+            "piece": "of"
+          },
+          {
+            "id": 236779,
+            "piece": "_"
+          },
+          {
+            "id": 887,
+            "piece": "turn"
+          },
+          {
+            "id": 236813,
+            "piece": ">"
+          },
+          {
+            "id": 2364,
+            "piece": "user"
+          }
+        ],
+        "pieces": [
+          "<",
+          "start",
+          "_",
+          "of",
+          "_",
+          "turn",
+          ">",
+          "user"
+        ],
+        "tag_is_single_special_token": false,
+        "whole_input_is_single_token": false,
+        "classification": "several plain-text pieces (8 pieces)"
+      },
+      {
+        "input": "<end_of_turn>",
+        "tag": "<end_of_turn>",
+        "token_count": 7,
+        "tokens": [
+          {
+            "id": 236820,
+            "piece": "<"
+          },
+          {
+            "id": 643,
+            "piece": "end"
+          },
+          {
+            "id": 236779,
+            "piece": "_"
+          },
+          {
+            "id": 1340,
+            "piece": "of"
+          },
+          {
+            "id": 236779,
+            "piece": "_"
+          },
+          {
+            "id": 887,
+            "piece": "turn"
+          },
+          {
+            "id": 236813,
+            "piece": ">"
+          }
+        ],
+        "pieces": [
+          "<",
+          "end",
+          "_",
+          "of",
+          "_",
+          "turn",
+          ">"
+        ],
+        "tag_is_single_special_token": false,
+        "whole_input_is_single_token": false,
+        "classification": "several plain-text pieces (7 pieces)"
+      },
+      {
+        "input": "<|turn>user",
+        "tag": "<|turn>",
+        "token_count": 2,
+        "tokens": [
+          {
+            "id": 105,
+            "piece": "<|turn>"
+          },
+          {
+            "id": 2364,
+            "piece": "user"
+          }
+        ],
+        "pieces": [
+          "<|turn>",
+          "user"
+        ],
+        "tag_is_single_special_token": true,
+        "whole_input_is_single_token": false,
+        "classification": "ONE special token (<|turn>) + role token (2 tokens total)"
+      },
+      {
+        "input": "<turn|>",
+        "tag": "<turn|>",
+        "token_count": 1,
+        "tokens": [
+          {
+            "id": 106,
+            "piece": "<turn|>"
+          }
+        ],
+        "pieces": [
+          "<turn|>"
+        ],
+        "tag_is_single_special_token": true,
+        "whole_input_is_single_token": true,
+        "classification": "ONE special token"
+      },
+      {
+        "input": "<|turn>model",
+        "tag": "<|turn>",
+        "token_count": 2,
+        "tokens": [
+          {
+            "id": 105,
+            "piece": "<|turn>"
+          },
+          {
+            "id": 4368,
+            "piece": "model"
+          }
+        ],
+        "pieces": [
+          "<|turn>",
+          "model"
+        ],
+        "tag_is_single_special_token": true,
+        "whole_input_is_single_token": false,
+        "classification": "ONE special token (<|turn>) + role token (2 tokens total)"
+      }
+    ],
+    "apply_template_hi": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hi"
+        }
+      ],
+      "rendered_prompt": "<|turn>user\nHi<turn|>\n<|turn>model\n"
+    },
+    "text_ab": [
+      {
+        "frame_stem": "bench_photos__blocked_1",
+        "photo": "bench_photos/blocked_1.jpg",
+        "yolo_lines": "- cup [0], center, far\n- chair [1], right, medium\n- laptop [2], center, close\n- potted plant [3], center, medium\n- scissors [4], center, far\n- potted plant [5], right, far\n- potted plant [6], right, far\n- cup [7], center, far\n- cup [8], center, far\n- couch [9], left, medium\n- book [10], center, far\n- cell phone [11], left, far\n- chair [12], left, medium\n- chair [13], left, far\n- remote [14], center, far\n- vase [15], center, far\n- dining table [16], center, very close",
+        "old_completion": {
+          "reply": "The dining table is very close in front of the robot.",
+          "raw_content": "The dining table is very close in front of the robot.",
+          "stop_type": "eos",
+          "stopping_word": "",
+          "tokens_evaluated": 231,
+          "tokens_predicted": 13,
+          "prompt_ms_not_a_measurement": 3216.344,
+          "predicted_ms_not_a_measurement": 1069.757,
+          "predicted_per_second_not_a_measurement": 11.217500796909952,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 4328.513104999729
+        },
+        "new_chat_completions": {
+          "reply": "In front of the robot is a dining table very close, a laptop close, and a potted plant in the center, medium.",
+          "raw_content": "In front of the robot is a dining table very close, a laptop close, and a potted plant in the center, medium.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 213,
+          "completion_tokens": 27,
+          "prompt_ms_not_a_measurement": 2815.166,
+          "predicted_ms_not_a_measurement": 2016.536,
+          "predicted_per_second_not_a_measurement": 12.893397390376368,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 4852.321780002967
+        },
+        "m2q1_saved_replies": {
+          "X": "The dining table is very close, and there is a laptop, scissors, remote, and a cup resting on it.",
+          "Y": "The dining table is very close in front of the robot."
+        },
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__empty_2",
+        "photo": "bench_photos/empty_2.jpg",
+        "yolo_lines": "- bowl [0], right, far\n- suitcase [1], right, medium",
+        "old_completion": {
+          "reply": "The robot is looking at the bowl.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nThe bowl is in front of the robot.\n<start_of_turn>user\nThe bowl is in front of the robot.\n<start_of_turn>user\nThe bowl is in front of the robot.\n<start_of_turn>user\nThe bowl is",
+          "raw_content": "The robot is looking at the bowl.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nThe bowl is in front of the robot.\n<start_of_turn>user\nThe bowl is in front of the robot.\n<start_of_turn>user\nThe bowl is in front of the robot.\n<start_of_turn>user\nThe bowl is",
+          "stop_type": "limit",
+          "stopping_word": "",
+          "tokens_evaluated": 83,
+          "tokens_predicted": 96,
+          "prompt_ms_not_a_measurement": 1156.083,
+          "predicted_ms_not_a_measurement": 7118.942,
+          "predicted_per_second_not_a_measurement": 13.344679588624263,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 8288.770063998527
+        },
+        "new_chat_completions": {
+          "reply": "In front of the robot is a bowl to the right and far, and a suitcase to the right and medium.",
+          "raw_content": "In front of the robot is a bowl to the right and far, and a suitcase to the right and medium.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 65,
+          "completion_tokens": 24,
+          "prompt_ms_not_a_measurement": 957.632,
+          "predicted_ms_not_a_measurement": 1710.379,
+          "predicted_per_second_not_a_measurement": 13.447311970037049,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 2682.9381110001123
+        },
+        "m2q1_saved_replies": {
+          "X": "The robot is looking at the bowl and the suitcase.",
+          "Y": "The robot is looking at the bowl.\n\nWhat is in front of the robot?\n\nThe bowl is in front of the robot.\n\nThe bowl is in front of the robot.\n\nThe bowl is in front of the robot.\n\nThe bowl is"
+        },
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__person_facing_150cm",
+        "photo": "bench_photos/person_facing_150cm.jpg",
+        "yolo_lines": "- person [0], right, close\n- couch [1], center, very close\n- laptop [2], right, medium\n- potted plant [3], center, medium\n- clock [4], left, far",
+        "old_completion": {
+          "reply": "The robot is observing the scene.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_of_turn>The robot is observing the scene.\n<start_of_of_turn>person [0], right, close\n<start_of_of_turn>couch [1], center, very close\n<start_of_of_turn>laptop [2], right, medium\n<",
+          "raw_content": "The robot is observing the scene.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_of_turn>The robot is observing the scene.\n<start_of_of_turn>person [0], right, close\n<start_of_of_turn>couch [1], center, very close\n<start_of_of_turn>laptop [2], right, medium\n<",
+          "stop_type": "limit",
+          "stopping_word": "",
+          "tokens_evaluated": 112,
+          "tokens_predicted": 96,
+          "prompt_ms_not_a_measurement": 1556.802,
+          "predicted_ms_not_a_measurement": 7284.485,
+          "predicted_per_second_not_a_measurement": 13.04141610559978,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 8854.086348997953
+        },
+        "new_chat_completions": {
+          "reply": "A person is close to the right. A couch is in the center and very close.",
+          "raw_content": "A person is close to the right. A couch is in the center and very close.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 94,
+          "completion_tokens": 19,
+          "prompt_ms_not_a_measurement": 1477.933,
+          "predicted_ms_not_a_measurement": 1396.312,
+          "predicted_per_second_not_a_measurement": 12.891101702198364,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 2897.027751998394
+        },
+        "m2q1_saved_replies": {
+          "X": "The robot is observing the scene.\n\nWhat is in front of the robot?\nThe robot is observing the scene.\nperson [0], right, close\ncouch [1], center, very close\nlaptop [2], right, medium",
+          "Y": "The person is sitting on the couch, and a laptop is resting on them. A potted plant is above the couch."
+        },
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__person_sideon_300cm",
+        "photo": "bench_photos/person_sideon_300cm.jpg",
+        "yolo_lines": "- person [0], center, close\n- couch [1], right, close\n- potted plant [2], left, far\n- potted plant [3], center, medium\n- potted plant [4], center, medium",
+        "old_completion": {
+          "reply": "The robot is looking at the person [0], center, close.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nThe robot is looking at the person [0], center, close.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nThe robot is looking at the person [0], center,",
+          "raw_content": "The robot is looking at the person [0], center, close.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nThe robot is looking at the person [0], center, close.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nThe robot is looking at the person [0], center,",
+          "stop_type": "limit",
+          "stopping_word": "",
+          "tokens_evaluated": 113,
+          "tokens_predicted": 96,
+          "prompt_ms_not_a_measurement": 1703.37,
+          "predicted_ms_not_a_measurement": 7285.934,
+          "predicted_per_second_not_a_measurement": 13.038822476294735,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 9003.654138999991
+        },
+        "new_chat_completions": {
+          "reply": "In front of the robot is a person close and center. To the right is a couch close, and to the left are two potted plants, one far and one medium.",
+          "raw_content": "In front of the robot is a person close and center. To the right is a couch close, and to the left are two potted plants, one far and one medium.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 95,
+          "completion_tokens": 36,
+          "prompt_ms_not_a_measurement": 1528.587,
+          "predicted_ms_not_a_measurement": 2672.966,
+          "predicted_per_second_not_a_measurement": 13.09406853659942,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 4226.448489003815
+        },
+        "m2q1_saved_replies": {
+          "X": "The robot sees a person wearing a couch close by. There are potted plants to the left and center.",
+          "Y": "The robot is looking at the person [0], center, close.\n\nWhat is in front of the robot?\n\nThe robot is looking at the person [0], center, close.\n\nWhat is in front of the robot?\n\nThe robot is looking at the person [0], center,"
+        },
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__roomsig_couch_1",
+        "photo": "bench_photos/roomsig_couch_1.jpg",
+        "yolo_lines": "- person [0], left, close\n- potted plant [1], right, far\n- potted plant [2], center, medium\n- couch [3], center, very close",
+        "old_completion": {
+          "reply": "The robot is looking at the couch.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>person [0], left, close\n<start_of_turn>potted plant [1], right, far\n<start_of_turn>potted plant [2], center, medium\n<start_of_turn>couch [3], center, very close\n<start_of",
+          "raw_content": "The robot is looking at the couch.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>person [0], left, close\n<start_of_turn>potted plant [1], right, far\n<start_of_turn>potted plant [2], center, medium\n<start_of_turn>couch [3], center, very close\n<start_of",
+          "stop_type": "limit",
+          "stopping_word": "",
+          "tokens_evaluated": 104,
+          "tokens_predicted": 96,
+          "prompt_ms_not_a_measurement": 1594.393,
+          "predicted_ms_not_a_measurement": 8783.688,
+          "predicted_per_second_not_a_measurement": 10.815502554280162,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 10391.821457000333
+        },
+        "new_chat_completions": {
+          "reply": "A person is close to the left. A potted plant is far to the right, and another potted plant is in the center at a medium distance. A couch is very close to the center.",
+          "raw_content": "A person is close to the left. A potted plant is far to the right, and another potted plant is in the center at a medium distance. A couch is very close to the center.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 86,
+          "completion_tokens": 40,
+          "prompt_ms_not_a_measurement": 1783.67,
+          "predicted_ms_not_a_measurement": 3472.959,
+          "predicted_per_second_not_a_measurement": 11.22961716507451,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 5282.160198999918
+        },
+        "m2q1_saved_replies": {
+          "X": "The robot is looking at the couch.\n\nWhat is in front of the robot?\nperson [0], left, close\npotted plant [1], right, far\npotted plant [2], center, medium\ncouch [3], center, very close",
+          "Y": "The robot is in front of a person who is resting on a couch. There is a potted plant in the center and another potted plant to the right."
+        },
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__roomsig_refrigerator_1",
+        "photo": "bench_photos/roomsig_refrigerator_1.jpg",
+        "yolo_lines": "- bottle [0], left, medium\n- bottle [1], left, far\n- bottle [2], center, far\n- bottle [3], left, far\n- refrigerator [4], center, very close\n- bowl [5], center, far",
+        "old_completion": {
+          "reply": "The robot is looking at the refrigerator.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nWhat is in front of the",
+          "raw_content": "The robot is looking at the refrigerator.\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nWhat is in front of the robot?\n<start_of_turn>user\nWhat is in front of the",
+          "stop_type": "limit",
+          "stopping_word": "",
+          "tokens_evaluated": 120,
+          "tokens_predicted": 96,
+          "prompt_ms_not_a_measurement": 2179.249,
+          "predicted_ms_not_a_measurement": 8316.279,
+          "predicted_per_second_not_a_measurement": 11.42337817189635,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 10510.108119000506
+        },
+        "new_chat_completions": {
+          "reply": "In front of the robot is a refrigerator very close, a bowl far, and several bottles located to the left and center.",
+          "raw_content": "In front of the robot is a refrigerator very close, a bowl far, and several bottles located to the left and center.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 102,
+          "completion_tokens": 26,
+          "prompt_ms_not_a_measurement": 1813.42,
+          "predicted_ms_not_a_measurement": 2109.711,
+          "predicted_per_second_not_a_measurement": 11.849964284207648,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 3943.702882999787
+        },
+        "m2q1_saved_replies": {
+          "X": "The refrigerator is very close to the robot. There are bottles on the left, and a bowl is in the center, far.",
+          "Y": "The robot is looking at the refrigerator.\n\nWhat is in front of the robot?\n\nWhat is in front of the robot?\n\nWhat is in front of the robot?\n\nWhat is in front of the robot?\n\nWhat is in front of the"
+        },
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__roomsig_toilet_1",
+        "photo": "bench_photos/roomsig_toilet_1.jpg",
+        "yolo_lines": "- bottle [0], right, far\n- toilet [1], right, medium\n- sink [2], right, medium",
+        "old_completion": {
+          "reply": "The robot is in a room.\n<start_of_turn>user\nWhat is in front of the robot?",
+          "raw_content": "The robot is in a room.\n<start_of_turn>user\nWhat is in front of the robot?\n",
+          "stop_type": "word",
+          "stopping_word": "<end_of_turn>",
+          "tokens_evaluated": 92,
+          "tokens_predicted": 33,
+          "prompt_ms_not_a_measurement": 1638.423,
+          "predicted_ms_not_a_measurement": 2698.431,
+          "predicted_per_second_not_a_measurement": 11.858743099230626,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 4352.982585995051
+        },
+        "new_chat_completions": {
+          "reply": "In front of the robot, there is a bottle to the right and far, a toilet to the right and medium, and a sink to the right and medium.",
+          "raw_content": "In front of the robot, there is a bottle to the right and far, a toilet to the right and medium, and a sink to the right and medium.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 74,
+          "completion_tokens": 34,
+          "prompt_ms_not_a_measurement": 1370.362,
+          "predicted_ms_not_a_measurement": 2786.41,
+          "predicted_per_second_not_a_measurement": 11.84319608384983,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 4177.650352001365
+        },
+        "m2q1_saved_replies": {
+          "X": "The bottle is in front of the robot.",
+          "Y": "The robot is in a room.\n\nWhat is in front of the robot?"
+        },
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__roomsig_toilet_2",
+        "photo": "bench_photos/roomsig_toilet_2.jpg",
+        "yolo_lines": "- bottle [0], center, far\n- sink [1], right, close\n- bottle [2], left, far\n- microwave [3], left, very close",
+        "old_completion": {
+          "reply": "The robot is in a room.\n<start_of_turn>user\nWhat is in front of the robot?",
+          "raw_content": "The robot is in a room.\n<start_of_turn>user\nWhat is in front of the robot?\n",
+          "stop_type": "word",
+          "stopping_word": "<end_of_turn>",
+          "tokens_evaluated": 102,
+          "tokens_predicted": 33,
+          "prompt_ms_not_a_measurement": 1805.988,
+          "predicted_ms_not_a_measurement": 2698.99,
+          "predicted_per_second_not_a_measurement": 11.856286981426386,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 4521.898440005316
+        },
+        "new_chat_completions": {
+          "reply": "In front of the robot is a bottle in the center and a sink on the right. There is also a bottle on the left and a microwave very close on the left.",
+          "raw_content": "In front of the robot is a bottle in the center and a sink on the right. There is also a bottle on the left and a microwave very close on the left.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 84,
+          "completion_tokens": 36,
+          "prompt_ms_not_a_measurement": 1474.319,
+          "predicted_ms_not_a_measurement": 2950.066,
+          "predicted_per_second_not_a_measurement": 11.864141344634325,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 4447.602337000717
+        },
+        "m2q1_saved_replies": {
+          "X": "The robot is in a room.\n\nWhat is in front of the robot?",
+          "Y": "The robot is in front of bottle [2]."
+        },
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "test_photos__chiara_close_back",
+        "photo": "test_photos/chiara_close_back.jpg",
+        "yolo_lines": "- dining table [0], right, close\n- person [1], left, very close\n- bottle [2], right, far\n- cell phone [3], right, far\n- potted plant [4], right, medium\n- cell phone [5], right, far\n- chair [6], left, close\n- remote [7], right, far",
+        "old_completion": {
+          "reply": "The robot is looking at a dining table [0] on the right, close. A person [1] is to the left, very close, and a chair [6] is to the left, close. A bottle [2] is to the right, far, and a cell phone [3] and [5] are to the right, far. A potted plant [4] is to the right, medium, and a remote [7] is to the right",
+          "raw_content": "The robot is looking at a dining table [0] on the right, close. A person [1] is to the left, very close, and a chair [6] is to the left, close. A bottle [2] is to the right, far, and a cell phone [3] and [5] are to the right, far. A potted plant [4] is to the right, medium, and a remote [7] is to the right",
+          "stop_type": "limit",
+          "stopping_word": "",
+          "tokens_evaluated": 142,
+          "tokens_predicted": 96,
+          "prompt_ms_not_a_measurement": 2579.871,
+          "predicted_ms_not_a_measurement": 8119.715,
+          "predicted_per_second_not_a_measurement": 11.69991803899521,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 10716.720179007098
+        },
+        "new_chat_completions": {
+          "reply": "A person is very close to the left, and a chair is close to the left. A dining table is close to the right.",
+          "raw_content": "A person is very close to the left, and a chair is close to the left. A dining table is close to the right.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 124,
+          "completion_tokens": 28,
+          "prompt_ms_not_a_measurement": 2136.401,
+          "predicted_ms_not_a_measurement": 2279.74,
+          "predicted_per_second_not_a_measurement": 11.843455832682675,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 4441.349000997434
+        },
+        "m2q1_saved_replies": {
+          "X": "The dining table is close to the right, and a person is very close to the left.",
+          "Y": "The robot is looking at a dining table [0] on the right, close. A person [1] is to the left, very close, and a chair [6] is to the left, close. A bottle [2] is to the right, far, and a cell phone [3] and [5] are to the right, far. A potted plant [4] is to the right, medium, and a remote [7] is to the right"
+        },
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "test_photos__abdel_close_right",
+        "photo": "test_photos/abdel_close_right.jpg",
+        "yolo_lines": "- person [0], center, very close\n- potted plant [1], right, medium\n- person [2], left, medium\n- clock [3], center, far\n- tv [4], left, medium",
+        "old_completion": {
+          "reply": "The robot is observing the environment.\n<start_of_turn>user\nWhat is in front of the robot?",
+          "raw_content": "The robot is observing the environment.\n<start_of_turn>user\nWhat is in front of the robot?\n",
+          "stop_type": "word",
+          "stopping_word": "<end_of_turn>",
+          "tokens_evaluated": 112,
+          "tokens_predicted": 33,
+          "prompt_ms_not_a_measurement": 1916.468,
+          "predicted_ms_not_a_measurement": 2680.526,
+          "predicted_per_second_not_a_measurement": 11.93795546098042,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 4611.657066001499
+        },
+        "new_chat_completions": {
+          "reply": "In front of the robot is a person at the center, very close. To the right is a potted plant, and to the left is another person and a tv.",
+          "raw_content": "In front of the robot is a person at the center, very close. To the right is a potted plant, and to the left is another person and a tv.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 94,
+          "completion_tokens": 35,
+          "prompt_ms_not_a_measurement": 1675.498,
+          "predicted_ms_not_a_measurement": 2909.875,
+          "predicted_per_second_not_a_measurement": 11.684350702349757,
+          "timing_label": "NOT A MEASUREMENT (agent resident)",
+          "wall_ms_not_a_measurement": 4611.278241005493
+        },
+        "m2q1_saved_replies": {
+          "X": "The robot is in front of person [0], who is very close and wearing clock [3]. To the right of the robot is a potted plant [1], and to the left is person [2].",
+          "Y": "The robot is observing the environment.\n\nWhat is in front of the robot?"
+        },
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      }
+    ],
+    "timing_label": "NOT A MEASUREMENT (agent resident)"
+  },
+  "vision_budgets": {
+    "70": {
+      "budget": 70,
+      "with_yolo": false,
+      "optional": false,
+      "crashes": 0,
+      "stopped_early": false,
+      "stop_reason": null,
+      "servers": [
+        {
+          "label": "vision_budget_70",
+          "budget": 70,
+          "command": [
+            "timeout",
+            "3600",
+            "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+            "-m",
+            "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+            "--mmproj",
+            "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8090",
+            "--ctx-size",
+            "4096",
+            "--threads",
+            "4",
+            "--threads-batch",
+            "4",
+            "--parallel",
+            "1",
+            "--swa-full",
+            "--cache-ram",
+            "0",
+            "--reasoning",
+            "off",
+            "-lv",
+            "4",
+            "--image-min-tokens",
+            "70",
+            "--image-max-tokens",
+            "70"
+          ],
+          "started_utc": "2026-10-18T01:09:09Z",
+          "ended_utc": "2026-10-18T01:13:19Z",
+          "startup_s_not_a_measurement": 6.687508182003512,
+          "server_pid": 26804,
+          "server_name": "llama-server",
+          "peak_vmhwm_kib_not_a_measurement": 4388856,
+          "exit_code": 0,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        }
+      ],
+      "calls": [
+        {
+          "frame_stem": "bench_photos__blocked_1",
+          "photo": "bench_photos/blocked_1.jpg",
+          "budget": 70,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a wooden table with a laptop, a blue object, and some other items like a glass and scissors.",
+          "raw_content": "In front of the robot, there is a wooden table with a laptop, a blue object, and some other items like a glass and scissors.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 96,
+          "completion_tokens": 30,
+          "image_tokens_logged": 63,
+          "image_tokens_batches": [
+            63
+          ],
+          "prompt_ms_not_a_measurement": 20816.627,
+          "predicted_ms_not_a_measurement": 2283.801,
+          "predicted_per_second_not_a_measurement": 12.698129127712967,
+          "wall_ms_not_a_measurement": 23251.44951499533,
+          "image_encode_ms_not_a_measurement": 19161.031,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__empty_2",
+          "photo": "bench_photos/empty_2.jpg",
+          "budget": 70,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a collection of items, including a white and blue patterned object, and a black object.",
+          "raw_content": "In front of the robot, there is a collection of items, including a white and blue patterned object, and a black object.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 96,
+          "completion_tokens": 27,
+          "image_tokens_logged": 63,
+          "image_tokens_batches": [
+            63
+          ],
+          "prompt_ms_not_a_measurement": 22404.361,
+          "predicted_ms_not_a_measurement": 2021.669,
+          "predicted_per_second_not_a_measurement": 12.860661166590575,
+          "wall_ms_not_a_measurement": 24472.77060199849,
+          "image_encode_ms_not_a_measurement": 20849.948,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__person_facing_150cm",
+          "photo": "bench_photos/person_facing_150cm.jpg",
+          "budget": 70,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a person sitting on a couch. The person is wearing a blue shirt and is looking towards the camera.",
+          "raw_content": "In front of the robot, there is a person sitting on a couch. The person is wearing a blue shirt and is looking towards the camera.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 96,
+          "completion_tokens": 30,
+          "image_tokens_logged": 63,
+          "image_tokens_batches": [
+            63
+          ],
+          "prompt_ms_not_a_measurement": 22647.297,
+          "predicted_ms_not_a_measurement": 2564.415,
+          "predicted_per_second_not_a_measurement": 11.30862204440389,
+          "wall_ms_not_a_measurement": 25261.70089900552,
+          "image_encode_ms_not_a_measurement": 21032.288,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__person_sideon_300cm",
+          "photo": "bench_photos/person_sideon_300cm.jpg",
+          "budget": 70,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a wooden floor and a person wearing a pink shirt and dark pants.",
+          "raw_content": "In front of the robot, there is a wooden floor and a person wearing a pink shirt and dark pants.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 96,
+          "completion_tokens": 23,
+          "image_tokens_logged": 63,
+          "image_tokens_batches": [
+            63
+          ],
+          "prompt_ms_not_a_measurement": 22670.801,
+          "predicted_ms_not_a_measurement": 1742.35,
+          "predicted_per_second_not_a_measurement": 12.626624960541797,
+          "wall_ms_not_a_measurement": 24486.607637001725,
+          "image_encode_ms_not_a_measurement": 21116.964,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__roomsig_couch_1",
+          "photo": "bench_photos/roomsig_couch_1.jpg",
+          "budget": 70,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot is a light-colored wooden floor.",
+          "raw_content": "In front of the robot is a light-colored wooden floor.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 96,
+          "completion_tokens": 14,
+          "image_tokens_logged": 63,
+          "image_tokens_batches": [
+            63
+          ],
+          "prompt_ms_not_a_measurement": 22579.184,
+          "predicted_ms_not_a_measurement": 1059.947,
+          "predicted_per_second_not_a_measurement": 12.264764181605308,
+          "wall_ms_not_a_measurement": 23704.89267099765,
+          "image_encode_ms_not_a_measurement": 20910.494,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__roomsig_refrigerator_1",
+          "photo": "bench_photos/roomsig_refrigerator_1.jpg",
+          "budget": 70,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a refrigerator with various items stored inside, including bottles and containers.",
+          "raw_content": "In front of the robot, there is a refrigerator with various items stored inside, including bottles and containers.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 96,
+          "completion_tokens": 22,
+          "image_tokens_logged": 63,
+          "image_tokens_batches": [
+            63
+          ],
+          "prompt_ms_not_a_measurement": 22616.93,
+          "predicted_ms_not_a_measurement": 1636.327,
+          "predicted_per_second_not_a_measurement": 12.833620663840419,
+          "wall_ms_not_a_measurement": 24320.60975299828,
+          "image_encode_ms_not_a_measurement": 21003.515,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__roomsig_toilet_1",
+          "photo": "bench_photos/roomsig_toilet_1.jpg",
+          "budget": 70,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a white washing machine.",
+          "raw_content": "In front of the robot, there is a white washing machine.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 96,
+          "completion_tokens": 14,
+          "image_tokens_logged": 63,
+          "image_tokens_batches": [
+            63
+          ],
+          "prompt_ms_not_a_measurement": 22572.785,
+          "predicted_ms_not_a_measurement": 1001.794,
+          "predicted_per_second_not_a_measurement": 12.976719764742054,
+          "wall_ms_not_a_measurement": 23634.92595500429,
+          "image_encode_ms_not_a_measurement": 21018.979,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__roomsig_toilet_2",
+          "photo": "bench_photos/roomsig_toilet_2.jpg",
+          "budget": 70,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a white toilet.",
+          "raw_content": "In front of the robot, there is a white toilet.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 96,
+          "completion_tokens": 13,
+          "image_tokens_logged": 63,
+          "image_tokens_batches": [
+            63
+          ],
+          "prompt_ms_not_a_measurement": 22610.472,
+          "predicted_ms_not_a_measurement": 921.909,
+          "predicted_per_second_not_a_measurement": 13.016469087512977,
+          "wall_ms_not_a_measurement": 23611.947643999883,
+          "image_encode_ms_not_a_measurement": 21065.819,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "test_photos__chiara_close_back",
+          "photo": "test_photos/chiara_close_back.jpg",
+          "budget": 70,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a wooden table with various items on it, including some colorful objects and a pink chair.",
+          "raw_content": "In front of the robot, there is a wooden table with various items on it, including some colorful objects and a pink chair.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 96,
+          "completion_tokens": 27,
+          "image_tokens_logged": 63,
+          "image_tokens_batches": [
+            63
+          ],
+          "prompt_ms_not_a_measurement": 22538.668,
+          "predicted_ms_not_a_measurement": 2025.137,
+          "predicted_per_second_not_a_measurement": 12.838637583531385,
+          "wall_ms_not_a_measurement": 24653.505870999652,
+          "image_encode_ms_not_a_measurement": 20934.178,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "test_photos__abdel_close_right",
+          "photo": "test_photos/abdel_close_right.jpg",
+          "budget": 70,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a person wearing a dark red or maroon shirt.",
+          "raw_content": "In front of the robot, there is a person wearing a dark red or maroon shirt.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 96,
+          "completion_tokens": 19,
+          "image_tokens_logged": 63,
+          "image_tokens_batches": [
+            63
+          ],
+          "prompt_ms_not_a_measurement": 23042.274,
+          "predicted_ms_not_a_measurement": 1402.716,
+          "predicted_per_second_not_a_measurement": 12.832248295449684,
+          "wall_ms_not_a_measurement": 24529.29009199579,
+          "image_encode_ms_not_a_measurement": 21488.756,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        }
+      ],
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    },
+    "140": {
+      "budget": 140,
+      "with_yolo": false,
+      "optional": false,
+      "crashes": 0,
+      "stopped_early": false,
+      "stop_reason": null,
+      "servers": [
+        {
+          "label": "vision_budget_140",
+          "budget": 140,
+          "command": [
+            "timeout",
+            "3600",
+            "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+            "-m",
+            "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+            "--mmproj",
+            "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8090",
+            "--ctx-size",
+            "4096",
+            "--threads",
+            "4",
+            "--threads-batch",
+            "4",
+            "--parallel",
+            "1",
+            "--swa-full",
+            "--cache-ram",
+            "0",
+            "--reasoning",
+            "off",
+            "-lv",
+            "4",
+            "--image-min-tokens",
+            "140",
+            "--image-max-tokens",
+            "140"
+          ],
+          "started_utc": "2026-10-18T01:13:19Z",
+          "ended_utc": "2026-10-18T01:23:04Z",
+          "startup_s_not_a_measurement": 8.760566206998192,
+          "server_pid": 27124,
+          "server_name": "llama-server",
+          "peak_vmhwm_kib_not_a_measurement": 4506632,
+          "exit_code": 1,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        }
+      ],
+      "calls": [
+        {
+          "frame_stem": "bench_photos__blocked_1",
+          "photo": "bench_photos/blocked_1.jpg",
+          "budget": 140,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a wooden table with various items, including a laptop, a blue and black keyboard, a glass of water, and some scissors.",
+          "raw_content": "In front of the robot, there is a wooden table with various items, including a laptop, a blue and black keyboard, a glass of water, and some scissors.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 187,
+          "completion_tokens": 35,
+          "image_tokens_logged": 154,
+          "image_tokens_batches": [
+            154
+          ],
+          "prompt_ms_not_a_measurement": 55092.497,
+          "predicted_ms_not_a_measurement": 2766.768,
+          "predicted_per_second_not_a_measurement": 12.288706534122122,
+          "wall_ms_not_a_measurement": 58008.67536199803,
+          "image_encode_ms_not_a_measurement": 51664.946,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__empty_2",
+          "photo": "bench_photos/empty_2.jpg",
+          "budget": 140,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a collection of items, including a white and black object that looks like a piece of equipment or a bag, and a pile of dark clothing.",
+          "raw_content": "In front of the robot, there is a collection of items, including a white and black object that looks like a piece of equipment or a bag, and a pile of dark clothing.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 187,
+          "completion_tokens": 38,
+          "image_tokens_logged": 154,
+          "image_tokens_batches": [
+            154
+          ],
+          "prompt_ms_not_a_measurement": 56852.858,
+          "predicted_ms_not_a_measurement": 2934.907,
+          "predicted_per_second_not_a_measurement": 12.606873062758035,
+          "wall_ms_not_a_measurement": 59879.5017789962,
+          "image_encode_ms_not_a_measurement": 53541.283,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__person_facing_150cm",
+          "photo": "bench_photos/person_facing_150cm.jpg",
+          "budget": 140,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a person sitting on a couch. The person is wearing a blue shirt and has dark hair.",
+          "raw_content": "In front of the robot, there is a person sitting on a couch. The person is wearing a blue shirt and has dark hair.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 187,
+          "completion_tokens": 28,
+          "image_tokens_logged": 154,
+          "image_tokens_batches": [
+            154
+          ],
+          "prompt_ms_not_a_measurement": 57089.54,
+          "predicted_ms_not_a_measurement": 2200.793,
+          "predicted_per_second_not_a_measurement": 12.268305106386652,
+          "wall_ms_not_a_measurement": 59390.34784800606,
+          "image_encode_ms_not_a_measurement": 53802.839,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__person_sideon_300cm",
+          "photo": "bench_photos/person_sideon_300cm.jpg",
+          "budget": 140,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a light-colored wooden floor, a grey sofa, and a potted plant.",
+          "raw_content": "In front of the robot, there is a light-colored wooden floor, a grey sofa, and a potted plant.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 187,
+          "completion_tokens": 25,
+          "image_tokens_logged": 154,
+          "image_tokens_batches": [
+            154
+          ],
+          "prompt_ms_not_a_measurement": 56160.491,
+          "predicted_ms_not_a_measurement": 1896.979,
+          "predicted_per_second_not_a_measurement": 12.651695142645227,
+          "wall_ms_not_a_measurement": 58131.74823799636,
+          "image_encode_ms_not_a_measurement": 52966.954,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__roomsig_couch_1",
+          "photo": "bench_photos/roomsig_couch_1.jpg",
+          "budget": 140,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot is a light-colored wooden surface, likely a table or floor.",
+          "raw_content": "In front of the robot is a light-colored wooden surface, likely a table or floor.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 187,
+          "completion_tokens": 20,
+          "image_tokens_logged": 154,
+          "image_tokens_batches": [
+            154
+          ],
+          "prompt_ms_not_a_measurement": 54663.461,
+          "predicted_ms_not_a_measurement": 1442.495,
+          "predicted_per_second_not_a_measurement": 13.171622778588489,
+          "wall_ms_not_a_measurement": 56179.12986900046,
+          "image_encode_ms_not_a_measurement": 51547.297,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__roomsig_refrigerator_1",
+          "photo": "bench_photos/roomsig_refrigerator_1.jpg",
+          "budget": 140,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a refrigerator filled with various food items, including bottles, jars, and produce. The refrigerator has a white exterior and a bottom vent.",
+          "raw_content": "In front of the robot, there is a refrigerator filled with various food items, including bottles, jars, and produce. The refrigerator has a white exterior and a bottom vent.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 187,
+          "completion_tokens": 36,
+          "image_tokens_logged": 154,
+          "image_tokens_batches": [
+            154
+          ],
+          "prompt_ms_not_a_measurement": 54189.752,
+          "predicted_ms_not_a_measurement": 2720.191,
+          "predicted_per_second_not_a_measurement": 12.866743548522882,
+          "wall_ms_not_a_measurement": 56992.90456900053,
+          "image_encode_ms_not_a_measurement": 51071.401,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__roomsig_toilet_1",
+          "photo": "bench_photos/roomsig_toilet_1.jpg",
+          "budget": 140,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a white washing machine and a tiled floor.",
+          "raw_content": "In front of the robot, there is a white washing machine and a tiled floor.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 187,
+          "completion_tokens": 18,
+          "image_tokens_logged": 154,
+          "image_tokens_batches": [
+            154
+          ],
+          "prompt_ms_not_a_measurement": 54943.4,
+          "predicted_ms_not_a_measurement": 1306.979,
+          "predicted_per_second_not_a_measurement": 13.007094987754202,
+          "wall_ms_not_a_measurement": 56300.95327399613,
+          "image_encode_ms_not_a_measurement": 51826.368,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__roomsig_toilet_2",
+          "photo": "bench_photos/roomsig_toilet_2.jpg",
+          "budget": 140,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a white toilet and a tiled floor.",
+          "raw_content": "In front of the robot, there is a white toilet and a tiled floor.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 187,
+          "completion_tokens": 17,
+          "image_tokens_logged": 154,
+          "image_tokens_batches": [
+            154
+          ],
+          "prompt_ms_not_a_measurement": 54201.003,
+          "predicted_ms_not_a_measurement": 1221.301,
+          "predicted_per_second_not_a_measurement": 13.10078350873372,
+          "wall_ms_not_a_measurement": 55493.15578900132,
+          "image_encode_ms_not_a_measurement": 51080.415,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "test_photos__chiara_close_back",
+          "photo": "test_photos/chiara_close_back.jpg",
+          "budget": 140,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot is a wooden table with various items on it, including some papers, a water bottle, and a small white object.",
+          "raw_content": "In front of the robot is a wooden table with various items on it, including some papers, a water bottle, and a small white object.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 187,
+          "completion_tokens": 30,
+          "image_tokens_logged": 154,
+          "image_tokens_batches": [
+            154
+          ],
+          "prompt_ms_not_a_measurement": 55293.584,
+          "predicted_ms_not_a_measurement": 2202.25,
+          "predicted_per_second_not_a_measurement": 13.168350550573278,
+          "wall_ms_not_a_measurement": 57584.832669002935,
+          "image_encode_ms_not_a_measurement": 52178.064,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "test_photos__abdel_close_right",
+          "photo": "test_photos/abdel_close_right.jpg",
+          "budget": 140,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a person wearing a maroon shirt. They are standing in what appears to be an indoor setting with a television and some furniture visible in the background.",
+          "raw_content": "In front of the robot, there is a person wearing a maroon shirt. They are standing in what appears to be an indoor setting with a television and some furniture visible in the background.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 187,
+          "completion_tokens": 38,
+          "image_tokens_logged": 154,
+          "image_tokens_batches": [
+            154
+          ],
+          "prompt_ms_not_a_measurement": 54654.92,
+          "predicted_ms_not_a_measurement": 2907.168,
+          "predicted_per_second_not_a_measurement": 12.727162654514634,
+          "wall_ms_not_a_measurement": 57601.1157920002,
+          "image_encode_ms_not_a_measurement": 51533.294,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        }
+      ],
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    },
+    "280": {
+      "budget": 280,
+      "with_yolo": false,
+      "optional": false,
+      "crashes": 0,
+      "stopped_early": false,
+      "stop_reason": null,
+      "servers": [
+        {
+          "label": "vision_budget_280",
+          "budget": 280,
+          "command": [
+            "timeout",
+            "3600",
+            "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+            "-m",
+            "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+            "--mmproj",
+            "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8090",
+            "--ctx-size",
+            "4096",
+            "--threads",
+            "4",
+            "--threads-batch",
+            "4",
+            "--parallel",
+            "1",
+            "--swa-full",
+            "--cache-ram",
+            "0",
+            "--reasoning",
+            "off",
+            "-lv",
+            "4",
+            "--image-min-tokens",
+            "280",
+            "--image-max-tokens",
+            "280"
+          ],
+          "started_utc": "2026-10-18T01:23:04Z",
+          "ended_utc": "2026-10-18T01:42:14Z",
+          "startup_s_not_a_measurement": 8.748371179004607,
+          "server_pid": 27692,
+          "server_name": "llama-server",
+          "peak_vmhwm_kib_not_a_measurement": 4396432,
+          "exit_code": -6,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        }
+      ],
+      "calls": [
+        {
+          "frame_stem": "bench_photos__blocked_1",
+          "photo": "bench_photos/blocked_1.jpg",
+          "budget": 280,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a wooden table with a laptop, various cables, a blue and black keyboard, a mouse, a glass of water, and some kitchen items like a knife and a cutting board.",
+          "raw_content": "In front of the robot, there is a wooden table with a laptop, various cables, a blue and black keyboard, a mouse, a glass of water, and some kitchen items like a knife and a cutting board.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 333,
+          "completion_tokens": 45,
+          "image_tokens_logged": 300,
+          "image_tokens_batches": [
+            300
+          ],
+          "prompt_ms_not_a_measurement": 106493.169,
+          "predicted_ms_not_a_measurement": 3662.089,
+          "predicted_per_second_not_a_measurement": 12.015000181590343,
+          "wall_ms_not_a_measurement": 110470.70623000036,
+          "image_encode_ms_not_a_measurement": 100713.89,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__empty_2",
+          "photo": "bench_photos/empty_2.jpg",
+          "budget": 280,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a light-colored rug on the floor and a stack of folded clothes.",
+          "raw_content": "In front of the robot, there is a light-colored rug on the floor and a stack of folded clothes.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 333,
+          "completion_tokens": 24,
+          "image_tokens_logged": 300,
+          "image_tokens_batches": [
+            300
+          ],
+          "prompt_ms_not_a_measurement": 108030.076,
+          "predicted_ms_not_a_measurement": 1849.753,
+          "predicted_per_second_not_a_measurement": 12.434092551816377,
+          "wall_ms_not_a_measurement": 109945.16578400362,
+          "image_encode_ms_not_a_measurement": 102453.551,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__person_facing_150cm",
+          "photo": "bench_photos/person_facing_150cm.jpg",
+          "budget": 280,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a dark-colored laptop resting on a light-colored surface.",
+          "raw_content": "In front of the robot, there is a dark-colored laptop resting on a light-colored surface.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 333,
+          "completion_tokens": 22,
+          "image_tokens_logged": 300,
+          "image_tokens_batches": [
+            300
+          ],
+          "prompt_ms_not_a_measurement": 107248.949,
+          "predicted_ms_not_a_measurement": 1692.372,
+          "predicted_per_second_not_a_measurement": 12.40861938155441,
+          "wall_ms_not_a_measurement": 109027.59217499988,
+          "image_encode_ms_not_a_measurement": 101700.699,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__person_sideon_300cm",
+          "photo": "bench_photos/person_sideon_300cm.jpg",
+          "budget": 280,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a living room with a light-colored wall, a doorway, a wooden cabinet, and a sofa.",
+          "raw_content": "In front of the robot, there is a living room with a light-colored wall, a doorway, a wooden cabinet, and a sofa.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 333,
+          "completion_tokens": 30,
+          "image_tokens_logged": 300,
+          "image_tokens_batches": [
+            300
+          ],
+          "prompt_ms_not_a_measurement": 109082.201,
+          "predicted_ms_not_a_measurement": 2370.005,
+          "predicted_per_second_not_a_measurement": 12.236261104934377,
+          "wall_ms_not_a_measurement": 111548.87033400155,
+          "image_encode_ms_not_a_measurement": 103448.962,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__roomsig_couch_1",
+          "photo": "bench_photos/roomsig_couch_1.jpg",
+          "budget": 280,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot is a light-colored wooden floor. There is also a gray, upholstered object, possibly a sofa or a large cushion, positioned in the foreground.",
+          "raw_content": "In front of the robot is a light-colored wooden floor. There is also a gray, upholstered object, possibly a sofa or a large cushion, positioned in the foreground.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 333,
+          "completion_tokens": 36,
+          "image_tokens_logged": 300,
+          "image_tokens_batches": [
+            300
+          ],
+          "prompt_ms_not_a_measurement": 108201.55,
+          "predicted_ms_not_a_measurement": 2822.575,
+          "predicted_per_second_not_a_measurement": 12.400024800049602,
+          "wall_ms_not_a_measurement": 111105.0662169946,
+          "image_encode_ms_not_a_measurement": 102654.592,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__roomsig_refrigerator_1",
+          "photo": "bench_photos/roomsig_refrigerator_1.jpg",
+          "budget": 280,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot is an open refrigerator with various items stored on shelves and in the door.",
+          "raw_content": "In front of the robot is an open refrigerator with various items stored on shelves and in the door.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 333,
+          "completion_tokens": 21,
+          "image_tokens_logged": 300,
+          "image_tokens_batches": [
+            300
+          ],
+          "prompt_ms_not_a_measurement": 116863.847,
+          "predicted_ms_not_a_measurement": 1712.824,
+          "predicted_per_second_not_a_measurement": 11.676622933821573,
+          "wall_ms_not_a_measurement": 118695.76832800522,
+          "image_encode_ms_not_a_measurement": 110582.274,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__roomsig_toilet_1",
+          "photo": "bench_photos/roomsig_toilet_1.jpg",
+          "budget": 280,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a white washing machine and a white toilet. The floor is tiled in a light brown color.",
+          "raw_content": "In front of the robot, there is a white washing machine and a white toilet. The floor is tiled in a light brown color.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 333,
+          "completion_tokens": 28,
+          "image_tokens_logged": 300,
+          "image_tokens_batches": [
+            300
+          ],
+          "prompt_ms_not_a_measurement": 123878.219,
+          "predicted_ms_not_a_measurement": 2274.899,
+          "predicted_per_second_not_a_measurement": 11.868658784411968,
+          "wall_ms_not_a_measurement": 126274.364075005,
+          "image_encode_ms_not_a_measurement": 118305.762,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "bench_photos__roomsig_toilet_2",
+          "photo": "bench_photos/roomsig_toilet_2.jpg",
+          "budget": 280,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a white washing machine and a white toilet.",
+          "raw_content": "In front of the robot, there is a white washing machine and a white toilet.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 333,
+          "completion_tokens": 18,
+          "image_tokens_logged": 300,
+          "image_tokens_batches": [
+            300
+          ],
+          "prompt_ms_not_a_measurement": 112799.148,
+          "predicted_ms_not_a_measurement": 1366.856,
+          "predicted_per_second_not_a_measurement": 12.437301368981078,
+          "wall_ms_not_a_measurement": 114266.27829499921,
+          "image_encode_ms_not_a_measurement": 106935.304,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "test_photos__chiara_close_back",
+          "photo": "test_photos/chiara_close_back.jpg",
+          "budget": 280,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the robot, there is a wooden table with various items on it, including some plates, a blue object, and a black remote control.",
+          "raw_content": "In front of the robot, there is a wooden table with various items on it, including some plates, a blue object, and a black remote control.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 333,
+          "completion_tokens": 32,
+          "image_tokens_logged": 300,
+          "image_tokens_batches": [
+            300
+          ],
+          "prompt_ms_not_a_measurement": 111629.062,
+          "predicted_ms_not_a_measurement": 2650.442,
+          "predicted_per_second_not_a_measurement": 11.696162375935787,
+          "wall_ms_not_a_measurement": 114379.86231999821,
+          "image_encode_ms_not_a_measurement": 105983.55,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        },
+        {
+          "frame_stem": "test_photos__abdel_close_right",
+          "photo": "test_photos/abdel_close_right.jpg",
+          "budget": 280,
+          "with_yolo": false,
+          "status": "ok",
+          "crashed": false,
+          "reply": "In front of the person, there is a large, modern light fixture with a woven, cage-like design.",
+          "raw_content": "In front of the person, there is a large, modern light fixture with a woven, cage-like design.",
+          "reasoning_content": null,
+          "finish_reason": "stop",
+          "prompt_tokens": 333,
+          "completion_tokens": 24,
+          "image_tokens_logged": 300,
+          "image_tokens_batches": [
+            300
+          ],
+          "prompt_ms_not_a_measurement": 112292.813,
+          "predicted_ms_not_a_measurement": 1907.488,
+          "predicted_per_second_not_a_measurement": 12.057742958278112,
+          "wall_ms_not_a_measurement": 114306.36622699967,
+          "image_encode_ms_not_a_measurement": 106458.878,
+          "timing_label": "NOT A MEASUREMENT (agent resident)"
+        }
+      ],
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    }
+  },
+  "optional_140_yolo": {
+    "budget": 140,
+    "with_yolo": true,
+    "optional": true,
+    "crashes": 0,
+    "stopped_early": false,
+    "stop_reason": null,
+    "servers": [
+      {
+        "label": "vision_budget_140_yolo",
+        "budget": 140,
+        "command": [
+          "timeout",
+          "3600",
+          "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+          "-m",
+          "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+          "--mmproj",
+          "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8090",
+          "--ctx-size",
+          "4096",
+          "--threads",
+          "4",
+          "--threads-batch",
+          "4",
+          "--parallel",
+          "1",
+          "--swa-full",
+          "--cache-ram",
+          "0",
+          "--reasoning",
+          "off",
+          "-lv",
+          "4",
+          "--image-min-tokens",
+          "140",
+          "--image-max-tokens",
+          "140"
+        ],
+        "started_utc": "2026-10-18T01:42:14Z",
+        "ended_utc": "2026-10-18T01:52:25Z",
+        "startup_s_not_a_measurement": 9.229333092996967,
+        "server_pid": 28571,
+        "server_name": "llama-server",
+        "peak_vmhwm_kib_not_a_measurement": 4354224,
+        "exit_code": -6,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      }
+    ],
+    "calls": [
+      {
+        "frame_stem": "bench_photos__blocked_1",
+        "photo": "bench_photos/blocked_1.jpg",
+        "budget": 140,
+        "with_yolo": true,
+        "status": "ok",
+        "crashed": false,
+        "reply": "In front of the robot is a wooden dining table with a laptop, various cups, a vase, and some potted plants. There are also chairs and a couch visible around the table.",
+        "raw_content": "In front of the robot is a wooden dining table with a laptop, various cups, a vase, and some potted plants. There are also chairs and a couch visible around the table.",
+        "reasoning_content": null,
+        "finish_reason": "stop",
+        "prompt_tokens": 359,
+        "completion_tokens": 38,
+        "image_tokens_logged": 154,
+        "image_tokens_batches": [
+          154
+        ],
+        "prompt_ms_not_a_measurement": 59237.139,
+        "predicted_ms_not_a_measurement": 3103.026,
+        "predicted_per_second_not_a_measurement": 11.923844660018963,
+        "wall_ms_not_a_measurement": 62483.505970994884,
+        "image_encode_ms_not_a_measurement": 52647.355,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__empty_2",
+        "photo": "bench_photos/empty_2.jpg",
+        "budget": 140,
+        "with_yolo": true,
+        "status": "ok",
+        "crashed": false,
+        "reply": "In front of the robot, there is a white suitcase and a pile of dark clothing.",
+        "raw_content": "In front of the robot, there is a white suitcase and a pile of dark clothing.",
+        "reasoning_content": null,
+        "finish_reason": "stop",
+        "prompt_tokens": 211,
+        "completion_tokens": 19,
+        "image_tokens_logged": 154,
+        "image_tokens_batches": [
+          154
+        ],
+        "prompt_ms_not_a_measurement": 58554.401,
+        "predicted_ms_not_a_measurement": 1425.959,
+        "predicted_per_second_not_a_measurement": 12.623083833406149,
+        "wall_ms_not_a_measurement": 60070.13967799867,
+        "image_encode_ms_not_a_measurement": 54827.693,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__person_facing_150cm",
+        "photo": "bench_photos/person_facing_150cm.jpg",
+        "budget": 140,
+        "with_yolo": true,
+        "status": "ok",
+        "crashed": false,
+        "reply": "In front of the robot is a person sitting on a couch, and to the right of the person is a laptop.",
+        "raw_content": "In front of the robot is a person sitting on a couch, and to the right of the person is a laptop.",
+        "reasoning_content": null,
+        "finish_reason": "stop",
+        "prompt_tokens": 240,
+        "completion_tokens": 25,
+        "image_tokens_logged": 154,
+        "image_tokens_batches": [
+          154
+        ],
+        "prompt_ms_not_a_measurement": 57150.385,
+        "predicted_ms_not_a_measurement": 1985.85,
+        "predicted_per_second_not_a_measurement": 12.085504947503589,
+        "wall_ms_not_a_measurement": 59207.710070993926,
+        "image_encode_ms_not_a_measurement": 53153.594,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__person_sideon_300cm",
+        "photo": "bench_photos/person_sideon_300cm.jpg",
+        "budget": 140,
+        "with_yolo": true,
+        "status": "ok",
+        "crashed": false,
+        "reply": "In front of the robot, there is a person standing, a couch on the right, and several potted plants.",
+        "raw_content": "In front of the robot, there is a person standing, a couch on the right, and several potted plants.",
+        "reasoning_content": null,
+        "finish_reason": "stop",
+        "prompt_tokens": 241,
+        "completion_tokens": 24,
+        "image_tokens_logged": 154,
+        "image_tokens_batches": [
+          154
+        ],
+        "prompt_ms_not_a_measurement": 57914.252,
+        "predicted_ms_not_a_measurement": 1856.882,
+        "predicted_per_second_not_a_measurement": 12.386355191121462,
+        "wall_ms_not_a_measurement": 59865.23814799875,
+        "image_encode_ms_not_a_measurement": 53680.286,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__roomsig_couch_1",
+        "photo": "bench_photos/roomsig_couch_1.jpg",
+        "budget": 140,
+        "with_yolo": true,
+        "status": "ok",
+        "crashed": false,
+        "reply": "In front of the robot is a light-colored wooden floor. A gray couch is positioned very close to the robot.",
+        "raw_content": "In front of the robot is a light-colored wooden floor. A gray couch is positioned very close to the robot.",
+        "reasoning_content": null,
+        "finish_reason": "stop",
+        "prompt_tokens": 232,
+        "completion_tokens": 25,
+        "image_tokens_logged": 154,
+        "image_tokens_batches": [
+          154
+        ],
+        "prompt_ms_not_a_measurement": 57893.904,
+        "predicted_ms_not_a_measurement": 2047.738,
+        "predicted_per_second_not_a_measurement": 11.720249367839049,
+        "wall_ms_not_a_measurement": 60010.84378000087,
+        "image_encode_ms_not_a_measurement": 53690.414,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__roomsig_refrigerator_1",
+        "photo": "bench_photos/roomsig_refrigerator_1.jpg",
+        "budget": 140,
+        "with_yolo": true,
+        "status": "ok",
+        "crashed": false,
+        "reply": "In front of the robot is a refrigerator with various items stored inside, including several bottles and a bowl.",
+        "raw_content": "In front of the robot is a refrigerator with various items stored inside, including several bottles and a bowl.",
+        "reasoning_content": null,
+        "finish_reason": "stop",
+        "prompt_tokens": 248,
+        "completion_tokens": 22,
+        "image_tokens_logged": 154,
+        "image_tokens_batches": [
+          154
+        ],
+        "prompt_ms_not_a_measurement": 58327.089,
+        "predicted_ms_not_a_measurement": 1686.319,
+        "predicted_per_second_not_a_measurement": 12.45315981139986,
+        "wall_ms_not_a_measurement": 60055.64195699844,
+        "image_encode_ms_not_a_measurement": 53864.539,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__roomsig_toilet_1",
+        "photo": "bench_photos/roomsig_toilet_1.jpg",
+        "budget": 140,
+        "with_yolo": true,
+        "status": "ok",
+        "crashed": false,
+        "reply": "In front of the robot, there is a white washing machine, a toilet, and a sink.",
+        "raw_content": "In front of the robot, there is a white washing machine, a toilet, and a sink.",
+        "reasoning_content": null,
+        "finish_reason": "stop",
+        "prompt_tokens": 220,
+        "completion_tokens": 21,
+        "image_tokens_logged": 154,
+        "image_tokens_batches": [
+          154
+        ],
+        "prompt_ms_not_a_measurement": 57738.47,
+        "predicted_ms_not_a_measurement": 1677.343,
+        "predicted_per_second_not_a_measurement": 11.923619677072608,
+        "wall_ms_not_a_measurement": 59505.1342250008,
+        "image_encode_ms_not_a_measurement": 53856.693,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "bench_photos__roomsig_toilet_2",
+        "photo": "bench_photos/roomsig_toilet_2.jpg",
+        "budget": 140,
+        "with_yolo": true,
+        "status": "ok",
+        "crashed": false,
+        "reply": "In front of the robot, there is a white sink on the right and a bottle on the far left.",
+        "raw_content": "In front of the robot, there is a white sink on the right and a bottle on the far left.",
+        "reasoning_content": null,
+        "finish_reason": "stop",
+        "prompt_tokens": 230,
+        "completion_tokens": 23,
+        "image_tokens_logged": 154,
+        "image_tokens_batches": [
+          154
+        ],
+        "prompt_ms_not_a_measurement": 57036.126,
+        "predicted_ms_not_a_measurement": 1739.361,
+        "predicted_per_second_not_a_measurement": 12.64832314855858,
+        "wall_ms_not_a_measurement": 58872.48509500205,
+        "image_encode_ms_not_a_measurement": 53123.805,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "test_photos__chiara_close_back",
+        "photo": "test_photos/chiara_close_back.jpg",
+        "budget": 140,
+        "with_yolo": true,
+        "status": "ok",
+        "crashed": false,
+        "reply": "In front of the robot is a wooden dining table with various items on it, including a bottle, cell phones, a potted plant, and a remote. A person is seated in a black chair to the left of the table.",
+        "raw_content": "In front of the robot is a wooden dining table with various items on it, including a bottle, cell phones, a potted plant, and a remote. A person is seated in a black chair to the left of the table.",
+        "reasoning_content": null,
+        "finish_reason": "stop",
+        "prompt_tokens": 270,
+        "completion_tokens": 47,
+        "image_tokens_logged": 154,
+        "image_tokens_batches": [
+          154
+        ],
+        "prompt_ms_not_a_measurement": 57715.032,
+        "predicted_ms_not_a_measurement": 3943.201,
+        "predicted_per_second_not_a_measurement": 11.665649303700217,
+        "wall_ms_not_a_measurement": 61762.59027999913,
+        "image_encode_ms_not_a_measurement": 52884.28,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      },
+      {
+        "frame_stem": "test_photos__abdel_close_right",
+        "photo": "test_photos/abdel_close_right.jpg",
+        "budget": 140,
+        "with_yolo": true,
+        "status": "ok",
+        "crashed": false,
+        "reply": "In front of the robot, there is a person wearing a maroon shirt, a potted plant on the right, and a television on the left.",
+        "raw_content": "In front of the robot, there is a person wearing a maroon shirt, a potted plant on the right, and a television on the left.",
+        "reasoning_content": null,
+        "finish_reason": "stop",
+        "prompt_tokens": 240,
+        "completion_tokens": 30,
+        "image_tokens_logged": 154,
+        "image_tokens_batches": [
+          154
+        ],
+        "prompt_ms_not_a_measurement": 56720.382,
+        "predicted_ms_not_a_measurement": 2333.204,
+        "predicted_per_second_not_a_measurement": 12.429260364717358,
+        "wall_ms_not_a_measurement": 59120.56614999892,
+        "image_encode_ms_not_a_measurement": 52711.701,
+        "timing_label": "NOT A MEASUREMENT (agent resident)"
+      }
+    ],
+    "timing_label": "NOT A MEASUREMENT (agent resident)"
+  },
+  "peak_vmhwm_kib_not_a_measurement": 4506632,
+  "servers": [
+    {
+      "label": "step_a_template_check",
+      "budget": 70,
+      "command": [
+        "timeout",
+        "3600",
+        "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+        "-m",
+        "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+        "--mmproj",
+        "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8090",
+        "--ctx-size",
+        "4096",
+        "--threads",
+        "4",
+        "--threads-batch",
+        "4",
+        "--parallel",
+        "1",
+        "--swa-full",
+        "--cache-ram",
+        "0",
+        "--reasoning",
+        "off",
+        "-lv",
+        "4",
+        "--image-min-tokens",
+        "70",
+        "--image-max-tokens",
+        "70"
+      ],
+      "started_utc": "2026-10-18T01:07:05Z",
+      "ended_utc": "2026-10-18T01:09:09Z",
+      "startup_s_not_a_measurement": 6.649450240001897,
+      "server_pid": 26715,
+      "server_name": "llama-server",
+      "peak_vmhwm_kib_not_a_measurement": 4332272,
+      "exit_code": 1,
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    },
+    {
+      "label": "vision_budget_70",
+      "budget": 70,
+      "command": [
+        "timeout",
+        "3600",
+        "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+        "-m",
+        "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+        "--mmproj",
+        "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8090",
+        "--ctx-size",
+        "4096",
+        "--threads",
+        "4",
+        "--threads-batch",
+        "4",
+        "--parallel",
+        "1",
+        "--swa-full",
+        "--cache-ram",
+        "0",
+        "--reasoning",
+        "off",
+        "-lv",
+        "4",
+        "--image-min-tokens",
+        "70",
+        "--image-max-tokens",
+        "70"
+      ],
+      "started_utc": "2026-10-18T01:09:09Z",
+      "ended_utc": "2026-10-18T01:13:19Z",
+      "startup_s_not_a_measurement": 6.687508182003512,
+      "server_pid": 26804,
+      "server_name": "llama-server",
+      "peak_vmhwm_kib_not_a_measurement": 4388856,
+      "exit_code": 0,
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    },
+    {
+      "label": "vision_budget_140",
+      "budget": 140,
+      "command": [
+        "timeout",
+        "3600",
+        "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+        "-m",
+        "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+        "--mmproj",
+        "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8090",
+        "--ctx-size",
+        "4096",
+        "--threads",
+        "4",
+        "--threads-batch",
+        "4",
+        "--parallel",
+        "1",
+        "--swa-full",
+        "--cache-ram",
+        "0",
+        "--reasoning",
+        "off",
+        "-lv",
+        "4",
+        "--image-min-tokens",
+        "140",
+        "--image-max-tokens",
+        "140"
+      ],
+      "started_utc": "2026-10-18T01:13:19Z",
+      "ended_utc": "2026-10-18T01:23:04Z",
+      "startup_s_not_a_measurement": 8.760566206998192,
+      "server_pid": 27124,
+      "server_name": "llama-server",
+      "peak_vmhwm_kib_not_a_measurement": 4506632,
+      "exit_code": 1,
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    },
+    {
+      "label": "vision_budget_280",
+      "budget": 280,
+      "command": [
+        "timeout",
+        "3600",
+        "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+        "-m",
+        "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+        "--mmproj",
+        "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8090",
+        "--ctx-size",
+        "4096",
+        "--threads",
+        "4",
+        "--threads-batch",
+        "4",
+        "--parallel",
+        "1",
+        "--swa-full",
+        "--cache-ram",
+        "0",
+        "--reasoning",
+        "off",
+        "-lv",
+        "4",
+        "--image-min-tokens",
+        "280",
+        "--image-max-tokens",
+        "280"
+      ],
+      "started_utc": "2026-10-18T01:23:04Z",
+      "ended_utc": "2026-10-18T01:42:14Z",
+      "startup_s_not_a_measurement": 8.748371179004607,
+      "server_pid": 27692,
+      "server_name": "llama-server",
+      "peak_vmhwm_kib_not_a_measurement": 4396432,
+      "exit_code": -6,
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    },
+    {
+      "label": "vision_budget_140_yolo",
+      "budget": 140,
+      "command": [
+        "timeout",
+        "3600",
+        "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+        "-m",
+        "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+        "--mmproj",
+        "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-BF16.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8090",
+        "--ctx-size",
+        "4096",
+        "--threads",
+        "4",
+        "--threads-batch",
+        "4",
+        "--parallel",
+        "1",
+        "--swa-full",
+        "--cache-ram",
+        "0",
+        "--reasoning",
+        "off",
+        "-lv",
+        "4",
+        "--image-min-tokens",
+        "140",
+        "--image-max-tokens",
+        "140"
+      ],
+      "started_utc": "2026-10-18T01:42:14Z",
+      "ended_utc": "2026-10-18T01:52:25Z",
+      "startup_s_not_a_measurement": 9.229333092996967,
+      "server_pid": 28571,
+      "server_name": "llama-server",
+      "peak_vmhwm_kib_not_a_measurement": 4354224,
+      "exit_code": -6,
+      "timing_label": "NOT A MEASUREMENT (agent resident)"
+    }
+  ]
+}
