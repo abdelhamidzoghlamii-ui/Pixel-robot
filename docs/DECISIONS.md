@@ -1768,3 +1768,123 @@ Format: `NN. [area] decision — why`
      and `~/models/gemma4-*-lora.gguf` (no matches for either glob). Present:
      `~/models/gemma-4-e4b-it-q4_k_m.gguf` (5,335,285,440 B), `~/models/gemma-4-E4B-it-Q4_0.gguf`
      (4,836,002,944 B), `~/models/mtp/mtp-gemma-4-E4B-it-Q8_0.gguf` (98,653,248 B).
+
+142. **VIS-3C: original b1609 dotprod reproduces the Oct 14 E2B Q4_0 chat rates (13.35 / 18.55 tok/s) with 5 s telemetry.**
+     Owner-run 2026-10-23, native Termux, Pixel 7, `~/llama.cpp-b1609-dotprod`, same Gemma 4 E2B Q4_0 model and
+     MTP drafter as #137. Oct 14 13-prompt workload, ctx 4096, temperature 0.7, n_predict 512, 4 threads on
+     cores 4–7; 5 s root telemetry; one independent launch per config; no coding agent during timed inference.
+     OFF (`~/robot_runs/chat_mtp_repro/20261023T124846Z_OFF`): 13/13, 13.35 tok/s token-weighted, 686 gen
+     tokens, median prompt 0.36 s, load 5.4 s, start skin 25.11 °C, Android status 0, battery 95 %, X1 cap
+     2850 MHz — VALID. ON (`~/robot_runs/chat_mtp_repro/20261023T132032Z_ON`): 13/13, 18.55 tok/s, 674 gen
+     tokens, draft acceptance 38.2 %, prompt 0.34 s, load 7.3 s, skin 25.51 °C, status 0, battery 92 %, X1 cap
+     2850 MHz — VALID. ON/OFF 1.390 (+39.0 %), independently re-computed from prompts.jsonl; the paired report
+     labels "configuration: SAME, conditions: MATCHED" are owner-reported runner output (report not saved; not
+     regenerated). #137 reference: 13.37 -> 19.18 tok/s (+43 %), acceptance 39.0 %. The Oct 14 rates are still
+     reachable with the Oct 14 workload and lighter monitoring. This does NOT explain why the earlier VIS-3B
+     runs (owner-reported, not recorded in this log) were slower: telemetry, workload, CPU behaviour and
+     environment remain confounders; root-monitoring overhead is not proven as the cause. The runner's
+     `decode_ms / (generated - accepted)` is a PROXY, not a count of verification steps. Runner
+     `benchmark/llm_objective_setting/conversation/chat_mtp_repro/` (4 files, untracked, not committed); its
+     README still says "no measured results yet" (pending, see STATUS). Source independently reviewed, APPROVED
+     WITH NOTES, 47 offline checks reported passing. No motors, camera or mission; no deployment change.
+     Evidence phone-local, not archived.
+
+143. **VIS-3D: research build b11716 + Q8 projector processes images with Gemma 4 E2B (8/8, median 4.42 s); text rates near baseline; navigation reliability not established.**
+     Owner-run 2026-10-23, native Termux, Pixel 7. Separate build `~/llama.cpp-vis`, verified source commit
+     797de63b2fa7396dcc8caca76834c699ac84e1c3 (labelled b11716; the local clone is shallow, so the build number
+     is not verified here), NOT the `server_manager.py` binary. Gemma 4 E2B Q4_0; Q8_0 projector
+     `~/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf` for B/C/D; MTP drafter (#137 flags) for C only. A/B/C:
+     #142's 13 prompts with legacy Gemma 3 turn markers, kept for throughput comparability only (replies not
+     graded); ctx 4096, temperature 0.7, n_predict 512, cores 4–7, 5 s telemetry, each test a separate launch.
+     Folders `~/robot_runs/vis3d/<timestamp>_<test>`:
+       A  20261023T151754Z_A, no projector/MTP: 13.22 tok/s, 13/13, VALID; skin 25.30 °C, battery 82 %.
+       B1 20261023T152217Z_B, projector, MTP off: 13.53 tok/s, 13/13, VALID; skin 28.62 °C, battery 81 %.
+       B2 20261023T161842Z_B, repeat of B1: 13.46 tok/s, 13/13, VALID; skin 24.23 °C, battery 99 %.
+       C  20261023T162349Z_C, projector + MTP: 18.11 tok/s, 13/13, VALID; acceptance 35.2 %, 341
+          server-counted verification steps; skin 27.95 °C, battery 98 %.
+     Official combined A/B/C comparison uses B2 (`20261023T161842Z_B`). Ratios, independently re-computed from
+     prompts.jsonl: B2/A 1.018, C/B2 1.346, A/#142-OFF 0.990, C/#142-ON 0.976 (with B1 instead: 1.023, 1.339).
+     Labels: every comparison "conditions: UNMATCHED" (start skin and/or battery); intended configuration
+     differences held. The A/OFF and C/ON labels are in the saved per-run reports; the combined-report labels
+     are owner-reported (report not saved; not regenerated). Do not infer that the projector raises
+     throughput; projector and MTP memory cost NOT ESTABLISHED (single-run PSS samples vary).
+     D 20261023T163445Z_D, images: projector, no MTP; 8 fixed git-tracked M2-Q1 frames (482x640,
+     `benchmark/relate_anything/quality1/runs/20261017T213604Z/frames`, SHA-256 match `references.json`);
+     `--image-min-tokens 70 --image-max-tokens 70` (63 image tokens each); `/v1/chat/completions` with the GGUF
+     Gemma 4 template; temperature 0, top_k 1, seed 0; one fixed one-to-two-sentence describe prompt. 8/8 OK,
+     VALID. First image wall 5.24 s; images 2–8 median wall 4.42 s, encode 1.456 s, image-token decode 0.847 s,
+     prompt 2.823 s, generation 13.79 tok/s; load 5.5 s; peak PSS 3708 MiB, min MemAvailable 2196 MiB, skin
+     26.8 -> 31.4 °C, status 0. TTFT and per-request power not measured.
+     Replies vs frames (Local AI, qualitative, NOT a score): named the cluttered table, a person on the couch,
+     the standing person, the refrigerator, the washing machine (toilet_1) and the toilet (toilet_2); generic
+     for the wardrobe/luggage scene; for roomsig_couch_1 said only "a light-colored wooden floor", missing the
+     close couch blocking the way and the partly visible person. The sentence limit cuts recall, so an omission
+     is not by itself a hallucination. References are Coder-drafted, not owner-confirmed; no rubric yet.
+     Result: b11716 image processing works and was stable over 8 requests. NOT established: obstacle or person
+     detection reliability, real-time navigation use, sustained heat, co-residency with RobotCam, YOLO, lidar,
+     ultrasonic and the mission loop. No integration or deployed-model change. #96 and #105 remain true for
+     their paths. Runner `benchmark/gemma_vision/vis3d/` (5 files including `references.json`, git-ignored,
+     not committed); its README still says "no measured results yet" (pending, see STATUS). Coder Claude Code
+     `claude-opus-5-5` medium, Ponytail lite; Reviewer AGY `gemini-3.8-flash-high`, Ponytail off; round 1
+     INVALID, round 2 APPROVED WITH NOTES (no P1/P2, three P3); 28 new + 47 existing offline tests reported
+     passing. No motors, live camera, commits or pushes. Evidence phone-local, not archived.
+     Documentation of #142/#143 applied 2026-10-23 by Claude Code `claude-opus-5-5` medium, Ponytail off, as
+     Doc Keeper: task-specific owner-approved exception with no independent review of this documentation
+     update; not a review-policy change.
+
+144. **VIS-3C/VIS-3D archive prepared locally (112 originals, REGENERATED comparison reports); archival review R4 accepted by the owner with a narrow citation-format exception; not published.**
+     2026-10-23/24, Coder Claude Code `claude-opus-5-5`. Prepared in the working tree on base `685a44b`, NOT committed
+     or pushed: `benchmark/llm_objective_setting/conversation/chat_mtp_repro/` (VIS-3C, 42 archived originals) and
+     `benchmark/gemma_vision/vis3d/` (VIS-3D, 70), each with README results, RUN_INDEX.md and ARTIFACTS.md (46 and 76
+     SHA-256 entries, all recheck OK 2026-10-24), source-review records, smokes and console logs; `.gitignore`
+     unignores `vis3d/` and both archives' run logs; `benchmark/INDEX.md` gains a VIS-3C/VIS-3D section. Phone
+     originals 112/112 OK before R4. The combined console reports, never saved, were REGENERATED report-only from the
+     unchanged run folders on 2026-10-23 at 19:03:40Z/19:03:41Z (`repro.py --report`, `vis3d.py --report`; no
+     inference): VIS-3C ON/OFF 1.390, `configuration: SAME`, `conditions: MATCHED`; VIS-3D official A/B2/C: B/A 1.018,
+     C/B 1.346, A/OFF 0.990, C/ON 0.976, every one `conditions: UNMATCHED`; supplementary A/B1/C 1.023 / 1.339. They are
+     labelled REGENERATED, not original run artifacts. They reproduce the comparison ratios and labels from the saved
+     run data, but they do NOT replace the originally unsaved console reports as contemporaneous run evidence; the
+     original combined-report output remains owner-reported. This updates #142/#143: their combined-report labels are
+     now reproduced by REGENERATED reports; the runner sources are archived (no longer git-ignored); both READMEs now
+     carry the results; "phone-local" now means prepared locally, unpublished.
+     Archival review (records `/termux-home/review/vis3cd_archive/`, phone only): R1 AGY INCOMPLETE (JSON status ERROR,
+     `INTERNAL (code 500)`, although review text was produced); R2 AGY INVALID (diff-relative line numbers); R3 Codex
+     `gpt-6.1-sol` INCOMPLETE (read-only sandbox cannot execute in proot; no session launched); R4 AGY 1.4.7
+     `gemini-3.8-flash-high`, Ponytail off, 2026-10-24 09:34:54–09:43:48Z: exact smoke, exit 0, JSON SUCCESS, log label
+     "Gemini 3.8 Flash (High)", no API errors, only the 4 allow-listed commands in the log, pre/post identity snapshots
+     identical, settings restored; APPROVED WITH NOTES (3 NITs: regenerated reports, unscored image quality, proot
+     sandbox); 34/34 CITE lines exact. Caveats kept: one unquoted Markdown line-range link (`docs/WORKFLOW.md#L208-L216`;
+     location accurate) breaks the mandatory citation format; the reviewer's sandbox-bypass statement is not
+     corroborated by the AGY log. Owner decision 2026-10-24: R4 accepted as review of record with that narrow
+     citation-format exception; no R5. Task-specific exception, not a WORKFLOW change; it does not mark every procedural
+     requirement satisfied. No measurement, label or result of #142/#143 changed. No commit or push authorized.
+
+145. **VIS-0 and M2-Q1 archives catalogued (22 and 95 files); M2 relation lines 63 % vs 70 % bar (FAILS); VIS-0 vision calls 40/40 but nonzero server shutdown exits incl. SIGABRT; archival review R1 INVALID, substance accepted by owner.**
+     2026-10-24, Coder Claude Code `claude-opus-5-5`. Both folders were committed in `685a44b` without catalogs. Prepared
+     in the working tree, NOT committed or pushed: RUN_INDEX.md and ARTIFACTS.md for `benchmark/gemma_vision/vis0/` (22
+     files) and `benchmark/relate_anything/quality1/` (95 files); five Codex stderr transcripts recovered from
+     `/termux-home/review/{vis0,m2q1}/` (cmp equal; VIS-0 rounds 1–3, M2-Q1 rounds 1–2); `.gitignore`
+     `!benchmark/gemma_vision/vis0/`; a `benchmark/INDEX.md` section. All SHA-256 entries recheck OK (2026-10-24);
+     files marked tracked equal HEAD; no historical measurement, grade or label changed.
+     VIS-0 (2026-10-18; AGY Coder session resident; research build b11716 `797de63b…` + BF16 projector; 10 M2-Q1
+     frames): template check VALID (deterministic) — Gemma 3 markers are plain text for this GGUF, OLD 9/10 replies
+     broken, NEW (GGUF template) 10/10 clean; vision 40/40 calls returned ok at budgets 70/140/280 and 140 + YOLO, VALID
+     as outputs; quality INDICATIVE (Local AI, not blind); wall times and memory NOT measurements. The llama-server
+     exits when the harness stopped it were nonzero: full run 1/0/1/−6/−6 (−6 = SIGABRT; budget 280 and 140 + YOLO),
+     smoke 1/1/0/1/0; not investigated. Crash-free server shutdown is NOT demonstrated; "0 crashes" in the original
+     records refers to the calls only.
+     M2-Q1 (2026-10-17; robot server b1609 E2B Q4_0; M2 relsgg-vits16 fp32; 70 photos): harness outputs identical twice
+     60/60, Accuracy VALID; M2 shown lines graded by Local AI, blind to `key.json`: 152 lines, 96 strictly right (63 %)
+     vs the 70 % bar — NOT MET, "M2 as built FAILS"; Gemma A/B (Y-ONLY vs Y+M2): M2 better 34, Y-ONLY 6, tie 10, false
+     statements 10 vs 1 — INDICATIVE, not decisive (Gemma 3 template defect; blindness weak); post-hoc filter ~71 %
+     INDICATIVE only; the Coder report's < 2-box list NOT VALID; timings NOT measurements. Blindness evidence is limited
+     (the Download copy of `key.json` is dated 22:50, after the PDFs); strict blindness is not independently proven.
+     M2 remains wired in the picker (#138), which is shelved as a per-cycle chooser (#140).
+     Archival review R1 (AGY `gemini-3.8-flash-high`, Ponytail off, 2026-10-24 11:31:49–11:39:32Z; records
+     `/termux-home/review/archcat/`, phone only): exact smoke, exit 0, JSON SUCCESS, pre/post identity snapshots
+     identical, settings restored; APPROVED WITH NOTES (three P3, no P1/P2); 43/44 CITE lines correct — one stated 49
+     lines for the 48-line `quality1/RUN_INDEX.md` — so PROCEDURALLY INVALID. Unsupported reviewer statements: blind
+     conditions "strictly maintained" (the archive does not establish it); its run of `verify_catalogs.py` is not
+     corroborated by the AGY log; it calls the SIGABRT exits a harness-teardown artifact, which was never investigated.
+     Owner decision 2026-10-24: R1's substantive APPROVED WITH NOTES accepted for this unchanged candidate as a
+     task-specific exception; R1 stays INVALID; not a WORKFLOW change. No commit or push authorized.

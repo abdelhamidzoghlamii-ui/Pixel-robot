@@ -153,6 +153,16 @@ code in the `.so` files. Rollback of the original is the whole `build/` tree
 (`build-b1609.tar.gz`, verified) or a rebuild of commit e1a1abb7, NOT a
 single-binary copy (DECISIONS #73).
 
+Research-only alternative, NOT the deployed server: `~/llama.cpp-vis`, llama.cpp
+b11716, source commit 797de63b2fa7396dcc8caca76834c699ac84e1c3 (the b11716
+label is not verified locally: shallow clone). VIS-3D owner-run text rates with
+the E2B Q4_0 model were 13.22 tok/s without projector/MTP, 13.46–13.53 tok/s
+(two B runs) with Q8 projector and MTP off, and 18.11 tok/s with projector and
+MTP on. Individually VALID, but cross-run environmental comparisons UNMATCHED.
+The original b1609 with five-second monitoring reproduced 13.35 OFF / 18.55 ON
+tok/s in VIS-3C under matched paired conditions (owner-reported label). Do not
+interpret these as robot deployment/co-residency results (#142, #143).
+
 A third build, ~/llama.cpp-upstream rebuilt 2026-09-13 to b2351-790cf51a,
 loads Qwen3.5-0.8B-Q4_K_M with architecture accepted and "modalities: text"
 — MEASURED. At that text-load test, no mmproj was downloaded or passed;
@@ -222,11 +232,23 @@ plus camera provider about 270 MB. Measured together (#125): llama-server peak P
 
 ## Model vision
 
-The as-coded image request was confirmed to run as text only (DECISIONS #96).
-Later b2351 projector tests did not produce usable on-device LLM vision
-(DECISIONS #105). YOLO remains the perception path. The original live-call
-observations and follow-up are retained in
-[PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
+The as-coded/deployed image request was previously confirmed to run as text
+only (DECISIONS #96); b2351 projector experiments did not produce usable
+on-device LLM vision (DECISIONS #105). These historical findings still apply to
+those paths. Separately, the research-only llama.cpp b11716 build successfully
+processed eight saved images with a Q8_0 Gemma 4 E2B vision projector in VIS-3D
+on 2026-10-23: 8/8 completed, median wall latency 4.42 s for images 2–8, with
+correct Gemma 4 chat templating and a 70-token image budget. Qualitative
+accuracy is inconsistent: the close couch and partly visible person were
+omitted entirely in one response. Vision is NOT integrated into deployed
+robot-chat or the mission loop. YOLO and the existing sensor/rule path remain
+responsible for deployed perception and navigation; b11716 vision has not been
+validated for safety-critical decisions. The original live-call observations
+and follow-up are retained in [PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
+See DECISIONS #142–#145. VIS-0 (2026-10-18, BF16 projector, same research
+build) completed 40/40 image calls, but two of its server shutdowns exited with
+SIGABRT, not investigated (#145). The VIS-3C, VIS-3D, VIS-0 and M2-Q1 archives
+and catalogs are in commit `4fd2b98` (#144, #145).
 
 ## Working now
 
@@ -425,11 +447,26 @@ observations and follow-up are retained in
 - RelateAnything M2 (relsgg-vits16, our fp32 export): speed, RAM and co-residency
   measured (#130–#132); used by the picker (`relate.py`, L2, #138); model files
   stay outside the repo and are checked by SHA-256 at load; weight licence for
-  shipped use not evaluated.
+  shipped use not evaluated. Relation quality (M2-Q1, #145): 63 % of shown lines
+  strictly right vs the 70 % bar — M2 as built FAILS.
 - Picker (#138): motors-off run done (#139) — always EXPLORE, ACTIVE share 0.48;
   no qualifying prompt or model in the desk tests (#140). Open owner decision:
   make `--no-picker` the default. Next: design the Gemma "mind" (#140).
 - Gemma fine-tuning restarts from scratch; old LoRA notebooks discarded (#124).
+- VIS-3C / VIS-3D / VIS-0 / M2-Q1 archives and vision qualification
+  (#142–#145): archives, catalogs, REGENERATED comparison reports and review
+  records are checksum-verified and archived in commit `4fd2b98`; the archival
+  review records themselves remain on the phone. The archival reviews are accepted only as task-specific
+  owner exceptions (VIS-3C/VIS-3D R4; VIS-0/M2-Q1 R1, which stays INVALID).
+  VIS-3D image quality requires an agreed evaluation rubric; robot-critical
+  missed objects remain a concern. VIS-0's SIGABRT shutdown exits are
+  uninvestigated. Controlled projector/MTP overhead, longer-run thermal
+  behavior, memory attribution, prompt and image-token-budget tradeoffs, and
+  simultaneous operation with camera/YOLO/sensors remain unverified. No vision
+  integration into the mission loop is approved. Existing camera and ultrasonic
+  safety responsibilities remain separate; lidar is not integrated into
+  navigation safety logic (2D LiDAR is a proposed redesign; integration
+  unverified).
 
 ## Work priorities
 
