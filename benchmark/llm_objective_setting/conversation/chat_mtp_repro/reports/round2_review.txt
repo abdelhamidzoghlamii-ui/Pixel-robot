@@ -1,0 +1,270 @@
+### Independent Review: Task VIS-3C / Experiment 1
+
+**Reviewer Profile & Scope:**
+- Role: Independent Reviewer (fresh session)
+- Platform / Engine: AGY CLI (Gemini 3.8 Flash Medium)
+- Ponytail: OFF (no simplification or pruning skills loaded or applied)
+- Candidate Files Reviewed:
+  - `benchmark/llm_objective_setting/conversation/chat_mtp_repro/README.md` (86 lines)
+  - `benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh` (132 lines)
+  - `benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py` (364 lines)
+  - `benchmark/llm_objective_setting/conversation/chat_mtp_repro/test_repro.py` (189 lines)
+- Reference / Context Files Consulted:
+  - `benchmark/llm_objective_setting/conversation/chat_mtp/runs/chat_mtp_20261014T224541Z/run.json` (138 lines)
+  - `benchmark/llm_objective_setting/conversation/chat_mtp/runs/ARTIFACTS.md` (60 lines)
+  - `benchmark/llm_objective_setting/conversation/chat_mtp/runs/chat_mtp_20261014T224541Z/report.txt` (12 lines)
+  - `benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py` (478 lines)
+  - `benchmark/llm_objective_setting/conversation/chat_mtp/oneshot.sh` (135 lines)
+  - `benchmark/llm_objective_setting/conversation/chat_mtp/test_chat_mtp_runner.py` (611 lines)
+  - `benchmark/coresidency/coresidency.py` (1290 lines)
+  - `benchmark/power_map/power_map.py` (654 lines)
+  - `_review_context/chat_2091f42.py` (390 lines)
+  - `_review_context/server_manager_2091f42.py` (116 lines)
+  - `_review_context/current_hashes.txt` (10 lines)
+  - `_review_context/checks.txt` (20 lines)
+
+---
+
+### Verification Checklist & Findings
+
+#### 1. Command, Payload, and Workload Fidelity (Archive & Commit 2091f42 vs Frozen Candidate)
+- In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py` (364 lines):
+  Line 42:
+  ```python
+  OFF = ['taskset', '-c', '4-7', SERVER, '-m', MODEL, '--port', '8080', '--ctx-size', '4096', '--host', '127.0.0.1',
+  ```
+  Line 44:
+  ```python
+  COMMANDS = {'OFF': OFF, 'ON': OFF + ['--model-draft', DRAFT, '--spec-type', 'draft-mtp', '--spec-draft-n-max', '3']}
+  ```
+  Line 62:
+  ```python
+  def command(config, model='e2b'):
+  ```
+  Line 63:
+  ```python
+      return list(COMMANDS[config])
+  ```
+  Line 66:
+  ```python
+  def payload(text):
+  ```
+  Line 68:
+  ```python
+      return {'prompt': f'<start_of_turn>user\n{text}<end_of_turn>\n<start_of_turn>model\n', 'n_predict': 512,
+  ```
+  Line 69:
+  ```python
+              'temperature': 0.7, 'stop': ['<end_of_turn>'], 'stream': False}
+  ```
+  This matches line 19 (`"OFF": [`) and line 73 (`"prompt": "<start_of_turn>user\n<text><end_of_turn>\n<start_of_turn>model\n",`) in `benchmark/llm_objective_setting/conversation/chat_mtp/runs/chat_mtp_20261014T224541Z/run.json` (138 lines), and avoids today's `<|turn>` template change in `chat.py`.
+- In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py` (364 lines):
+  Line 78:
+  ```python
+      if cr.sha256(ARCHIVE / 'run.json') != ARCHIVE_RUN_SHA256:
+  ```
+  Line 91:
+  ```python
+      why += [f'{p} SHA-256 is not the pinned {h[:12]}' for p, h in CODE_SHA256.items() if cr.sha256(p) != h]
+  ```
+  `repro.frozen_problems()` enforces that `run.json` matches the pinned SHA-256 in `ARTIFACTS.md` and validates every frozen prompt, model hash, and block constant before inference can begin.
+
+#### 2. Replaced `command` and `payload` in `chat_mtp.run_block`
+- In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py` (364 lines):
+  Line 72:
+  ```python
+  cm.command, cm.payload = command, payload  # run_block looks both up in chat_mtp at call time
+  ```
+- In `benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py` (478 lines):
+  Line 217:
+  ```python
+          proc = spawn(command(config, ctx.get('model', 'e2b')), log)
+  ```
+  Line 233:
+  ```python
+                      data = cr.post('/completion', payload(texts[pid]), timeout=DEADLINE_S - started)
+  ```
+  Global module reassignment on `cm` ensures `run_block` calls `repro.command` and `repro.payload` during execution.
+- Verified in `benchmark/llm_objective_setting/conversation/chat_mtp_repro/test_repro.py` (189 lines):
+  Line 83:
+  ```python
+          self.assertEqual(events[0], ('spawn', repro.COMMANDS['ON']))
+  ```
+  Line 84:
+  ```python
+          self.assertEqual([p[1] for p in posts], [repro.payload(f'text {i}') for i in cm.IDS])
+  ```
+
+#### 3. Monitoring Cadence
+- In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh` (132 lines):
+  Line 116:
+  ```bash
+  su -c "while [ ! -f $L/.stop_thermal ]; do echo \"\$(date -u +%Y-%m-%dT%H:%M:%SZ) z9=\$(cat /sys/class/thermal/thermal_zone9/temp) z10=\$(cat /sys/class/thermal/thermal_zone10/temp) z11=\$(cat /sys/class/thermal/thermal_zone11/temp) CPU-core_reading,_not_a_heat_state=1\" >> $L/thermal.log; sleep 5; done" &
+  ```
+  The thermal logger samples zone temps every 5 seconds.
+- In `benchmark/coresidency/coresidency.py` (1290 lines):
+  Line 73:
+  ```python
+  SAMPLE_S, SELECTOR_S, DRIFT_S = 5, 20, 30
+  ```
+  The sampling loop invoked by `run_block` (`cr.sampler_loop`) samples at 5 s intervals. VIS-3B's dense root loop (~0.45 s) is not imported or used.
+
+#### 4. Safety Preflight and Stop Paths
+- In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh` (132 lines):
+  Line 24:
+  ```bash
+  if pgrep -fa 'claude|agy|node|codex' >/dev/null; then
+  ```
+  Line 30:
+  ```bash
+  if pgrep -fa 'chat_mtp\.py|repro\.py|power_map\.py|coresidency\.py|thermal_char\.py|vis[0-9]_run\.py' >/dev/null; then
+  ```
+  Line 35:
+  ```bash
+    if [ "$BAT" != Discharging ]; then
+  ```
+  Line 81:
+  ```bash
+    if [ -n "$RUNNER" ]; then kill -TERM "$RUNNER" 2>/dev/null
+  ```
+- In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py` (364 lines):
+  Line 142:
+  ```python
+      if c.get('status') != 0:
+  ```
+  Line 146:
+  ```python
+      if c.get('battery_c') is None or c['battery_c'] >= BATTERY_MAX_C:
+  ```
+  Line 157:
+  ```python
+  def port_free():
+  ```
+  Line 357:
+  ```python
+          for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+  ```
+  Line 359:
+  ```python
+          for proc in list(cm.LIVE):
+  ```
+  Line 360:
+  ```python
+              cm.stop(proc)
+  ```
+  Preflight halts if charger is plugged in, battery is below 80% or >= 45 °C, Android thermal status is not 0, an agent is active, or a benchmark is running. The server process is bounded by a 175 s watchdog timer, and `main`'s `finally` block terminates any residual server processes.
+
+#### 5. Config Isolation (One Config per Launch)
+- In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh` (132 lines):
+  Line 23:
+  ```bash
+  case "$*" in "--config OFF"|"--config ON") ;; *) echo "Usage: oneshot.sh --config OFF|ON"; exit 1;; esac
+  ```
+- In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py` (364 lines):
+  Line 309:
+  ```python
+      if bool(a.config) == bool(a.report):
+  ```
+  Line 347:
+  ```python
+                  block = cm.run_block(0, a.config, list(cm.IDS), texts, ctx)
+  ```
+  Each launch accepts only one config (`OFF` or `ON`) and executes a single block (`cm.run_block(0, a.config, ...)`), exiting immediately after completing its 13 prompts. It never triggers the other configuration.
+- Verified in `benchmark/llm_objective_setting/conversation/chat_mtp_repro/test_repro.py` (189 lines):
+  Line 167:
+  ```python
+              self.assertEqual(calls, [(0, config, cm.IDS, 0, {'skin': 25.0})])
+  ```
+
+#### 6. Token Speed Aggregation and Report Logic
+- In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py` (364 lines):
+  Line 184:
+  ```python
+      return {'prompts': len(rows), 'tok_s': cm.tok_s(rows), 'pooled_tok_s': n / ms * 1000 if ms else None,
+  ```
+  Line 185:
+  ```python
+              'accept': cm.acceptance(rows), 'gen_tokens': n, 'prompt_tokens': sum(r['prompt_n'] or 0 for r in rows),
+  ```
+  Line 267:
+  ```python
+          L.append('configuration: ' + ('SAME' if not (d := config_diffs(off[7], on[7])) else 'DIFFERENT: ' + '; '.join(d)))
+  ```
+  Line 268:
+  ```python
+          L.append('conditions: ' + ('MATCHED' if not (d := condition_diffs(off, on)) else 'UNMATCHED: ' + '; '.join(d)))
+  ```
+  Token-weighted generation speed (`cm.tok_s`) and acceptance calculation preserve Oct 14 methodology.
+- Verified in `benchmark/llm_objective_setting/conversation/chat_mtp_repro/test_repro.py` (189 lines):
+  Line 93:
+  ```python
+          self.assertEqual((off[4], on[4], on[6]), ('13.37', '19.18', '39.0%'))  # name is two words
+  ```
+  Archive rows reconstruct 13.37 tok/s (OFF), 19.18 tok/s (ON), and 39.0% acceptance.
+
+#### 7. Launcher Diff and Documentation Completeness
+- In `benchmark/llm_objective_setting/conversation/chat_mtp/oneshot.sh` (135 lines):
+  Line 121:
+  ```bash
+  say "idling 5 minutes; keep Termux in front"
+  ```
+  Line 122:
+  ```bash
+  pause 300
+  ```
+  Line 129:
+  ```bash
+  env PYTHONUNBUFFERED=1 bash "$R/run_chat_mtp.sh" "$@" > >(tee -a "$CONSOLE") 2>&1 &
+  ```
+  In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh` (132 lines), lines 121-123 of the original script (5 min idle) are removed, and line 126 launches `python -u "$R/repro.py" "$@"` directly without `run_chat_mtp.sh`.
+- In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/README.md` (86 lines):
+  Line 36:
+  ```markdown
+  1. **One config per launch.** Oct 14 ran OFF, then ON in the same process, each in one block. Each launch here runs
+  ```
+  Line 38:
+  ```markdown
+  2. **No 5 min idle and no skin cooling gate.** Oct 14's launcher idled 5 min, the runner took an idle skin baseline and
+  ```
+  Line 54:
+  ```markdown
+  Cannot be reproduced exactly: temperature 0.7 sampling without a seed (replies and lengths differ by design; Oct 14
+  ```
+  The differences between the reproduction workload and the historical Oct 14 run are documented accurately.
+
+---
+
+### Numbered Findings
+
+1. **NIT — Asymmetric caller expectation in `config_diffs` helper**
+   In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py` (364 lines):
+   Line 277:
+   ```python
+       if b['command'] != a['command'] + COMMANDS['ON'][len(OFF):]:
+   ```
+   Line 278:
+   ```python
+           why.append('commands differ beyond the drafter flags')
+   ```
+   `config_diffs(a, b)` expects `a` to be `OFF` and `b` to be `ON`. Inside `repro.py`, line 267 (`config_diffs(off[7], on[7])`) always guarantees this order. Reversing arguments in an external context would flag a spurious mismatch. No runtime defect in the current implementation.
+
+2. **NIT — Agent pattern regex disparity between bash and python preflights**
+   In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh` (132 lines):
+   Line 24:
+   ```bash
+   if pgrep -fa 'claude|agy|node|codex' >/dev/null; then
+   ```
+   In `benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py` (364 lines):
+   Line 153:
+   ```python
+   def agents():
+   ```
+   Line 154:
+   ```python
+       return subprocess.run(['pgrep', '-fa', cm.AGENTS], capture_output=True, text=True).stdout.strip()
+   ```
+   Where `cm.AGENTS` is `'claude|codex|agy'`. The shell launcher checks for `node` in addition to the agents, whereas the python runner's end-of-run check checks `claude|codex|agy`. This matches historical precedent in `chat_mtp/oneshot.sh`, but aligning the patterns or documenting the inclusion of `node` in the shell preflight is recommended for clarity.
+
+---
+
+APPROVED WITH NOTES

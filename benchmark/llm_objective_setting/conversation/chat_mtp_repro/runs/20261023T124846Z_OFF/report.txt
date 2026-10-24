@@ -1,0 +1,19 @@
+CHAT MTP REPRO REPORT  (Oct 14 workload: E2B Q4_0, ctx 4096, temperature 0.7, n_predict 512, cores 4-7)
+gen t/s = token-weighted over replies >= 10 tokens (Oct 14 rule); pooled = all tokens; accept = accepted /
+drafted; ms/pass = decode ms / (generated - accepted); prompt s = median server prompt_ms; times from spawn
+
+run                         cfg   n gen t/s pooled accept gen tok ms/pass prompt s load s req s   skin st bat% X1 cap X1 top samples root s  label
+Oct14 20261014T224541Z      OFF  13   13.37  13.39    n/a     675    74.7     0.35    4.3    60  24.15  0  n/a    n/a    n/a      12   0.74  ARCHIVE (VALID, #137)
+Oct14 20261014T224541Z      ON   13   19.18  19.18  39.0%     713   114.0     0.34    6.4    48  25.63  0  n/a    n/a    n/a      10   0.69  ARCHIVE (VALID, #137)
+20261023T124846Z_OFF        OFF  13   13.35  13.35    n/a     686    74.9     0.36    5.4    62  25.11  0   95   2850     9%      13   0.78  VALID
+
+server timings and end: prompt tokens, drafted, decode ms, server exit s (from spawn), W mean, skin/status after the stop, end reason
+  Oct14 20261014T224541Z      OFF   305     0     50404    60  8.21  32.1837/0  all prompts done
+  Oct14 20261014T224541Z      ON    305   993     37176    49  8.50  32.480503/0  all prompts done
+  20261023T124846Z_OFF        OFF   305     0     51396    62  8.76  32.8139/0  all prompts done
+
+skin/st = VIRTUAL-SKIN degC and Android status right before the spawn; X1 cap = policy6 scaling_max_freq MHz
+at start; X1 top = share of the block (start to end reading) at the X1 hardware maximum; samples = 5 s root
+samples in the block, root s = their median su duration. Oct 14 recorded no cpufreq or battery %.
+
+comparison: needs exactly one OFF and one ON folder

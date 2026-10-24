@@ -1,0 +1,22 @@
+{
+  "allowNonWorkspaceAccess": true,
+  "artifactReviewPolicy": "always-proceed",
+  "model": "Gemini 4 Argon (Medium)",
+  "notifications": true,
+  "permissions": {
+    "allow": [
+      "command(/data/data/com.termux/files/usr/bin/python3 -B -c \"import sys; [compile(open(f).read(), f, 'exec') for f in sys.argv[1:]]\" benchmark/gemma_vision/vis3d/vis3d.py benchmark/gemma_vision/vis3d/test_vis3d.py)",
+      "command(cd benchmark/gemma_vision/vis3d \u0026\u0026 /data/data/com.termux/files/usr/bin/python3 -B -W ignore -m unittest -v test_vis3d)",
+      "command(cd benchmark/gemma_vision/vis3d)",
+      "command(/data/data/com.termux/files/usr/bin/python3 -B -W ignore -m unittest -v test_vis3d)"
+    ],
+    "deny": [
+      "command(git*)"
+    ]
+  },
+  "trustedWorkspaces": [
+    "/termux-home/robot",
+    "/termux-home/laya-test",
+    "/root"
+  ]
+}

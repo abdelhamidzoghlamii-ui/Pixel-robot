@@ -1,0 +1,68 @@
+The corrected investigation is **ready for Local AI to evaluate the next experiment**. All seven round-1 findings are resolved. I found one minor reporting error that does not affect the diagnosis or proposed sequence.
+
+I reviewed the specified 339-line report; its SHA-256 matches `a407178084324e40350c96f7f6cd323d8c10092539f8df1bbaafbcecc85c7b3d`.
+
+The speculative-verification calculations independently reproduce:
+
+| Run | Verification steps | Output tok/step | Decode ms/step | OFF ms/token |
+|---|---:|---:|---:|---:|
+| Sep 28 | 116 | 2.336 | 113.736 | 71.273 |
+| Oct 14 | 331 | 2.154 | 112.315 | 74.673 |
+| VIS-3B | 250 | 2.224 | 199.886 | 105.535 |
+
+Each request’s accepted-token count and rounded logged mean yields a unique integer verification count. VIS excludes the warm-up. The server source (5,326 lines) supports this definition:
+
+[server-context.cpp:609](/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/tools/server/server-context.cpp:609):
+
+> const double mean_acc_len = n_draft_verif_steps > 0 ? 1.0 + (double) n_draft_accepted / (double) n_draft_verif_steps : 1.0;
+
+[server-context.cpp:3861](/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/tools/server/server-context.cpp:3861):
+
+> slot.n_draft_verif_steps += 1;
+
+The pooled throughput table also reproduces:
+
+| Run | Output tokens | Decode ms | Pooled tok/s |
+|---|---:|---:|---:|
+| Sep 28 OFF | 271 | 19,315.030 | 14.031 |
+| Sep 28 ON | 271 | 13,193.348 | 20.541 |
+| Oct 14 OFF, all | 675 | 50,404.362 | 13.392 |
+| Oct 14 OFF, ≥10 tokens | 666 | 49,814.336 | 13.370 |
+| Oct 14 ON | 713 | 37,176.117 | 19.179 |
+| VIS old OFF | 556 | 58,677.459 | 9.476 |
+| VIS old ON | 556 | 49,971.441 | 11.126 |
+| VIS new OFF | 556 | 65,935.459 | 8.432 |
+
+The Oct 14 six-ID subset reproduces **13.228 OFF / 19.498 ON**. The report’s Oct 14 **74.7 ms/token** uses all OFF replies; applying the historical ≥10-token filter gives **74.8**. This does not change its conclusion.
+
+Telemetry interference merits **LIKELY as a leading hypothesis**. The six smoke records have identical T1 commands and use the same synchronous request path. Their rates reproduce as **17.433, 18.007, 16.413, 17.622** without native monitoring and **11.140, 11.057** with it. Synthetic records explicitly identify their readings as placeholders. These are diagnostic comparisons with uncontrolled device state, not a measured causal effect.
+
+The telemetry figures reproduce: **0.448132 s** median receipt interval within the recorded phase window; median transaction durations **0.444797 s** with a server PID and **0.226946 s** without one. Oct 14 sampling is five seconds apart. These are elapsed durations, not CPU consumption.
+
+The frequency qualification is correct. In `vis1_run.py` (838 lines), [line 683](/data/data/com.termux/files/home/robot/benchmark/gemma_vision/vis1/vis1_run.py:683) reads:
+
+> record['reading'] = telemetry(bridge, allow_agent=allow_agent)
+
+[Line 692](/data/data/com.termux/files/home/robot/benchmark/gemma_vision/vis1/vis1_run.py:692) subsequently reads:
+
+> proc = spawn(record['command'], log)
+
+Thus uncapped smoke decoding is unproven. **CPU-frequency contribution: POSSIBLE, magnitude UNKNOWN; thermal causation: not established** remains appropriate.
+
+The remaining round-1 corrections are present and supported: historical binary identity is qualified beyond the hashed CPU library; exactly three VIS replies reach 128 tokens; runner polling remains a possible contributor; workload effects remain possible; and the observed +17% is explicitly distinguished from controlled MTP benefit.
+
+The experiments are correctly separated and ordered: frozen historical reproduction, one-variable telemetry-cadence isolation with reversed-order repetition, then build comparison. Dependency pinning, identical telemetry content, retained stops, frequency residency, paired improvement criteria, and owner approval are all specified. They remain proposals.
+
+One nonblocking correction: [report:152](/sdcard/Download/VIS3B_MTP_HANDOFF_LOCAL_AI.md:152) states:
+
+> an agent resident. It decoded at 74–89 ms/token (~13 tok/s). VIS-3B gen_new took 118.6 ms/token.
+
+The VIS-0 log (3,697 lines) includes [server.log:640](/data/data/com.termux/files/home/robot/benchmark/gemma_vision/vis0/runs/20261018T010701Z/server.log:640):
+
+> 1.02.194.509 I slot print_timing: id  0 | task 415 |        eval time =    8783.69 ms /    96 tokens (   92.46 ms per token,    10.82 tokens per second)
+
+Extend that range or identify it as selected observations. The central smoke evidence survives.
+
+No files were changed, repository modules imported, or workloads or hardware operations started. Causal mechanism and effect size remain unverified.
+
+APPROVED WITH NOTES

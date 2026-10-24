@@ -1,0 +1,24 @@
+VIS-3D REPORT  (A-C: Oct 14 text workload on b11716, ctx 4096, temperature 0.7, n_predict 512, cores 4-7; D: Q8 projector images)
+
+TEXT  gen t/s = token-weighted over replies >= 10 tokens (Oct 14 rule); pooled = all tokens; accept = accepted / drafted;
+  steps = exact verification steps (server counter, b11716 only); ms/step = decode ms / steps; ms/pass* = decode ms /
+  (generated - accepted), a PROXY, not a step count; prompt s = median prompt_ms; load s = spawn to /health ok
+
+run                           test   n gen t/s pooled accept gen tok steps ms/step ms/pass* prompt s load s req s  label
+VIS-3C 20261023T124846Z_OFF   OFF   13   13.35  13.35    n/a     686   n/a     n/a     74.9     0.36    5.4    62  BASELINE b1609 VALID
+VIS-3C 20261023T132032Z_ON    ON    13   18.55  18.52  38.2%     674   n/a     n/a    116.6     0.34    7.3    49  BASELINE b1609 VALID
+20261023T162349Z_C            C     13   18.11  18.08  35.2%     713   341   115.6    111.7     0.35    6.8    51  VALID
+
+MEMORY AND CONDITIONS  HWM/PSS MiB = server VmHWM / peak 5 s PSS; avail = min MemAvailable; skin/st at the spawn -> after the stop;
+  X1 cap = policy6 max MHz at start; X1 top = block share at the X1 maximum; samples = 5 s root samples
+
+run                           test  prompt tok   HWM   PSS avail     W  skin start->end st bat% X1 cap X1 top samples
+VIS-3C 20261023T124846Z_OFF   OFF          305  3964  3912  2542  8.76       25.1->32.8  0   95   2850     9%      13
+VIS-3C 20261023T132032Z_ON    ON           305  3763  3609  2335  7.91       25.5->32.0  0   92   2850    15%      10
+20261023T162349Z_C            C            305  3793  3700  2043  7.79       28.0->33.9  0   98   2850    13%      11
+
+COMPARISONS  (configuration and conditions are judged separately; neither is a cause)
+C/ON gen t/s 0.976  (build AND projector residency (b1609 ON has no projector; C has it))
+  configuration: same workload and weights; differs by design: binary b1609-dotprod -> b11716, --metrics added, Q8 projector resident
+  conditions: UNMATCHED: start skin 25.506601 vs 27.950602 (> 1.0 degC apart)
+  validity: ON BASELINE b1609 VALID, C VALID

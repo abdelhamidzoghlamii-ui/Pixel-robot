@@ -1,0 +1,124 @@
+{
+ "test": "B",
+ "ids": [
+  "A5",
+  "A6",
+  "B1",
+  "B2",
+  "B6",
+  "B7",
+  "C1",
+  "C6",
+  "C7",
+  "C8",
+  "C9",
+  "C10",
+  "C11"
+ ],
+ "command": [
+  "taskset",
+  "-c",
+  "4-7",
+  "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+  "-m",
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+  "--port",
+  "8080",
+  "--ctx-size",
+  "4096",
+  "--host",
+  "127.0.0.1",
+  "--threads",
+  "4",
+  "--threads-batch",
+  "4",
+  "--parallel",
+  "1",
+  "--swa-full",
+  "--cache-ram",
+  "0",
+  "--metrics",
+  "--mmproj",
+  "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf",
+  "--image-min-tokens",
+  "70",
+  "--image-max-tokens",
+  "70"
+ ],
+ "payload_example": {
+  "prompt": "<start_of_turn>user\n<text><end_of_turn>\n<start_of_turn>model\n",
+  "n_predict": 512,
+  "temperature": 0.7,
+  "stop": [
+   "<end_of_turn>"
+  ],
+  "stream": false
+ },
+ "prompt_texts": {
+  "A5": "I'm looking for something. It's small and black. So where should I start?",
+  "A6": "I've had a rough day.",
+  "B1": "How far can you see?",
+  "B2": "Where are my keys?",
+  "B6": "What's the battery at?",
+  "B7": "Explain in one sentence why you stopped.",
+  "C1": "Go to the bedroom",
+  "C6": "Go to the garage",
+  "C7": "Go to Chiara's room",
+  "C8": "Don't go to the kitchen",
+  "C9": "Look for my phone in the kitchen",
+  "C10": "Patrol everywhere",
+  "C11": "Find Abdel"
+ },
+ "frames_sha256": null,
+ "started": "2026-10-23T16:18:47+00:00",
+ "model_sha256": {
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf": "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52",
+  "/data/data/com.termux/files/home/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf": "9eba819938efccfd6044f8af84e3bbfddc639a2bcf32ebc36420e6a649191919",
+  "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf": "9406f99c16d68cda4f1f0552192dcc99021ea1fc6d2fd50b1dc3ccf30d04b292"
+ },
+ "build_sha256": {
+  "llama-server": "0674f5c28aaf23068220fa4290c7a4199aa590127724d2b766bdbb961b768fdf",
+  "libllama-server-impl.so": "a9b6e74c8fc906325f91470e335d77a9b32257dd056102913ee8fcd6aa9fa7aa",
+  "libllama-common.so.0.7.0": "805cfe637a6f8eba771d039e06480a1e21789c176cb1fbbe8c88b6b4fd2d53ef",
+  "libllama.so.0.7.0": "18041e7c9182ce1534e0f9ab33abb3e12f9fb4d84a773dbc86297ebaf7a84578",
+  "libmtmd.so.0.7.0": "f2813411696515a08de553d17ba13b0e5a758329a4fabd82a14e1a726eea0fc8",
+  "libggml.so.0.27.0": "50477f04f6c57176aaea22d6ef3fcabcb21652d26cc58288ce82d174c6d7d79d",
+  "libggml-base.so.0.27.0": "8eadd421b15ac463c6be41d97cba5ff23fb02ea6d2217ca81020125bc352477e",
+  "libggml-cpu.so.0.27.0": "9e4e11cf979ef78e1aa201ecaed67308520ffa9a6e3f19d028cfb1586b8ab333"
+ },
+ "build_info": {
+  "git_head": "797de63b2fa7396dcc8caca76834c699ac84e1c3",
+  "source_commit_expected": "797de63b2fa7396dcc8caca76834c699ac84e1c3",
+  "cmake": {
+   "BUILD_SHARED_LIBS:BOOL": "ON",
+   "CMAKE_BUILD_TYPE:STRING": "Release",
+   "GGML_CPU_ARM_ARCH:STRING": "armv8.2-a+dotprod+fp16",
+   "GGML_CPU_KLEIDIAI:BOOL": "OFF",
+   "GGML_CPU_REPACK:BOOL": "ON",
+   "GGML_LLAMAFILE:BOOL": "ON",
+   "GGML_NATIVE:BOOL": "OFF",
+   "GGML_OPENMP:BOOL": "ON"
+  }
+ },
+ "env": {
+  "LD_PRELOAD": "/data/data/com.termux/files/usr/lib/libtermux-exec-ld-preload.so"
+ },
+ "code_sha256": {
+  "/data/data/com.termux/files/home/robot/benchmark/gemma_vision/vis3d/vis3d.py": "cd4995b21d28ffb91da43806557871fe9689333a93ef43768131d4dfc2bbc690",
+  "/data/data/com.termux/files/home/robot/benchmark/gemma_vision/vis3d/references.json": "7d3d5b775706b28f76431fef613e7d2e6beb2d862821f74a391397346a8e09c4",
+  "/data/data/com.termux/files/home/robot/benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py": "29276a35618e66833a214fba77c8ce0770bbe37d4fa9e2b4b9de105c13a00a46",
+  "/data/data/com.termux/files/home/robot/benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py": "b2c370e23e5f7fa93996a28a9aaed2f3f5ee546f2ef70f94eaebe4b34a29cd24",
+  "/data/data/com.termux/files/home/robot/benchmark/coresidency/coresidency.py": "a6b0d65454c0c060927f744194a8cbb9f2a419a59e39fc82b0a510b9f92ed177",
+  "/data/data/com.termux/files/home/robot/benchmark/power_map/power_map.py": "4756ce7dc7ba4e358578288c0d2509345fc4e2fe02d45f077f65355792e29539",
+  "/data/data/com.termux/files/home/robot/benchmark/llm_objective_setting/bench.py": "0792beeed813d94df2a1d9ce7bffe2f5e2a00a564de4a32aaecfa0182b8e6f8f"
+ },
+ "baseline": {
+  "OFF": "/data/data/com.termux/files/home/robot_runs/chat_mtp_repro/20261023T124846Z_OFF",
+  "ON": "/data/data/com.termux/files/home/robot_runs/chat_mtp_repro/20261023T132032Z_ON"
+ },
+ "image_tokens": 70,
+ "block_s": 180,
+ "deadline_s": 175,
+ "gate_max_s": 0,
+ "sample_s": 5
+}

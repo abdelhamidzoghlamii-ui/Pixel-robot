@@ -1,0 +1,198 @@
+b11716 source excerpts (llama.cpp-vis @ 797de63), copied by the Coder; line numbers are from those files
+--- tools/server/server-common.cpp lines 84-104
+    84	json server_slot_stats::to_json() const {
+    85	    json base = {
+    86	        {"cache_n",                n_prompt_cached},
+    87	
+    88	        {"prompt_n",               n_prompt_processed},
+    89	        {"prompt_ms",              t_prompt_ms()},
+    90	        {"prompt_per_token_ms",    t_prompt_per_token_ms()},
+    91	        {"prompt_per_second",      n_prompt_tps()},
+    92	
+    93	        {"predicted_n",            n_gen},
+    94	        {"predicted_ms",           t_gen_ms()},
+    95	        {"predicted_per_token_ms", t_gen_per_token_ms()},
+    96	        {"predicted_per_second",   n_gen_tps()},
+    97	    };
+    98	
+    99	    if (n_draft_tokens > 0) {
+   100	        base["draft_n"]          = n_draft_tokens;
+   101	        base["draft_n_accepted"] = n_draft_accepted;
+   102	    }
+   103	
+   104	    return base;
+--- tools/server/server-context.cpp lines 705-726
+   705	        const int32_t n_draft_total       = stats.n_draft_tokens;
+   706	        const int32_t n_draft_accepted    = stats.n_draft_accepted;
+   707	        const int32_t n_draft_verif_steps = stats.n_draft_verif_steps;
+   708	
+   709	        if (n_draft_total > 0) {
+   710	            const float  draft_ratio  = (float) n_draft_accepted / n_draft_total;
+   711	            const double mean_acc_len = n_draft_verif_steps > 0 ? 1.0 + (double) n_draft_accepted / (double) n_draft_verif_steps : 1.0;
+   712	
+   713	            std::string acceptance_rates_per_pos;
+   714	            if (n_draft_verif_steps > 0) {
+   715	                for (size_t i = 0; i < n_accepted_per_pos.size(); ++i) {
+   716	                    if (i > 0) {
+   717	                        acceptance_rates_per_pos += ", ";
+   718	                    }
+   719	                    acceptance_rates_per_pos += string_format("%.3f", (double) n_accepted_per_pos[i] / (double) n_draft_verif_steps);
+   720	                }
+   721	            }
+   722	
+   723	            SLT_INF(*this,
+   724	                    "draft acceptance = %0.5f (%5d accepted / %5d generated), mean len = %5.2f\n",
+   725	                    draft_ratio, n_draft_accepted, n_draft_total, mean_acc_len);
+   726	            SLT_TRC(*this,
+--- tools/server/server-context.cpp lines 4600-4607
+  4600	            slot.spec_is_replay = false;
+  4601	
+  4602	            slot.stats.update_gen_last();
+  4603	
+  4604	            // update how many tokens out of those tested were accepted
+  4605	            slot.stats.n_draft_accepted += n_accepted;
+  4606	            slot.stats.n_draft_verif_steps += 1;
+  4607	
+--- tools/server/server-task.cpp lines 1556-1569
+  1556	        }, {
+  1557	            "spec_decode_num_draft_tokens_total",
+  1558	            "Speculative: Total draft tokens generated",
+  1559	            (double) metrics.n_draft_tokens
+  1560	        }, {
+  1561	            "spec_decode_num_accepted_tokens_total",
+  1562	            "Speculative: Total draft tokens accepted by the target model",
+  1563	            (double) metrics.n_draft_accepted
+  1564	        }, {
+  1565	            "spec_decode_num_drafts_total",
+  1566	            "Speculative: Total speculative decoding verification steps",
+  1567	            (double) metrics.n_draft_verif_steps
+  1568	        },
+  1569	    };
+--- tools/server/server-context.cpp lines 736-741
+   736	        res = {
+   737	            {"id",            id},
+   738	            {"n_ctx",         n_ctx},
+   739	            {"speculative",   can_speculate()},
+   740	            {"is_processing", is_processing()},
+   741	        };
+--- tools/server/server.cpp lines 265-303
+   265	    ctx_http.get ("/metrics",                  ex_wrapper(routes.get_metrics));
+   266	    ctx_http.get ("/props",                    ex_wrapper(routes.get_props));
+   267	    ctx_http.post("/props",                    ex_wrapper(routes.post_props));
+   268	    ctx_http.get ("/models",                   ex_wrapper(routes.get_models));
+   269	    ctx_http.get ("/v1/models",                ex_wrapper(routes.get_models));
+   270	    ctx_http.post("/completion",               ex_wrapper(routes.post_completions)); // legacy
+   271	    ctx_http.post("/completions",              ex_wrapper(routes.post_completions));
+   272	    ctx_http.post("/v1/completions",           ex_wrapper(routes.post_completions_oai));
+   273	    ctx_http.post("/chat/completions",         ex_wrapper(routes.post_chat_completions));
+   274	    ctx_http.post("/v1/chat/completions",      ex_wrapper(routes.post_chat_completions));
+   275	    ctx_http.post("/v1/chat/completions/control", ex_wrapper(routes.post_control));
+   276	    ctx_http.post("/v1/responses",             ex_wrapper(routes.post_responses_oai));
+   277	    ctx_http.post("/responses",                ex_wrapper(routes.post_responses_oai));
+   278	    ctx_http.post("/v1/audio/transcriptions",  ex_wrapper(routes.post_transcriptions_oai));
+   279	    ctx_http.post("/audio/transcriptions",     ex_wrapper(routes.post_transcriptions_oai));
+   280	    ctx_http.post("/v1/messages",              ex_wrapper(routes.post_anthropic_messages)); // anthropic messages API
+   281	    ctx_http.post("/infill",                   ex_wrapper(routes.post_infill));
+   282	    ctx_http.post("/embedding",                ex_wrapper(routes.post_embeddings)); // legacy
+   283	    ctx_http.post("/embeddings",               ex_wrapper(routes.post_embeddings));
+   284	    ctx_http.post("/v1/embeddings",            ex_wrapper(routes.post_embeddings_oai));
+   285	    ctx_http.post("/rerank",                   ex_wrapper(routes.post_rerank));
+   286	    ctx_http.post("/reranking",                ex_wrapper(routes.post_rerank));
+   287	    ctx_http.post("/v1/rerank",                ex_wrapper(routes.post_rerank));
+   288	    ctx_http.post("/v1/reranking",             ex_wrapper(routes.post_rerank));
+   289	    ctx_http.post("/v1/systemone",             ex_wrapper(routes.post_systemone));
+   290	    ctx_http.post("/tokenize",                 ex_wrapper(routes.post_tokenize));
+   291	    ctx_http.post("/detokenize",               ex_wrapper(routes.post_detokenize));
+   292	    ctx_http.post("/apply-template",           ex_wrapper(routes.post_apply_template));
+   293	    // token counting
+   294	    ctx_http.post("/chat/completions/input_tokens",    ex_wrapper(routes.post_chat_completions_tok));
+   295	    ctx_http.post("/v1/chat/completions/input_tokens", ex_wrapper(routes.post_chat_completions_tok));
+   296	    ctx_http.post("/responses/input_tokens",           ex_wrapper(routes.post_responses_tok_oai));
+   297	    ctx_http.post("/v1/responses/input_tokens",        ex_wrapper(routes.post_responses_tok_oai));
+   298	    ctx_http.post("/v1/messages/count_tokens",         ex_wrapper(routes.post_anthropic_count_tokens)); // anthropic token counting
+   299	    // LoRA adapters hotswap
+   300	    ctx_http.get ("/lora-adapters",            ex_wrapper(routes.get_lora_adapters));
+   301	    ctx_http.post("/lora-adapters",            ex_wrapper(routes.post_lora_adapters));
+   302	    // Save & load slots
+   303	    ctx_http.get ("/slots",                    ex_wrapper(routes.get_slots));
+--- tools/server/server-context.cpp lines 1156-1167
+  1156	        mtmd_context_params mparams = mtmd_context_params_default();
+  1157	        if (has_mmproj) {
+  1158	            mparams.use_gpu          = params_base.mmproj_use_gpu;
+  1159	            mparams.device           = params_base.mmproj_device;
+  1160	            mparams.print_timings    = false;
+  1161	            mparams.n_threads        = params_base.cpuparams.n_threads;
+  1162	            mparams.flash_attn_type  = params_base.flash_attn_type;
+  1163	            mparams.warmup           = params_base.warmup;
+  1164	            mparams.image_min_tokens = params_base.image_min_tokens;
+  1165	            mparams.image_max_tokens = params_base.image_max_tokens;
+  1166	            mparams.batch_max_tokens = params_base.mtmd_batch_max_tokens;
+  1167	            mparams.media_marker     = get_media_marker();
+--- tools/mtmd/mtmd-helper.cpp lines 170-192
+   170	        int pos_offset = i_batch*n_batch;
+   171	        int n_tokens_batch = std::min(n_batch, n_tokens - pos_offset);
+   172	
+   173	        LOG_INF("decoding %s batch %d/%d, n_tokens_batch = %d\n", name, i_batch+1, n_img_batches, n_tokens_batch);
+   174	
+   175	        int64_t t1 = ggml_time_ms();
+   176	        int32_t ret = llama_process(lctx, LLAMA_PROCESS_TYPE_DECODE, batch_embd.render(lctx, pos_offset, n_tokens_batch));
+   177	        if (ret != 0) {
+   178	            LOG_ERR("failed to decode %s\n", name);
+   179	            return ret;
+   180	        }
+   181	
+   182	        if (callback != nullptr) {
+   183	            const mtmd_helper_embd_batch view = batch_embd.get_view(pos_offset, n_tokens_batch);
+   184	            ret = callback(&view, user_data);
+   185	            if (ret != 0) {
+   186	                LOG_ERR("post-decode callback failed\n");
+   187	                return ret;
+   188	            }
+   189	        }
+   190	
+   191	        LOG_INF("%s decoded (batch %d/%d) in %" PRId64 " ms\n", name, i_batch+1, n_img_batches, ggml_time_ms() - t1);
+   192	
+--- common/log.cpp lines 548-556
+   548	int common_log_get_verbosity(enum ggml_log_level level) {
+   549	    switch (level) {
+   550	        case GGML_LOG_LEVEL_DEBUG: return LOG_LEVEL_DEBUG;
+   551	        case GGML_LOG_LEVEL_INFO:  return LOG_LEVEL_TRACE;
+   552	        case GGML_LOG_LEVEL_WARN:  return LOG_LEVEL_WARN;
+   553	        case GGML_LOG_LEVEL_ERROR: return LOG_LEVEL_ERROR;
+   554	        case GGML_LOG_LEVEL_CONT:  return LOG_LEVEL_TRACE;
+   555	        case GGML_LOG_LEVEL_NONE:
+   556	        default:
+--- common/log.h lines 24-32
+    24	#define LOG_LEVEL_DEBUG  5
+    25	#define LOG_LEVEL_TRACE  4
+    26	#define LOG_LEVEL_INFO   3
+    27	#define LOG_LEVEL_WARN   2
+    28	#define LOG_LEVEL_ERROR  1
+    29	#define LOG_LEVEL_OUTPUT 0 // output data from tools
+    30	
+    31	#define LOG_DEFAULT_DEBUG LOG_LEVEL_DEBUG
+    32	#define LOG_DEFAULT_LLAMA LOG_LEVEL_INFO
+--- common/arg.cpp lines 3711-3727
+  3711	        {"-rea", "--reasoning"}, "[on|off|auto]",
+  3712	        "Use reasoning/thinking in the chat ('on', 'off', or 'auto', default: 'auto' (detect from template))",
+  3713	        [](common_params & params, const std::string & value) {
+  3714	            if (is_truthy(value)) {
+  3715	                params.enable_reasoning = 1;
+  3716	                params.default_template_kwargs["enable_thinking"] = "true";
+  3717	            } else if (is_falsey(value)) {
+  3718	                params.enable_reasoning = 0;
+  3719	                params.default_template_kwargs["enable_thinking"] = "false";
+  3720	            } else if (is_autoy(value)) {
+  3721	                params.enable_reasoning = -1;
+  3722	            } else {
+  3723	                throw std::invalid_argument(
+  3724	                    string_format("error: unknown value for --reasoning: '%s'\n", value.c_str()));
+  3725	            }
+  3726	        }
+  3727	    ).set_examples({LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_COMPLETION, LLAMA_EXAMPLE_CLI}).set_env("LLAMA_ARG_REASONING"));
+--- common/arg.cpp lines 3613-3617
+  3613	        {"--metrics"},
+  3614	        string_format("enable prometheus compatible metrics endpoint (default: %s)", params.endpoint_metrics ? "enabled" : "disabled"),
+  3615	        [](common_params & params) {
+  3616	            params.endpoint_metrics = true;
+  3617	        }

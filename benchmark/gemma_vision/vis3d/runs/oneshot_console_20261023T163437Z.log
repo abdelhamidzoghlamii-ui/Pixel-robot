@@ -1,0 +1,99 @@
+[oneshot] screen timeout was 1800000 ms; set to 2147483647 for the run (read back)
+[oneshot] CPU-core reading, not a heat state: 2026-10-23T16:34:44Z z9=34000 z10=34000 z11=34000 CPU-core_reading,_not_a_heat_state=1
+/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_validation.py:66: UserWarning: Unsupported platform (android). ONNX Runtime supports Linux, macOS, AIX and Windows platforms, only.
+  warnings.warn(
+checking model, drafter, projector and build SHA-256 (about 40 s); run folder /data/data/com.termux/files/home/robot_runs/vis3d/20261023T163445Z_D
+[block 0 D] skin 26.828402 degC, status 0, waited 0 s
+VIS-3D REPORT  (A-C: Oct 14 text workload on b11716, ctx 4096, temperature 0.7, n_predict 512, cores 4-7; D: Q8 projector images)
+
+TEXT  gen t/s = token-weighted over replies >= 10 tokens (Oct 14 rule); pooled = all tokens; accept = accepted / drafted;
+  steps = exact verification steps (server counter, b11716 only); ms/step = decode ms / steps; ms/pass* = decode ms /
+  (generated - accepted), a PROXY, not a step count; prompt s = median prompt_ms; load s = spawn to /health ok
+
+run                           test   n gen t/s pooled accept gen tok steps ms/step ms/pass* prompt s load s req s  label
+VIS-3C 20261023T124846Z_OFF   OFF   13   13.35  13.35    n/a     686   n/a     n/a     74.9     0.36    5.4    62  BASELINE b1609 VALID
+VIS-3C 20261023T132032Z_ON    ON    13   18.55  18.52  38.2%     674   n/a     n/a    116.6     0.34    7.3    49  BASELINE b1609 VALID
+
+MEMORY AND CONDITIONS  HWM/PSS MiB = server VmHWM / peak 5 s PSS; avail = min MemAvailable; skin/st at the spawn -> after the stop;
+  X1 cap = policy6 max MHz at start; X1 top = block share at the X1 maximum; samples = 5 s root samples
+
+run                           test  prompt tok   HWM   PSS avail     W  skin start->end st bat% X1 cap X1 top samples
+VIS-3C 20261023T124846Z_OFF   OFF          305  3964  3912  2542  8.76       25.1->32.8  0   95   2850     9%      13
+VIS-3C 20261023T132032Z_ON    ON           305  3763  3609  2335  7.91       25.5->32.0  0   92   2850    15%      10
+
+IMAGES  20261023T163445Z_D  D  VALID
+  encode = vision encoder (log-timestamp interval); img dec = image-token decode (logged); prompt = server
+  prompt_ms (encode + image decode + text prefill); text* = prompt - encode - img dec, DERIVED; wall = client
+  request time; TTFT not measured (not streamed)
+
+  frame                                  img tok  encode img dec  prompt  text* gen tok gen t/s wall s  reply
+  bench_photos__blocked_1                     63    1513     792    2953    648      30   13.32   5.24  OK
+  bench_photos__empty_2                       63    1452     794    2725    479      30   13.62   4.95  OK
+  bench_photos__person_facing_150cm           63    1452     821    2781    508      28   13.19   4.95  OK
+  bench_photos__person_sideon_300cm           63    1454     838    2818    525      23   13.67   4.52  OK
+  bench_photos__roomsig_couch_1               63    1464     847    2823    512      14   14.65   3.81  OK
+  bench_photos__roomsig_refrigerator_1        63    1456     867    2834    511      22   14.11   4.42  OK
+  bench_photos__roomsig_toilet_1              63    1466     901    2888    520      14   14.43   3.88  OK
+  bench_photos__roomsig_toilet_2              63    1459     874    2860    527      13   13.70   3.83  OK
+
+  first image: wall 5.24 s, encode 1513 ms (includes any first-use cost)
+  images 2..8 median: wall 4.42 s, encode 1456 ms, image decode 847 ms, prompt 2823 ms, gen t/s (token-weighted) 13.79
+  load 5.5 s; responses 8/8 complete; 8/8 frames answered
+
+                              test  prompt tok   HWM   PSS avail     W  skin start->end st bat% X1 cap X1 top samples
+20261023T163445Z_D            D            768  3839  3708  2196  8.21       26.8->31.4  0   96   2850    13%       9
+
+  GRADING SHEET (references are Coder-drafted, owner to confirm; grade by hand, not by filename)
+  [bench_photos__blocked_1]
+    reference: A cluttered wooden dining table seen from close up: an open laptop with a mouse, a TV remote, a second remote, cables, a kitchen-paper roll, a vase of orange roses, a glass of water in front, scissors, a bag of crisps and a small glass. A dark chair at the right edge; a grey couch with cushions, a patterned curtain, a radiator and potted plants on the windowsill behind.
+    key objects: table, laptop, remote, cables, paper roll, roses/flowers in vase, glass of water, scissors, crisps bag, chair, couch, potted plants
+    robot context: The table fills the view: the way ahead is blocked at table height. No person.
+    reply (OK): In front of the robot, there is a wooden table with a laptop, a blue object, and some other items like a glass and scissors.
+    grade: key objects named __/12; hallucinated objects: __; robot-context errors (person, obstacle, room): __
+  [bench_photos__empty_2]
+    reference: A hallway or bedroom corner: a light-wood wardrobe with a mirror door and a wooden crate on top, coats hanging on hooks at the left (one yellow), a small white chest of drawers with bowls and baskets, an open suitcase full of clothes at the bottom right, a closed light-blue/white suitcase on a rug, shoes on the floor, an open door at the left.
+    key objects: wardrobe, mirror, coats, chest of drawers, open suitcase with clothes, closed suitcase, rug, shoes, door
+    robot context: Floor ahead has a suitcase and clothes as obstacles. No person.
+    reply (OK): In front of the robot, there is a collection of items, including a light-colored rug, some stacked boxes, and a black bag.
+    grade: key objects named __/9; hallucinated objects: __; robot-context errors (person, obstacle, room): __
+  [bench_photos__person_facing_150cm]
+    reference: A woman in a blue top reclines on a grey couch against orange cushions, facing the camera, holding a tablet or small laptop with a keyboard case. Behind her: a white wall with framed tile pictures, a wall clock, a hanging plant and a patterned curtain at the right.
+    key objects: person (woman), couch, cushions, tablet/laptop, pictures on wall, clock, plant, curtain
+    robot context: A person is present, facing the robot, lying on the couch; the filename distance (150 cm) is not verified here.
+    reply (OK): In front of the robot, there is a person sitting on a couch. The person has dark hair and is wearing a blue shirt.
+    grade: key objects named __/8; hallucinated objects: __; robot-context errors (person, obstacle, room): __
+  [bench_photos__person_sideon_300cm]
+    reference: A man in a dark-red long-sleeved top and dark trousers stands side-on in a living room, arms forward. Behind him: an open door, a wooden cabinet covered in trailing plants, a framed picture, a smoke detector on the ceiling, a grey couch with cushions, a closed laptop and a bag at the right, a white side table with a plant at the left.
+    key objects: person (man) standing, door, cabinet, plants, couch, cushions, laptop, picture, side table
+    robot context: A person is standing in the room, side-on, not on a collision course in this frame.
+    reply (OK): In front of the robot, there is a wooden floor and a person wearing a pink shirt and dark pants.
+    grade: key objects named __/9; hallucinated objects: __; robot-context errors (person, obstacle, room): __
+  [bench_photos__roomsig_couch_1]
+    reference: Floor-level view of the side of a grey couch very close to the camera, light wooden floor in front. Over the top of the couch a person in yellow clothing lies with bare legs raised, looking at a phone; behind are a radiator, potted plants and a lamp.
+    key objects: couch (very close), wooden floor, person lying on couch, phone, radiator, potted plants, lamp
+    robot context: The couch side blocks the way directly ahead. A person is on the couch (partly visible).
+    reply (OK): In front of the robot is a light-colored wooden floor.
+    grade: key objects named __/7; hallucinated objects: __; robot-context errors (person, obstacle, room): __
+  [bench_photos__roomsig_refrigerator_1]
+    reference: Low view into an open refrigerator: bottles in the door shelf (water, juice, a cola-type bottle), shelves with jars and plastic containers, an orange bowl with a lid, and a vegetable drawer with lettuce and aubergines. A ventilation grille below; floor in front.
+    key objects: open refrigerator, bottles, jars, containers, orange bowl, vegetable drawer, lettuce, aubergines
+    robot context: Fridge door open directly ahead; kitchen. No person.
+    reply (OK): In front of the robot, there is a refrigerator with various items stored inside, including bottles and containers.
+    grade: key objects named __/8; hallucinated objects: __; robot-context errors (person, obstacle, room): __
+  [bench_photos__roomsig_toilet_1]
+    reference: Floor-level bathroom view: a white front-loading washing machine in the centre with a shelf unit above it, part of a white toilet at the right, a bottle on the floor beside the toilet, a bathtub with a shower curtain and a blue bath mat behind, terracotta floor tiles, an open door at the left edge.
+    key objects: washing machine, toilet, bottle, bathtub, shower curtain, bath mat, shelf, floor tiles, door
+    robot context: Bathroom; open floor ahead to the washing machine. No sink is visible. No person.
+    reply (OK): In front of the robot, there is a white washing machine.
+    grade: key objects named __/9; hallucinated objects: __; robot-context errors (person, obstacle, room): __
+  [bench_photos__roomsig_toilet_2]
+    reference: Close floor-level bathroom view: a white front-loading washing machine fills the left half, a white toilet with the lid up at the right, a bottle (Arizona-style drink) on the floor between them, a metal shelf unit with toiletries above the machine, beige wall tiles and terracotta floor tiles.
+    key objects: washing machine, toilet, bottle, shelf with toiletries, tiles
+    robot context: Bathroom; washing machine and toilet close ahead. No sink and no microwave. No person.
+    reply (OK): In front of the robot, there is a white toilet.
+    grade: key objects named __/5; hallucinated objects: __; robot-context errors (person, obstacle, room): __
+
+COMPARISONS  (configuration and conditions are judged separately; neither is a cause)
+[oneshot] done; console log: /data/data/com.termux/files/home/robot_runs/vis3d/oneshot_console_20261023T163437Z.log
+[oneshot] screen timeout restored to 1800000 ms; read back: 1800000
+[oneshot] stopped logger

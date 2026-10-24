@@ -1,0 +1,55 @@
+You are the independent REVIEWER for task VIS-3D of the Pixel Robot project, in a fresh session.
+EXECUTION PROFILE
+ROLE: Independent Reviewer
+PLATFORM: AGY / Antigravity CLI, fresh independent session
+MODEL: gemini-3.8-flash-high
+EFFORT: N/A; High is part of AGY's model identifier
+PONYTAIL: off (do not load or apply any Ponytail skill or command)
+WHY: Review configuration comparability, image-processing correctness, measurement integrity and safety.
+
+Your working directory is an ISOLATED COPY of the repository (tracked files, the 5 new candidate files, the
+unchanged untracked VIS-3C dependency, and the 8 frame JPEGs the candidate uses). Review only; RULES:
+- Do NOT edit, create, delete, move, stage, commit or push anything; do not run git; do not run motors, servers,
+  llama-server, the camera, oneshot.sh or vis3d.py --test; do not launch another agent or reviewer.
+- You may read any file. You may run ONLY these two commands, exactly, from the copy's root:
+  1) /data/data/com.termux/files/usr/bin/python3 -B -c "import sys; [compile(open(f).read(), f, 'exec') for f in sys.argv[1:]]" benchmark/gemma_vision/vis3d/vis3d.py benchmark/gemma_vision/vis3d/test_vis3d.py
+  2) cd benchmark/gemma_vision/vis3d && /data/data/com.termux/files/usr/bin/python3 -B -W ignore -m unittest -v test_vis3d
+  If a command is refused or fails to run, say so and review the supplied outputs instead.
+- Every file:line you cite must state the file's line count once and quote the exact code line. Citations are
+  checked mechanically against this copy; a wrong line makes the review invalid. An earlier round of this review
+  was invalid because several citations were off by one line or pointed past the end of a file (for example JSON
+  file lines numbered as in candidate.diff). Cite line numbers of the file itself, and re-open the file at each
+  cited line to confirm it before you write the final review.
+
+Read first, in _review_context/: TASK.md (the frozen task and its 14 requirements), candidate.diff (complete diff of
+the 5 new files), frozen_candidate.sha256, checks.txt (the Coder's actual check output), identity.txt (weights,
+projector, drafter, b11716 build hashes, source commit, RUNPATH, VIS-2 evidence that MTP drafts with the projector
+resident), b11716_source_excerpts.txt (server code behind the timings, /metrics step counter, /slots, -lv 4 image
+logging, --reasoning). Base commit: 685a44be63aa88c30e09386ce8e5e196ebf11abc (= origin/main).
+
+Candidate: benchmark/gemma_vision/vis3d/{vis3d.py, test_vis3d.py, oneshot.sh, README.md, references.json}.
+Surrounding source it reuses unchanged (review the interaction): benchmark/llm_objective_setting/conversation/
+chat_mtp_repro/repro.py (VIS-3C runner), .../chat_mtp/chat_mtp.py (run_block), benchmark/coresidency/coresidency.py,
+benchmark/power_map/power_map.py, .../chat_mtp_repro/oneshot.sh (the launcher vis3d/oneshot.sh is derived from), and
+the frames + results.json under benchmark/relate_anything/quality1/runs/20261017T213604Z/. Read-only evidence outside
+the copy that you may also read: /data/data/com.termux/files/home/robot_runs/chat_mtp_repro/20261023T124846Z_OFF and
+20261023T132032Z_ON (the VIS-3C baseline), /data/data/com.termux/files/home/llama.cpp-vis/tools/ (b11716 source),
+/data/data/com.termux/files/home/robot/benchmark/gemma_vision/vis{0,1,2,3}/ (earlier vision evidence).
+
+Review in particular, with evidence:
+1. Comparability: A/B/C commands differ only as intended (binary + --metrics vs b1609; projector; drafter); frozen
+   Oct 14 payload/prompts preserved for A-C; threads/affinity/ctx preserved; one server per test; nothing launched
+   after a test; the report separates configuration from conditions and labels C vs b1609 ON as build+projector.
+2. Measurement integrity: token-weighted Oct 14 throughput rule; exact verification steps (/metrics counter) vs the
+   generated-accepted proxy; MTP judged from server evidence, not the command; probes between requests (not during);
+   image encode/decode attribution from the -lv 4 log; derived vs measured quantities labelled; failure handling.
+3. Image-processing correctness (D): /v1/chat/completions request format, Gemma 4 template verification, image
+   payload, budget choice vs the cited evidence, frame provenance, references not from filenames.
+4. Safety: preflight refusals, single-run lock, screen restore, clean server stop on success/failure/signal, no
+   motors/camera, environment overrides, no change to existing implementations or archived results.
+5. Test adequacy for requirement 13, and any bug, regression, unsupported claim or missing verification.
+
+Return the COMPLETE final review: findings ranked by severity (P1 blocker, P2 must fix, P3 note) each with file,
+line count, line and quoted code, and a final line exactly one of:
+VERDICT: APPROVED | VERDICT: APPROVED WITH NOTES | VERDICT: CHANGES REQUESTED
+A pass is a review finding only, never commit permission.

@@ -1,0 +1,795 @@
+diff --git a/benchmark/llm_objective_setting/conversation/chat_mtp_repro/README.md b/benchmark/llm_objective_setting/conversation/chat_mtp_repro/README.md
+new file mode 100644
+index 0000000..0ccb2ca
+--- /dev/null
++++ b/benchmark/llm_objective_setting/conversation/chat_mtp_repro/README.md
+@@ -0,0 +1,86 @@
++# VIS-3C experiment 1: Oct 14 MTP benchmark reproduction, one config per launch
++
++Preparation only: no measured results yet. Reproduces the workload of the VALID run
++`../chat_mtp/runs/chat_mtp_20261014T224541Z` (#137: OFF 13.37, ON 19.18 tok/s, acceptance 39.0 %) on the same
++b1609-dotprod build. The owner launches it from native Termux with no agent resident. No motors, no camera.
++
++## What is frozen, and from where
++
++| Item | Value | Source |
++|---|---|---|
++| Server command | `taskset -c 4-7 …/llama.cpp-b1609-dotprod/build/bin/llama-server -m …/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 4096 --host 127.0.0.1 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0`; ON adds `--model-draft …/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf --spec-type draft-mtp --spec-draft-n-max 3` | archived `run.json` `commands` (= `chat.server_cmd` + `server_manager.MTP_ARGS` at 2091f42) |
++| Payload | `{"prompt": "<start_of_turn>user\n<text><end_of_turn>\n<start_of_turn>model\n", "n_predict": 512, "temperature": 0.7, "stop": ["<end_of_turn>"], "stream": false}` | archived `payload_example` (= `chat.chat_payload(chat.build_prompt('gemma', …))` at 2091f42) |
++| Prompts | the 13 ids A5 A6 B1 B2 B6 B7 C1 C6–C11 in that order, one user message each, one server for all 13 | `chat_mtp.prompt_texts()` from `bench.py` (SHA-256 0792beee… = Oct 14) |
++| Model / drafter / libggml-cpu.so | 8e30dff3… / 9eba8199… / a4ef0d97… | archived `run.json` |
++| Block | `chat_mtp.run_block` unchanged: 180 s block, 175 s watchdog KILL, no prompt starts after 150 s, TERM then KILL after 3 s, cores 4-7 checked after every prompt | `chat_mtp.py` |
++| Monitoring | `coresidency.sampler_loop`: one `su` sample every 5 s (battery W, PSS via dumpsys meminfo, MemAvailable); launcher's root CPU-zone logger every 5 s | `coresidency.py` (a6b0d654…, = Oct 14), `oneshot.sh` |
++| tok/s | token-weighted over replies ≥ 10 tokens; acceptance = Σ accepted / Σ drafted | `chat_mtp.tok_s`, `chat_mtp.acceptance` |
++
++`chat.py` is not used for the command or payload. It changed after Oct 14 (TPL-FIX `70f7508`: `<|turn>` template;
++E4B-UP: menu entry), so a rerun of the archived runner would send a different prompt. `chat.py` and
++`server_manager.py` are still imported indirectly through `chat_mtp.py`; their hashes are recorded as
++`imported_unused_sha256`.
++
++Before starting, `repro.py` refuses unless: the archived `run.json` has its ARTIFACTS SHA-256; the frozen commands,
++payload, prompt texts and their SHA-256, ids, model, drafter and libggml-cpu hashes, `bench.py` hash and block
++constants all equal the archived `run.json`; and `chat_mtp.py`, `coresidency.py`, `power_map.py`, `bench.py` have
++their pinned SHA-256. Model, drafter and libggml-cpu.so are then hashed on disk. Every file in the build's `bin/` is
++hashed into `run.json`.
++
++Checked on the phone 2026-10-23 (read-only): model 8e30dff3…, drafter 9eba8199…, libggml-cpu.so a4ef0d97… equal
++Oct 14. `llama-server` 77eb35a0… and the other libraries were not hashed on Oct 14; all their mtimes are 2026-09-26,
++before Oct 14.
++
++## Where it differs from Oct 14
++
++1. **One config per launch.** Oct 14 ran OFF, then ON in the same process, each in one block. Each launch here runs
++   one config in one block and exits. The other config is never started automatically.
++2. **No 5 min idle and no skin cooling gate.** Oct 14's launcher idled 5 min, the runner took an idle skin baseline and
++   gated each block at idle + 1.5 °C (ON waited 334 s; start skin OFF 24.15, ON 25.63 °C). Here there is no baseline,
++   so `GATE_MAX_S = 0`: the gate takes one reading (recorded) and never waits. Comparability is judged afterwards by
++   `--report` (start skin within 1.0 °C, both Android status 0, battery within 10 %, equal CPU caps at start).
++3. **Thermal and battery preflight added.** Refused when Android thermal status is not 0, VIRTUAL-SKIN is missing,
++   battery ≥ 45 °C or the CPU-zone log is stale. Oct 14 had no such refusal. The 175 s watchdog bounds the server.
++4. **One block only.** A run whose 13 prompts do not all finish in the 180 s block is INCOMPLETE/NOT VALID. Oct 14
++   would have continued in later blocks; it did not need to (60 s OFF, 49 s ON). No resume, no automatic repeat.
++5. **Extra readings outside the measurement only:** cpufreq caps and `time_in_state` (plain sysfs reads, no `su`),
++   battery %, status and °C, before the gate and after the server stop; agent processes and port 8080 after the stop.
++6. **Launcher** `oneshot.sh` is `../chat_mtp/oneshot.sh` with: these paths, `--config OFF|ON` only, no 5 min idle, the
++   runner called directly (no wrapper), and VIS runners (`vis[0-9]_run.py`, which run the dense monitor) added to the
++   running-benchmark refusal. Logger, screen timeout, wake lock, battery and agent checks are unchanged.
++7. `chat_mtp.py` is today's file (b2c370e2…), not 2091f42 (88759798…). The differences are the E4B option and the
++   report-header comma. `run_block`'s E2B path is the same apart from passing `model='e2b'` to the (replaced) command.
++
++Cannot be reproduced exactly: temperature 0.7 sampling without a seed (replies and lengths differ by design; Oct 14
++also differed between OFF and ON); the device state (Android version, background load, X1 caps, which were not
++recorded on Oct 14); the 5 min idle and the ON block's 334 s cooling wait before it.
++
++## Owner commands (native Termux, no agent, battery ≥ 80 % and unplugged, screen on, Termux in front)
++
++Before each launch: quit every agent and exit Debian; stop robot-chat/chat.py, any llama-server and any VIS run.
++
++```bash
++bash ~/robot/benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh --config OFF
++bash ~/robot/benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh --config ON
++python ~/robot/benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py --report \
++  ~/robot_runs/chat_mtp_repro/<UTC>_OFF ~/robot_runs/chat_mtp_repro/<UTC>_ON
++```
++
++Each launch takes about 2 min: 6 s logger start, about 30 s hashing, then load and 13 prompts (about 1 min). For a
++matched pair, start the second launch at a skin within 1 °C of the first (the report shows both).
++
++Folders: `~/robot_runs/chat_mtp_repro/<UTC>_<OFF|ON>/` with `run.json`, `prompts.jsonl`, `server_block00_<cfg>.log`,
++`result.json` (block record with the 5 s samples, start and end conditions), `report.txt`. Launcher console and
++`thermal.log`: `~/robot_runs/chat_mtp_repro/`. The archived Oct 14 folder is only read.
++
++`--report` prints the Oct 14 rows computed from the archive by the same code (13.37 / 19.18 / 39.0 %), then each
++folder's row with its label, the ON/OFF ratio, `configuration` (SAME: only the command's drafter flags differ) and
++`conditions` (MATCHED or UNMATCHED with reasons). It starts nothing and needs no root.
++
++## Files
++
++| File | What |
++|---|---|
++| `repro.py` | runner and `--report` |
++| `oneshot.sh` | native launcher |
++| `test_repro.py` | offline tests (fakes and archived data only): `python3 -B -m unittest -v test_repro` with Termux python |
+diff --git a/benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh b/benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh
+new file mode 100755
+index 0000000..8ac7944
+--- /dev/null
++++ b/benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh
+@@ -0,0 +1,132 @@
++#!/data/data/com.termux/files/usr/bin/bash
++# VIS-3C experiment 1: Oct 14 chat_mtp workload, ONE config per launch; no motors, no camera. Start from NATIVE
++# Termux (prompt "~ $"), no agent running, charger unplugged, battery >= 80 %, Termux in front:
++#   bash ~/robot/benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh --config OFF
++#   bash ~/robot/benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh --config ON
++# chat_mtp/oneshot.sh (task MTP-A) with this folder's runner: same 5 s root thermal logger, checks and screen handling;
++# the 5 min idle is removed (owner, VIS-3C). The runner runs in native Termux, not in Debian: the robot
++# runs ONNX Runtime and llama-server natively. Root commands that call Android services use the DECISIONS #123
++# form: su -c "<cmd> </dev/null >/data/local/tmp/<file> 2>&1", then the file is read.
++H=/data/data/com.termux/files/home
++L=$H/robot_runs/chat_mtp_repro
++R=$H/robot/benchmark/llm_objective_setting/conversation/chat_mtp_repro
++S=/data/local/tmp/chat_mtp_repro_screen.txt
++mkdir -p "$L"
++CONSOLE=$L/oneshot_console_$(date -u +%Y%m%dT%H%M%SZ).log
++say() { echo "[oneshot] $*" | tee -a "$CONSOLE"; }
++
++if [ -d /termux-home ] || [ "${PREFIX:-}" != /data/data/com.termux/files/usr ]; then
++  echo "Run this from native Termux (~ \$), not from Debian."; exit 1
++fi
++su -c id >/dev/null 2>&1 || { echo "No root: su failed. Check Magisk."; exit 1; }
++[ -f "$R/repro.py" ] || { echo "Missing $R/repro.py"; exit 1; }
++case "$*" in "--config OFF"|"--config ON") ;; *) echo "Usage: oneshot.sh --config OFF|ON"; exit 1;; esac
++if pgrep -fa 'claude|agy|node|codex' >/dev/null; then
++  echo "An agent is still running:"; pgrep -fa 'claude|agy|node|codex'; echo "Quit it, then rerun."; exit 1
++fi
++if pgrep -fa 'llama-server|chat\.py' >/dev/null; then
++  echo "llama-server or chat.py is already running:"; pgrep -fa 'llama-server|chat\.py'; echo "Stop it, then rerun."; exit 1
++fi
++if pgrep -fa 'chat_mtp\.py|repro\.py|power_map\.py|coresidency\.py|thermal_char\.py|vis[0-9]_run\.py' >/dev/null; then
++  echo "A benchmark runner is already running:"; pgrep -fa 'chat_mtp\.py|repro\.py|power_map\.py|coresidency\.py|thermal_char\.py|vis[0-9]_run\.py'; echo "Stop it, then rerun."; exit 1
++fi
++check_battery() {  # checked at start and again right before the runner
++  BAT=$(su -c 'cat /sys/class/power_supply/battery/status' 2>/dev/null)
++  if [ "$BAT" != Discharging ]; then
++    echo "[oneshot] Battery status is '$BAT', not Discharging: unplug the charger (power numbers would be invalid)." | tee -a "$CONSOLE"
++    exit 1
++  fi
++}
++cleanup() {
++  [ -n "$LOCKED" ] || return 0  # refused before taking the lock: another run's files are not ours to touch
++  touch "$L/.stop_thermal"
++  if [ "$SCREEN_SET" = 1 ] && [[ $OLD_TIMEOUT =~ ^[0-9]+$ ]]; then
++    su -c "settings put system screen_off_timeout $OLD_TIMEOUT </dev/null >$S 2>&1"
++    su -c "settings get system screen_off_timeout </dev/null >$S 2>&1"
++    BACK=$(su -c "cat $S" 2>/dev/null | tr -d '[:space:]')
++    if [ "$BACK" = "$OLD_TIMEOUT" ]; then
++      say "screen timeout restored to $OLD_TIMEOUT ms; read back: $BACK"
++    else
++      say "WARNING: screen timeout NOT restored (read back '$BACK', expected $OLD_TIMEOUT). Run in native Termux:"
++      say "  su -c \"settings put system screen_off_timeout $OLD_TIMEOUT </dev/null >$S 2>&1\""
++      RESTORE_FAILED=1
++    fi
++  fi
++  [ -z "${PAUSE:-}" ] || kill "$PAUSE" 2>/dev/null
++  termux-wake-unlock
++  # the lock goes only once the logger has exited (it polls .stop_thermal every 5 s):
++  # otherwise a new run could remove .stop_thermal under it and share its files with it
++  JOBS="${LOGGER:-}"
++  for i in $(seq 40); do
++    ALIVE=; for p in $JOBS; do kill -0 "$p" 2>/dev/null && ALIVE=1; done
++    [ -z "$ALIVE" ] && break
++    sleep 0.5
++  done
++  if [ -n "$ALIVE" ]; then
++    say "WARNING: logger still running after 20 s; $L/.lock kept. Remove it when they have stopped."
++    RESTORE_FAILED=1
++  else
++    say "stopped logger"
++    rm -rf "$L/.lock"
++  fi
++  [ -z "${RESTORE_FAILED:-}" ] || exit 1
++}
++LOCKED=
++SCREEN_SET=0
++trap cleanup EXIT
++RUNNER=
++LAUNCHING=
++PENDING=
++on_signal() {  # before the runner starts: exit (the EXIT trap cleans up); after: forward it and keep waiting
++  if [ -n "$RUNNER" ]; then kill -TERM "$RUNNER" 2>/dev/null
++  elif [ -n "$LAUNCHING" ]; then PENDING=1  # between `&` and RUNNER=$!: forwarded right after
++  else exit "$1"; fi
++}
++trap 'on_signal 143' TERM; trap 'on_signal 129' HUP; trap 'on_signal 130' INT
++# one run at a time: runs share thermal.log, .stop_thermal and port 8080
++if ! mkdir "$L/.lock" 2>/dev/null; then
++  echo "Another chat_mtp_repro launcher holds $L/.lock (pid $(cat "$L/.lock/pid" 2>/dev/null))."
++  echo "If no run is active (for example after a crash), remove it: rm -r $L/.lock"; exit 1
++fi
++LOCKED=1
++echo $$ > "$L/.lock/pid"
++check_battery
++
++termux-wake-lock
++pause() { sleep "$1" & PAUSE=$!; wait "$PAUSE"; PAUSE=; }  # a trapped signal interrupts wait, not a foreground sleep
++# keep the screen on (Android moves Termux off the big cores when it is not in front)
++OLD_TIMEOUT=
++if su -c "settings get system screen_off_timeout </dev/null >$S 2>&1"; then
++  OLD_TIMEOUT=$(su -c "cat $S" 2>/dev/null | tr -d '[:space:]')
++fi
++if ! [[ $OLD_TIMEOUT =~ ^[0-9]+$ ]]; then
++  say "Could not read the screen timeout (read '$OLD_TIMEOUT': $(su -c "cat $S" 2>/dev/null | head -c 200)); not started."; exit 1
++fi
++SCREEN_SET=1  # from here on, cleanup restores the validated old value
++su -c "settings put system screen_off_timeout 2147483647 </dev/null >$S 2>&1"
++su -c "settings get system screen_off_timeout </dev/null >$S 2>&1"
++NOW=$(su -c "cat $S" 2>/dev/null | tr -d '[:space:]')
++if [ "$NOW" != 2147483647 ]; then
++  say "Could not set the screen timeout (read back '$NOW'); not started."; exit 1
++fi
++say "screen timeout was $OLD_TIMEOUT ms; set to 2147483647 for the run (read back)"
++[ "$OLD_TIMEOUT" = 2147483647 ] && say "WARNING: the saved timeout is already 2147483647 (left by an earlier run?); set it yourself afterwards"
++rm -f "$L/.stop_thermal"
++
++su -c "while [ ! -f $L/.stop_thermal ]; do echo \"\$(date -u +%Y-%m-%dT%H:%M:%SZ) z9=\$(cat /sys/class/thermal/thermal_zone9/temp) z10=\$(cat /sys/class/thermal/thermal_zone10/temp) z11=\$(cat /sys/class/thermal/thermal_zone11/temp) CPU-core_reading,_not_a_heat_state=1\" >> $L/thermal.log; sleep 5; done" &
++LOGGER=$!
++
++pause 6
++say "CPU-core reading, not a heat state: $(tail -1 "$L/thermal.log")"
++check_battery
++
++# The runner runs as a job so TERM/HUP/INT sent to this launcher reach it: it stops llama-server
++# itself, and we wait for that before the EXIT trap restores the screen timeout.
++LAUNCHING=1
++env PYTHONUNBUFFERED=1 python -u "$R/repro.py" "$@" > >(tee -a "$CONSOLE") 2>&1 &
++RUNNER=$!
++[ -z "$PENDING" ] || kill -TERM "$RUNNER" 2>/dev/null
++while kill -0 "$RUNNER" 2>/dev/null; do wait "$RUNNER"; done
++wait "$RUNNER"; RC=$?
++if [ "$RC" = 0 ]; then say "done; console log: $CONSOLE"; else say "RUNNER FAILED (exit $RC); console log: $CONSOLE"; fi
++exit "$RC"
+diff --git a/benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py b/benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py
+new file mode 100755
+index 0000000..54e82ec
+--- /dev/null
++++ b/benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py
+@@ -0,0 +1,364 @@
++#!/data/data/com.termux/files/usr/bin/python
++"""VIS-3C experiment 1: the Oct 14 chat_mtp workload (run chat_mtp_20261014T224541Z), one config per launch.
++Research only: no motors, no camera, no main.py. Native Termux only; started by oneshot.sh in this folder.
++
++The block is chat_mtp.run_block unchanged (5 s coresidency sampler, 175 s watchdog, TERM then KILL, cores 4-7 checks).
++Only its command and payload are replaced, by the Oct 14 values frozen below: chat.py has changed since then (TPL-FIX
++template, E4B entry), so neither is taken from it. Before starting, the frozen values are compared with the archived
++run.json and the harness files with their pinned SHA-256.
++
++Not as on Oct 14: one config per launch (no OFF -> ON sequence, no idle baseline, so no skin cooling gate: GATE_MAX_S
++= 0); one block only, a run not finished in it is INCOMPLETE (no resume, no repeat). See README.md.
++
++Usage: repro.py --config OFF|ON [--thermal-log PATH]
++       repro.py --report OFF_DIR ON_DIR      (report only; reads the folders, starts nothing)
++Writes ~/robot_runs/chat_mtp_repro/<UTC>_<config>/: run.json, prompts.jsonl, server_block00_<config>.log,
++result.json, report.txt.
++"""
++import argparse
++import json
++import signal
++import socket
++import statistics
++import subprocess
++import sys
++from datetime import datetime, timezone
++from pathlib import Path
++
++sys.dont_write_bytecode = True
++HERE = Path(__file__).resolve().parent
++CHAT_MTP = HERE.parent / 'chat_mtp'
++sys.path.insert(0, str(CHAT_MTP))
++import chat_mtp as cm  # noqa: E402  block machinery; command and payload replaced below
++
++cr, pm, bench = cm.cr, cm.pm, cm.bench
++ARCHIVE = CHAT_MTP / 'runs' / 'chat_mtp_20261014T224541Z'
++ARCHIVE_RUN_SHA256 = '8cc59ac3bb8ab009d4e69e24cf2783ff3fa9a50772dd985acbe2e6d7834cb012'  # chat_mtp/runs/ARTIFACTS.md
++HOME = '/data/data/com.termux/files/home'
++SERVER = f'{HOME}/llama.cpp-b1609-dotprod/build/bin/llama-server'
++MODEL = f'{HOME}/models/gemma-4-E2B-it-Q4_0.gguf'
++DRAFT = f'{HOME}/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf'
++# chat.server_cmd and server_manager.MTP_ARGS at 2091f42 = the archived run.json 'commands'
++OFF = ['taskset', '-c', '4-7', SERVER, '-m', MODEL, '--port', '8080', '--ctx-size', '4096', '--host', '127.0.0.1',
++       '--threads', '4', '--threads-batch', '4', '--parallel', '1', '--swa-full', '--cache-ram', '0']
++COMMANDS = {'OFF': OFF, 'ON': OFF + ['--model-draft', DRAFT, '--spec-type', 'draft-mtp', '--spec-draft-n-max', '3']}
++LIBGGML_CPU = f'{HOME}/llama.cpp-b1609-dotprod/build/bin/libggml-cpu.so'
++SHA256 = {MODEL: '8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52',  # Oct 14 run.json
++          DRAFT: '9eba819938efccfd6044f8af84e3bbfddc639a2bcf32ebc36420e6a649191919',
++          LIBGGML_CPU: 'a4ef0d97e741f5902919af5e9cef95f808bd98581be76bca66fcee3f4ac8a0dd'}
++# Imported harness files. coresidency, power_map and bench are byte-identical to Oct 14; chat_mtp.py gained the E4B
++# option and the report-header comma after 2091f42, neither used by run_block for E2B.
++CODE_SHA256 = {CHAT_MTP / 'chat_mtp.py': 'b2c370e23e5f7fa93996a28a9aaed2f3f5ee546f2ef70f94eaebe4b34a29cd24',
++               Path(cr.__file__): 'a6b0d65454c0c060927f744194a8cbb9f2a419a59e39fc82b0a510b9f92ed177',
++               Path(pm.__file__): '4756ce7dc7ba4e358578288c0d2509345fc4e2fe02d45f077f65355792e29539',
++               Path(bench.__file__): '0792beeed813d94df2a1d9ce7bffe2f5e2a00a564de4a32aaecfa0182b8e6f8f'}
++OUT_ROOT = cr.HOME / 'robot_runs' / 'chat_mtp_repro'
++THERMAL_LOG = OUT_ROOT / 'thermal.log'  # oneshot.sh's logger
++BATTERY_MAX_C = 45  # refused at or above (VIS-3B's stop value)
++POLICIES = ('policy0', 'policy4', 'policy6')
++SKIN_MATCH_C, BATTERY_MATCH_PCT = 1.0, 10  # --report: matched start conditions (VIS-3B's thresholds)
++
++
++def command(config, model='e2b'):
++    return list(COMMANDS[config])
++
++
++def payload(text):
++    """chat.chat_payload(chat.build_prompt('gemma', [one user message]), 'gemma') at 2091f42."""
++    return {'prompt': f'<start_of_turn>user\n{text}<end_of_turn>\n<start_of_turn>model\n', 'n_predict': 512,
++            'temperature': 0.7, 'stop': ['<end_of_turn>'], 'stream': False}
++
++
++cm.command, cm.payload = command, payload  # run_block looks both up in chat_mtp at call time
++
++
++def frozen_problems():
++    """Differences between this file's frozen workload or pinned code and the Oct 14 archive."""
++    why = []
++    if cr.sha256(ARCHIVE / 'run.json') != ARCHIVE_RUN_SHA256:
++        return [f'{ARCHIVE}/run.json is not the archived file']
++    run = json.loads((ARCHIVE / 'run.json').read_text())
++    texts = cm.prompt_texts()
++    checks = {'ids': (cm.IDS, run['ids']), 'commands': (COMMANDS, run['commands']),
++              'payload': (payload('<text>'), run['payload_example']), 'prompt texts': (texts, run['prompt_texts']),
++              'prompt SHA-256': ({i: cm.sha256_text(t) for i, t in texts.items()}, run['prompt_text_sha256']),
++              'model SHA-256': ({MODEL: SHA256[MODEL], DRAFT: SHA256[DRAFT]}, run['model_sha256']),
++              'libggml-cpu SHA-256': (SHA256[LIBGGML_CPU], run['libggml_cpu_sha256']),
++              'bench SHA-256': (bench.SOURCE_SHA256, run['bench_sha256']),
++              'block constants': ((cm.BLOCK_S, cm.DEADLINE_S, cm.TERM_WAIT_S, cm.LAST_START_S),
++                                  (run['block_s'], run['deadline_s'], run['term_wait_s'], run['last_start_s']))}
++    why += [f'{k} differ from the Oct 14 run.json' for k, (mine, theirs) in checks.items() if mine != theirs]
++    why += [f'{p} SHA-256 is not the pinned {h[:12]}' for p, h in CODE_SHA256.items() if cr.sha256(p) != h]
++    return why
++
++
++def check_hashes():
++    got = {p: cr.sha256(p) if Path(p).is_file() else 'missing' for p in SHA256}
++    bad = [f'{p}: {got[p]} != {want}' for p, want in SHA256.items() if got[p] != want]
++    if bad:
++        raise SystemExit('SHA-256 mismatch: ' + '; '.join(bad))
++    return got
++
++
++def build_sha256():
++    """Every file in the build's bin folder (only libggml-cpu.so was hashed on Oct 14)."""
++    return {p.name: cr.sha256(p) for p in sorted(Path(SERVER).parent.iterdir()) if p.is_file() and not p.is_symlink()}
++
++
++def cpufreq():
++    """Caps and time_in_state (kHz -> 10 ms units; kHz kept as a string, as JSON keys are) per policy; no su."""
++    out = {}
++    for p in POLICIES:
++        d = Path('/sys/devices/system/cpu/cpufreq') / p
++        try:
++            out[p] = {'max': int((d / 'scaling_max_freq').read_text()), 'hw_max': int((d / 'cpuinfo_max_freq').read_text()),
++                      'time_in_state': {f: int(t) for f, t in (l.split() for l in (d / 'stats/time_in_state').open())}}
++        except (OSError, ValueError) as e:
++            out[p] = {'error': str(e)}
++    return out
++
++
++def conditions(thermal_log):
++    """Battery, Android thermal status, skin, CPU-zone log line and cpufreq; read outside the measurement."""
++    c = {'utc': cr.utc(), 'cpufreq': cpufreq()}
++    rc, out = cr.root('cat /sys/class/power_supply/battery/capacity /sys/class/power_supply/battery/status '
++                      '/sys/class/power_supply/battery/temp', 'battery')
++    try:
++        level, status, temp = out.split()[:3]
++        c.update(battery_pct=int(level), battery_status=status, battery_c=int(temp) / 10)
++    except ValueError:
++        c['battery_error'] = f'su rc {rc}: {out[:100]!r}'
++    d = cr.read_dump()
++    c.update(skin=d.get('skin'), status=d.get('status'))
++    try:
++        c.update(cr.read_thermal(thermal_log))
++    except (SystemExit, OSError, ValueError, IndexError, KeyError) as e:
++        c['thermal_error'] = str(e)
++    return c
++
++
++def thermal_problems(c):
++    why = []
++    if c.get('status') != 0:
++        why.append(f'Android thermal status {c.get("status")}, not 0')
++    if c.get('skin') is None:
++        why.append('no VIRTUAL-SKIN reading')
++    if c.get('battery_c') is None or c['battery_c'] >= BATTERY_MAX_C:
++        why.append(f'battery {c.get("battery_c")} degC (refused at {BATTERY_MAX_C} or above, or unreadable)')
++    if 'thermal_error' in c:
++        why.append(c['thermal_error'])
++    return why
++
++
++def agents():
++    return subprocess.run(['pgrep', '-fa', cm.AGENTS], capture_output=True, text=True).stdout.strip()
++
++
++def port_free():
++    with socket.socket() as s:
++        s.settimeout(2)
++        return s.connect_ex(('127.0.0.1', 8080)) != 0
++
++
++# ---------------------------------------------------------------- report
++
++def top_share(start, end, policy):
++    """Fraction of the block's time_in_state delta spent at the policy's hardware maximum."""
++    a, b = start['cpufreq'].get(policy, {}), end['cpufreq'].get(policy, {})
++    if 'time_in_state' not in a or 'time_in_state' not in b:
++        return None
++    delta = {f: b['time_in_state'][f] - a['time_in_state'].get(f, 0) for f in b['time_in_state']}
++    total = sum(delta.values())
++    return delta.get(str(b['hw_max']), 0) / total if total else None
++
++
++def med(xs):
++    return statistics.median(xs) if xs else None
++
++
++def summary(rows, block):
++    """Server-timing figures of one config: Oct 14 aggregation plus pooled and per-pass views."""
++    n = sum(r['predicted_n'] or 0 for r in rows)
++    ms = sum(r['predicted_ms'] or 0 for r in rows)
++    passes = sum((r['predicted_n'] or 0) - (r['draft_n_accepted'] or 0) for r in rows)
++    return {'prompts': len(rows), 'tok_s': cm.tok_s(rows), 'pooled_tok_s': n / ms * 1000 if ms else None,
++            'accept': cm.acceptance(rows), 'gen_tokens': n, 'prompt_tokens': sum(r['prompt_n'] or 0 for r in rows),
++            'drafted': sum(r['draft_n'] or 0 for r in rows), 'decode_ms': ms, 'ms_per_pass': ms / passes if passes else None,
++            'prompt_s': med([r['prompt_s'] for r in rows if r['prompt_s'] is not None]),
++            'load_s': block['load_s'], 'requests_s': block['requests_s'], 'server_s': block['server_s'],
++            'samples': len(block['samples']), 'root_s': med([s['root_s'] for s in block['samples'] if 'root_s' in s]),
++            'mean_w': block['mean_w'], 'end_reason': block['end_reason']}
++
++
++def load(folder):
++    """(run, rows, result, problems) of a repro folder; problems make it not VALID."""
++    folder = Path(folder)
++    run = json.loads((folder / 'run.json').read_text())
++    rows = cm.read_jsonl(folder / 'prompts.jsonl')
++    if not (folder / 'result.json').exists():
++        return run, rows, None, ['INCOMPLETE: no result.json (interrupted or failed)']
++    res = json.loads((folder / 'result.json').read_text())
++    b, why = res['block'], []
++    if [r['prompt_id'] for r in rows] != cm.IDS:
++        why.append(f'{len(rows)}/{len(cm.IDS)} prompts')
++    if b['end_reason'] != 'all prompts done':
++        why.append(b['end_reason'])
++    if b['gate']['status'] != 0 or res['start']['status'] != 0:
++        why.append('Android thermal status not 0 at start')
++    if b['server_start'].get('Cpus_allowed_list') != '4-7' or b['server_end'].get('Cpus_allowed_list') != '4-7':
++        why.append('server not on cores 4-7 at start and end')
++    if res['agents_end']:
++        why.append(f'agent process at end: {res["agents_end"][:100]}')
++    if not res['port_free_end']:
++        why.append('port 8080 still in use after the stop')
++    if any(s.get('battery_status') not in (None, 'Discharging') for s in b['samples']):
++        why.append('battery not Discharging in a sample')
++    if any(r['config'] != run['config'] for r in rows):
++        why.append('prompt rows of another config')
++    return run, rows, res, why
++
++
++def report(folders):
++    """Text report of repro folders (any order), plus the Oct 14 archive rows computed the same way."""
++    f = lambda v, spec: format(v, spec) if v is not None else 'n/a'
++    L = ['CHAT MTP REPRO REPORT  (Oct 14 workload: E2B Q4_0, ctx 4096, temperature 0.7, n_predict 512, cores 4-7)',
++         'gen t/s = token-weighted over replies >= 10 tokens (Oct 14 rule); pooled = all tokens; accept = accepted /',
++         'drafted; ms/pass = decode ms / (generated - accepted); prompt s = median server prompt_ms; times from spawn', '',
++         f"{'run':<28}{'cfg':<4}{'n':>3}{'gen t/s':>8}{'pooled':>7}{'accept':>7}{'gen tok':>8}{'ms/pass':>8}"
++         f"{'prompt s':>9}{'load s':>7}{'req s':>6}{'skin':>7}{'st':>3}{'bat%':>5}{'X1 cap':>7}{'X1 top':>7}"
++         f"{'samples':>8}{'root s':>7}  label"]
++    runs, incomplete = [], []
++    arch = json.loads((ARCHIVE / 'run.json').read_text())
++    arch_rows, arch_blocks = cm.read_jsonl(ARCHIVE / 'prompts.jsonl'), cm.read_jsonl(ARCHIVE / 'blocks.jsonl')
++    for b in arch_blocks:
++        rows = [r for r in arch_rows if r['config'] == b['config']]
++        runs.append(('Oct14 ' + ARCHIVE.name[9:], b['config'], summary(rows, b), b['gate'], None, None, [],
++                     arch['code_sha256'], 'ARCHIVE (VALID, #137)'))
++    for folder in folders:
++        run, rows, res, why = load(folder)
++        if res is None:
++            incomplete.append(f'{Path(folder).name:<28}{run["config"]:<4} {why[0]}')
++            continue
++        start, end = res['start'], res['end']
++        runs.append((Path(folder).name, run['config'], summary(rows, res['block']), res['block']['gate'], start, end,
++                     why, run, 'VALID' if not why else 'NOT VALID: ' + '; '.join(why)))
++    for name, cfg, s, gate, start, end, why, _, label in runs:
++        cap = start and start['cpufreq'].get('policy6', {}).get('max')
++        L.append(f"{name:<28}{cfg:<4}{s['prompts']:>3}{f(s['tok_s'], '.2f'):>8}{f(s['pooled_tok_s'], '.2f'):>7}"
++                 f"{f(s['accept'], '.1%'):>7}{s['gen_tokens']:>8}{f(s['ms_per_pass'], '.1f'):>8}{f(s['prompt_s'], '.2f'):>9}"
++                 f"{s['load_s']:>7.1f}{s['requests_s']:>6.0f}{f(gate['skin'], '.2f'):>7}{f(gate['status'], 'd'):>3}"
++                 f"{f(start and start.get('battery_pct'), 'd'):>5}{f(cap and cap // 1000, 'd'):>7}"
++                 f"{f(start and top_share(start, end, 'policy6'), '.0%'):>7}{s['samples']:>8}{f(s['root_s'], '.2f'):>7}  {label}")
++    L += incomplete + ['', 'server timings and end: prompt tokens, drafted, decode ms, server exit s (from spawn), W mean,'
++                       ' skin/status after the stop, end reason']
++    for name, cfg, s, gate, start, end, *_ in runs:
++        e = (end or {}) if start else next(b['end'] for b in arch_blocks if b['config'] == cfg)
++        L.append(f"  {name:<28}{cfg:<4}{s['prompt_tokens']:>5}{s['drafted']:>6}{s['decode_ms']:>10.0f}{s['server_s']:>6.0f}"
++                 f"{f(s['mean_w'], '.2f'):>6}  {e.get('skin')}/{e.get('status')}  {s['end_reason']}")
++    L += ['', 'skin/st = VIRTUAL-SKIN degC and Android status right before the spawn; X1 cap = policy6 scaling_max_freq MHz',
++          'at start; X1 top = share of the block (start to end reading) at the X1 hardware maximum; samples = 5 s root',
++          'samples in the block, root s = their median su duration. Oct 14 recorded no cpufreq or battery %.']
++    mine = [r for r in runs if r[4] is not None]
++    by = {r[1]: r for r in mine}
++    if len(mine) == 2 and set(by) == {'OFF', 'ON'}:
++        off, on = by['OFF'], by['ON']
++        L += ['', f"ON/OFF gen t/s: {on[2]['tok_s'] / off[2]['tok_s']:.3f} (Oct 14: 19.18 / 13.37 = 1.435)"
++              if on[2]['tok_s'] and off[2]['tok_s'] else 'ON/OFF gen t/s: n/a']
++        L.append('configuration: ' + ('SAME' if not (d := config_diffs(off[7], on[7])) else 'DIFFERENT: ' + '; '.join(d)))
++        L.append('conditions: ' + ('MATCHED' if not (d := condition_diffs(off, on)) else 'UNMATCHED: ' + '; '.join(d)))
++    elif folders:
++        L += ['', 'comparison: needs exactly one OFF and one ON folder']
++    return '\n'.join(L)
++
++
++def config_diffs(a, b):
++    """run.json manifests may differ only in config, command (by the drafter flags) and run-specific fields."""
++    why = []
++    if b['command'] != a['command'] + COMMANDS['ON'][len(OFF):]:
++        why.append('commands differ beyond the drafter flags')
++    for k in ('payload_example', 'prompt_texts', 'model_sha256', 'build_sha256', 'code_sha256', 'ids'):
++        if a[k] != b[k]:
++            why.append(f'{k} differs')
++    return why
++
++
++def condition_diffs(off, on):
++    why = []
++    (s0, g0), (s1, g1) = (off[4], off[3]), (on[4], on[3])
++    if g0['skin'] is None or g1['skin'] is None or abs(g0['skin'] - g1['skin']) > SKIN_MATCH_C:
++        why.append(f'start skin {g0["skin"]} vs {g1["skin"]} (> {SKIN_MATCH_C} degC apart)')
++    if (g0['status'], g1['status']) != (0, 0):
++        why.append(f'start status {g0["status"]} / {g1["status"]}')
++    if s0.get('battery_pct') is None or s1.get('battery_pct') is None or \
++            abs(s0['battery_pct'] - s1['battery_pct']) > BATTERY_MATCH_PCT:
++        why.append(f'battery {s0.get("battery_pct")} vs {s1.get("battery_pct")} % (> {BATTERY_MATCH_PCT} apart)')
++    caps = lambda s: {p: s['cpufreq'][p].get('max') for p in POLICIES}
++    if caps(s0) != caps(s1):
++        why.append(f'CPU caps at start {caps(s0)} vs {caps(s1)}')
++    return why
++
++
++# ---------------------------------------------------------------- main
++
++def main(argv=None):
++    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
++    ap.add_argument('--config', choices=('OFF', 'ON'))
++    ap.add_argument('--report', nargs=2, type=Path, metavar=('OFF_DIR', 'ON_DIR'))
++    ap.add_argument('--thermal-log', default=str(THERMAL_LOG))
++    a = ap.parse_args(argv)
++    if bool(a.config) == bool(a.report):
++        ap.error('give exactly one of --config and --report')
++    if a.report:
++        print(report(a.report))
++        return
++    cr.require_native()  # before any root command or server
++    for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
++        signal.signal(sig, cr.exit_on_signal)
++    try:
++        why = cm.refusals() + frozen_problems()
++        if why:
++            raise SystemExit('not started: ' + '; '.join(why))
++        out = OUT_ROOT / f'{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_{a.config}'
++        out.mkdir(parents=True)
++        print(f'checking model, drafter and build SHA-256 (about 30 s); run folder {out}', flush=True)
++        hashes, build = check_hashes(), build_sha256()
++        cr.wait_cores('start')
++        start = conditions(a.thermal_log)
++        if why := thermal_problems(start):
++            raise SystemExit('not started: ' + '; '.join(why))
++        texts = cm.prompt_texts()
++        (out / 'run.json').write_text(json.dumps({
++            'config': a.config, 'ids': cm.IDS, 'command': command(a.config), 'payload_example': payload('<text>'),
++            'prompt_texts': texts, 'started': cr.utc(), 'model_sha256': {p: hashes[p] for p in (MODEL, DRAFT)},
++            'build_sha256': build, 'archive': str(ARCHIVE), 'archive_run_sha256': ARCHIVE_RUN_SHA256,
++            'code_sha256': {str(p): cr.sha256(p) for p in (Path(__file__), *CODE_SHA256)},
++            'imported_unused_sha256': {str(p): cr.sha256(p) for p in (Path(cm.chat.__file__), Path(cm.sm.__file__))},
++            'block_s': cm.BLOCK_S, 'deadline_s': cm.DEADLINE_S, 'gate_max_s': 0, 'sample_s': cr.SAMPLE_S},
++            indent=1) + '\n')
++        pm.GATE_MAX_S = 0  # no idle baseline in a single-config launch: one skin reading, no wait
++        rows = []
++        with open(out / 'prompts.jsonl', 'a') as plog:
++            def emit(row):
++                plog.write(json.dumps(row) + '\n')
++                plog.flush()
++                rows.append(row)
++            ctx = {'out': out, 'thermal_log': a.thermal_log, 'idle': {'skin': start['skin']}, 'emit': emit}
++            try:
++                block = cm.run_block(0, a.config, list(cm.IDS), texts, ctx)
++            except cr.CoresLost as e:
++                raise SystemExit(f'not started: {e}; nothing measured, relaunch')
++        result = {'block': block, 'start': start, 'end': conditions(a.thermal_log), 'agents_end': agents(),
++                  'port_free_end': port_free()}
++        (out / 'result.json').write_text(json.dumps(result) + '\n')
++        text = report([out])
++        (out / 'report.txt').write_text(text + '\n')
++        print(text, flush=True)
++    finally:
++        for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
++            signal.signal(sig, signal.SIG_IGN)
++        for proc in list(cm.LIVE):
++            cm.stop(proc)
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/benchmark/llm_objective_setting/conversation/chat_mtp_repro/test_repro.py b/benchmark/llm_objective_setting/conversation/chat_mtp_repro/test_repro.py
+new file mode 100644
+index 0000000..99d8cfa
+--- /dev/null
++++ b/benchmark/llm_objective_setting/conversation/chat_mtp_repro/test_repro.py
+@@ -0,0 +1,189 @@
++"""Offline tests for repro.py: fakes and the archived Oct 14 run only; nothing is launched, no root, no inference.
++Run from this folder with Termux python: python3 -B -m unittest -v test_repro"""
++import copy
++import io
++import json
++import sys
++import tempfile
++import unittest
++from contextlib import redirect_stdout
++from pathlib import Path
++from unittest import mock
++
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++import repro  # noqa: E402
++
++cm, cr = repro.cm, repro.cr
++sys.path.insert(0, str(repro.CHAT_MTP))
++import test_chat_mtp_runner as old_tests  # noqa: E402  its run_block fakes; module import, so not rediscovered here
++
++ARCH_RUN = json.loads((repro.ARCHIVE / 'run.json').read_text())
++ARCH_ROWS = cm.read_jsonl(repro.ARCHIVE / 'prompts.jsonl')
++ARCH_BLOCKS = cm.read_jsonl(repro.ARCHIVE / 'blocks.jsonl')
++
++
++def freq(cap=2850000):
++    tis = {'500000': 100, '2850000': 900}
++    return {'policy0': {'max': 1803000, 'hw_max': 1803000, 'time_in_state': {'1803000': 5}},
++            'policy4': {'max': 2348000, 'hw_max': 2348000, 'time_in_state': {'2348000': 5}},
++            'policy6': {'max': cap, 'hw_max': 2850000, 'time_in_state': tis}}
++
++
++def conditions(skin=25.0, status=0, pct=90, cap=2850000):
++    return {'utc': 'u', 'cpufreq': freq(cap), 'battery_pct': pct, 'battery_status': 'Discharging', 'battery_c': 28.0,
++            'skin': skin, 'status': status, 'z9': 26000}
++
++
++def make_folder(root, config, skin=25.0, agents_end='', result=True):
++    """A repro folder built from the archived Oct 14 rows and block of that config."""
++    out = Path(root) / f'X_{config}'
++    out.mkdir()
++    run = {'config': config, 'ids': cm.IDS, 'command': repro.COMMANDS[config], 'payload_example': repro.payload('<text>'),
++           'prompt_texts': ARCH_RUN['prompt_texts'], 'model_sha256': ARCH_RUN['model_sha256'], 'build_sha256': {'b': 1},
++           'code_sha256': {'c': 1}}
++    (out / 'run.json').write_text(json.dumps(run))
++    rows = [r for r in ARCH_ROWS if r['config'] == config]
++    (out / 'prompts.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in rows))
++    block = copy.deepcopy(next(b for b in ARCH_BLOCKS if b['config'] == config))
++    block['gate']['skin'] = skin
++    end = conditions(skin + 7)
++    end['cpufreq']['policy6']['time_in_state'] = {'500000': 150, '2850000': 950}
++    if result:
++        (out / 'result.json').write_text(json.dumps({'block': block, 'start': conditions(skin), 'end': end,
++                                                     'agents_end': agents_end, 'port_free_end': True}))
++    return out
++
++
++class FrozenWorkloadTest(unittest.TestCase):
++    def test_frozen_values_equal_the_archived_run(self):
++        self.assertEqual(repro.frozen_problems(), [])
++        self.assertEqual(repro.COMMANDS, ARCH_RUN['commands'])
++        self.assertEqual(repro.payload('<text>'), ARCH_RUN['payload_example'])
++        self.assertEqual(cm.prompt_texts(), ARCH_RUN['prompt_texts'])
++
++    def test_a_changed_command_payload_or_code_hash_is_refused(self):
++        with mock.patch.dict(repro.COMMANDS, {'ON': repro.OFF + ['--spec-draft-n-max', '4']}):
++            self.assertEqual(repro.frozen_problems(), ['commands differ from the Oct 14 run.json'])
++        with mock.patch.object(repro, 'payload', lambda t: {'prompt': t}):
++            self.assertEqual(repro.frozen_problems(), ['payload differ from the Oct 14 run.json'])
++        p = next(iter(repro.CODE_SHA256))
++        with mock.patch.dict(repro.CODE_SHA256, {p: '0' * 64}):
++            self.assertEqual(len(repro.frozen_problems()), 1)
++        with mock.patch.object(repro, 'ARCHIVE_RUN_SHA256', '0' * 64):
++            self.assertIn('not the archived file', repro.frozen_problems()[0])
++
++    def test_payload_is_not_todays_chat_template(self):  # TPL-FIX changed chat.py after Oct 14
++        today = cm.chat.chat_payload(cm.chat.build_prompt('gemma', [{'role': 'user', 'content': 'x'}]), 'gemma')
++        self.assertNotEqual(repro.payload('x')['prompt'], today['prompt'])
++        self.assertEqual(repro.payload('x')['prompt'], '<start_of_turn>user\nx<end_of_turn>\n<start_of_turn>model\n')
++
++    def test_run_block_spawns_and_posts_the_frozen_values(self):
++        helper = old_tests.BlockTest('test_deadline_constants')
++        b, posts, stops, emitted, events, proc = helper.run_block([4] * 13)
++        self.assertEqual(events[0], ('spawn', repro.COMMANDS['ON']))
++        self.assertEqual([p[1] for p in posts], [repro.payload(f'text {i}') for i in cm.IDS])
++        self.assertEqual((b['end_reason'], len(stops)), ('all prompts done', 1))
++
++
++class ReportTest(unittest.TestCase):
++    def test_archive_rows_reproduce_the_oct_14_figures(self):
++        text = repro.report([])
++        off = next(l for l in text.splitlines() if l.startswith('Oct14') and ' OFF ' in l).split()
++        on = next(l for l in text.splitlines() if l.startswith('Oct14') and ' ON ' in l).split()
++        self.assertEqual((off[4], on[4], on[6]), ('13.37', '19.18', '39.0%'))  # name is two words
++        self.assertEqual((off[7], off[8], on[8]), ('675', '74.7', '114.0'))
++
++    def test_matched_pair_is_valid_same_and_matched(self):
++        with tempfile.TemporaryDirectory() as d:
++            text = repro.report([make_folder(d, 'OFF', 25.0), make_folder(d, 'ON', 25.6)])
++        lines = text.splitlines()
++        self.assertEqual(sum(l.startswith('X_') and l.endswith('  VALID') for l in lines), 2)
++        self.assertIn('ON/OFF gen t/s: 1.435 (Oct 14: 19.18 / 13.37 = 1.435)', lines)
++        self.assertIn('configuration: SAME', lines)
++        self.assertIn('conditions: MATCHED', lines)
++        x = next(l for l in lines if l.startswith('X_ON')).split()
++        self.assertEqual((x[14], x[15]), ('2850', '50%'))  # cap; (950-900)/((150-100)+(950-900)) at max
++
++    def test_unmatched_and_not_valid_are_labelled(self):
++        with tempfile.TemporaryDirectory() as d:
++            off, on = make_folder(d, 'OFF', 25.0), make_folder(d, 'ON', 27.0, agents_end='123 claude')
++            run = json.loads((on / 'run.json').read_text())
++            run['code_sha256'] = {'c': 2}
++            (on / 'run.json').write_text(json.dumps(run))
++            text = repro.report([off, on])
++        self.assertIn('conditions: UNMATCHED: start skin 25.0 vs 27.0', text)
++        self.assertIn('configuration: DIFFERENT: code_sha256 differs', text)
++        self.assertIn('NOT VALID: agent process at end: 123 claude', text)
++
++    def test_incomplete_folder(self):
++        with tempfile.TemporaryDirectory() as d:
++            text = repro.report([make_folder(d, 'OFF'), make_folder(d, 'ON', result=False)])
++        self.assertIn('INCOMPLETE: no result.json', text)
++        self.assertIn('comparison: needs exactly one OFF and one ON folder', text)
++
++    def test_missing_prompt_is_not_valid(self):
++        with tempfile.TemporaryDirectory() as d:
++            off = make_folder(d, 'OFF')
++            rows = (off / 'prompts.jsonl').read_text().splitlines()
++            (off / 'prompts.jsonl').write_text('\n'.join(rows[:-1]) + '\n')
++            self.assertIn('12/13 prompts', repro.load(off)[3])
++
++
++class MainTest(unittest.TestCase):
++    def run_main(self, config, start=None, refusals=()):
++        calls = []
++
++        def run_block(seq, cfg, todo, texts, ctx):
++            calls.append((seq, cfg, todo, repro.pm.GATE_MAX_S, ctx['idle']))
++            for r in ARCH_ROWS:
++                if r['config'] == cfg:
++                    ctx['emit'](r)
++            return next(b for b in ARCH_BLOCKS if b['config'] == cfg)
++        with tempfile.TemporaryDirectory() as d, \
++                mock.patch.object(repro, 'OUT_ROOT', Path(d)), mock.patch.object(cr, 'require_native'), \
++                mock.patch.object(repro.signal, 'signal'), \
++                mock.patch.object(cm, 'refusals', return_value=list(refusals)), \
++                mock.patch.object(repro, 'check_hashes', return_value=dict(repro.SHA256)), \
++                mock.patch.object(repro, 'build_sha256', return_value={'llama-server': 'h'}), \
++                mock.patch.object(cr, 'wait_cores'), \
++                mock.patch.object(repro, 'conditions', return_value=start or conditions()), \
++                mock.patch.object(repro, 'agents', return_value=''), mock.patch.object(repro, 'port_free', return_value=True), \
++                mock.patch.object(cm, 'run_block', run_block), mock.patch.object(repro.pm, 'GATE_MAX_S', 480), \
++                mock.patch.object(cm, 'LIVE', ['p']), mock.patch.object(cm, 'stop') as stop, \
++                redirect_stdout(io.StringIO()):
++            try:
++                repro.main(['--config', config])
++                err = None
++            except SystemExit as e:
++                err = str(e)
++            folders = list(Path(d).iterdir())
++            files = {p.name: p.read_text() for p in folders[0].iterdir()} if folders else {}
++        return calls, files, err, stop
++
++    def test_one_launch_runs_only_its_config_once(self):
++        for config in ('OFF', 'ON'):
++            calls, files, err, stop = self.run_main(config)
++            self.assertIsNone(err)
++            self.assertEqual(calls, [(0, config, cm.IDS, 0, {'skin': 25.0})])
++            run = json.loads(files['run.json'])
++            self.assertEqual((run['config'], run['command']), (config, repro.COMMANDS[config]))
++            self.assertEqual(len(files['prompts.jsonl'].splitlines()), 13)
++            self.assertIn('  VALID', files['report.txt'])
++            stop.assert_called_once_with('p')  # main's finally stops any server left
++
++    def test_thermal_and_refusals_start_nothing(self):
++        for start, refusals, want in ((conditions(status=1), (), 'Android thermal status 1'),
++                                      (dict(conditions(), battery_c=45.0), (), 'battery 45.0 degC'),
++                                      (None, ('battery 70 % < 80 %',), 'battery 70 %')):
++            calls, files, err, stop = self.run_main('ON', start, refusals)
++            self.assertEqual(calls, [])
++            self.assertIn(want, err)
++
++    def test_config_xor_report(self):
++        for argv in ([], ['--config', 'ON', '--report', 'a', 'b']):
++            with self.assertRaises(SystemExit), mock.patch('sys.stderr', io.StringIO()):
++                repro.main(argv)
++
++
++if __name__ == '__main__':
++    unittest.main()

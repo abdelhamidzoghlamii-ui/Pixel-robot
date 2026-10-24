@@ -1,0 +1,1339 @@
+diff --git a/benchmark/gemma_vision/vis3d/README.md b/benchmark/gemma_vision/vis3d/README.md
+new file mode 100644
+index 0000000..c9ca85a
+--- /dev/null
++++ b/benchmark/gemma_vision/vis3d/README.md
+@@ -0,0 +1,175 @@
++# VIS-3D: b11716 text and vision benchmark, one test per launch, motors off
++
++Preparation only: no measured results yet. The owner launches each test from native Termux with no agent resident.
++No motors, no camera, no robot mission. Nothing runs after a test; each launch is one server, one block, then exit.
++
++`vis3d.py` imports the VIS-3C runner `../../llm_objective_setting/conversation/chat_mtp_repro/repro.py` (pinned
++SHA-256 `29276a35…`, the file that produced the Oct 23 baseline) and through it `chat_mtp.run_block` unchanged:
++5 s `coresidency` sampler, 180 s block, 175 s watchdog KILL, no request starts after 150 s, TERM then KILL, cores 4-7
++checked after every request. Only the command, the payload and (D) the endpoint are replaced.
++
++## What each test isolates
++
++| Test | Server (b11716, `~/llama.cpp-vis`) | Requests | Question |
++|---|---|---|---|
++| A | E2B Q4_0, no projector, MTP off | Oct 14 text workload | b11716 text speed vs b1609 OFF (13.35 tok/s) |
++| B | A + Q8_0 projector resident | same, no image | A vs B: cost of the resident projector |
++| C | B + Q8_0 E2B MTP drafter | same, no image | B vs C: MTP with the projector resident; C vs b1609 ON (18.55 tok/s) differs by build **and** projector |
++| D | B + `--reasoning off -lv 4` | 8 fixed frames, Gemma 4 chat template | image latency and answer quality |
++
++Commands (`vis3d.COMMANDS`, test-checked):
++- A = the frozen VIS-3C OFF command with only the binary replaced, plus `--metrics`:
++  `taskset -c 4-7 ~/llama.cpp-vis/build/bin/llama-server -m ~/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 4096 --host 127.0.0.1 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --metrics`
++- B = A + `--mmproj ~/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf --image-min-tokens 70 --image-max-tokens 70`
++- C = B + `--model-draft ~/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf --spec-type draft-mtp --spec-draft-n-max 3` (the VIS-3C ON flags)
++- D = B + `--reasoning off -lv 4`
++
++`--metrics` only enables `/metrics`, whose `llamacpp:spec_decode_num_drafts_total` is b11716's exact count of
++speculative verification steps (`server-context.cpp`: `n_draft_verif_steps += 1` per verification). b1609 has no such
++counter: its ms/pass is the proxy decode ms / (generated − accepted), labelled `ms/pass*` and PROXY in the report.
++
++## Text workload (A, B, C): the Oct 14 payload, kept for speed only
++
++Before starting, `repro.frozen_problems()` must return nothing: prompt texts, ids, payload, model and drafter hashes and
++block constants equal the archived Oct 14 `run.json` (SHA-256 `8cc59ac3…`). Every request is
++`{"prompt": "<start_of_turn>user\n<text><end_of_turn>\n<start_of_turn>model\n", "n_predict": 512, "temperature": 0.7, "stop": ["<end_of_turn>"], "stream": false}`
++to `/completion`. This legacy Gemma 3 template is wrong for Gemma 4 (VIS-0: plain-text markers, 9/10 degraded
++replies). It is kept only for an apples-to-apples speed comparison; A–C replies are not judged for quality.
++
++## Vision workload (D): Gemma 4 template
++
++- Endpoint `/v1/chat/completions`; the server applies the GGUF Gemma 4 template (`<|turn>user … <turn|>`).
++  `--reasoning off` sets `enable_thinking=false`.
++- After the first reply the runner records `/apply-template` for the text part. A run is NOT VALID unless that output
++  starts with `<|turn>user\n`, contains `<turn|>` and has no `<start_of_turn>`.
++- Request: one user message `[image_url (data:image/jpeg;base64), text]` with the VIS-0 photo-only instruction
++  "Describe in one or two short sentences what is in front of the robot. Mention only what you can see."
++  Settings: temperature 0, top_k 1, seed 0, max_tokens 96, cache_prompt false. Payloads are encoded before the block.
++- Budget: 70 image tokens (min = max). Existing evidence:
++  - VIS-0 and VIS-1 logged 63 tokens per 482×640 frame.
++  - VIS-1 V2 (Q8, 70): encode about 2.1–2.7 s, wall 8.7–13.6 s with a YOLO list.
++  - VIS-1 V3 (Q8, 140): 154 tokens, encode about 7 s.
++  - VIS-0 grading: 140 was "slightly more detail", 280 not better.
++  - 70 keeps 8 frames well inside the 150 s start window.
++- YOLO lines are not added: VIS-0 found the model copies YOLO's labelling errors.
++- Frames: 8 git-tracked M2-Q1 frames, `relate_anything/quality1/runs/20261017T213604Z/frames/bench_photos__*`.
++  `references.json` holds each frame's source photo, source and frame SHA-256 (test-checked against that run's
++  `results.json`; the runner refuses a changed frame) and a reference description, key objects and robot context.
++  The **Coder drafted these references by viewing the frames; the owner or Local AI confirms or corrects them before
++  grading**. Filenames are not ground truth (for example, `empty_2` shows a wardrobe, suitcases and clothes).
++- One block, no warm-up image: the report shows the first image separately and the median of images 2–8.
++
++What D measures and how:
++
++| Quantity | Source | Kind |
++|---|---|---|
++| load | spawn → `/health` ok | measured (runner clock) |
++| image encode | `-lv 4` log: "encoding mtmd batch" → "decoding image batch" timestamps | measured (server log timestamps) |
++| image tokens, image-token decode | `-lv 4` log: `n_tokens_batch`, "image decoded … in N ms" | logged by the server |
++| prompt | server `prompt_ms` (encode + image decode + text prefill) | server timing |
++| text prefill | prompt − encode − image decode | **derived** |
++| generation | `predicted_n` / `predicted_ms` | server timing |
++| wall | client request time | measured |
++| TTFT | — | not measured (not streamed) |
++| memory, thermal | VmHWM, 5 s PSS, MemAvailable, skin, status, caps | as VIS-3C |
++
++`-lv 4` adds about 25 log lines per request and none per token (VIS-1 V2 log), but D's decode speed is not compared
++with B. Image timings are attributed by order of the server's "processing task" sections. If their count differs
++from the number of replies, nothing is attributed and the run is NOT VALID. Empty replies and replies cut at
++`max_tokens` are labelled `EMPTY` / `INCOMPLETE (length)`; unanswered frames are listed as `NO RESPONSE`.
++
++## Identity checks (refused or NOT VALID otherwise)
++
++- Hashed before every launch:
++  - model `8e30dff3…`, drafter `9eba8199…` (as VIS-3C);
++  - Q8 projector `9406f99c…` (`vis1/mmproj.json`; ggml-org rev `b4243c15`);
++  - `llama-server` and the seven b11716 libraries (pinned in `BUILD_SHA256`; equal to the VIS-2 manifest).
++- `run.json` also records:
++  - the build's `.git/HEAD` (expected `797de63b…`, tag b11716) and its CMake flags;
++  - environment variables `LLAMA_*`, `GGML_*`, `OMP_*`, `KMP_*`, `LD_LIBRARY_PATH` (any of these set: refused) and
++    `LD_PRELOAD` (termux-exec, recorded only).
++- After the first reply:
++  - `/props` `modalities.vision` and `/slots` `speculative` must equal the test's intent;
++  - every mapped `libggml*`/`libllama*`/`libmtmd*` must come from `~/llama.cpp-vis/build/bin`.
++- From the server log: "loaded multimodal model '<Q8 path>'" iff a projector is intended; "loading draft model
++  '<drafter>'" iff MTP is intended.
++- MTP is reported only if the server also drafted (`draft_n` > 0) and counted verification steps; drafting without
++  the drafter is NOT VALID.
++- Also checked as in VIS-3C: all requests answered in the block; Android status 0 at start; server on cores 4-7 at
++  start and end; no agent and port 8080 free after the stop; battery Discharging in every sample.
++
++## Owner commands (native Termux; one test per command; nothing follows automatically)
++
++Preflight requirements (checked by `oneshot.sh` and `vis3d.py`; a failed check starts nothing):
++- native Termux, root via `su`;
++- no claude/agy/node/codex process; no llama-server, chat.py or benchmark runner; port 8080 free;
++- the single-run lock is free;
++- battery ≥ 80 % and Discharging (charger unplugged), checked twice;
++- Android thermal status 0, VIRTUAL-SKIN readable, battery below 45 °C, the 5 s CPU-zone log fresh;
++- cores 4-7 allowed (screen on, Termux in front);
++- the frozen workload and all pinned hashes as above.
++
++The screen timeout is set to maximum and restored and read back at exit.
++
++```bash
++bash ~/robot/benchmark/gemma_vision/vis3d/oneshot.sh --test A
++bash ~/robot/benchmark/gemma_vision/vis3d/oneshot.sh --test B
++bash ~/robot/benchmark/gemma_vision/vis3d/oneshot.sh --test C
++bash ~/robot/benchmark/gemma_vision/vis3d/oneshot.sh --test D
++```
++
++Each takes about 2–3 min: 6 s logger start, about 40 s hashing, load, then the requests (A/B about 1 min, C under
++1 min, D about 1.5 min). For matched pairs start the next test at a skin within 1 °C of the previous one; the report
++shows both.
++
++Folders: `~/robot_runs/vis3d/<UTC>_<test>/` holds:
++- `run.json` (command, payload example, prompt texts or frame hashes, weight, build and code hashes, build info, env);
++- `prompts.jsonl` (each reply with its server timings and probes);
++- `server_block00_<test>.log`;
++- `result.json` (block record with the 5 s samples, start and end conditions);
++- `report.txt`.
++
++Launcher console and `thermal.log` go in `~/robot_runs/vis3d/`. The VIS-3C folders are only read.
++
++## Report-only (reads folders, starts nothing, no root)
++
++```bash
++python ~/robot/benchmark/gemma_vision/vis3d/vis3d.py --report ~/robot_runs/vis3d/<UTC>_A ~/robot_runs/vis3d/<UTC>_B ~/robot_runs/vis3d/<UTC>_C
++python ~/robot/benchmark/gemma_vision/vis3d/vis3d.py --report ~/robot_runs/vis3d/<UTC>_D
++```
++
++The report always includes the VIS-3C baseline rows (`20261023T124846Z_OFF`, `20261023T132032Z_ON`) recomputed by
++`repro.summary`.
++
++- **Throughput** follows the Oct 14 rule: token-weighted generation tok/s over replies of at least 10 tokens.
++  `pooled` uses all tokens.
++- **Comparisons:** B/A, C/B, A/OFF and C/ON, each with three separate lines:
++  - `configuration`: what differs; A/B and B/C may differ only by their flags;
++  - `conditions`: MATCHED or UNMATCHED (VIS-3C rule: start skin within 1 °C, status 0, battery within 10 %, equal
++    CPU caps);
++  - both validity labels.
++
++  A ratio is an observation, not a cause. In particular, C/ON mixes build and projector residency.
++- **Test D:** per-image table, first image vs median of the rest, resources, and a grading sheet. The grading sheet
++  gives each frame's reference, key objects and reply, with blanks for key objects named, hallucinated objects and
++  robot-context errors.
++
++## Limitations and stop conditions
++
++- **Single short blocks:**
++  - Each test is one 180 s block; thermal equilibrium is not established (#93).
++  - Sampling at temperature 0.7 without a seed makes A–C reply lengths differ between runs (as on Oct 14).
++  - A ratio from one pair is one observation; repeat only by a new owner decision.
++- **Defaults not pinned by the payload:** b11716 sampler defaults are recorded (`/props`) but not forced equal to
++  b1609's. VIS-3 found a small EOG tokenizer difference. Compare `prompt tok` (305 on b1609).
++- **Not measured:**
++  - MTP with images (not part of this sequence);
++  - TTFT;
++  - per-request power (only the 5 s battery samples).
++- **Stop and report rather than rerun** if any of these happens:
++  - a preflight refusal that is not the operator's to fix (hash or frozen-workload mismatch);
++  - NOT VALID for projector, drafter or library identity;
++  - `/props` or `/slots` disagreeing with the command;
++  - a server exit before the end of the block (the runner does not query LMK: check logcat by hand);
++  - D replies empty or cut on more than 2 of 8 frames;
++  - Android status above 0 at a start.
+diff --git a/benchmark/gemma_vision/vis3d/oneshot.sh b/benchmark/gemma_vision/vis3d/oneshot.sh
+new file mode 100644
+index 0000000..92fed4a
+--- /dev/null
++++ b/benchmark/gemma_vision/vis3d/oneshot.sh
+@@ -0,0 +1,131 @@
++#!/data/data/com.termux/files/usr/bin/bash
++# VIS-3D: b11716 text (A, B, C) and image (D) tests, ONE test per launch; no motors, no camera. Start from NATIVE
++# Termux (prompt "~ $"), no agent running, charger unplugged, battery >= 80 %, Termux in front:
++#   bash ~/robot/benchmark/gemma_vision/vis3d/oneshot.sh --test A    (or B, C, D)
++# chat_mtp_repro/oneshot.sh (VIS-3C) with this folder's runner: same 5 s root thermal logger, checks and screen handling;
++# no 5 min idle (as VIS-3C). The runner runs in native Termux, not in Debian: the robot
++# runs ONNX Runtime and llama-server natively. Root commands that call Android services use the DECISIONS #123
++# form: su -c "<cmd> </dev/null >/data/local/tmp/<file> 2>&1", then the file is read.
++H=/data/data/com.termux/files/home
++L=$H/robot_runs/vis3d
++R=$H/robot/benchmark/gemma_vision/vis3d
++S=/data/local/tmp/vis3d_screen.txt
++mkdir -p "$L"
++CONSOLE=$L/oneshot_console_$(date -u +%Y%m%dT%H%M%SZ).log
++say() { echo "[oneshot] $*" | tee -a "$CONSOLE"; }
++
++if [ -d /termux-home ] || [ "${PREFIX:-}" != /data/data/com.termux/files/usr ]; then
++  echo "Run this from native Termux (~ \$), not from Debian."; exit 1
++fi
++su -c id >/dev/null 2>&1 || { echo "No root: su failed. Check Magisk."; exit 1; }
++[ -f "$R/vis3d.py" ] || { echo "Missing $R/vis3d.py"; exit 1; }
++case "$*" in "--test A"|"--test B"|"--test C"|"--test D") ;; *) echo "Usage: oneshot.sh --test A|B|C|D"; exit 1;; esac
++if pgrep -fa 'claude|agy|node|codex' >/dev/null; then
++  echo "An agent is still running:"; pgrep -fa 'claude|agy|node|codex'; echo "Quit it, then rerun."; exit 1
++fi
++if pgrep -fa 'llama-server|chat\.py' >/dev/null; then
++  echo "llama-server or chat.py is already running:"; pgrep -fa 'llama-server|chat\.py'; echo "Stop it, then rerun."; exit 1
++fi
++if pgrep -fa 'chat_mtp\.py|repro\.py|vis3d\.py|power_map\.py|coresidency\.py|thermal_char\.py|vis[0-9]_run\.py' >/dev/null; then
++  echo "A benchmark runner is already running:"; pgrep -fa 'chat_mtp\.py|repro\.py|vis3d\.py|power_map\.py|coresidency\.py|thermal_char\.py|vis[0-9]_run\.py'; echo "Stop it, then rerun."; exit 1
++fi
++check_battery() {  # checked at start and again right before the runner
++  BAT=$(su -c 'cat /sys/class/power_supply/battery/status' 2>/dev/null)
++  if [ "$BAT" != Discharging ]; then
++    echo "[oneshot] Battery status is '$BAT', not Discharging: unplug the charger (power numbers would be invalid)." | tee -a "$CONSOLE"
++    exit 1
++  fi
++}
++cleanup() {
++  [ -n "$LOCKED" ] || return 0  # refused before taking the lock: another run's files are not ours to touch
++  touch "$L/.stop_thermal"
++  if [ "$SCREEN_SET" = 1 ] && [[ $OLD_TIMEOUT =~ ^[0-9]+$ ]]; then
++    su -c "settings put system screen_off_timeout $OLD_TIMEOUT </dev/null >$S 2>&1"
++    su -c "settings get system screen_off_timeout </dev/null >$S 2>&1"
++    BACK=$(su -c "cat $S" 2>/dev/null | tr -d '[:space:]')
++    if [ "$BACK" = "$OLD_TIMEOUT" ]; then
++      say "screen timeout restored to $OLD_TIMEOUT ms; read back: $BACK"
++    else
++      say "WARNING: screen timeout NOT restored (read back '$BACK', expected $OLD_TIMEOUT). Run in native Termux:"
++      say "  su -c \"settings put system screen_off_timeout $OLD_TIMEOUT </dev/null >$S 2>&1\""
++      RESTORE_FAILED=1
++    fi
++  fi
++  [ -z "${PAUSE:-}" ] || kill "$PAUSE" 2>/dev/null
++  termux-wake-unlock
++  # the lock goes only once the logger has exited (it polls .stop_thermal every 5 s):
++  # otherwise a new run could remove .stop_thermal under it and share its files with it
++  JOBS="${LOGGER:-}"
++  for i in $(seq 40); do
++    ALIVE=; for p in $JOBS; do kill -0 "$p" 2>/dev/null && ALIVE=1; done
++    [ -z "$ALIVE" ] && break
++    sleep 0.5
++  done
++  if [ -n "$ALIVE" ]; then
++    say "WARNING: logger still running after 20 s; $L/.lock kept. Remove it when they have stopped."
++    RESTORE_FAILED=1
++  else
++    say "stopped logger"
++    rm -rf "$L/.lock"
++  fi
++  [ -z "${RESTORE_FAILED:-}" ] || exit 1
++}
++LOCKED=
++SCREEN_SET=0
++trap cleanup EXIT
++RUNNER=
++LAUNCHING=
++PENDING=
++on_signal() {  # before the runner starts: exit (the EXIT trap cleans up); after: forward it and keep waiting
++  if [ -n "$RUNNER" ]; then kill -TERM "$RUNNER" 2>/dev/null
++  elif [ -n "$LAUNCHING" ]; then PENDING=1  # between `&` and RUNNER=$!: forwarded right after
++  else exit "$1"; fi
++}
++trap 'on_signal 143' TERM; trap 'on_signal 129' HUP; trap 'on_signal 130' INT
++# one run at a time: runs share thermal.log, .stop_thermal and port 8080
++if ! mkdir "$L/.lock" 2>/dev/null; then
++  echo "Another VIS-3D launcher holds $L/.lock (pid $(cat "$L/.lock/pid" 2>/dev/null))."
++  echo "If no run is active (for example after a crash), remove it: rm -r $L/.lock"; exit 1
++fi
++LOCKED=1
++echo $$ > "$L/.lock/pid"
++check_battery
++
++termux-wake-lock
++pause() { sleep "$1" & PAUSE=$!; wait "$PAUSE"; PAUSE=; }  # a trapped signal interrupts wait, not a foreground sleep
++# keep the screen on (Android moves Termux off the big cores when it is not in front)
++OLD_TIMEOUT=
++if su -c "settings get system screen_off_timeout </dev/null >$S 2>&1"; then
++  OLD_TIMEOUT=$(su -c "cat $S" 2>/dev/null | tr -d '[:space:]')
++fi
++if ! [[ $OLD_TIMEOUT =~ ^[0-9]+$ ]]; then
++  say "Could not read the screen timeout (read '$OLD_TIMEOUT': $(su -c "cat $S" 2>/dev/null | head -c 200)); not started."; exit 1
++fi
++SCREEN_SET=1  # from here on, cleanup restores the validated old value
++su -c "settings put system screen_off_timeout 2147483647 </dev/null >$S 2>&1"
++su -c "settings get system screen_off_timeout </dev/null >$S 2>&1"
++NOW=$(su -c "cat $S" 2>/dev/null | tr -d '[:space:]')
++if [ "$NOW" != 2147483647 ]; then
++  say "Could not set the screen timeout (read back '$NOW'); not started."; exit 1
++fi
++say "screen timeout was $OLD_TIMEOUT ms; set to 2147483647 for the run (read back)"
++[ "$OLD_TIMEOUT" = 2147483647 ] && say "WARNING: the saved timeout is already 2147483647 (left by an earlier run?); set it yourself afterwards"
++rm -f "$L/.stop_thermal"
++
++su -c "while [ ! -f $L/.stop_thermal ]; do echo \"\$(date -u +%Y-%m-%dT%H:%M:%SZ) z9=\$(cat /sys/class/thermal/thermal_zone9/temp) z10=\$(cat /sys/class/thermal/thermal_zone10/temp) z11=\$(cat /sys/class/thermal/thermal_zone11/temp) CPU-core_reading,_not_a_heat_state=1\" >> $L/thermal.log; sleep 5; done" &
++LOGGER=$!
++
++pause 6
++say "CPU-core reading, not a heat state: $(tail -1 "$L/thermal.log")"
++check_battery
++
++# The runner runs as a job so TERM/HUP/INT sent to this launcher reach it: it stops llama-server
++# itself, and we wait for that before the EXIT trap restores the screen timeout.
++LAUNCHING=1
++env PYTHONUNBUFFERED=1 python -u "$R/vis3d.py" "$@" > >(tee -a "$CONSOLE") 2>&1 &
++RUNNER=$!
++[ -z "$PENDING" ] || kill -TERM "$RUNNER" 2>/dev/null
++while kill -0 "$RUNNER" 2>/dev/null; do wait "$RUNNER"; done
++wait "$RUNNER"; RC=$?
++if [ "$RC" = 0 ]; then say "done; console log: $CONSOLE"; else say "RUNNER FAILED (exit $RC); console log: $CONSOLE"; fi
++exit "$RC"
+diff --git a/benchmark/gemma_vision/vis3d/references.json b/benchmark/gemma_vision/vis3d/references.json
+new file mode 100644
+index 0000000..bd87918
+--- /dev/null
++++ b/benchmark/gemma_vision/vis3d/references.json
+@@ -0,0 +1,71 @@
++{
++ "established_by": "Coder (Claude Code, claude-opus-5-5) by viewing each frame on 2026-10-23. Not owner-verified: the owner or Local AI confirms or corrects these before any grade is recorded. Filenames are not ground truth (empty_2 is not empty).",
++ "frames_dir": "benchmark/relate_anything/quality1/runs/20261017T213604Z/frames",
++ "provenance": "M2-Q1 run 20261017T213604Z results.json: photo, source_sha256, frame_sha256 (482x640 frames, git-tracked)",
++ "frames": {
++  "bench_photos__blocked_1": {
++   "photo": "bench_photos/blocked_1.jpg",
++   "source_sha256": "f78a3a1bb2658688cc8a98a67f7642677639d231b6bcd350314ecad024b0db2c",
++   "frame_sha256": "b7b275eff91067841d7da78999619fa73b42c0078300ec6c8ef157026b1fc222",
++   "reference": "A cluttered wooden dining table seen from close up: an open laptop with a mouse, a TV remote, a second remote, cables, a kitchen-paper roll, a vase of orange roses, a glass of water in front, scissors, a bag of crisps and a small glass. A dark chair at the right edge; a grey couch with cushions, a patterned curtain, a radiator and potted plants on the windowsill behind.",
++   "key_objects": ["table", "laptop", "remote", "cables", "paper roll", "roses/flowers in vase", "glass of water", "scissors", "crisps bag", "chair", "couch", "potted plants"],
++   "robot_context": "The table fills the view: the way ahead is blocked at table height. No person."
++  },
++  "bench_photos__empty_2": {
++   "photo": "bench_photos/empty_2.jpg",
++   "source_sha256": "68c2ed00e7635d6884377b4c34a90617e238e63749318dc602d9f49423246f2a",
++   "frame_sha256": "971ace92f19973a035de33a4dc2148550623d187a7b701eaee9131ac878de40c",
++   "reference": "A hallway or bedroom corner: a light-wood wardrobe with a mirror door and a wooden crate on top, coats hanging on hooks at the left (one yellow), a small white chest of drawers with bowls and baskets, an open suitcase full of clothes at the bottom right, a closed light-blue/white suitcase on a rug, shoes on the floor, an open door at the left.",
++   "key_objects": ["wardrobe", "mirror", "coats", "chest of drawers", "open suitcase with clothes", "closed suitcase", "rug", "shoes", "door"],
++   "robot_context": "Floor ahead has a suitcase and clothes as obstacles. No person."
++  },
++  "bench_photos__person_facing_150cm": {
++   "photo": "bench_photos/person_facing_150cm.jpg",
++   "source_sha256": "40970d84e264c4762267007048e8b911dc5390370ff71b056dd66a9a4d665855",
++   "frame_sha256": "03b7d0e05c361ba4ef08f1d42d6ddb18c71ae8e2a53a9c06b035e8a0e0241f11",
++   "reference": "A woman in a blue top reclines on a grey couch against orange cushions, facing the camera, holding a tablet or small laptop with a keyboard case. Behind her: a white wall with framed tile pictures, a wall clock, a hanging plant and a patterned curtain at the right.",
++   "key_objects": ["person (woman)", "couch", "cushions", "tablet/laptop", "pictures on wall", "clock", "plant", "curtain"],
++   "robot_context": "A person is present, facing the robot, lying on the couch; the filename distance (150 cm) is not verified here."
++  },
++  "bench_photos__person_sideon_300cm": {
++   "photo": "bench_photos/person_sideon_300cm.jpg",
++   "source_sha256": "3015f69d8bee6f1296ada8931a1fafd77b7205f3ae6c341ec052bb1aa994beec",
++   "frame_sha256": "fc43eb330ebd9b5e9e55a2f0369a68c5483d16d31015bfb13e0c192ceaba3afb",
++   "reference": "A man in a dark-red long-sleeved top and dark trousers stands side-on in a living room, arms forward. Behind him: an open door, a wooden cabinet covered in trailing plants, a framed picture, a smoke detector on the ceiling, a grey couch with cushions, a closed laptop and a bag at the right, a white side table with a plant at the left.",
++   "key_objects": ["person (man) standing", "door", "cabinet", "plants", "couch", "cushions", "laptop", "picture", "side table"],
++   "robot_context": "A person is standing in the room, side-on, not on a collision course in this frame."
++  },
++  "bench_photos__roomsig_couch_1": {
++   "photo": "bench_photos/roomsig_couch_1.jpg",
++   "source_sha256": "4d935902fc513e581a3004e7c3857f4d92cd4e4ec6d337b27e53f04f38566edc",
++   "frame_sha256": "17fccf29f86fdec349ee5e232250ab239289d9f5328b1a57ee47d99430d7f8cd",
++   "reference": "Floor-level view of the side of a grey couch very close to the camera, light wooden floor in front. Over the top of the couch a person in yellow clothing lies with bare legs raised, looking at a phone; behind are a radiator, potted plants and a lamp.",
++   "key_objects": ["couch (very close)", "wooden floor", "person lying on couch", "phone", "radiator", "potted plants", "lamp"],
++   "robot_context": "The couch side blocks the way directly ahead. A person is on the couch (partly visible)."
++  },
++  "bench_photos__roomsig_refrigerator_1": {
++   "photo": "bench_photos/roomsig_refrigerator_1.jpg",
++   "source_sha256": "ba8abe530b043baf8d0d1b10ddfb0e2493f562cdd8a9817044c5b128bda0317f",
++   "frame_sha256": "c41ba3db98e6dafdc9812a5d691c07e0fbc6db0ee35bb83e683d1fe997e09766",
++   "reference": "Low view into an open refrigerator: bottles in the door shelf (water, juice, a cola-type bottle), shelves with jars and plastic containers, an orange bowl with a lid, and a vegetable drawer with lettuce and aubergines. A ventilation grille below; floor in front.",
++   "key_objects": ["open refrigerator", "bottles", "jars", "containers", "orange bowl", "vegetable drawer", "lettuce", "aubergines"],
++   "robot_context": "Fridge door open directly ahead; kitchen. No person."
++  },
++  "bench_photos__roomsig_toilet_1": {
++   "photo": "bench_photos/roomsig_toilet_1.jpg",
++   "source_sha256": "156ec0c294e25042b9deb5424975111013f6db24d9eeb156325f60e28155ffbc",
++   "frame_sha256": "ee823cc95bf2728659aebe7e779a64c178ca7f3ae7f0dab1cc87a7acbbb01500",
++   "reference": "Floor-level bathroom view: a white front-loading washing machine in the centre with a shelf unit above it, part of a white toilet at the right, a bottle on the floor beside the toilet, a bathtub with a shower curtain and a blue bath mat behind, terracotta floor tiles, an open door at the left edge.",
++   "key_objects": ["washing machine", "toilet", "bottle", "bathtub", "shower curtain", "bath mat", "shelf", "floor tiles", "door"],
++   "robot_context": "Bathroom; open floor ahead to the washing machine. No sink is visible. No person."
++  },
++  "bench_photos__roomsig_toilet_2": {
++   "photo": "bench_photos/roomsig_toilet_2.jpg",
++   "source_sha256": "27e4227bd8112fecf6bc5f6a6d0df632b76b82f76468b3e0c3ac6913659323a3",
++   "frame_sha256": "d4bda73e012d730c9ad1e773c19f723288261818effebfa936f60c2c8bba7f4c",
++   "reference": "Close floor-level bathroom view: a white front-loading washing machine fills the left half, a white toilet with the lid up at the right, a bottle (Arizona-style drink) on the floor between them, a metal shelf unit with toiletries above the machine, beige wall tiles and terracotta floor tiles.",
++   "key_objects": ["washing machine", "toilet", "bottle", "shelf with toiletries", "tiles"],
++   "robot_context": "Bathroom; washing machine and toilet close ahead. No sink and no microwave. No person."
++  }
++ }
++}
+diff --git a/benchmark/gemma_vision/vis3d/test_vis3d.py b/benchmark/gemma_vision/vis3d/test_vis3d.py
+new file mode 100644
+index 0000000..ae7984d
+--- /dev/null
++++ b/benchmark/gemma_vision/vis3d/test_vis3d.py
+@@ -0,0 +1,425 @@
++"""Offline tests for vis3d.py: fakes, the tracked Oct 14 archive and tracked M2-Q1 frames only; nothing is launched,
++no root, no inference. Run from this folder with Termux python: python3 -B -m unittest -v test_vis3d"""
++import base64
++import copy
++import io
++import json
++import os
++import sys
++import tempfile
++import unittest
++from contextlib import redirect_stdout
++from pathlib import Path
++from unittest import mock
++
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++import vis3d  # noqa: E402
++
++repro, cm, cr = vis3d.repro, vis3d.cm, vis3d.cr
++sys.path.insert(0, str(vis3d.REPRO_DIR))
++import test_repro  # noqa: E402  its Oct 14 fixtures (make_folder, conditions); module import, not rediscovered here
++sys.path.insert(0, str(repro.CHAT_MTP))
++import test_chat_mtp_runner as old_tests  # noqa: E402  run_block fakes
++
++ARCH_ROWS, ARCH_BLOCKS = test_repro.ARCH_ROWS, test_repro.ARCH_BLOCKS
++# Two image requests from VIS-1 V2 (Q8 projector, 70-token budget, -lv 4, b11716), copied verbatim
++LOG = """0.08.241.813 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
++0.08.241.823 I slot   operator(): id  0 | task 0 | new prompt, n_ctx_slot = 4096, n_keep = 0, task.n_tokens = 268
++0.08.490.400 I slot encode_mtmd_: id  0 | task 0 | encoding mtmd batch from idx = 5, n_chunks = 1
++0.10.649.720 I decoding image batch 1/1, n_tokens_batch = 63
++0.11.926.720 I image decoded (batch 1/1) in 1275 ms
++0.21.322.589 I slot print_timing: id  0 | task 0 | prompt eval time =    8401.84 ms /   268 tokens (   31.35 ms per token,    31.90 tokens per second)
++0.21.390.451 I slot launch_slot_: id  0 | task 40 | processing task, is_child = 0
++0.21.649.817 I slot encode_mtmd_: id  0 | task 40 | encoding mtmd batch from idx = 5, n_chunks = 1
++0.23.767.736 I decoding image batch 1/1, n_tokens_batch = 63
++0.25.070.858 I image decoded (batch 1/1) in 1302 ms
++"""
++LIBS = [f'{vis3d.BIN}/libllama.so.0.7.0', f'{vis3d.BIN}/libggml-cpu.so.0.27.0', f'{vis3d.BIN}/libmtmd.so.0.7.0',
++        '/system/lib64/libc.so']
++
++
++def server_log(test):
++    vision, spec = vis3d.INTENDED[test]
++    return ('I srv  llama_server: model loaded\n' +
++            (f"I srv load_model: loaded multimodal model, '{vis3d.MMPROJ}'\n" if vision else '') +
++            (f"I common_speculative_init_result: loading draft model '{vis3d.DRAFT}'\n" if spec else ''))
++
++
++def make(root, test, skin=25.0, first=None, every=None, log=None, n=None, name=None):
++    """A VIS-3D folder. A, B: the Oct 14 OFF rows; C: the ON rows; D: 8 image rows. `first`/`every` override probe
++    fields of the first / every row."""
++    out = Path(root) / (name or f'X_{test}')
++    out.mkdir()
++    vision, spec = vis3d.INTENDED[test]
++    if test == 'D':
++        ids = vis3d.FRAMES
++        rows = [{'config': 'D', 'prompt_id': f, 'prompt_s': 8.4, 'prompt_n': 268, 'predicted_n': 30,
++                 'predicted_ms': 4000.0, 'wall_s': 12.5, 'draft_n': None, 'draft_n_accepted': None,
++                 'stop_type': 'stop', 'reply': f'reply {f}'} for f in ids]
++        texts, example = {f: vis3d.PROMPT for f in ids}, vis3d.image_payload('<frame>', jpeg='<base64 jpeg>')
++    else:
++        ids, texts, example = cm.IDS, test_repro.ARCH_RUN['prompt_texts'], repro.payload('<text>')
++        rows = copy.deepcopy([r for r in ARCH_ROWS if r['config'] == ('ON' if spec else 'OFF')])
++    rows = rows[:n]
++    total = 0
++    for i, r in enumerate(rows):
++        r['config'] = test
++        total += (r['predicted_n'] - (r['draft_n_accepted'] or 0)) if spec else 0
++        r['probe'] = {'metrics': {'llamacpp:spec_decode_num_drafts_total': float(total)}, **(every or {})}
++        if i == 0:
++            r['probe'].update(props={'modalities': {'vision': vision}}, slots=[{'speculative': spec}], libs=LIBS)
++            if test == 'D':
++                r['probe']['template'] = {'prompt': f'<|turn>user\n{vis3d.PROMPT}<turn|>\n<|turn>model\n'}
++            r['probe'].update(first or {})
++    run = {'test': test, 'ids': ids, 'command': vis3d.COMMANDS[test], 'payload_example': example, 'prompt_texts': texts,
++           'model_sha256': dict(vis3d.SHA256), 'build_sha256': dict(vis3d.BUILD_SHA256), 'code_sha256': {'c': 1}}
++    (out / 'run.json').write_text(json.dumps(run))
++    (out / 'prompts.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in rows))
++    (out / f'server_block00_{test}.log').write_text(server_log(test) + (LOG * 4 if test == 'D' else '')
++                                                    if log is None else log)
++    block = copy.deepcopy(next(b for b in ARCH_BLOCKS if b['config'] == ('ON' if spec else 'OFF')))
++    block['gate']['skin'] = skin
++    if n is not None:
++        block['end_reason'] = f'{ids[n]} not finished at 175 s: dropped, redone later'
++    end = test_repro.conditions(skin + 7)
++    end['cpufreq']['policy6']['time_in_state'] = {'500000': 150, '2850000': 950}
++    (out / 'result.json').write_text(json.dumps({'block': block, 'start': test_repro.conditions(skin), 'end': end,
++                                                 'agents_end': '', 'port_free_end': True}))
++    return out
++
++
++def baseline(d):
++    return {c: test_repro.make_folder(d, c) for c in ('OFF', 'ON')}  # VIS-3C folders from the Oct 14 rows
++
++
++class CommandTest(unittest.TestCase):
++    def test_a_is_the_frozen_off_command_on_b11716_plus_metrics(self):
++        old = repro.COMMANDS['OFF']
++        self.assertEqual(vis3d.COMMANDS['A'], old[:3] + [vis3d.SERVER] + old[4:] + ['--metrics'])
++        self.assertEqual(old[3], f'{repro.HOME}/llama.cpp-b1609-dotprod/build/bin/llama-server')
++        for k in ('--ctx-size 4096', '--threads 4', '--threads-batch 4', '--parallel 1', '--port 8080'):
++            self.assertIn(k, ' '.join(vis3d.COMMANDS['A']))
++
++    def test_each_test_adds_only_its_flags(self):
++        c = vis3d.COMMANDS
++        self.assertEqual(c['B'], c['A'] + ['--mmproj', vis3d.MMPROJ, '--image-min-tokens', '70', '--image-max-tokens', '70'])
++        self.assertEqual(c['C'], c['B'] + ['--model-draft', vis3d.DRAFT, '--spec-type', 'draft-mtp', '--spec-draft-n-max', '3'])
++        self.assertEqual(c['C'][len(c['B']):], repro.COMMANDS['ON'][len(repro.OFF):])  # the VIS-3C ON flags
++        self.assertEqual(c['D'], c['B'] + ['--reasoning', 'off', '-lv', '4'])
++        self.assertEqual(vis3d.MMPROJ, f'{repro.HOME}/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf')
++        self.assertNotIn('BF16', ' '.join(sum(c.values(), [])))
++
++    def test_run_block_spawns_the_test_command_and_posts_the_frozen_payload(self):
++        with mock.patch.object(cm, 'command', lambda config, model='e2b': list(vis3d.COMMANDS['C'])):
++            b, posts, stops, emitted, events, proc = old_tests.BlockTest('test_deadline_constants').run_block([4] * 13)
++        self.assertEqual(events[0], ('spawn', vis3d.COMMANDS['C']))
++        self.assertEqual([p[1] for p in posts], [repro.payload(f'text {i}') for i in cm.IDS])
++        self.assertEqual((b['end_reason'], len(stops)), ('all prompts done', 1))
++
++    def test_timeout_ends_the_block_and_the_run_is_not_valid(self):
++        with mock.patch.object(cm, 'command', lambda config, model='e2b': list(vis3d.COMMANDS['A'])):
++            b, posts, stops, *_ = old_tests.BlockTest('test_deadline_constants').run_block([100] * 13)
++        self.assertIn('not finished at 175 s', b['end_reason'])
++        self.assertEqual(stops, [175.0])  # the watchdog's deadline; the server is stopped once
++        with tempfile.TemporaryDirectory() as d:
++            self.assertIn('not finished at 175 s', ' '.join(vis3d.check_folder(make(d, 'A', n=2))[3]))
++
++
++class WorkloadTest(unittest.TestCase):
++    def test_text_workload_is_the_oct_14_archive(self):
++        self.assertEqual(repro.frozen_problems(), [])  # payload, prompt texts, ids, hashes = the archived run.json
++        self.assertEqual(repro.payload('x')['prompt'], '<start_of_turn>user\nx<end_of_turn>\n<start_of_turn>model\n')
++        self.assertEqual(vis3d.code_problems(), [])
++
++    def test_image_request_serialization(self):
++        f = vis3d.FRAMES[0]
++        p = vis3d.image_payload(f)
++        image, text = p['messages'][0]['content']
++        self.assertEqual(p['messages'][0]['role'], 'user')
++        self.assertEqual(image['type'], 'image_url')
++        self.assertTrue(image['image_url']['url'].startswith('data:image/jpeg;base64,'))
++        jpeg = base64.b64decode(image['image_url']['url'].split(',', 1)[1])
++        self.assertEqual(jpeg, (vis3d.FRAMES_DIR / f'{f}.jpg').read_bytes())
++        self.assertEqual(text, {'type': 'text', 'text': vis3d.PROMPT})
++        self.assertEqual({k: p[k] for k in ('temperature', 'top_k', 'seed', 'max_tokens', 'cache_prompt', 'stream')},
++                         {'temperature': 0, 'top_k': 1, 'seed': 0, 'max_tokens': 96, 'cache_prompt': False, 'stream': False})
++        self.assertNotIn('prompt', p)  # the server applies the GGUF template; no hand-written turn markers
++        json.dumps(p)
++
++    def test_chat_post_uses_the_chat_endpoint_and_returns_the_reply(self):
++        calls = []
++        reply = {'choices': [{'message': {'content': 'A table.'}, 'finish_reason': 'length'}], 'timings': {'prompt_n': 9}}
++        with mock.patch.object(vis3d, '_post', lambda path, body, timeout: calls.append((path, timeout)) or reply):
++            data = vis3d.chat_post('/completion', {'messages': []}, 30)
++        self.assertEqual(calls, [('/v1/chat/completions', 30)])
++        self.assertEqual((data['content'], data['stop_type'], data['timings']), ('A table.', 'length', {'prompt_n': 9}))
++        with self.assertRaises(AssertionError):
++            vis3d.chat_post('/other', {}, 1)
++
++    def test_references_match_the_tracked_m2_q1_frames(self):
++        src = json.loads((vis3d.FRAMES_DIR.parent / 'results.json').read_text())
++        by = {Path(p['frame_file']).stem: p for p in src['photos']}
++        for f, r in vis3d.REFS['frames'].items():
++            self.assertEqual((r['frame_sha256'], r['source_sha256'], r['photo']),
++                             (by[f]['frame_sha256'], by[f]['source_sha256'], by[f]['photo']))
++            self.assertTrue(r['reference'] and r['key_objects'] and r['robot_context'])
++        self.assertEqual(vis3d.frame_problems(), [])
++        self.assertEqual(len(vis3d.FRAMES), 8)
++
++
++class HashTest(unittest.TestCase):
++    def test_changed_weight_or_library_is_refused(self):
++        for bad in (vis3d.MMPROJ, f'{vis3d.BIN}/libmtmd.so.0.7.0'):
++            want = {**{str(p): h for p, h in vis3d.SHA256.items()},
++                    **{f'{vis3d.BIN}/{n}': h for n, h in vis3d.BUILD_SHA256.items()}}
++            with mock.patch.object(cr, 'sha256', lambda p: '0' * 64 if str(p) == bad else want[str(p)]), \
++                    mock.patch.object(vis3d.Path, 'is_file', return_value=True):
++                with self.assertRaises(SystemExit) as e:
++                    vis3d.check_hashes()
++            self.assertIn(Path(bad).name, str(e.exception))
++
++    def test_all_pinned_files_pass(self):
++        want = {**{str(p): h for p, h in vis3d.SHA256.items()},
++                **{f'{vis3d.BIN}/{n}': h for n, h in vis3d.BUILD_SHA256.items()}}
++        with mock.patch.object(cr, 'sha256', lambda p: want[str(p)]), \
++                mock.patch.object(vis3d.Path, 'is_file', return_value=True):
++            got, build = vis3d.check_hashes()
++        self.assertEqual((got, build), (vis3d.SHA256, vis3d.BUILD_SHA256))
++
++    def test_changed_frame_is_refused(self):
++        with tempfile.TemporaryDirectory() as d:
++            for f in vis3d.FRAMES:
++                (Path(d) / f'{f}.jpg').write_bytes((vis3d.FRAMES_DIR / f'{f}.jpg').read_bytes())
++            (Path(d) / f'{vis3d.FRAMES[3]}.jpg').write_bytes(b'x')
++            with mock.patch.object(vis3d, 'FRAMES_DIR', Path(d)):
++                why = vis3d.frame_problems()
++        self.assertEqual(len(why), 1)
++        self.assertIn(vis3d.FRAMES[3], why[0])
++
++    def test_environment_overrides_are_refused(self):
++        with mock.patch.dict(os.environ, {'LLAMA_ARG_THREADS': '8', 'OMP_NUM_THREADS': '2'}):
++            self.assertIn('LLAMA_ARG_THREADS, OMP_NUM_THREADS', vis3d.env_problems()[0])
++        clean = {k: v for k, v in os.environ.items() if not k.startswith(vis3d.ENV_REFUSED)}
++        with mock.patch.dict(os.environ, {**clean, 'LD_PRELOAD': 'libtermux-exec.so'}, clear=True):
++            self.assertEqual(vis3d.env_problems(), [])  # termux-exec's preload is recorded, not refused
++
++
++class ParseTest(unittest.TestCase):
++    def test_image_log(self):
++        self.assertEqual(vis3d.image_log(LOG), [{'encode_ms': 2159.3, 'image_tokens': 63, 'image_decode_ms': 1275},
++                                                {'encode_ms': 2117.9, 'image_tokens': 63, 'image_decode_ms': 1302}])
++        self.assertEqual(vis3d.image_log('x\n0.0.0.0 I slot launch_slot_: | task 1 | processing task\nno image\n'),
++                         [{'encode_ms': None, 'image_tokens': None, 'image_decode_ms': None}])
++
++    def test_metrics(self):
++        text = ('# HELP llamacpp:spec_decode_num_drafts_total Speculative: ...\n# TYPE x counter\n'
++                'llamacpp:spec_decode_num_drafts_total 240\nllamacpp:tokens_predicted_total 674\n')
++        self.assertEqual(vis3d.parse_metrics(text), {'llamacpp:spec_decode_num_drafts_total': 240.0,
++                                                     'llamacpp:tokens_predicted_total': 674.0})
++
++    def test_probe_reads_once_and_records_errors(self):
++        pages = {'/metrics': 'llamacpp:spec_decode_num_drafts_total 3\n', '/props': '{"modalities": {"vision": true}}',
++                 '/slots': '[{"speculative": false}]'}
++
++        def get(path, timeout=10):
++            if path not in pages:
++                raise OSError('refused')
++            return pages[path]
++        with mock.patch.object(vis3d, 'get', get), mock.patch.object(vis3d, 'mapped_libs', return_value=LIBS), \
++                mock.patch.object(cm, 'LIVE', [mock.Mock(pid=7)]), \
++                mock.patch.object(vis3d, '_post', side_effect=OSError('down')):
++            later, first = vis3d.probe('D', first=False), vis3d.probe('D', first=True)
++        self.assertEqual(later, {'metrics': {'llamacpp:spec_decode_num_drafts_total': 3.0}})
++        self.assertEqual((first['props'], first['slots'], first['libs']), ({'modalities': {'vision': True}},
++                                                                           [{'speculative': False}], LIBS))
++        self.assertEqual(first['template'], {'error': 'OSError: down'})
++
++
++class ValidityTest(unittest.TestCase):
++    def test_intended_folders_are_valid(self):
++        with tempfile.TemporaryDirectory() as d:
++            for t in vis3d.COMMANDS:
++                self.assertEqual(vis3d.check_folder(make(d, t))[3], [], t)
++
++    def test_configuration_not_as_intended_is_not_valid(self):
++        cases = (('B', {'props': {'modalities': {'vision': False}}}, None, '/props vision is not True'),
++                 ('A', {'slots': [{'speculative': True}]}, None, '/slots speculative is not [False]'),
++                 ('A', {'libs': ['/data/data/com.termux/files/usr/lib/libllama.so']}, None, 'not all from'),
++                 ('A', {'props': {'error': 'URLError'}}, None, '/props vision'),
++                 ('B', None, {'metrics': {'error': 'timeout'}}, '/metrics not read after every reply'),
++                 ('D', {'template': {'prompt': '<start_of_turn>user\nx'}}, None, 'not Gemma 4'))
++        with tempfile.TemporaryDirectory() as d:
++            for i, (t, first, every, want) in enumerate(cases):
++                why = vis3d.check_folder(make(d, t, first=first, every=every, name=f'{i}'))[3]
++                self.assertIn(want, ' '.join(why), (t, why))
++
++    def test_mtp_is_judged_from_the_server_not_the_command(self):
++        with tempfile.TemporaryDirectory() as d:
++            c = make(d, 'C', log='x\n')  # the command has the drafter; the log has neither load line
++            rows = [dict(r, draft_n=0) for r in cm.read_jsonl(c / 'prompts.jsonl')]
++            for r in rows:
++                r['probe']['metrics'] = {'llamacpp:spec_decode_num_drafts_total': 0.0}
++            (c / 'prompts.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in rows))
++            why = ' '.join(vis3d.check_folder(c)[3])
++        self.assertIn('MTP requested but nothing drafted or verified', why)
++        self.assertIn('server log: drafter not loaded', why)
++        self.assertIn('server log: projector not loaded', why)
++
++    def test_incomplete_and_failed_runs(self):
++        with tempfile.TemporaryDirectory() as d:
++            a = make(d, 'A')
++            (a / 'result.json').unlink()
++            self.assertEqual(vis3d.check_folder(a)[3], ['INCOMPLETE: no result.json (interrupted or failed)'])
++            dd = make(d, 'D', n=5, log=server_log('D') + LOG * 3)
++            why = vis3d.check_folder(dd)[3]
++            self.assertIn('5/8 requests', why)
++            text = vis3d.report([dd])
++        self.assertIn('NO RESPONSE', text)
++        self.assertIn('5/8 frames answered', text)
++        self.assertIn('server log image sections do not match the requests', text)
++
++
++class ReportTest(unittest.TestCase):
++    def report(self, folders, d):
++        b = baseline(d)
++        with mock.patch.object(vis3d, 'BASELINE', b):
++            return vis3d.report(folders)
++
++    def test_text_rows_comparisons_and_labels(self):
++        with tempfile.TemporaryDirectory() as d:
++            text = self.report([make(d, 'A'), make(d, 'B', skin=25.5), make(d, 'C')], d)
++        lines = text.splitlines()
++        row = {}
++        for l in lines:  # the first table; the second has the same names
++            if l.startswith(('X_A', 'X_B', 'X_C')):
++                row.setdefault(l.split()[0], l.split())
++        self.assertEqual((row['X_A'][3], row['X_C'][3], row['X_C'][5]), ('13.37', '19.18', '39.0%'))  # Oct 14 rule
++        # steps: exact counter; ms/step = decode ms / steps; ms/pass* = proxy (equal here because the fixture's
++        # counter is built as generated - accepted)
++        self.assertEqual((row['X_C'][7], row['X_C'][8], row['X_C'][9]), ('326', '114.0', '114.0'))
++        self.assertEqual((row['X_A'][7], row['X_A'][8]), ('0', 'n/a'))
++        self.assertIn('B/A gen t/s 1.000  (projector residency)', lines)
++        self.assertIn('  configuration: SAME apart from projector residency', lines)
++        self.assertIn('  configuration: SAME apart from MTP with the projector resident', lines)
++        self.assertIn('  conditions: MATCHED', lines)
++        self.assertIn('A/OFF gen t/s 1.000  (build, text only (b1609 OFF -> b11716 A))', lines)
++        self.assertIn('  configuration: same workload and weights; differs by design: binary b1609-dotprod -> b11716,'
++                      ' --metrics added, Q8 projector resident', lines)
++        self.assertTrue(any(l.startswith('C/ON gen t/s') and 'projector residency' in l for l in lines))
++        self.assertEqual(sum(l.endswith('  VALID') for l in lines), 3)
++        self.assertIn('PROXY', text)
++
++    def test_unmatched_different_and_duplicates(self):
++        with tempfile.TemporaryDirectory() as d:
++            a, b = make(d, 'A'), make(d, 'B', skin=27.0)
++            run = json.loads((b / 'run.json').read_text())
++            run['code_sha256'] = {'c': 2}
++            (b / 'run.json').write_text(json.dumps(run))
++            text = self.report([a, b, make(d, 'A', name='X_A2')], d)
++        self.assertIn('conditions: UNMATCHED: start skin 25.0 vs 27.0', text)
++        self.assertIn('configuration: DIFFERENT: code_sha256 differs', text)
++        self.assertIn('X_A2: a second A folder, not compared', text)
++
++    def test_image_report(self):
++        with tempfile.TemporaryDirectory() as d:
++            text = self.report([make(d, 'D')], d)
++        self.assertIn('IMAGES  X_D  D  VALID', text)
++        line = next(l for l in text.splitlines() if l.strip().startswith(vis3d.FRAMES[0]))
++        # prompt 8400 ms - encode 2159 - image decode 1275 = 4966 text (derived); 30 tokens / 4 s = 7.50 t/s
++        self.assertEqual(line.split()[1:9], ['63', '2159', '1275', '8400', '4966', '30', '7.50', '12.50'])
++        self.assertIn('responses 8/8 complete', text)
++        self.assertIn('GRADING SHEET', text)
++        self.assertIn(vis3d.REFS['frames'][vis3d.FRAMES[1]]['reference'], text)
++
++    def test_response_flags(self):
++        self.assertEqual(vis3d.response_flag({'reply': ' ', 'stop_type': 'stop'}), 'EMPTY')
++        self.assertEqual(vis3d.response_flag({'reply': 'x', 'stop_type': 'length'}), 'INCOMPLETE (length)')
++        self.assertEqual(vis3d.response_flag({'reply': 'x', 'stop_type': 'stop'}), 'OK')
++
++
++class MainTest(unittest.TestCase):
++    def run_main(self, test, refusals=(), fail=None):
++        calls = []
++
++        def run_block(seq, cfg, todo, texts, ctx):
++            calls.append((seq, cfg, todo, repro.pm.GATE_MAX_S, cm.command(cfg), cm.payload(texts[todo[0]]), cr.post))
++            if fail:
++                raise fail
++            for r, pid in zip([r for r in ARCH_ROWS if r['config'] == 'OFF'], todo):
++                ctx['emit'](dict(r, config=cfg, prompt_id=pid))
++            return next(b for b in ARCH_BLOCKS if b['config'] == 'OFF')
++        with tempfile.TemporaryDirectory() as d, \
++                mock.patch.object(vis3d, 'OUT_ROOT', Path(d)), mock.patch.object(cr, 'require_native'), \
++                mock.patch.object(vis3d.signal, 'signal'), \
++                mock.patch.object(cm, 'refusals', return_value=list(refusals)), \
++                mock.patch.object(vis3d, 'check_hashes', return_value=(dict(vis3d.SHA256), dict(vis3d.BUILD_SHA256))), \
++                mock.patch.object(cr, 'wait_cores'), \
++                mock.patch.object(repro, 'conditions', return_value=test_repro.conditions()), \
++                mock.patch.object(repro, 'agents', return_value=''), mock.patch.object(repro, 'port_free', return_value=True), \
++                mock.patch.object(vis3d, 'probe', return_value={'metrics': {}}), \
++                mock.patch.object(cm, 'run_block', run_block), mock.patch.object(repro.pm, 'GATE_MAX_S', 480), \
++                mock.patch.object(cm, 'command', cm.command), mock.patch.object(cm, 'payload', cm.payload), \
++                mock.patch.object(cr, 'post', cr.post), \
++                mock.patch.object(cm, 'LIVE', ['p']), mock.patch.object(cm, 'stop') as stop, \
++                redirect_stdout(io.StringIO()):
++            try:
++                vis3d.main(['--test', test])
++                err = None
++            except (SystemExit, RuntimeError) as e:
++                err = str(e)
++            folders = list(Path(d).iterdir())
++            files = {p.name: p.read_text() for p in folders[0].iterdir()} if folders else {}
++        return calls, files, err, stop
++
++    def test_one_launch_runs_only_its_test_once(self):
++        for test in ('A', 'B', 'C'):
++            calls, files, err, stop = self.run_main(test)
++            self.assertIsNone(err)
++            self.assertEqual([c[:5] for c in calls], [(0, test, cm.IDS, 0, vis3d.COMMANDS[test])])
++            self.assertEqual(calls[0][5], repro.payload(test_repro.ARCH_RUN['prompt_texts']['A5']))
++            run = json.loads(files['run.json'])
++            self.assertEqual((run['test'], run['command'], run['build_info']['source_commit_expected']),
++                             (test, vis3d.COMMANDS[test], vis3d.SOURCE_COMMIT))
++            self.assertEqual(len(files['prompts.jsonl'].splitlines()), 13)
++            stop.assert_called_once_with('p')  # main's finally stops any server left
++
++    def test_d_sends_prebuilt_image_requests_to_the_chat_endpoint(self):
++        calls, files, err, stop = self.run_main('D')
++        self.assertIsNone(err)
++        seq, cfg, todo, gate, cmd, payload, post = calls[0]
++        self.assertEqual((cfg, todo, cmd, post), ('D', vis3d.FRAMES, vis3d.COMMANDS['D'], vis3d.chat_post))
++        self.assertEqual(payload, vis3d.image_payload(vis3d.FRAMES[0]))
++        run = json.loads(files['run.json'])
++        self.assertEqual(run['payload_example']['messages'][0]['content'][0]['image_url']['url'],
++                         'data:image/jpeg;base64,<base64 jpeg>')
++        self.assertEqual(run['frames_sha256'], {f: r['frame_sha256'] for f, r in vis3d.REFS['frames'].items()})
++
++    def test_refusals_and_failures_start_nothing_or_clean_up(self):
++        calls, files, err, stop = self.run_main('B', refusals=('battery 70 % < 80 %',))
++        self.assertEqual((calls, files), ([], {}))
++        self.assertIn('battery 70 %', err)
++        calls, files, err, stop = self.run_main('C', fail=RuntimeError('llama-server not healthy'))
++        self.assertIn('not healthy', err)
++        self.assertNotIn('result.json', files)  # reported INCOMPLETE
++        stop.assert_called_once_with('p')
++
++    def test_launcher_contract(self):
++        sh = (vis3d.HERE / 'oneshot.sh').read_text()
++        old = (vis3d.REPRO_DIR / 'oneshot.sh').read_text()
++        self.assertIn('case "$*" in "--test A"|"--test B"|"--test C"|"--test D") ;;', sh)
++        self.assertIn('python -u "$R/vis3d.py" "$@"', sh)
++        self.assertIn('R=$H/robot/benchmark/gemma_vision/vis3d\nS=/data/local/tmp/vis3d_screen.txt', sh)
++        for kept in ("pgrep -fa 'claude|agy|node|codex'", 'check_battery\n\ntermux-wake-lock', 'mkdir "$L/.lock"',
++                     'settings put system screen_off_timeout $OLD_TIMEOUT', 'thermal_zone9/temp', 'sleep 5; done'):
++            self.assertIn(kept, sh)
++            self.assertIn(kept, old)
++        self.assertEqual(len(sh.splitlines()), len(old.splitlines()) - 1)  # one usage comment line fewer
++
++    def test_test_xor_report(self):
++        for argv in ([], ['--test', 'A', '--report', 'x'], ['--test', 'E']):
++            with self.assertRaises(SystemExit), mock.patch('sys.stderr', io.StringIO()):
++                vis3d.main(argv)
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/benchmark/gemma_vision/vis3d/vis3d.py b/benchmark/gemma_vision/vis3d/vis3d.py
+new file mode 100644
+index 0000000..78e5ab0
+--- /dev/null
++++ b/benchmark/gemma_vision/vis3d/vis3d.py
+@@ -0,0 +1,507 @@
++#!/data/data/com.termux/files/usr/bin/python
++"""VIS-3D: Gemma 4 E2B Q4_0 on the b11716 build (~/llama.cpp-vis), one test per launch. Research only: no motors,
++no camera, no main.py. Native Termux only; started by oneshot.sh in this folder.
++
++  A  b11716, text only, no projector, MTP off   } the frozen Oct 14 workload of VIS-3C (repro.py): same 13 prompts,
++  B  A + Q8_0 projector resident, MTP off       } payload (legacy <start_of_turn> /completion), ctx 4096, temperature
++  C  B + Q8_0 MTP drafter                       } 0.7, n_predict 512, cores 4-7; no image is sent
++  D  B + --reasoning off -lv 4: 8 fixed frames through /v1/chat/completions (GGUF Gemma 4 template), 70-token images
++
++The block is chat_mtp.run_block unchanged (5 s coresidency sampler, 175 s watchdog, TERM then KILL, cores 4-7 checks),
++as in VIS-3C; only the command, payload and (D) the endpoint are replaced. After every reply the runner reads
++/metrics (exact speculative verification steps); after the first it also reads /props, /slots, the mapped libraries
++and (D) the applied template. Usage:
++  vis3d.py --test A|B|C|D [--thermal-log PATH]
++  vis3d.py --report DIR [DIR ...]     (report only; reads folders, starts nothing)
++Writes ~/robot_runs/vis3d/<UTC>_<test>/: run.json, prompts.jsonl, server_block00_<test>.log, result.json, report.txt.
++"""
++import argparse
++import base64
++import json
++import os
++import re
++import signal
++import statistics
++import sys
++import urllib.request
++from datetime import datetime, timezone
++from pathlib import Path
++
++sys.dont_write_bytecode = True
++HERE = Path(__file__).resolve().parent
++REPO = HERE.parents[2]
++REPRO_DIR = REPO / 'benchmark/llm_objective_setting/conversation/chat_mtp_repro'
++sys.path.insert(0, str(REPRO_DIR))
++import repro  # noqa: E402  VIS-3C: frozen Oct 14 workload, refusals, conditions, summary; block machinery via cm
++
++cm, cr, pm = repro.cm, repro.cr, repro.pm
++HOME = cr.HOME
++BIN = f'{HOME}/llama.cpp-vis/build/bin'
++SERVER = f'{BIN}/llama-server'
++MODEL, DRAFT = repro.MODEL, repro.DRAFT
++MMPROJ = f'{HOME}/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf'  # vis1/mmproj.json: ggml-org rev b4243c15
++SHA256 = {MODEL: repro.SHA256[MODEL], DRAFT: repro.SHA256[DRAFT],
++          MMPROJ: '9406f99c16d68cda4f1f0552192dcc99021ea1fc6d2fd50b1dc3ccf30d04b292'}  # hashed on the phone 2026-10-23
++SOURCE_COMMIT = '797de63b2fa7396dcc8caca76834c699ac84e1c3'  # tag b11716 (llama.cpp-vis/.git/HEAD)
++BUILD_SHA256 = {  # = the VIS-2 manifest; rehashed on the phone 2026-10-23
++    'llama-server': '0674f5c28aaf23068220fa4290c7a4199aa590127724d2b766bdbb961b768fdf',
++    'libllama-server-impl.so': 'a9b6e74c8fc906325f91470e335d77a9b32257dd056102913ee8fcd6aa9fa7aa',
++    'libllama-common.so.0.7.0': '805cfe637a6f8eba771d039e06480a1e21789c176cb1fbbe8c88b6b4fd2d53ef',
++    'libllama.so.0.7.0': '18041e7c9182ce1534e0f9ab33abb3e12f9fb4d84a773dbc86297ebaf7a84578',
++    'libmtmd.so.0.7.0': 'f2813411696515a08de553d17ba13b0e5a758329a4fabd82a14e1a726eea0fc8',
++    'libggml.so.0.27.0': '50477f04f6c57176aaea22d6ef3fcabcb21652d26cc58288ce82d174c6d7d79d',
++    'libggml-base.so.0.27.0': '8eadd421b15ac463c6be41d97cba5ff23fb02ea6d2217ca81020125bc352477e',
++    'libggml-cpu.so.0.27.0': '9e4e11cf979ef78e1aa201ecaed67308520ffa9a6e3f19d028cfb1586b8ab333'}
++CMAKE_KEYS = ('CMAKE_BUILD_TYPE', 'GGML_CPU_ARM_ARCH', 'GGML_NATIVE', 'GGML_OPENMP', 'GGML_CPU_REPACK',
++              'GGML_LLAMAFILE', 'GGML_CPU_KLEIDIAI', 'BUILD_SHARED_LIBS')  # recorded, not judged: the hashes pin the build
++CODE_SHA256 = {REPRO_DIR / 'repro.py': '29276a35618e66833a214fba77c8ce0770bbe37d4fa9e2b4b9de105c13a00a46'}  # = Oct 23 runs
++
++# repro.OFF is the frozen b1609 OFF command; only the binary changes, and --metrics exposes the step counter
++BASE = ['taskset', '-c', '4-7', SERVER, *repro.OFF[4:], '--metrics']
++IMAGE_TOKENS = 70  # min = max; VIS-0/VIS-1 logged 63 tokens per 482x640 frame (Q8 encode about 2.5 s, VIS-1 V2)
++VISION = ['--mmproj', MMPROJ, '--image-min-tokens', str(IMAGE_TOKENS), '--image-max-tokens', str(IMAGE_TOKENS)]
++MTP = repro.COMMANDS['ON'][len(repro.OFF):]  # the VIS-3C ON drafter flags
++COMMANDS = {'A': BASE, 'B': BASE + VISION, 'C': BASE + VISION + MTP, 'D': BASE + VISION + ['--reasoning', 'off', '-lv', '4']}
++INTENDED = {'A': (False, False), 'B': (True, False), 'C': (True, True), 'D': (True, False)}  # (vision, speculative)
++EXPECTED_DIFF = {('A', 'B'): VISION, ('B', 'C'): MTP}  # report: the only command difference allowed per pair
++
++REFS = json.loads((HERE / 'references.json').read_text())
++FRAMES_DIR = REPO / REFS['frames_dir']
++FRAMES = list(REFS['frames'])
++PROMPT = ('Describe in one or two short sentences what is in front of the robot. '
++          'Mention only what you can see.')  # VIS-0 photo-only prompt (no YOLO list: VIS-0 saw it copy YOLO errors)
++ENV_REFUSED = ('LLAMA_', 'GGML_', 'OMP_', 'KMP_', 'LD_LIBRARY_PATH')  # would change the server (LLAMA_ARG_* = flags)
++OUT_ROOT = HOME / 'robot_runs' / 'vis3d'
++THERMAL_LOG = OUT_ROOT / 'thermal.log'  # oneshot.sh's logger
++BASELINE = {'OFF': HOME / 'robot_runs/chat_mtp_repro/20261023T124846Z_OFF',  # VIS-3C b1609-dotprod, both VALID,
++            'ON': HOME / 'robot_runs/chat_mtp_repro/20261023T132032Z_ON'}   # SAME, MATCHED: 13.35 / 18.55 tok/s
++
++
++def image_payload(frame, jpeg=None):
++    """VIS-0 vision request: image then text in one user message; greedy, at most 96 tokens, nothing cached."""
++    url = 'data:image/jpeg;base64,' + (jpeg or base64.b64encode((FRAMES_DIR / f'{frame}.jpg').read_bytes()).decode())
++    return {'messages': [{'role': 'user', 'content': [{'type': 'image_url', 'image_url': {'url': url}},
++                                                      {'type': 'text', 'text': PROMPT}]}],
++            'temperature': 0, 'top_k': 1, 'seed': 0, 'max_tokens': 96, 'cache_prompt': False, 'stream': False}
++
++
++_post = cr.post
++
++
++def chat_post(path, body, timeout):
++    """D: run_block posts to /completion; send the body to the chat endpoint instead (the server applies the GGUF
++    Gemma 4 template) and return the reply and finish reason where run_block reads them."""
++    assert path == '/completion', path
++    data = _post('/v1/chat/completions', body, timeout)
++    choice = data['choices'][0]
++    return {**data, 'content': choice['message'].get('content') or '', 'stop_type': choice.get('finish_reason')}
++
++
++# ---------------------------------------------------------------- preflight
++
++def code_problems():
++    return [f'{p} SHA-256 is not the pinned {h[:12]}' for p, h in CODE_SHA256.items() if cr.sha256(p) != h]
++
++
++def env_problems():
++    bad = sorted(k for k in os.environ if k.startswith(ENV_REFUSED))
++    return [f'environment sets {", ".join(bad)}: unset before the run'] if bad else []
++
++
++def frame_problems():
++    return [f'{f}.jpg is not the M2-Q1 frame {r["frame_sha256"][:12]}' for f, r in REFS['frames'].items()
++            if not (FRAMES_DIR / f'{f}.jpg').is_file() or cr.sha256(FRAMES_DIR / f'{f}.jpg') != r['frame_sha256']]
++
++
++def check_hashes():
++    got = {p: cr.sha256(p) if Path(p).is_file() else 'missing' for p in SHA256}
++    build = {n: cr.sha256(Path(BIN) / n) if (Path(BIN) / n).is_file() else 'missing' for n in BUILD_SHA256}
++    bad = [f'{p}: {got[p]} != {w}' for p, w in SHA256.items() if got[p] != w]
++    bad += [f'{n}: {build[n]} != {w}' for n, w in BUILD_SHA256.items() if build[n] != w]
++    if bad:
++        raise SystemExit('SHA-256 mismatch: ' + '; '.join(bad))
++    return got, build
++
++
++def build_info():
++    """Source commit and CMake flags of the build, read from disk (recorded only)."""
++    root = Path(BIN).parents[1]
++    try:
++        head = (root / '.git/HEAD').read_text().strip()
++    except OSError as e:
++        head = f'error: {e}'
++    try:
++        lines = (root / 'build/CMakeCache.txt').read_text().splitlines()
++        flags = {k: v for k, _, v in (l.partition('=') for l in lines) if k.split(':')[0] in CMAKE_KEYS}
++    except OSError as e:
++        flags = {'error': str(e)}
++    return {'git_head': head, 'source_commit_expected': SOURCE_COMMIT, 'cmake': flags}
++
++
++# ---------------------------------------------------------------- probes between replies (outside every request)
++
++def get(path, timeout=10):
++    with urllib.request.urlopen(f'http://127.0.0.1:{cr.PORT}{path}', timeout=timeout) as r:
++        return r.read().decode()
++
++
++def parse_metrics(text):
++    return {k: float(v) for k, v in re.findall(r'^(llamacpp:\w+) (\S+)$', text, re.M)}
++
++
++def mapped_libs(pid):
++    return sorted({l.split()[-1] for l in open(f'/proc/{pid}/maps') if '.so' in l.split()[-1]})
++
++
++def probe(test, first):
++    """/metrics after every reply; on the first also /props, /slots, the mapped libraries and (D) the template.
++    A failed read is recorded as an error string (it makes the run NOT VALID, it does not stop the block)."""
++    out = {}
++
++    def take(key, fn):
++        try:
++            out[key] = fn()
++        except Exception as e:  # noqa: BLE001  recorded, judged by the report
++            out[key] = {'error': f'{type(e).__name__}: {e}'}
++    take('metrics', lambda: parse_metrics(get('/metrics')))
++    if first:
++        take('props', lambda: json.loads(get('/props')))
++        take('slots', lambda: json.loads(get('/slots')))
++        take('libs', lambda: mapped_libs(cm.LIVE[-1].pid))
++        if test == 'D':
++            take('template', lambda: _post('/apply-template', {'messages': [{'role': 'user', 'content': PROMPT}]}, 10))
++    return out
++
++
++# ---------------------------------------------------------------- server-log image timings (D, -lv 4)
++
++TS = r'(\d+\.\d{2}\.\d{3}\.\d{3})'
++
++
++def log_ms(ts):
++    m, s, ms, us = map(int, ts.split('.'))
++    return (m * 60 + s) * 1000 + ms + us / 1000
++
++
++def image_log(text):
++    """Per server task in order: image encode ms (log-timestamp interval 'encoding mtmd batch' -> first 'decoding
++    image batch'), image tokens and image-token decode ms (sum of 'image decoded ... in N ms'). None when absent."""
++    out = []
++    for sec in re.split(r'^.*\| processing task.*$', text, flags=re.M)[1:]:
++        enc, dec = re.search(TS + r' .*encoding mtmd batch', sec), re.search(TS + r' .*decoding image batch', sec)
++        toks = [int(n) for n in re.findall(r'decoding image batch \d+/\d+, n_tokens_batch = (\d+)', sec)]
++        done = [int(n) for n in re.findall(r'image decoded \(batch \d+/\d+\) in (\d+) ms', sec)]
++        out.append({'encode_ms': round(log_ms(dec[1]) - log_ms(enc[1]), 1) if enc and dec else None,
++                    'image_tokens': sum(toks) if toks else None, 'image_decode_ms': sum(done) if done else None})
++    return out
++
++
++# ---------------------------------------------------------------- report
++
++def med(xs):
++    xs = [x for x in xs if x is not None]
++    return statistics.median(xs) if xs else None
++
++
++def check_folder(folder):
++    """(run, rows, result, problems): problems make the run NOT VALID (repro.load's checks plus this test's)."""
++    folder = Path(folder)
++    run = json.loads((folder / 'run.json').read_text())
++    rows = cm.read_jsonl(folder / 'prompts.jsonl')
++    if not (folder / 'result.json').exists():
++        return run, rows, None, ['INCOMPLETE: no result.json (interrupted or failed)']
++    res = json.loads((folder / 'result.json').read_text())
++    b, why, test = res['block'], [], run['test']
++    if [r['prompt_id'] for r in rows] != run['ids']:
++        why.append(f'{len(rows)}/{len(run["ids"])} requests')
++    if b['end_reason'] != 'all prompts done':
++        why.append(b['end_reason'])
++    if b['gate']['status'] != 0 or res['start']['status'] != 0:
++        why.append('Android thermal status not 0 at start')
++    if b['server_start'].get('Cpus_allowed_list') != '4-7' or b['server_end'].get('Cpus_allowed_list') != '4-7':
++        why.append('server not on cores 4-7 at start and end')
++    if res['agents_end']:
++        why.append(f'agent process at end: {res["agents_end"][:100]}')
++    if not res['port_free_end']:
++        why.append('port 8080 still in use after the stop')
++    if any(s.get('battery_status') not in (None, 'Discharging') for s in b['samples']):
++        why.append('battery not Discharging in a sample')
++    if run['command'] != COMMANDS[test]:
++        why.append('command is not this test\'s')
++    if not rows:
++        return run, rows, res, why
++    p = rows[0].get('probe', {})
++    vision, spec = INTENDED[test]
++    props, slots, libs = p.get('props', {}), p.get('slots', []), p.get('libs', [])
++    if not isinstance(props, dict) or props.get('modalities', {}).get('vision') is not vision:
++        why.append(f'/props vision is not {vision}')
++    if not isinstance(slots, list) or [s.get('speculative') for s in slots] != [spec]:
++        why.append(f'/slots speculative is not [{spec}]')
++    ours = [l for l in libs if re.search(r'/lib(ggml|llama|mtmd)', l)] if isinstance(libs, list) else []
++    if not ours or any(not l.startswith(BIN + '/') for l in ours):
++        why.append(f'mapped llama/ggml libraries not all from {BIN}: {ours or libs}')
++    if any('error' in r.get('probe', {}).get('metrics', {}) for r in rows):
++        why.append('/metrics not read after every reply')
++    drafted = sum(r['draft_n'] or 0 for r in rows)
++    if spec and not (drafted and steps(rows)):
++        why.append('MTP requested but nothing drafted or verified')
++    if not spec and drafted:
++        why.append('drafting without the drafter')
++    log = server_log(folder, test)
++    if not log:
++        why.append('no server log')
++    if (f"loaded multimodal model, '{MMPROJ}'" in log) != vision:
++        why.append(f'server log: projector {"not " if vision else ""}loaded')
++    if (f"loading draft model '{DRAFT}'" in log) != spec:
++        why.append(f'server log: drafter {"not " if spec else ""}loaded')
++    if test == 'D':
++        tpl = p.get('template', {}).get('prompt', '')
++        if not tpl.startswith('<|turn>user\n') or '<turn|>' not in tpl or '<start_of_turn>' in tpl:
++            why.append(f'applied template is not Gemma 4: {tpl[:60]!r}')
++        if len(image_log(log)) != len(rows):
++            why.append('server log image sections do not match the requests')
++    return run, rows, res, why
++
++
++def server_log(folder, test):
++    p = Path(folder) / f'server_block00_{test}.log'
++    return p.read_text(errors='replace') if p.exists() else ''
++
++
++def steps(rows):
++    """Exact speculative verification steps of the run: the server's cumulative counter after the last reply."""
++    return rows[-1].get('probe', {}).get('metrics', {}).get('llamacpp:spec_decode_num_drafts_total') if rows else None
++
++
++def resources(b):
++    return {'hwm': b.get('vm_hwm_kb'), 'pss': b.get('peak_pss_kb'), 'avail': b.get('min_mem_available_mib'),
++            'mean_w': b.get('mean_w'), 'end_cond': b.get('end', {}), 'samples': len(b['samples']), 'load_s': b['load_s']}
++
++
++def text_entry(name, test, rows, res, run, label):
++    s = repro.summary(rows, res['block'])
++    n = steps(rows) if run.get('test') else None  # the b1609 baseline has no step counter
++    s.update(steps=n, ms_per_step=s['decode_ms'] / n if n else None, **resources(res['block']))
++    return (name, test, s, res['block']['gate'], res.get('start'), res.get('end'), [], run, label)
++
++
++def config_diffs(a, b, extra):
++    """Two b11716 text runs: commands differ by exactly `extra` appended; workload, weights, build, code equal."""
++    why = [] if b['command'] == a['command'] + extra else [f'commands differ beyond {" ".join(extra)}']
++    return why + [f'{k} differs' for k in ('payload_example', 'prompt_texts', 'ids', 'model_sha256', 'build_sha256',
++                                           'code_sha256') if a[k] != b[k]]
++
++
++def baseline_diffs(base, mine):
++    """b1609 baseline vs a b11716 run: same workload and weights; what else differs, listed."""
++    why = [f'{k} differs' for k in ('payload_example', 'prompt_texts', 'ids') if base[k] != mine[k]]
++    why += [f'{p} differs' for p in base['model_sha256'] if p in mine['model_sha256'] and base['model_sha256'][p] != mine['model_sha256'][p]]
++    return why
++
++
++def report(folders):
++    f = lambda v, spec: format(v, spec) if v is not None else 'n/a'
++    L = ['VIS-3D REPORT  (A-C: Oct 14 text workload on b11716, ctx 4096, temperature 0.7, n_predict 512, cores 4-7;'
++         ' D: Q8 projector images)', '']
++    entries, images, notes = {}, [], []
++    for cfg, folder in BASELINE.items():
++        if not (folder / 'result.json').exists():
++            notes.append(f'baseline {cfg}: {folder} not found')
++            continue
++        run, rows, res, why = repro.load(folder)
++        entries[cfg] = text_entry('VIS-3C ' + folder.name, cfg, rows, res, run,
++                                  'BASELINE b1609 ' + ('VALID' if not why else 'NOT VALID: ' + '; '.join(why)))
++    for folder in folders:
++        if not (Path(folder) / 'run.json').exists():
++            notes.append(f'{Path(folder).name}: no run.json (refused before the start, or not a VIS-3D folder)')
++            continue
++        run, rows, res, why = check_folder(folder)
++        name, test = Path(folder).name, run['test']
++        label = 'VALID' if not why else 'NOT VALID: ' + '; '.join(why)
++        if res is None:
++            notes.append(f'{name} {test}: {why[0]}')
++        elif test == 'D':
++            images.append((name, run, rows, res, label, folder))
++        elif test in entries:
++            notes.append(f'{name}: a second {test} folder, not compared ({entries[test][0]} kept)')
++        else:
++            entries[test] = text_entry(name, test, rows, res, run, label)
++    L += ['TEXT  gen t/s = token-weighted over replies >= 10 tokens (Oct 14 rule); pooled = all tokens; accept = accepted'
++          ' / drafted;', '  steps = exact verification steps (server counter, b11716 only); ms/step = decode ms / steps;'
++          ' ms/pass* = decode ms /', '  (generated - accepted), a PROXY, not a step count; prompt s = median prompt_ms;'
++          ' load s = spawn to /health ok', '',
++          f"{'run':<30}{'test':<5}{'n':>3}{'gen t/s':>8}{'pooled':>7}{'accept':>7}{'gen tok':>8}{'steps':>6}{'ms/step':>8}"
++          f"{'ms/pass*':>9}{'prompt s':>9}{'load s':>7}{'req s':>6}  label"]
++    order = [k for k in ('OFF', 'ON', 'A', 'B', 'C') if k in entries]
++    for k in order:
++        name, test, s, *_, label = entries[k]
++        L.append(f"{name:<30}{test:<5}{s['prompts']:>3}{f(s['tok_s'], '.2f'):>8}{f(s['pooled_tok_s'], '.2f'):>7}"
++                 f"{f(s['accept'], '.1%'):>7}{s['gen_tokens']:>8}{f(s['steps'], '.0f'):>6}{f(s['ms_per_step'], '.1f'):>8}"
++                 f"{f(s['ms_per_pass'], '.1f'):>9}{f(s['prompt_s'], '.2f'):>9}{s['load_s']:>7.1f}{s['requests_s']:>6.0f}  {label}")
++    L += ['', 'MEMORY AND CONDITIONS  HWM/PSS MiB = server VmHWM / peak 5 s PSS; avail = min MemAvailable; skin/st at the'
++          ' spawn -> after the stop;', '  X1 cap = policy6 max MHz at start; X1 top = block share at the X1 maximum;'
++          ' samples = 5 s root samples', '',
++          f"{'run':<30}{'test':<5}{'prompt tok':>11}{'HWM':>6}{'PSS':>6}{'avail':>6}{'W':>6}{'skin start->end':>17}{'st':>3}"
++          f"{'bat%':>5}{'X1 cap':>7}{'X1 top':>7}{'samples':>8}"]
++    for k in order:
++        name, test, s, gate, start, end, *_ = entries[k]
++        L.append(resource_line(name, test, s, gate, start, end, f))
++    for name, run, rows, res, label, folder in images:
++        L += [''] + image_report(name, rows, res, label, folder, f)
++    L += ['', 'COMPARISONS  (configuration and conditions are judged separately; neither is a cause)']
++    for x, y, what in (('A', 'B', 'projector residency'), ('B', 'C', 'MTP with the projector resident'),
++                       ('OFF', 'A', 'build, text only (b1609 OFF -> b11716 A)'),
++                       ('ON', 'C', 'build AND projector residency (b1609 ON has no projector; C has it)')):
++        if x not in entries or y not in entries:
++            continue
++        ex, ey = entries[x], entries[y]
++        ratio = ey[2]['tok_s'] / ex[2]['tok_s'] if ey[2]['tok_s'] and ex[2]['tok_s'] else None
++        if (x, y) in EXPECTED_DIFF:
++            d = config_diffs(ex[7], ey[7], EXPECTED_DIFF[(x, y)])
++            conf = 'SAME apart from ' + what if not d else 'DIFFERENT: ' + '; '.join(d)
++        else:
++            d = baseline_diffs(ex[7], ey[7])
++            conf = ('same workload and weights; differs by design: binary b1609-dotprod -> b11716, --metrics added'
++                    + (', Q8 projector resident' if y == 'C' else '') if not d else 'DIFFERENT: ' + '; '.join(d))
++        cond = repro.condition_diffs(ex, ey)
++        L += [f'{y}/{x} gen t/s {f(ratio, ".3f")}  ({what})', f'  configuration: {conf}',
++              f'  conditions: {"MATCHED" if not cond else "UNMATCHED: " + "; ".join(cond)}',
++              f'  validity: {x} {ex[8].split(":")[0]}, {y} {ey[8].split(":")[0]}']
++    return '\n'.join(L + ([''] + notes if notes else []))
++
++
++def resource_line(name, test, s, gate, start, end, f):
++    mib = lambda kb: kb and kb / 1024
++    cap = start and start['cpufreq'].get('policy6', {}).get('max')
++    skin = f"{f(gate['skin'], '.1f')}->{f(s['end_cond'].get('skin'), '.1f')}"
++    return (f"{name:<30}{test:<5}{s['prompt_tokens']:>11}{f(mib(s['hwm']), '.0f'):>6}{f(mib(s['pss']), '.0f'):>6}"
++            f"{f(s['avail'], 'd'):>6}{f(s['mean_w'], '.2f'):>6}{skin:>17}{f(gate['status'], 'd'):>3}"
++            f"{f(start and start.get('battery_pct'), 'd'):>5}{f(cap and cap // 1000, 'd'):>7}"
++            f"{f(start and end and repro.top_share(start, end, 'policy6'), '.0%'):>7}{s['samples']:>8}")
++
++
++def response_flag(r):
++    if not (r['reply'] or '').strip():
++        return 'EMPTY'
++    return 'OK' if r['stop_type'] == 'stop' else f'INCOMPLETE ({r["stop_type"]})'
++
++
++def image_report(name, rows, res, label, folder, f):
++    """D: per-image timings (server timings + -lv 4 log), block resources, then the grading sheet."""
++    tim = image_log(server_log(folder, 'D'))
++    tim = tim if len(tim) == len(rows) else [{}] * len(rows)  # unmatched sections: nothing attributed (NOT VALID)
++    L = [f'IMAGES  {name}  D  {label}',
++         '  encode = vision encoder (log-timestamp interval); img dec = image-token decode (logged); prompt = server',
++         '  prompt_ms (encode + image decode + text prefill); text* = prompt - encode - img dec, DERIVED; wall = client',
++         '  request time; TTFT not measured (not streamed)', '',
++         f"  {'frame':<38}{'img tok':>8}{'encode':>8}{'img dec':>8}{'prompt':>8}{'text*':>7}{'gen tok':>8}{'gen t/s':>8}"
++         f"{'wall s':>7}  reply"]
++    for r, t in zip(rows, tim):
++        pm_ = r['prompt_s'] and r['prompt_s'] * 1000
++        text = pm_ - t['encode_ms'] - t['image_decode_ms'] if pm_ and t.get('encode_ms') is not None and \
++            t.get('image_decode_ms') is not None else None
++        gen = r['predicted_n'] / r['predicted_ms'] * 1000 if r['predicted_n'] and r['predicted_ms'] else None
++        L.append(f"  {r['prompt_id']:<38}{f(t.get('image_tokens'), 'd'):>8}{f(t.get('encode_ms'), '.0f'):>8}"
++                 f"{f(t.get('image_decode_ms'), 'd'):>8}{f(pm_, '.0f'):>8}{f(text, '.0f'):>7}{f(r['predicted_n'], 'd'):>8}"
++                 f"{f(gen, '.2f'):>8}{r['wall_s']:>7.2f}  {response_flag(r)}")
++    rest, trest = rows[1:], tim[1:]
++    b = res['block']
++    s = {'prompt_tokens': sum(r['prompt_n'] or 0 for r in rows), **resources(b)}
++    L += ['', f"  first image: wall {f(rows[0]['wall_s'] if rows else None, '.2f')} s, encode "
++              f"{f(tim[0].get('encode_ms') if tim else None, '.0f')} ms (includes any first-use cost)",
++          f"  images 2..{len(rows)} median: wall {f(med([r['wall_s'] for r in rest]), '.2f')} s, encode "
++          f"{f(med([t.get('encode_ms') for t in trest]), '.0f')} ms, image decode "
++          f"{f(med([t.get('image_decode_ms') for t in trest]), '.0f')} ms, prompt "
++          f"{f(med([r['prompt_s'] and r['prompt_s'] * 1000 for r in rest]), '.0f')} ms, gen t/s (token-weighted) "
++          f"{f(cm.tok_s(rest), '.2f')}",
++          f"  load {b['load_s']:.1f} s; responses {sum(response_flag(r) == 'OK' for r in rows)}/{len(rows)} complete; "
++          f"{len(rows)}/{len(FRAMES)} frames answered", '',
++          f"  {'':<28}{'test':<5}{'prompt tok':>11}{'HWM':>6}{'PSS':>6}{'avail':>6}{'W':>6}{'skin start->end':>17}{'st':>3}"
++          f"{'bat%':>5}{'X1 cap':>7}{'X1 top':>7}{'samples':>8}",
++          resource_line(name[:28], 'D', s, b['gate'], res['start'], res['end'], f),
++          '', '  GRADING SHEET (references are Coder-drafted, owner to confirm; grade by hand, not by filename)']
++    for r in rows:
++        ref = REFS['frames'].get(r['prompt_id'], {'reference': 'NO REFERENCE', 'key_objects': [], 'robot_context': ''})
++        L += [f"  [{r['prompt_id']}]", f"    reference: {ref['reference']}", f"    key objects: {', '.join(ref['key_objects'])}",
++              f"    robot context: {ref['robot_context']}", f"    reply ({response_flag(r)}): {(r['reply'] or '').strip()}",
++              '    grade: key objects named __/' + str(len(ref['key_objects'])) + '; hallucinated objects: __; '
++              'robot-context errors (person, obstacle, room): __']
++    L += [f"  [{fr}] NO RESPONSE: {b['end_reason']}" for fr in FRAMES[len(rows):]]
++    return L
++
++
++# ---------------------------------------------------------------- main
++
++def main(argv=None):
++    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
++    ap.add_argument('--test', choices=tuple(COMMANDS))
++    ap.add_argument('--report', nargs='+', type=Path, metavar='DIR')
++    ap.add_argument('--thermal-log', default=str(THERMAL_LOG))
++    a = ap.parse_args(argv)
++    if bool(a.test) == bool(a.report):
++        ap.error('give exactly one of --test and --report')
++    if a.report:
++        print(report(a.report))
++        return
++    cr.require_native()  # before any root command or server
++    for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
++        signal.signal(sig, cr.exit_on_signal)
++    try:
++        why = cm.refusals() + repro.frozen_problems() + code_problems() + env_problems() + frame_problems()
++        if why:
++            raise SystemExit('not started: ' + '; '.join(why))
++        out = OUT_ROOT / f'{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_{a.test}'
++        out.mkdir(parents=True)
++        print(f'checking model, drafter, projector and build SHA-256 (about 40 s); run folder {out}', flush=True)
++        hashes, build = check_hashes()
++        cr.wait_cores('start')
++        start = repro.conditions(a.thermal_log)
++        if why := repro.thermal_problems(start):
++            raise SystemExit('not started: ' + '; '.join(why))
++        if a.test == 'D':
++            ids, texts = FRAMES, {f: f for f in FRAMES}
++            payloads = {f: image_payload(f) for f in FRAMES}  # encoded before the block: no file reads in a request
++            cm.payload, cr.post = payloads.__getitem__, chat_post
++            example = image_payload('<frame>', jpeg='<base64 jpeg>')
++        else:
++            ids, texts, example = list(cm.IDS), cm.prompt_texts(), repro.payload('<text>')
++        cm.command = lambda config, model='e2b': list(COMMANDS[a.test])  # run_block looks it up at call time
++        (out / 'run.json').write_text(json.dumps({
++            'test': a.test, 'ids': ids, 'command': COMMANDS[a.test], 'payload_example': example,
++            'prompt_texts': texts if a.test != 'D' else {f: PROMPT for f in FRAMES},
++            'frames_sha256': {f: r['frame_sha256'] for f, r in REFS['frames'].items()} if a.test == 'D' else None,
++            'started': cr.utc(), 'model_sha256': hashes, 'build_sha256': build, 'build_info': build_info(),
++            'env': {k: v for k, v in os.environ.items() if k.startswith(ENV_REFUSED + ('LD_PRELOAD',))},
++            'code_sha256': {str(p): cr.sha256(p) for p in (Path(__file__), HERE / 'references.json', *CODE_SHA256,
++                                                            *repro.CODE_SHA256)},
++            'baseline': {k: str(v) for k, v in BASELINE.items()}, 'image_tokens': IMAGE_TOKENS,
++            'block_s': cm.BLOCK_S, 'deadline_s': cm.DEADLINE_S, 'gate_max_s': 0, 'sample_s': cr.SAMPLE_S},
++            indent=1) + '\n')
++        pm.GATE_MAX_S = 0  # one skin reading, no wait (as VIS-3C)
++        rows = []
++        with open(out / 'prompts.jsonl', 'a') as plog:
++            def emit(row):
++                row['probe'] = probe(a.test, first=not rows)
++                plog.write(json.dumps(row) + '\n')
++                plog.flush()
++                rows.append(row)
++            ctx = {'out': out, 'thermal_log': a.thermal_log, 'idle': {'skin': start['skin']}, 'emit': emit}
++            try:
++                block = cm.run_block(0, a.test, ids, texts, ctx)
++            except cr.CoresLost as e:
++                raise SystemExit(f'not started: {e}; nothing measured, relaunch')
++        result = {'block': block, 'start': start, 'end': repro.conditions(a.thermal_log), 'agents_end': repro.agents(),
++                  'port_free_end': repro.port_free()}
++        (out / 'result.json').write_text(json.dumps(result) + '\n')
++        text = report([out])
++        (out / 'report.txt').write_text(text + '\n')
++        print(text, flush=True)
++    finally:
++        for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
++            signal.signal(sig, signal.SIG_IGN)
++        for proc in list(cm.LIVE):
++            cm.stop(proc)
++
++
++if __name__ == '__main__':
++    main()

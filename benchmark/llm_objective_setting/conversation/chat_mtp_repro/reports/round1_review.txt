@@ -1,0 +1,72 @@
+## Review of VIS-3C / Experiment 1 Candidate
+
+### 1. Workload Reconstruction and Fidelity to Historical Run
+- **Fidelity verification**: The candidate freezes the historical llama-server command arguments, model paths, MTP drafter parameters, prompt template, and payload structure from the archived run `benchmark/llm_objective_setting/conversation/chat_mtp/runs/chat_mtp_20261014T224541Z/run.json` (138 lines) and commit `2091f42` (`_review_context/chat_2091f42.py`, 390 lines; `_review_context/server_manager_2091f42.py`, 116 lines).
+- In [`benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py`](file:///termux-home/review/vis3c/round1_copy/benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py#L280) (364 lines):
+  ```python
+  COMMANDS = {'OFF': OFF, 'ON': OFF + ['--model-draft', DRAFT, '--spec-type', 'draft-mtp', '--spec-draft-n-max', '3']}
+  ```
+- In [`benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py`](file:///termux-home/review/vis3c/round1_copy/benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py#L304) (364 lines):
+  ```python
+      return {'prompt': f'<start_of_turn>user\n{text}<end_of_turn>\n<start_of_turn>model\n', 'n_predict': 512,
+  ```
+- In [`benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py`](file:///termux-home/review/vis3c/round1_copy/benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py#L308) (364 lines):
+  ```python
+  cm.command, cm.payload = command, payload  # run_block looks both up in chat_mtp at call time
+  ```
+  `chat_mtp.run_block` in [`benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py`](file:///termux-home/review/vis3c/round1_copy/benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py#L223) (478 lines) resolves `command` and `payload` at module scope:
+  ```python
+          proc = spawn(command(config, ctx.get('model', 'e2b')), log)
+  ```
+  and at line 239:
+  ```python
+                      data = cr.post('/completion', payload(texts[pid]), timeout=DEADLINE_S - started)
+  ```
+  This cleanly decouples execution from today's modified `chat.py` template without duplicating block execution machinery.
+- Offline tests in [`benchmark/llm_objective_setting/conversation/chat_mtp_repro/test_repro.py`](file:///termux-home/review/vis3c/round1_copy/benchmark/llm_objective_setting/conversation/chat_mtp_repro/test_repro.py#L689) (189 lines) verify the replacement:
+  ```python
+          self.assertEqual(events[0], ('spawn', repro.COMMANDS['ON']))
+  ```
+
+### 2. Single-Config Isolation and Gate Replacement
+- In [`benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh`](file:///termux-home/review/vis3c/round1_copy/benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh#L23) (132 lines):
+  ```bash
+  case "$*" in "--config OFF"|"--config ON") ;; *) echo "Usage: oneshot.sh --config OFF|ON"; exit 1;; esac
+  ```
+- Each launch executes strictly one configuration in one block and terminates. The historical 5-minute pre-run idle and 334s skin cooling wait are removed, setting `GATE_MAX_S = 0` in [`benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py`](file:///termux-home/review/vis3c/round1_copy/benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py#L574) (364 lines):
+  ```python
+          pm.GATE_MAX_S = 0  # no idle baseline in a single-config launch: one skin reading, no wait
+  ```
+  Comparability is established post-run via `--report` requiring initial skin temperature within 1.0 °C and identical CPU caps.
+
+### 3. Sparse Monitoring Preservation
+- Dense root sampling (~0.45 s) from VIS-3B is completely omitted.
+- The 5-second background sampling loop from Oct 14 is preserved in [`benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh`](file:///termux-home/review/vis3c/round1_copy/benchmark/llm_objective_setting/conversation/chat_mtp_repro/oneshot.sh#L214) (132 lines):
+  ```bash
+  su -c "while [ ! -f $L/.stop_thermal ]; do echo \"\$(date -u +%Y-%m-%dT%H:%M:%SZ) z9=\$(cat /sys/class/thermal/thermal_zone9/temp) z10=\$(cat /sys/class/thermal/thermal_zone10/temp) z11=\$(cat /sys/class/thermal/thermal_zone11/temp) CPU-core_reading,_not_a_heat_state=1\" >> $L/thermal.log; sleep 5; done" &
+  ```
+  and `coresidency.sampler_loop` runs at `SAMPLE_S = 5`.
+
+### 4. Safety Preflight and Termination
+- Safety checks guard native Termux, root access, unplugged battery (`Discharging`), battery capacity ≥ 80%, battery temperature < 45 °C, Android thermal status 0, core affinity 4-7, and absence of background agent processes (`claude|agy|node|codex`) and benchmarks (`vis[0-9]_run.py`).
+- Server cleanup is enforced by process group signal forwarding (`TERM` followed by `KILL` after 3 s) both in the block's `finally` and the launcher's signal trap.
+
+---
+
+### Findings
+
+1. **NIT**: Minor subject-verb agreement in dynamic refusal text in [`benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py`](file:///termux-home/review/vis3c/round1_copy/benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py#L326) (364 lines):
+   ```python
+       why += [f'{k} differ from the Oct 14 run.json' for k, (mine, theirs) in checks.items() if mine != theirs]
+   ```
+   When `k == 'payload'`, the string produces `'payload differ from the Oct 14 run.json'`. This is purely cosmetic, does not impact execution, and is already locked in `test_repro.py`.
+
+2. **NIT**: Strict single-command drafter flag verification in [`benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py`](file:///termux-home/review/vis3c/round1_copy/benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py#L513) (364 lines):
+   ```python
+       if b['command'] != a['command'] + COMMANDS['ON'][len(OFF):]:
+   ```
+   This assumption correctly requires that the ON command is an exact append of the drafter arguments to the OFF command. Since both commands are statically frozen, this invariant holds reliably.
+
+---
+
+APPROVED

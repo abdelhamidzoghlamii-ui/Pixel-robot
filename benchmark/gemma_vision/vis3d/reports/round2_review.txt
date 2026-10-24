@@ -1,0 +1,159 @@
+# Independent Review: Task VIS-3D (Fair Performance and Vision Benchmark)
+
+**Role:** Independent Reviewer  
+**Platform:** AGY / Antigravity CLI (fresh independent session)  
+**Model:** Gemini 3.8 Flash (High)  
+**Effort:** N/A (High is part of AGY's model identifier)  
+**Ponytail:** OFF (no Ponytail skills or commands applied)  
+**Working Directory:** `/termux-home/review/vis3d/round2_copy` (isolated copy)  
+**Base Commit:** `685a44be63aa88c30e09386ce8e5e196ebf11abc` (`= origin/main`)  
+
+---
+
+## 1. Permitted Command Execution Results
+
+Both permitted commands were executed from the copy's root. The standard terminal sandbox encountered the expected proot restriction (`fork/exec /root/.local/bin/agy: operation not permitted` documented in `docs/WORKFLOW.md`), and both commands were re-run with `BypassSandbox: true` where they executed and completed successfully:
+
+1. **Compilation Check (no bytecode generated):**
+   ```bash
+   /data/data/com.termux/files/usr/bin/python3 -B -c "import sys; [compile(open(f).read(), f, 'exec') for f in sys.argv[1:]]" benchmark/gemma_vision/vis3d/vis3d.py benchmark/gemma_vision/vis3d/test_vis3d.py
+   ```
+   *Result:* Exited with code `0`. Clean compilation with zero syntax errors and no bytecode written.
+
+2. **Unit Test Suite Execution:**
+   ```bash
+   cd benchmark/gemma_vision/vis3d && /data/data/com.termux/files/usr/bin/python3 -B -W ignore -m unittest -v test_vis3d
+   ```
+   *Result:* Ran 28 tests in 0.487s. Exited with code `0`, `OK` (all 28 tests passed).
+
+---
+
+## 2. Technical Evaluation
+
+### 1. Comparability (Requirements 1, 2, 3, 5, 6, 10, 12)
+- **Command Structure and Isolation:** Commands for tests A, B, C, and D differ only by the intended parameters:
+  - In [`benchmark/gemma_vision/vis3d/vis3d.py`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/vis3d.py) (507 lines), line 60 defines the base command:
+    ```python
+    BASE = ['taskset', '-c', '4-7', SERVER, *repro.OFF[4:], '--metrics']
+    ```
+    This matches the frozen b1609 OFF command (`taskset -c 4-7`, `--port 8080`, `--ctx-size 4096`, `--host 127.0.0.1`, `--threads 4`, `--threads-batch 4`, `--parallel 1`, `--swa-full`, `--cache-ram 0`) with the binary switched to b11716 (`SERVER`) and `--metrics` added.
+  - Test B adds only the Q8 projector flags via line 62:
+    ```python
+    VISION = ['--mmproj', MMPROJ, '--image-min-tokens', str(IMAGE_TOKENS), '--image-max-tokens', str(IMAGE_TOKENS)]
+    ```
+  - Test C adds only the MTP drafter flags via line 63:
+    ```python
+    MTP = repro.COMMANDS['ON'][len(repro.OFF):]  # the VIS-3C ON drafter flags
+    ```
+  - Test D adds only `--reasoning off -lv 4` to Test B via line 64:
+    ```python
+    COMMANDS = {'A': BASE, 'B': BASE + VISION, 'C': BASE + VISION + MTP, 'D': BASE + VISION + ['--reasoning', 'off', '-lv', '4']}
+    ```
+- **Frozen Workload:** For tests A–C, [`repro.frozen_problems()`](file:///termux-home/review/vis3d/round2_copy/benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py#L75) is asserted prior to launch, guaranteeing prompt texts, prompt IDs, payload structure, model and drafter hashes, and block timing constants are identical to the Oct 14 archive (`8cc59ac3...`).
+- **One Server Per Test:** Each test is independently launchable via [`benchmark/gemma_vision/vis3d/oneshot.sh`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/oneshot.sh) (131 lines), line 22:
+  ```bash
+  case "$*" in "--test A"|"--test B"|"--test C"|"--test D") ;; *) echo "Usage: oneshot.sh --test A|B|C|D"; exit 1;; esac
+  ```
+  Only one test executes per run. The server is cleanly shut down in [`vis3d.py`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/vis3d.py) (507 lines), lines 502-503:
+  ```python
+          for proc in list(cm.LIVE):
+              cm.stop(proc)
+  ```
+  Nothing runs after the test completion.
+- **Report Separation:** In [`vis3d.py`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/vis3d.py) (507 lines), lines 351-370, `configuration:` and `conditions:` are reported on separate lines. Comparison between C and b1609 ON explicitly notes both differences at line 354:
+  ```python
+                         ('ON', 'C', 'build AND projector residency (b1609 ON has no projector; C has it)')):
+  ```
+  All throughput ratios are stated strictly as observations without speculative causal attribution.
+
+### 2. Measurement Integrity (Requirements 4, 8, 9, 11)
+- **Token-Weighted Throughput Rule:** Text throughput adheres to the Oct 14 rule via [`cm.tok_s(rows)`](file:///termux-home/review/vis3d/round2_copy/benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py#L339) (token-weighted over replies with at least 10 tokens), alongside a separate `pooled` column covering all generated tokens.
+- **Speculative Verification Steps vs. Proxy:**
+  - Exact speculative verification steps from the b11716 Prometheus counter `llamacpp:spec_decode_num_drafts_total` are extracted via [`vis3d.py`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/vis3d.py) (507 lines), line 273:
+    ```python
+        return rows[-1].get('probe', {}).get('metrics', {}).get('llamacpp:spec_decode_num_drafts_total') if rows else None
+    ```
+  - The report displays `steps` and `ms/step` (`decode_ms / steps`).
+  - The historical proxy `decode ms / (generated - accepted)` is labeled `ms/pass*` and explicitly designated in the table header as `a PROXY, not a step count`.
+- **Server-Evidenced MTP:** In [`vis3d.py`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/vis3d.py) (507 lines), lines 245-247 ensure MTP is not judged merely from flags:
+  ```python
+      drafted = sum(r['draft_n'] or 0 for r in rows)
+      if spec and not (drafted and steps(rows)):
+          why.append('MTP requested but nothing drafted or verified')
+  ```
+  Additionally, `/slots` `speculative` and server log draft initialization strings are verified.
+- **Probe Placement:** Probes (`/metrics`, `/props`, `/slots`, `/proc/{pid}/maps`, `/apply-template`) execute in the `emit()` callback invoked strictly between completed requests, never during active inference.
+- **Attribution & Derivations:**
+  - Image timings are parsed from `-lv 4` server logs via [`image_log()`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/vis3d.py#L186). If the count of server log processing sections does not equal the request count, attribution fails closed and the run is marked NOT VALID.
+  - Text prefill is explicitly labeled `text* = prompt - encode - img dec, DERIVED`.
+  - TTFT is documented as `not measured (not streamed)`.
+
+### 3. Image-Processing Correctness (Test D)
+- **Request Format & Template:** Requests are sent to `/v1/chat/completions` using the OpenAI-compatible multimodal structure via [`vis3d.py`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/vis3d.py) (507 lines), lines 80-85 and 94-95:
+  ```python
+      assert path == '/completion', path
+      data = _post('/v1/chat/completions', body, timeout)
+  ```
+  The GGUF Gemma 4 template (`<|turn>user\n...<turn|>\n<|turn>model\n`) is verified via `/apply-template`, ensuring no legacy `<start_of_turn>` tokens contaminate Test D.
+- **Payload Pre-encoding:** Base64 image payload strings are constructed before the block starts, preventing client file-read latency from corrupting request measurements. `run.json` stores an example placeholder (`<base64 jpeg>`) while recording individual frame SHA-256 hashes, avoiding multi-megabyte artifact bloat.
+- **Token Budget:** Fixed at 70 image tokens (min = max = 70), directly justified by historical evidence from VIS-0/VIS-1 (where 482×640 frames produced 63 tokens and encoded in ~2.5s, allowing 8 frames to complete well within the 150s window).
+- **Frame Provenance & Independent References:**
+  - Uses 8 git-tracked M2-Q1 frames from [`benchmark/relate_anything/quality1/runs/20261017T213604Z/frames/`](file:///termux-home/review/vis3d/round2_copy/benchmark/relate_anything/quality1/runs/20261017T213604Z/frames/).
+  - All source and frame hashes match the tracked `results.json`.
+  - References in [`references.json`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/references.json) are drafted from visual inspection of the images rather than filenames (e.g., `bench_photos__empty_2` accurately notes wardrobe, suitcases, and clothes rather than assuming an empty room).
+
+### 4. Safety & System Hygiene
+- **Preflight Refusals:** Refuses on non-native Termux, root unavailability, coding agents (`claude`, `agy`, `node`, `codex`), running llama-server/chat instances, battery < 80%, charger plugged in, thermal status != 0, battery temp >= 45 °C, CPU core 4–7 unavailability, or any mismatch across pinned hashes (weights, drafter, projector, binary, and 7 shared libraries).
+- **Locking & Screen Handling:**
+  - Single-run filesystem lock (`.lock/pid`) in [`oneshot.sh`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/oneshot.sh) (131 lines), line 86.
+  - Original `screen_off_timeout` is read, validated as numeric, set to 2147483647 with readback verification, and restored in `cleanup()` with readback verification.
+- **Clean Server Stop:** Traps for EXIT, TERM, HUP, INT ensure signals are propagated to terminate `llama-server` via process group `SIGTERM` followed by `SIGKILL` after grace period.
+- **No Unsafe Operations:** No motors or cameras are touched. Existing implementations and historical runs are strictly read-only. Unsanctioned environment variables (`LLAMA_*`, `GGML_*`, `OMP_*`, `KMP_*`, `LD_LIBRARY_PATH`) trigger immediate refusal.
+
+### 5. Test Adequacy (Requirement 13)
+- [`benchmark/gemma_vision/vis3d/test_vis3d.py`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/test_vis3d.py) (425 lines) provides 28 unit tests using mocks and tracked fixtures exclusively.
+- Tests cover command generation, hash validation, refusal mechanisms, image serialization, endpoint routing, server log parsing, metrics parsing, validity assertions, report formatting, and failure handling.
+- Regression tests for VIS-3C (`test_repro`) and `test_chat_mtp_runner` pass unchanged.
+
+---
+
+## 3. Findings
+
+### P1 (Blocker)
+*None.*
+
+### P2 (Must Fix)
+*None.*
+
+### P3 (Notes)
+
+1. **Human Confirmation of Visual Reference Descriptions:**
+   In [`benchmark/gemma_vision/vis3d/references.json`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/references.json) (71 lines), line 2 states:
+   ```json
+    "established_by": "Coder (Claude Code, claude-opus-5-5) by viewing each frame on 2026-10-23. Not owner-verified: the owner or Local AI confirms or corrects these before any grade is recorded. Filenames are not ground truth (empty_2 is not empty).",
+   ```
+   and [`benchmark/gemma_vision/vis3d/README.md`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/README.md) (175 lines), lines 58-59 state:
+   ```markdown
+     The **Coder drafted these references by viewing the frames; the owner or Local AI confirms or corrects them before
+     grading**. Filenames are not ground truth (for example, `empty_2` shows a wardrobe, suitcases and clothes).
+   ```
+   *Note:* The reference scene descriptions, key objects, and robot context in `references.json` were prepared by the Coder. While completely traceable and verified against M2-Q1 frame hashes, the owner and Local AI should review these descriptions before recording final qualitative grades.
+
+2. **Projector Flag Presence in Non-Vision Tests (B & C):**
+   In [`benchmark/gemma_vision/vis3d/vis3d.py`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/vis3d.py) (507 lines), line 61-62:
+   ```python
+   IMAGE_TOKENS = 70  # min = max; VIS-0/VIS-1 logged 63 tokens per 482x640 frame (Q8 encode about 2.5 s, VIS-1 V2)
+   VISION = ['--mmproj', MMPROJ, '--image-min-tokens', str(IMAGE_TOKENS), '--image-max-tokens', str(IMAGE_TOKENS)]
+   ```
+   *Note:* In tests B and C, the resident projector is initialized with `--image-min-tokens 70 --image-max-tokens 70` even though no images are sent. This accurately fulfills the experimental design of isolating the resident memory and initialization overhead on text throughput without executing vision inference.
+
+3. **Runtime Monkeypatching Scope for Test D:**
+   In [`benchmark/gemma_vision/vis3d/vis3d.py`](file:///termux-home/review/vis3d/round2_copy/benchmark/gemma_vision/vis3d/vis3d.py) (507 lines), line 464:
+   ```python
+               cm.payload, cr.post = payloads.__getitem__, chat_post
+   ```
+   *Note:* `vis3d.py` temporarily assigns `cm.payload` and `cr.post` to route requests to `/v1/chat/completions` for Test D. Because each benchmark execution runs exactly one test per process and terminates immediately, this runtime assignment is clean and prevents duplicating the core `run_block` loop.
+
+---
+
+VERDICT: APPROVED WITH NOTES
