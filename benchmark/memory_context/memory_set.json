@@ -1,0 +1,2620 @@
+{
+ "task": "MEM-1",
+ "note": "synthetic, invented facts only; frozen answer key; built by build_set.py",
+ "system": "You are the memory assistant of a small home robot. Answer the user's question using only the memory entries below. Entries are listed oldest first; if two entries conflict, the newer entry is correct. Reply with exactly one line of JSON and nothing else, in the form {\"answer\": \"VALUE\"}. VALUE is the shortest exact name, number, word or phrase from the memory that answers the question. If the memory does not contain the answer, VALUE is UNKNOWN.",
+ "freetext_system": "You are the memory assistant of a small home robot. Answer the user's question using only the memory entries below. Entries are listed oldest first; if two entries conflict, the newer entry is correct. Answer in one short sentence. If the memory does not contain the answer, reply exactly: I don't know.",
+ "header": "Memory (all dates in 2026, oldest first):",
+ "empty": "(no entries)",
+ "probes": [
+  [
+   "begin",
+   0.0,
+   "Nadia's cat is named Pepper."
+  ],
+  [
+   "stale",
+   0.25,
+   "The spare robot charger is kept in the kitchen drawer."
+  ],
+  [
+   "mid",
+   0.5,
+   "Oskar's bicycle lock code is 4417."
+  ],
+  [
+   "near",
+   null,
+   "Oskar's gym locker code is 9032."
+  ],
+  [
+   "update",
+   0.75,
+   "Update: the spare robot charger is now kept on the hallway shelf."
+  ],
+  [
+   "end",
+   1.0,
+   "Leo takes his tea with honey and no milk."
+  ]
+ ],
+ "questions": [
+  {
+   "id": "q_begin",
+   "text": "What is the name of Nadia's cat?",
+   "kind": "present",
+   "probe": "begin",
+   "accept": [
+    "pepper"
+   ],
+   "stale": [],
+   "distractor": []
+  },
+  {
+   "id": "q_mid",
+   "text": "What is Oskar's bicycle lock code?",
+   "kind": "present",
+   "probe": "mid",
+   "accept": [
+    "4417"
+   ],
+   "stale": [],
+   "distractor": [
+    "9032"
+   ]
+  },
+  {
+   "id": "q_end",
+   "text": "What does Leo take in his tea?",
+   "kind": "present",
+   "probe": "end",
+   "accept": [
+    "honey",
+    "honey and no milk",
+    "honey, no milk"
+   ],
+   "stale": [],
+   "distractor": [
+    "milk",
+    "honey and milk"
+   ]
+  },
+  {
+   "id": "q_update",
+   "text": "Where is the spare robot charger kept now?",
+   "kind": "present",
+   "probe": "update",
+   "accept": [
+    "hallway shelf",
+    "the hallway shelf",
+    "on the hallway shelf",
+    "hallway"
+   ],
+   "stale": [
+    "kitchen drawer",
+    "the kitchen drawer",
+    "in the kitchen drawer",
+    "kitchen"
+   ],
+   "distractor": []
+  },
+  {
+   "id": "q_absent_pet",
+   "text": "What is the name of Nadia's dog?",
+   "kind": "absent",
+   "probe": null,
+   "accept": [],
+   "stale": [],
+   "distractor": [
+    "pepper"
+   ]
+  },
+  {
+   "id": "q_absent_time",
+   "text": "At what time is Oskar's dentist appointment?",
+   "kind": "absent",
+   "probe": null,
+   "accept": [],
+   "stale": [],
+   "distractor": []
+  }
+ ],
+ "prime": {
+  "id": "prime",
+  "text": "Reply with the single word: ready."
+ },
+ "filler_pool": [
+  "Ines prefers the living room lights at 20 percent.",
+  "Greta asked the robot to play funk music in the evening.",
+  "Clara prefers the living room lights at 55 percent.",
+  "Selma watered the chillies on the balcony.",
+  "Clara reminded the robot that the compost recycling goes out on Thursdays.",
+  "Petra's spin class starts at 8:30 on Saturdays.",
+  "Esra said the loft window sticks when it rains.",
+  "Selma is learning to bake pretzels.",
+  "Ines left a blue umbrella by the front door.",
+  "Selma reminded the robot that the battery recycling goes out on Thursdays.",
+  "Marta left a red umbrella by the front door.",
+  "Wen asked the robot to play opera music in the evening.",
+  "Marta reminded the robot that the paper recycling goes out on Thursdays.",
+  "Yusuf said the attic window sticks when it rains.",
+  "Clara is learning to bake muffins.",
+  "Ines reminded the robot that the glass recycling goes out on Thursdays.",
+  "Petra watered the lavender on the balcony.",
+  "Milan said the cellar window sticks when it rains.",
+  "Greta's rabbit is named Truffle.",
+  "Milan's favourite board game is Mahjong.",
+  "Ines borrowed the ladder from the garage.",
+  "Arjun's rabbit is named Poppy.",
+  "Yusuf watered the ferns on the balcony.",
+  "Rafael is learning to bake pita.",
+  "Tobias hung a glacier painting in the corridor.",
+  "Yusuf is learning to bake croissants.",
+  "Milan left a silver umbrella by the front door.",
+  "Esra's spin class starts at 13:30 on Saturdays.",
+  "Esra's rabbit is named Sorrel.",
+  "Selma prefers the living room lights at 45 percent.",
+  "Hugo said the pantry window sticks when it rains.",
+  "Petra prefers the living room lights at 35 percent.",
+  "Petra hung a lighthouse painting in the corridor.",
+  "Tobias is learning to bake baguettes.",
+  "Yusuf prefers the living room lights at 30 percent.",
+  "Clara asked the robot to play salsa music in the evening.",
+  "Petra is learning to bake brioche.",
+  "Hugo borrowed the wrench from the garage.",
+  "Milan watered the cactus on the balcony.",
+  "Arjun said the laundry window sticks when it rains.",
+  "Yusuf reminded the robot that the plastic recycling goes out on Thursdays.",
+  "Clara hung a canyon painting in the corridor.",
+  "Clara's rabbit is named Thistle.",
+  "Clara's spin class starts at 10:30 on Saturdays.",
+  "Ines hung a harbour painting in the corridor.",
+  "Ines's spin class starts at 7:00 on Saturdays.",
+  "Selma left a white umbrella by the front door.",
+  "Tobias left a orange umbrella by the front door.",
+  "Greta left a brown umbrella by the front door.",
+  "Milan prefers the living room lights at 80 percent.",
+  "Rafael hung a island painting in the corridor.",
+  "Esra hung a waterfall painting in the corridor.",
+  "Tobias borrowed the hose from the garage.",
+  "Arjun is learning to bake scones.",
+  "Ines asked the robot to play jazz music in the evening.",
+  "Hugo left a grey umbrella by the front door.",
+  "Esra left a beige umbrella by the front door.",
+  "Selma said the office window sticks when it rains.",
+  "Arjun's favourite board game is Catan.",
+  "Greta's favourite board game is Ticket-to-Ride.",
+  "Milan's spin class starts at 13:00 on Saturdays.",
+  "Clara said the dining window sticks when it rains.",
+  "Hugo asked the robot to play classical music in the evening.",
+  "Petra's rabbit is named Juniper.",
+  "Wen's spin class starts at 11:30 on Saturdays.",
+  "Arjun left a striped umbrella by the front door.",
+  "Petra's favourite board game is backgammon.",
+  "Esra's favourite board game is Monopoly.",
+  "Yusuf's favourite board game is checkers.",
+  "Hugo's spin class starts at 9:00 on Saturdays.",
+  "Selma hung a river painting in the corridor.",
+  "Rafael prefers the living room lights at 70 percent.",
+  "Marta borrowed the drill from the garage.",
+  "Hugo's favourite board game is Scrabble.",
+  "Arjun's spin class starts at 10:00 on Saturdays.",
+  "Ines said the bathroom window sticks when it rains.",
+  "Greta prefers the living room lights at 75 percent.",
+  "Yusuf asked the robot to play piano music in the evening.",
+  "Tobias prefers the living room lights at 60 percent.",
+  "Rafael asked the robot to play soul music in the evening.",
+  "Marta asked the robot to play folk music in the evening.",
+  "Greta said the porch window sticks when it rains.",
+  "Esra watered the succulents on the balcony.",
+  "Ines is learning to bake sourdough.",
+  "Milan's rabbit is named Pebble.",
+  "Selma asked the robot to play blues music in the evening.",
+  "Marta's spin class starts at 7:30 on Saturdays.",
+  "Esra reminded the robot that the newspaper recycling goes out on Thursdays.",
+  "Wen's rabbit is named Bramble.",
+  "Petra borrowed the saw from the garage.",
+  "Wen reminded the robot that the carton recycling goes out on Thursdays.",
+  "Clara's favourite board game is Carcassonne.",
+  "Yusuf hung a forest painting in the corridor.",
+  "Rafael borrowed the stapler from the garage.",
+  "Greta's spin class starts at 12:30 on Saturdays.",
+  "Wen watered the strawberries on the balcony.",
+  "Rafael left a pink umbrella by the front door.",
+  "Ines watered the basil on the balcony.",
+  "Greta borrowed the sander from the garage.",
+  "Greta is learning to bake naan.",
+  "Marta watered the mint on the balcony.",
+  "Petra asked the robot to play reggae music in the evening.",
+  "Tobias's rabbit is named Willow.",
+  "Arjun prefers the living room lights at 50 percent.",
+  "Selma's rabbit is named Nutmeg.",
+  "Milan hung a sunset painting in the corridor.",
+  "Wen's favourite board game is Azul.",
+  "Hugo is learning to bake focaccia.",
+  "Ines's rabbit is named Clover.",
+  "Arjun watered the orchids on the balcony.",
+  "Arjun reminded the robot that the textile recycling goes out on Thursdays.",
+  "Ines's favourite board game is chess.",
+  "Marta said the bedroom window sticks when it rains.",
+  "Marta prefers the living room lights at 25 percent.",
+  "Rafael said the stairwell window sticks when it rains.",
+  "Arjun borrowed the shovel from the garage.",
+  "Clara borrowed the rake from the garage.",
+  "Rafael watered the geraniums on the balcony.",
+  "Rafael's favourite board game is Pandemic.",
+  "Wen left a purple umbrella by the front door.",
+  "Wen hung a vineyard painting in the corridor.",
+  "Marta is learning to bake bagels.",
+  "Tobias reminded the robot that the glass-bottle recycling goes out on Thursdays.",
+  "Clara watered the rosemary on the balcony.",
+  "Yusuf borrowed the hammer from the garage.",
+  "Greta reminded the robot that the can recycling goes out on Thursdays.",
+  "Esra is learning to bake challah.",
+  "Rafael's spin class starts at 12:00 on Saturdays.",
+  "Tobias watered the thyme on the balcony.",
+  "Selma borrowed the pliers from the garage.",
+  "Hugo reminded the robot that the metal recycling goes out on Thursdays.",
+  "Hugo hung a desert painting in the corridor.",
+  "Esra borrowed the bucket from the garage.",
+  "Arjun asked the robot to play swing music in the evening.",
+  "Esra asked the robot to play gospel music in the evening.",
+  "Milan reminded the robot that the bottle recycling goes out on Thursdays.",
+  "Wen said the guest window sticks when it rains.",
+  "Tobias asked the robot to play ambient music in the evening.",
+  "Arjun hung a meadow painting in the corridor.",
+  "Wen prefers the living room lights at 65 percent.",
+  "Greta watered the parsley on the balcony.",
+  "Greta hung a windmill painting in the corridor.",
+  "Petra said the study window sticks when it rains.",
+  "Marta's rabbit is named Biscuit.",
+  "Rafael's rabbit is named Saffron.",
+  "Wen borrowed the toolbox from the garage.",
+  "Milan borrowed the broom from the garage.",
+  "Milan is learning to bake rye.",
+  "Esra prefers the living room lights at 85 percent.",
+  "Wen is learning to bake cornbread.",
+  "Yusuf left a yellow umbrella by the front door.",
+  "Milan asked the robot to play tango music in the evening.",
+  "Marta hung a mountain painting in the corridor.",
+  "Hugo prefers the living room lights at 40 percent.",
+  "Hugo's rabbit is named Maple.",
+  "Yusuf's spin class starts at 8:00 on Saturdays.",
+  "Selma's spin class starts at 9:30 on Saturdays.",
+  "Yusuf's rabbit is named Hazel.",
+  "Tobias's favourite board game is Dominion.",
+  "Petra reminded the robot that the cardboard recycling goes out on Thursdays.",
+  "Marta's favourite board game is Go.",
+  "Tobias's spin class starts at 11:00 on Saturdays.",
+  "Clara left a dotted umbrella by the front door.",
+  "Hugo watered the tomatoes on the balcony.",
+  "Tobias said the nursery window sticks when it rains.",
+  "Selma's favourite board game is Risk.",
+  "Petra left a black umbrella by the front door.",
+  "Rafael reminded the robot that the tin recycling goes out on Thursdays."
+ ],
+ "seed": 20261024,
+ "lengths": {
+  "0": {
+   "target_tokens": 0,
+   "fillers": 0,
+   "entries": [],
+   "memory_text": "Memory (all dates in 2026, oldest first):\n(no entries)",
+   "memory_tokens": 0,
+   "deviation_tokens": 0,
+   "deviation_pct": 0.0,
+   "shared_prefix_tokens": 125,
+   "prefix_text_tokens": 125,
+   "prompts": {
+    "q_begin": {
+     "tokens": 140,
+     "ids_sha256": "9663fc1572fe76e4ecabe1f21779c804c5a6d4f5e28f84c14449457d5819ef39",
+     "text_sha256": "671bc8aefcd9c34e4a26e5faff455beaf4063ee7b3b50ce21d805b7bd539d787",
+     "lcp": {
+      "q_mid": 127,
+      "q_end": 126,
+      "q_update": 125,
+      "q_absent_pet": 133,
+      "q_absent_time": 125
+     }
+    },
+    "q_mid": {
+     "tokens": 139,
+     "ids_sha256": "a19c4d099ed855bd7fd388d758ee0af525abf87f96a43805c01603368f160702",
+     "text_sha256": "e8d3e083afac2c01ee57af518e1e5ee7ee46f7b880ae18dc1765fad7f829b220",
+     "lcp": {
+      "q_begin": 127,
+      "q_end": 126,
+      "q_update": 125,
+      "q_absent_pet": 127,
+      "q_absent_time": 125
+     }
+    },
+    "q_end": {
+     "tokens": 138,
+     "ids_sha256": "783e11a1b25fcd661b91674415d65828de53764c16d2eb5d93ffd895161b3326",
+     "text_sha256": "85a39fddba8793f797e5039e29d31163b3edf9ad6016787711aadb52208cffb5",
+     "lcp": {
+      "q_begin": 126,
+      "q_mid": 126,
+      "q_update": 125,
+      "q_absent_pet": 126,
+      "q_absent_time": 125
+     }
+    },
+    "q_update": {
+     "tokens": 139,
+     "ids_sha256": "44feb6c0ce4e4d4e61c8fe50a1b01702f80ff8acce99e04c7213676ccdd80abc",
+     "text_sha256": "fc2a6e401ad1ed0c0ef30e26cbcd1567c7316295d047ed7f1dad6041ba9d29fb",
+     "lcp": {
+      "q_begin": 125,
+      "q_mid": 125,
+      "q_end": 125,
+      "q_absent_pet": 125,
+      "q_absent_time": 125
+     }
+    },
+    "q_absent_pet": {
+     "tokens": 140,
+     "ids_sha256": "35f9d9bce2d9c7751f34cdd972112251a3a9718008913d9048a5d222fd376ba5",
+     "text_sha256": "605daca8596a9f9490675035be211f5f4724e88ed96d5111ffc626e19cfe9801",
+     "lcp": {
+      "q_begin": 133,
+      "q_mid": 127,
+      "q_end": 126,
+      "q_update": 125,
+      "q_absent_time": 125
+     }
+    },
+    "q_absent_time": {
+     "tokens": 140,
+     "ids_sha256": "0742dbd3b3767a312cf15d2d320f7e6cc95c420999b2637660d9250fd5bf9603",
+     "text_sha256": "7a2be33d82b136b71da39246d199135cef02e7deda7396bedfd344f44cd5698b",
+     "lcp": {
+      "q_begin": 125,
+      "q_mid": 125,
+      "q_end": 125,
+      "q_update": 125,
+      "q_absent_pet": 125
+     }
+    }
+   },
+   "prime_prompt": {
+    "tokens": 138,
+    "ids_sha256": "df922e6cb6e35fd69dcc3669c9587f60c35328e270b5bdc916934989e8dbaa46",
+    "text_sha256": "8f15c12298ea98ba666465b82d3795a8fb4812db3af80ed67bd44f73f1b2b98a",
+    "lcp_with_scored": 125,
+    "lcp_warmup": 2,
+    "lcp": {
+     "q_begin": 125,
+     "q_mid": 125,
+     "q_end": 125,
+     "q_update": 125,
+     "q_absent_pet": 125,
+     "q_absent_time": 125
+    }
+   },
+   "freetext": {
+    "shared_prefix_tokens": 94,
+    "prefix_text_tokens": 94,
+    "prompts": {
+     "q_begin": {
+      "tokens": 109,
+      "ids_sha256": "9e16fc683a880a92a62a5d3c6fc9898a185ce2c2227ba34b69b711b136537d16",
+      "text_sha256": "3b4042ad9b798c3390bfc23c41fc7ee93fad952ac3b3c4f05c2e2258f6cc455d",
+      "lcp": {
+       "q_mid": 96,
+       "q_end": 95,
+       "q_update": 94,
+       "q_absent_pet": 102,
+       "q_absent_time": 94
+      }
+     },
+     "q_mid": {
+      "tokens": 108,
+      "ids_sha256": "fe81701d2c8a179f78e0bdfa50f945ce7bd216c95c4c9ac0a24549a634e7765f",
+      "text_sha256": "c25313b01146f10b8d9d92057c25504b0a42d1f54d26ccb4a377ad64c6f35e7d",
+      "lcp": {
+       "q_begin": 96,
+       "q_end": 95,
+       "q_update": 94,
+       "q_absent_pet": 96,
+       "q_absent_time": 94
+      }
+     },
+     "q_end": {
+      "tokens": 107,
+      "ids_sha256": "19a903a42f16dd0e58b43e8aeba3bf1d8169558bcdfea5312df031502c5090df",
+      "text_sha256": "2ec81172a522c705569287305e1dd565258a3769b6cbf9225e9913fd7fbc5355",
+      "lcp": {
+       "q_begin": 95,
+       "q_mid": 95,
+       "q_update": 94,
+       "q_absent_pet": 95,
+       "q_absent_time": 94
+      }
+     },
+     "q_update": {
+      "tokens": 108,
+      "ids_sha256": "5c95a6b73585ff1ec28338da32adb1cfcdea42481e508cab1d15aa596cf1d929",
+      "text_sha256": "4f53eaf7cf9f1d21340ae42b2743dd682442a3559d0d0876380e902ea2c53f42",
+      "lcp": {
+       "q_begin": 94,
+       "q_mid": 94,
+       "q_end": 94,
+       "q_absent_pet": 94,
+       "q_absent_time": 94
+      }
+     },
+     "q_absent_pet": {
+      "tokens": 109,
+      "ids_sha256": "51942cc72159ca8dcf56aff0f1bdd112a9c38d016168182c973c4242268f6236",
+      "text_sha256": "a21d09a71d3c900f77dd54f8647b16d43ccc50477a4b992982494001b9a27441",
+      "lcp": {
+       "q_begin": 102,
+       "q_mid": 96,
+       "q_end": 95,
+       "q_update": 94,
+       "q_absent_time": 94
+      }
+     },
+     "q_absent_time": {
+      "tokens": 109,
+      "ids_sha256": "993eabca6800be360e55856d54366851056ce93f47990eeca59bf9268be48e59",
+      "text_sha256": "7705901cff08f4a0d08704fcee4ec4d96f4d2660643f2ab80c550a8f19165ef5",
+      "lcp": {
+       "q_begin": 94,
+       "q_mid": 94,
+       "q_end": 94,
+       "q_update": 94,
+       "q_absent_pet": 94
+      }
+     }
+    },
+    "prime_prompt": {
+     "tokens": 107,
+     "ids_sha256": "61a747c21b8dda344a976148caee2120a160c95264dc53733339b5c1ef5db540",
+     "text_sha256": "1f4fd30b0532a0da0332af9da1d7dc39c40daf9e6e2eb1af8cda20ede4d7b969",
+     "lcp_with_scored": 94,
+     "lcp_warmup": 2,
+     "lcp": {
+      "q_begin": 94,
+      "q_mid": 94,
+      "q_end": 94,
+      "q_update": 94,
+      "q_absent_pet": 94,
+      "q_absent_time": 94
+     }
+    }
+   }
+  },
+  "128": {
+   "target_tokens": 128,
+   "fillers": 1,
+   "entries": [
+    {
+     "date": "Jan 5",
+     "probe": "begin",
+     "text": "Nadia's cat is named Pepper."
+    },
+    {
+     "date": "Feb 3",
+     "probe": "stale",
+     "text": "The spare robot charger is kept in the kitchen drawer."
+    },
+    {
+     "date": "Mar 4",
+     "probe": null,
+     "text": "Ines prefers the living room lights at 20 percent."
+    },
+    {
+     "date": "Apr 3",
+     "probe": "mid",
+     "text": "Oskar's bicycle lock code is 4417."
+    },
+    {
+     "date": "May 2",
+     "probe": "near",
+     "text": "Oskar's gym locker code is 9032."
+    },
+    {
+     "date": "May 31",
+     "probe": "update",
+     "text": "Update: the spare robot charger is now kept on the hallway shelf."
+    },
+    {
+     "date": "Jun 29",
+     "probe": "end",
+     "text": "Leo takes his tea with honey and no milk."
+    }
+   ],
+   "memory_text": "Memory (all dates in 2026, oldest first):\n- Jan 5: Nadia's cat is named Pepper.\n- Feb 3: The spare robot charger is kept in the kitchen drawer.\n- Mar 4: Ines prefers the living room lights at 20 percent.\n- Apr 3: Oskar's bicycle lock code is 4417.\n- May 2: Oskar's gym locker code is 9032.\n- May 31: Update: the spare robot charger is now kept on the hallway shelf.\n- Jun 29: Leo takes his tea with honey and no milk.",
+   "memory_tokens": 121,
+   "deviation_tokens": -7,
+   "deviation_pct": -5.47,
+   "shared_prefix_tokens": 246,
+   "prefix_text_tokens": 246,
+   "prompts": {
+    "q_begin": {
+     "tokens": 261,
+     "ids_sha256": "695f662cabe56967b9dbd287427c3d708ea86f67916c7986bd49547999b4beb5",
+     "text_sha256": "4581a3e172c28d67ee5447b16b6ab077d6219258ac399e05461d2e9227467472",
+     "lcp": {
+      "q_mid": 248,
+      "q_end": 247,
+      "q_update": 246,
+      "q_absent_pet": 254,
+      "q_absent_time": 246
+     }
+    },
+    "q_mid": {
+     "tokens": 260,
+     "ids_sha256": "1119c90907b485d97cb056ca71870220fe62a48089f5f22abbc3761f4f738753",
+     "text_sha256": "83eb9e59d48ad0dfae0548c6ca78db2a39e0542994d761ee1eea2d7dc6576b8e",
+     "lcp": {
+      "q_begin": 248,
+      "q_end": 247,
+      "q_update": 246,
+      "q_absent_pet": 248,
+      "q_absent_time": 246
+     }
+    },
+    "q_end": {
+     "tokens": 259,
+     "ids_sha256": "600cb8c3da9e9dea4b929001ef4c31029f08f4a10a14e148591b55fae17c075e",
+     "text_sha256": "c9f112ea79fb79f44126e8f04bc346c20ec2ee651eb8f2b35bf5557f1e7d4728",
+     "lcp": {
+      "q_begin": 247,
+      "q_mid": 247,
+      "q_update": 246,
+      "q_absent_pet": 247,
+      "q_absent_time": 246
+     }
+    },
+    "q_update": {
+     "tokens": 260,
+     "ids_sha256": "ee230ccb1caa44995d7ee3ce892bb2fa1ecb89d665577dab0a901246eb6735b8",
+     "text_sha256": "55b9dff027a07b2497927799c8e23b4ca5a083e50ba6ddcb3ef4f06855310c5b",
+     "lcp": {
+      "q_begin": 246,
+      "q_mid": 246,
+      "q_end": 246,
+      "q_absent_pet": 246,
+      "q_absent_time": 246
+     }
+    },
+    "q_absent_pet": {
+     "tokens": 261,
+     "ids_sha256": "58e4f9634e7eecdd75ca928e80ce7c5232504fbf883219c012416eaee8f6ee44",
+     "text_sha256": "d8374d793ce1374f2f9bc2a2b8ef3b802d798c975c9e1e186f754d01b7615cc4",
+     "lcp": {
+      "q_begin": 254,
+      "q_mid": 248,
+      "q_end": 247,
+      "q_update": 246,
+      "q_absent_time": 246
+     }
+    },
+    "q_absent_time": {
+     "tokens": 261,
+     "ids_sha256": "4dcf6f8c52265da2bb903c2778c213e16693d798e487b5657a5a85598d355526",
+     "text_sha256": "c07c0aa55ff8239b709aec0b2de263efb3f35872ace00d695814a2352d296daf",
+     "lcp": {
+      "q_begin": 246,
+      "q_mid": 246,
+      "q_end": 246,
+      "q_update": 246,
+      "q_absent_pet": 246
+     }
+    }
+   },
+   "prime_prompt": {
+    "tokens": 259,
+    "ids_sha256": "d7b8d7323ac001bdd87460bc2b5e7e3d35ee4e1547fd484c7e999cbdccd6a057",
+    "text_sha256": "454f1ec0eacd4805f59e14c4caf66cd0d24ff5d6615b6cd1701dad4ddbf44f7e",
+    "lcp_with_scored": 246,
+    "lcp_warmup": 2,
+    "lcp": {
+     "q_begin": 246,
+     "q_mid": 246,
+     "q_end": 246,
+     "q_update": 246,
+     "q_absent_pet": 246,
+     "q_absent_time": 246
+    }
+   },
+   "freetext": {
+    "shared_prefix_tokens": 215,
+    "prefix_text_tokens": 215,
+    "prompts": {
+     "q_begin": {
+      "tokens": 230,
+      "ids_sha256": "bef6e840f77b34b7f2d5228457d525e8091b673b385335a1c368dfb675c05206",
+      "text_sha256": "2a5865e8f27a090e2522f6a37658a1da64936d31ebc19484afd7c4272eca3bc8",
+      "lcp": {
+       "q_mid": 217,
+       "q_end": 216,
+       "q_update": 215,
+       "q_absent_pet": 223,
+       "q_absent_time": 215
+      }
+     },
+     "q_mid": {
+      "tokens": 229,
+      "ids_sha256": "5a4ab60fd259e61bbdba4c35c8281904396146bf7c3cd3ae719c2db3858dba36",
+      "text_sha256": "c69fd19623b3f26da4ed735e8ca48511055d0a8a10369c58114f1c51f4509a48",
+      "lcp": {
+       "q_begin": 217,
+       "q_end": 216,
+       "q_update": 215,
+       "q_absent_pet": 217,
+       "q_absent_time": 215
+      }
+     },
+     "q_end": {
+      "tokens": 228,
+      "ids_sha256": "bd8fed5f2ef114319c0baaba0783a096adb7a2a2fa48461094e62dfd0aa6adec",
+      "text_sha256": "88625813309fcac5d8a474facefb422391a2990786d3563bac3756047927e79a",
+      "lcp": {
+       "q_begin": 216,
+       "q_mid": 216,
+       "q_update": 215,
+       "q_absent_pet": 216,
+       "q_absent_time": 215
+      }
+     },
+     "q_update": {
+      "tokens": 229,
+      "ids_sha256": "0dbeff6f4f19a3930b53c042e65d9da4e63e33186842761429835f6be6147b65",
+      "text_sha256": "2c370d25c61c1889a6f0d6ce62bae924f26fdbd1f98d266e261c689d6cb3c684",
+      "lcp": {
+       "q_begin": 215,
+       "q_mid": 215,
+       "q_end": 215,
+       "q_absent_pet": 215,
+       "q_absent_time": 215
+      }
+     },
+     "q_absent_pet": {
+      "tokens": 230,
+      "ids_sha256": "4e5fc1a942d4d40dcdcfc01a9f543a01b2b203f8809877125f8f68f186c1f4ce",
+      "text_sha256": "1b2e59a8e25aaaf836919e73396b12ce72e48b2672344028dd5f0f57893fc8c0",
+      "lcp": {
+       "q_begin": 223,
+       "q_mid": 217,
+       "q_end": 216,
+       "q_update": 215,
+       "q_absent_time": 215
+      }
+     },
+     "q_absent_time": {
+      "tokens": 230,
+      "ids_sha256": "5f5b814595ae8c8a92758d7c60faf64973ae864a969f45c520a37733a8d32762",
+      "text_sha256": "3368a7bd0450def7901ca5942bfc1afaf4a48c4e2b57ad1739ea3d941e36b14e",
+      "lcp": {
+       "q_begin": 215,
+       "q_mid": 215,
+       "q_end": 215,
+       "q_update": 215,
+       "q_absent_pet": 215
+      }
+     }
+    },
+    "prime_prompt": {
+     "tokens": 228,
+     "ids_sha256": "d18d94af557f133fa29509098bd1be836e7e9325b6bb091a24a9bfc58444ac84",
+     "text_sha256": "55c3c209400a56a43e4a083cc2f3b11e16faceb8ac4fca419470982803637745",
+     "lcp_with_scored": 215,
+     "lcp_warmup": 2,
+     "lcp": {
+      "q_begin": 215,
+      "q_mid": 215,
+      "q_end": 215,
+      "q_update": 215,
+      "q_absent_pet": 215,
+      "q_absent_time": 215
+     }
+    }
+   }
+  },
+  "256": {
+   "target_tokens": 256,
+   "fillers": 8,
+   "entries": [
+    {
+     "date": "Jan 5",
+     "probe": "begin",
+     "text": "Nadia's cat is named Pepper."
+    },
+    {
+     "date": "Jan 18",
+     "probe": null,
+     "text": "Ines prefers the living room lights at 20 percent."
+    },
+    {
+     "date": "Feb 1",
+     "probe": null,
+     "text": "Greta asked the robot to play funk music in the evening."
+    },
+    {
+     "date": "Feb 14",
+     "probe": "stale",
+     "text": "The spare robot charger is kept in the kitchen drawer."
+    },
+    {
+     "date": "Feb 28",
+     "probe": null,
+     "text": "Clara prefers the living room lights at 55 percent."
+    },
+    {
+     "date": "Mar 13",
+     "probe": null,
+     "text": "Selma watered the chillies on the balcony."
+    },
+    {
+     "date": "Mar 27",
+     "probe": "mid",
+     "text": "Oskar's bicycle lock code is 4417."
+    },
+    {
+     "date": "Apr 9",
+     "probe": "near",
+     "text": "Oskar's gym locker code is 9032."
+    },
+    {
+     "date": "Apr 23",
+     "probe": null,
+     "text": "Clara reminded the robot that the compost recycling goes out on Thursdays."
+    },
+    {
+     "date": "May 6",
+     "probe": "update",
+     "text": "Update: the spare robot charger is now kept on the hallway shelf."
+    },
+    {
+     "date": "May 20",
+     "probe": null,
+     "text": "Petra's spin class starts at 8:30 on Saturdays."
+    },
+    {
+     "date": "Jun 2",
+     "probe": null,
+     "text": "Esra said the loft window sticks when it rains."
+    },
+    {
+     "date": "Jun 16",
+     "probe": null,
+     "text": "Selma is learning to bake pretzels."
+    },
+    {
+     "date": "Jun 29",
+     "probe": "end",
+     "text": "Leo takes his tea with honey and no milk."
+    }
+   ],
+   "memory_text": "Memory (all dates in 2026, oldest first):\n- Jan 5: Nadia's cat is named Pepper.\n- Jan 18: Ines prefers the living room lights at 20 percent.\n- Feb 1: Greta asked the robot to play funk music in the evening.\n- Feb 14: The spare robot charger is kept in the kitchen drawer.\n- Feb 28: Clara prefers the living room lights at 55 percent.\n- Mar 13: Selma watered the chillies on the balcony.\n- Mar 27: Oskar's bicycle lock code is 4417.\n- Apr 9: Oskar's gym locker code is 9032.\n- Apr 23: Clara reminded the robot that the compost recycling goes out on Thursdays.\n- May 6: Update: the spare robot charger is now kept on the hallway shelf.\n- May 20: Petra's spin class starts at 8:30 on Saturdays.\n- Jun 2: Esra said the loft window sticks when it rains.\n- Jun 16: Selma is learning to bake pretzels.\n- Jun 29: Leo takes his tea with honey and no milk.",
+   "memory_tokens": 249,
+   "deviation_tokens": -7,
+   "deviation_pct": -2.73,
+   "shared_prefix_tokens": 374,
+   "prefix_text_tokens": 374,
+   "prompts": {
+    "q_begin": {
+     "tokens": 389,
+     "ids_sha256": "f711a7bb2d8314d2cb13a96ee3bab11140fba3e3f6c0529c94d116187ba878ac",
+     "text_sha256": "ad115962fcefd545628cf9c4b2f612aac50a45db22dcccac627133cd07ceaa2d",
+     "lcp": {
+      "q_mid": 376,
+      "q_end": 375,
+      "q_update": 374,
+      "q_absent_pet": 382,
+      "q_absent_time": 374
+     }
+    },
+    "q_mid": {
+     "tokens": 388,
+     "ids_sha256": "52df414ddc0c77aa5b2584ce491eb1639820e0a3b194dba6abf8a22b22e1a41a",
+     "text_sha256": "d45e1f104a31cdb3649d5aeb690d54699fa7e75e00f5452b90e5540487a6d8c1",
+     "lcp": {
+      "q_begin": 376,
+      "q_end": 375,
+      "q_update": 374,
+      "q_absent_pet": 376,
+      "q_absent_time": 374
+     }
+    },
+    "q_end": {
+     "tokens": 387,
+     "ids_sha256": "18dd08707e8d583be634bed4d3cccc2e463a6514f7288c24b409570468d0b674",
+     "text_sha256": "69222aba2ef36aa4feecba7d3465ce290d8ce878b5e57ca9a95f5196f05ac7d3",
+     "lcp": {
+      "q_begin": 375,
+      "q_mid": 375,
+      "q_update": 374,
+      "q_absent_pet": 375,
+      "q_absent_time": 374
+     }
+    },
+    "q_update": {
+     "tokens": 388,
+     "ids_sha256": "1adc6238d171605ffd62930ec09d2673229661cde62fca1f25be5c2a18b29792",
+     "text_sha256": "d94f4764180589751605f8475076efb71debaac043bbdbaf9956578d14015228",
+     "lcp": {
+      "q_begin": 374,
+      "q_mid": 374,
+      "q_end": 374,
+      "q_absent_pet": 374,
+      "q_absent_time": 374
+     }
+    },
+    "q_absent_pet": {
+     "tokens": 389,
+     "ids_sha256": "a3b04957b9b19de175579711d2484663cbd01f070e1e8d80a4b9eb63a57e8ed9",
+     "text_sha256": "215e3379c0e9857a53037b5c056c3de12bddb6198af917c02755094a589664ec",
+     "lcp": {
+      "q_begin": 382,
+      "q_mid": 376,
+      "q_end": 375,
+      "q_update": 374,
+      "q_absent_time": 374
+     }
+    },
+    "q_absent_time": {
+     "tokens": 389,
+     "ids_sha256": "79e149414ab88aec205ff842465609909aee994b874db33b79db63f9feca2c85",
+     "text_sha256": "d3a0617e6018dba765d6132dc1cdfd0cc725bfb82ac8f5414ae1ef0e465fdb01",
+     "lcp": {
+      "q_begin": 374,
+      "q_mid": 374,
+      "q_end": 374,
+      "q_update": 374,
+      "q_absent_pet": 374
+     }
+    }
+   },
+   "prime_prompt": {
+    "tokens": 387,
+    "ids_sha256": "2c3b833346821a61bce69b330c71cd1cec0266802621e7574b6d16632bc38bd0",
+    "text_sha256": "4bb8409cb87da0aaff711f88601d811c358191639e9c32f96f61eb7a51571851",
+    "lcp_with_scored": 374,
+    "lcp_warmup": 2,
+    "lcp": {
+     "q_begin": 374,
+     "q_mid": 374,
+     "q_end": 374,
+     "q_update": 374,
+     "q_absent_pet": 374,
+     "q_absent_time": 374
+    }
+   },
+   "freetext": {
+    "shared_prefix_tokens": 343,
+    "prefix_text_tokens": 343,
+    "prompts": {
+     "q_begin": {
+      "tokens": 358,
+      "ids_sha256": "f57da5b76c9cfc1b2ae128fa149c06ee917ad7f579682d64327b628e0426a46a",
+      "text_sha256": "41a08ddf162e2a52495606968c1a208d107bd85a83bb7d70338ebd7527dc32cd",
+      "lcp": {
+       "q_mid": 345,
+       "q_end": 344,
+       "q_update": 343,
+       "q_absent_pet": 351,
+       "q_absent_time": 343
+      }
+     },
+     "q_mid": {
+      "tokens": 357,
+      "ids_sha256": "e0e96cdfb4a1d9db04012c688ff7126bad50bc02ee5c3604e249d23a6addc153",
+      "text_sha256": "066e911186c370b5803299157b51386661af8eabcd50b69fbc98a4599fdc0423",
+      "lcp": {
+       "q_begin": 345,
+       "q_end": 344,
+       "q_update": 343,
+       "q_absent_pet": 345,
+       "q_absent_time": 343
+      }
+     },
+     "q_end": {
+      "tokens": 356,
+      "ids_sha256": "d0462858ed0dbd51728c0fe8c95f9cce7ede2a3c8791378b0e22cc6a4bf0255b",
+      "text_sha256": "83b8420c8886f353cd142ceb49968650c609ca34ce81e34fc66285e9bca9eecc",
+      "lcp": {
+       "q_begin": 344,
+       "q_mid": 344,
+       "q_update": 343,
+       "q_absent_pet": 344,
+       "q_absent_time": 343
+      }
+     },
+     "q_update": {
+      "tokens": 357,
+      "ids_sha256": "b1934eabef4a849f0ad2ad4ce265184d2a26d50a7e349f5155649bcd4ce55fbf",
+      "text_sha256": "d0061f22870bf15daace84797945d735cc18e2afe4ff897e2b08411179f83139",
+      "lcp": {
+       "q_begin": 343,
+       "q_mid": 343,
+       "q_end": 343,
+       "q_absent_pet": 343,
+       "q_absent_time": 343
+      }
+     },
+     "q_absent_pet": {
+      "tokens": 358,
+      "ids_sha256": "d782c36083716d4697b2cb7eb7e82ebbe1d89ceb75c5db15ec2e1f8bc2974df7",
+      "text_sha256": "18ff67b22795eabcbbc5986d718d6a0b49d4e1b25f0580ff662ad85c44573412",
+      "lcp": {
+       "q_begin": 351,
+       "q_mid": 345,
+       "q_end": 344,
+       "q_update": 343,
+       "q_absent_time": 343
+      }
+     },
+     "q_absent_time": {
+      "tokens": 358,
+      "ids_sha256": "6191be45125adf8e35f40dacaa680399d23b3823084ea315d938b059e1070406",
+      "text_sha256": "3309b428e3332f18f77663b35f023135cd214ce492a58797652bc96da3b7e9d9",
+      "lcp": {
+       "q_begin": 343,
+       "q_mid": 343,
+       "q_end": 343,
+       "q_update": 343,
+       "q_absent_pet": 343
+      }
+     }
+    },
+    "prime_prompt": {
+     "tokens": 356,
+     "ids_sha256": "cfbfaf1f5fa1b770bdd5b7503dd2d670480166a491e59ebfb10320157f3406d1",
+     "text_sha256": "e8be809c9331d21e4d8a64af90ae9aa44a4bed4142bee6c0129b5cd4638f6647",
+     "lcp_with_scored": 343,
+     "lcp_warmup": 2,
+     "lcp": {
+      "q_begin": 343,
+      "q_mid": 343,
+      "q_end": 343,
+      "q_update": 343,
+      "q_absent_pet": 343,
+      "q_absent_time": 343
+     }
+    }
+   }
+  },
+  "512": {
+   "target_tokens": 512,
+   "fillers": 24,
+   "entries": [
+    {
+     "date": "Jan 5",
+     "probe": "begin",
+     "text": "Nadia's cat is named Pepper."
+    },
+    {
+     "date": "Jan 11",
+     "probe": null,
+     "text": "Ines prefers the living room lights at 20 percent."
+    },
+    {
+     "date": "Jan 17",
+     "probe": null,
+     "text": "Greta asked the robot to play funk music in the evening."
+    },
+    {
+     "date": "Jan 23",
+     "probe": null,
+     "text": "Clara prefers the living room lights at 55 percent."
+    },
+    {
+     "date": "Jan 29",
+     "probe": null,
+     "text": "Selma watered the chillies on the balcony."
+    },
+    {
+     "date": "Feb 4",
+     "probe": null,
+     "text": "Clara reminded the robot that the compost recycling goes out on Thursdays."
+    },
+    {
+     "date": "Feb 10",
+     "probe": null,
+     "text": "Petra's spin class starts at 8:30 on Saturdays."
+    },
+    {
+     "date": "Feb 16",
+     "probe": "stale",
+     "text": "The spare robot charger is kept in the kitchen drawer."
+    },
+    {
+     "date": "Feb 22",
+     "probe": null,
+     "text": "Esra said the loft window sticks when it rains."
+    },
+    {
+     "date": "Feb 28",
+     "probe": null,
+     "text": "Selma is learning to bake pretzels."
+    },
+    {
+     "date": "Mar 6",
+     "probe": null,
+     "text": "Ines left a blue umbrella by the front door."
+    },
+    {
+     "date": "Mar 12",
+     "probe": null,
+     "text": "Selma reminded the robot that the battery recycling goes out on Thursdays."
+    },
+    {
+     "date": "Mar 18",
+     "probe": null,
+     "text": "Marta left a red umbrella by the front door."
+    },
+    {
+     "date": "Mar 24",
+     "probe": null,
+     "text": "Wen asked the robot to play opera music in the evening."
+    },
+    {
+     "date": "Mar 30",
+     "probe": "mid",
+     "text": "Oskar's bicycle lock code is 4417."
+    },
+    {
+     "date": "Apr 6",
+     "probe": "near",
+     "text": "Oskar's gym locker code is 9032."
+    },
+    {
+     "date": "Apr 12",
+     "probe": null,
+     "text": "Marta reminded the robot that the paper recycling goes out on Thursdays."
+    },
+    {
+     "date": "Apr 18",
+     "probe": null,
+     "text": "Yusuf said the attic window sticks when it rains."
+    },
+    {
+     "date": "Apr 24",
+     "probe": null,
+     "text": "Clara is learning to bake muffins."
+    },
+    {
+     "date": "Apr 30",
+     "probe": null,
+     "text": "Ines reminded the robot that the glass recycling goes out on Thursdays."
+    },
+    {
+     "date": "May 6",
+     "probe": null,
+     "text": "Petra watered the lavender on the balcony."
+    },
+    {
+     "date": "May 12",
+     "probe": "update",
+     "text": "Update: the spare robot charger is now kept on the hallway shelf."
+    },
+    {
+     "date": "May 18",
+     "probe": null,
+     "text": "Milan said the cellar window sticks when it rains."
+    },
+    {
+     "date": "May 24",
+     "probe": null,
+     "text": "Greta's rabbit is named Truffle."
+    },
+    {
+     "date": "May 30",
+     "probe": null,
+     "text": "Milan's favourite board game is Mahjong."
+    },
+    {
+     "date": "Jun 5",
+     "probe": null,
+     "text": "Ines borrowed the ladder from the garage."
+    },
+    {
+     "date": "Jun 11",
+     "probe": null,
+     "text": "Arjun's rabbit is named Poppy."
+    },
+    {
+     "date": "Jun 17",
+     "probe": null,
+     "text": "Yusuf watered the ferns on the balcony."
+    },
+    {
+     "date": "Jun 23",
+     "probe": null,
+     "text": "Rafael is learning to bake pita."
+    },
+    {
+     "date": "Jun 29",
+     "probe": "end",
+     "text": "Leo takes his tea with honey and no milk."
+    }
+   ],
+   "memory_text": "Memory (all dates in 2026, oldest first):\n- Jan 5: Nadia's cat is named Pepper.\n- Jan 11: Ines prefers the living room lights at 20 percent.\n- Jan 17: Greta asked the robot to play funk music in the evening.\n- Jan 23: Clara prefers the living room lights at 55 percent.\n- Jan 29: Selma watered the chillies on the balcony.\n- Feb 4: Clara reminded the robot that the compost recycling goes out on Thursdays.\n- Feb 10: Petra's spin class starts at 8:30 on Saturdays.\n- Feb 16: The spare robot charger is kept in the kitchen drawer.\n- Feb 22: Esra said the loft window sticks when it rains.\n- Feb 28: Selma is learning to bake pretzels.\n- Mar 6: Ines left a blue umbrella by the front door.\n- Mar 12: Selma reminded the robot that the battery recycling goes out on Thursdays.\n- Mar 18: Marta left a red umbrella by the front door.\n- Mar 24: Wen asked the robot to play opera music in the evening.\n- Mar 30: Oskar's bicycle lock code is 4417.\n- Apr 6: Oskar's gym locker code is 9032.\n- Apr 12: Marta reminded the robot that the paper recycling goes out on Thursdays.\n- Apr 18: Yusuf said the attic window sticks when it rains.\n- Apr 24: Clara is learning to bake muffins.\n- Apr 30: Ines reminded the robot that the glass recycling goes out on Thursdays.\n- May 6: Petra watered the lavender on the balcony.\n- May 12: Update: the spare robot charger is now kept on the hallway shelf.\n- May 18: Milan said the cellar window sticks when it rains.\n- May 24: Greta's rabbit is named Truffle.\n- May 30: Milan's favourite board game is Mahjong.\n- Jun 5: Ines borrowed the ladder from the garage.\n- Jun 11: Arjun's rabbit is named Poppy.\n- Jun 17: Yusuf watered the ferns on the balcony.\n- Jun 23: Rafael is learning to bake pita.\n- Jun 29: Leo takes his tea with honey and no milk.",
+   "memory_tokens": 519,
+   "deviation_tokens": 7,
+   "deviation_pct": 1.37,
+   "shared_prefix_tokens": 644,
+   "prefix_text_tokens": 644,
+   "prompts": {
+    "q_begin": {
+     "tokens": 659,
+     "ids_sha256": "2faac08d21a8a955f560d6fd9e3f212aa91e88b6bb2f7ab7e05b9d1c90954a8e",
+     "text_sha256": "702e3d89e473c2d41053ca684f0f770bbb5d4fa0416bfd35ced07c1fe411a9bd",
+     "lcp": {
+      "q_mid": 646,
+      "q_end": 645,
+      "q_update": 644,
+      "q_absent_pet": 652,
+      "q_absent_time": 644
+     }
+    },
+    "q_mid": {
+     "tokens": 658,
+     "ids_sha256": "c92a566b8666057298fd42a050bc864a0e64eaef30426eeaac1434977fc718f4",
+     "text_sha256": "9720a03e78226ce4f6705a791f6e2c5357634dd81856c47c5ba918c5bc672d1d",
+     "lcp": {
+      "q_begin": 646,
+      "q_end": 645,
+      "q_update": 644,
+      "q_absent_pet": 646,
+      "q_absent_time": 644
+     }
+    },
+    "q_end": {
+     "tokens": 657,
+     "ids_sha256": "fbceafa164dcc2b2607bfc48b952eb0f8bed6380a1f39e847e9ccc36405d3baa",
+     "text_sha256": "f5c8c50876829039c00ea7edfce42d88f79370a607a633f04f8be98d60170ff0",
+     "lcp": {
+      "q_begin": 645,
+      "q_mid": 645,
+      "q_update": 644,
+      "q_absent_pet": 645,
+      "q_absent_time": 644
+     }
+    },
+    "q_update": {
+     "tokens": 658,
+     "ids_sha256": "d62079088366636413b8b25797f984d72fc071d7a4df5820310c83e22b851937",
+     "text_sha256": "cb048531bbdc87a9de36ef39223c5ab307f7b0c16af58b3c82c164ce86b01442",
+     "lcp": {
+      "q_begin": 644,
+      "q_mid": 644,
+      "q_end": 644,
+      "q_absent_pet": 644,
+      "q_absent_time": 644
+     }
+    },
+    "q_absent_pet": {
+     "tokens": 659,
+     "ids_sha256": "b29ab76e8407938c5c0c2169265af9c6e83f4aba34fb772e633ff56e736d0790",
+     "text_sha256": "93ff4185ede30b4d068d7b90d28ea278ba7467ec5ba4aad06618ea298309b02b",
+     "lcp": {
+      "q_begin": 652,
+      "q_mid": 646,
+      "q_end": 645,
+      "q_update": 644,
+      "q_absent_time": 644
+     }
+    },
+    "q_absent_time": {
+     "tokens": 659,
+     "ids_sha256": "18e9182df096dadf0e11a2f3d6683b6e04eb6001cf9b5bde3109d24eaa212d43",
+     "text_sha256": "ed13e37799d1cc3d82aad7878ba597d35520c296dbe0fc5baf8333cf9691e535",
+     "lcp": {
+      "q_begin": 644,
+      "q_mid": 644,
+      "q_end": 644,
+      "q_update": 644,
+      "q_absent_pet": 644
+     }
+    }
+   },
+   "prime_prompt": {
+    "tokens": 657,
+    "ids_sha256": "6042ba20ee401c7e8741d3732eda164c867b2487a819653edff5a29010017043",
+    "text_sha256": "23e9699dfcc4c395c1ff350fd64fd3f764cb848239a7541032d255b92e8abecd",
+    "lcp_with_scored": 644,
+    "lcp_warmup": 2,
+    "lcp": {
+     "q_begin": 644,
+     "q_mid": 644,
+     "q_end": 644,
+     "q_update": 644,
+     "q_absent_pet": 644,
+     "q_absent_time": 644
+    }
+   },
+   "freetext": {
+    "shared_prefix_tokens": 613,
+    "prefix_text_tokens": 613,
+    "prompts": {
+     "q_begin": {
+      "tokens": 628,
+      "ids_sha256": "c4d5da02eafa57c6231ade74dd0f91e3edeacd8ccf5388baf90492a8b30df6c0",
+      "text_sha256": "837f28f79a4278d3fb132592a975ead93e359818b47196423bb88661da08bdf8",
+      "lcp": {
+       "q_mid": 615,
+       "q_end": 614,
+       "q_update": 613,
+       "q_absent_pet": 621,
+       "q_absent_time": 613
+      }
+     },
+     "q_mid": {
+      "tokens": 627,
+      "ids_sha256": "54eacc4562b93727873c0d98e4260fb08db80ced74e3ff5cb0cbefcce8dd1d47",
+      "text_sha256": "8136f4f94bf333ee77ffc57c65bd7f12f681c7b909c328cae4cdffdea6cd2ade",
+      "lcp": {
+       "q_begin": 615,
+       "q_end": 614,
+       "q_update": 613,
+       "q_absent_pet": 615,
+       "q_absent_time": 613
+      }
+     },
+     "q_end": {
+      "tokens": 626,
+      "ids_sha256": "4b69ecf7d64cb776fda7c65dffba1e787681fb6c4fe46c3b382757ff48a05378",
+      "text_sha256": "f159cbb137db3673bc4159744b7faff98a673e08e298324129e64f10eb7c2de3",
+      "lcp": {
+       "q_begin": 614,
+       "q_mid": 614,
+       "q_update": 613,
+       "q_absent_pet": 614,
+       "q_absent_time": 613
+      }
+     },
+     "q_update": {
+      "tokens": 627,
+      "ids_sha256": "ce487510c061c69f88ef846825ebd2ecaa0f6dcdc271ee2c6c1d57e9239f4c1a",
+      "text_sha256": "3a174fba2c83c27cf7df63111d5698c115eb0852a19308042908d935c20b2531",
+      "lcp": {
+       "q_begin": 613,
+       "q_mid": 613,
+       "q_end": 613,
+       "q_absent_pet": 613,
+       "q_absent_time": 613
+      }
+     },
+     "q_absent_pet": {
+      "tokens": 628,
+      "ids_sha256": "a12a3a90e4268b44d26b0f2677ae7f3678be6d3e69b34aebbf88bf6077ee7326",
+      "text_sha256": "730a7a122a7539d1bd7607887fb7b5c168f2dd385f38c839118e90f96756e1a2",
+      "lcp": {
+       "q_begin": 621,
+       "q_mid": 615,
+       "q_end": 614,
+       "q_update": 613,
+       "q_absent_time": 613
+      }
+     },
+     "q_absent_time": {
+      "tokens": 628,
+      "ids_sha256": "3149fcf9232691b96d96d6c9c52e476513753db2e9ba1356f629b34b835c3604",
+      "text_sha256": "2d3cc8fd47bd3a61ba7ee5ca9dda23965c91c72c031883429574ff3ce29d0d36",
+      "lcp": {
+       "q_begin": 613,
+       "q_mid": 613,
+       "q_end": 613,
+       "q_update": 613,
+       "q_absent_pet": 613
+      }
+     }
+    },
+    "prime_prompt": {
+     "tokens": 626,
+     "ids_sha256": "8bc160e5d76cd7fe591ef34d5dfbd53f15ed3ed0b3c55c9347542b2ea51131ec",
+     "text_sha256": "2262013f9ec0cac2d7c7141bf06bcfcbcfc52fdc2635879c491b1c52595da839",
+     "lcp_with_scored": 613,
+     "lcp_warmup": 2,
+     "lcp": {
+      "q_begin": 613,
+      "q_mid": 613,
+      "q_end": 613,
+      "q_update": 613,
+      "q_absent_pet": 613,
+      "q_absent_time": 613
+     }
+    }
+   }
+  },
+  "1024": {
+   "target_tokens": 1024,
+   "fillers": 54,
+   "entries": [
+    {
+     "date": "Jan 5",
+     "probe": "begin",
+     "text": "Nadia's cat is named Pepper."
+    },
+    {
+     "date": "Jan 8",
+     "probe": null,
+     "text": "Ines prefers the living room lights at 20 percent."
+    },
+    {
+     "date": "Jan 11",
+     "probe": null,
+     "text": "Greta asked the robot to play funk music in the evening."
+    },
+    {
+     "date": "Jan 14",
+     "probe": null,
+     "text": "Clara prefers the living room lights at 55 percent."
+    },
+    {
+     "date": "Jan 17",
+     "probe": null,
+     "text": "Selma watered the chillies on the balcony."
+    },
+    {
+     "date": "Jan 20",
+     "probe": null,
+     "text": "Clara reminded the robot that the compost recycling goes out on Thursdays."
+    },
+    {
+     "date": "Jan 23",
+     "probe": null,
+     "text": "Petra's spin class starts at 8:30 on Saturdays."
+    },
+    {
+     "date": "Jan 26",
+     "probe": null,
+     "text": "Esra said the loft window sticks when it rains."
+    },
+    {
+     "date": "Jan 29",
+     "probe": null,
+     "text": "Selma is learning to bake pretzels."
+    },
+    {
+     "date": "Feb 1",
+     "probe": null,
+     "text": "Ines left a blue umbrella by the front door."
+    },
+    {
+     "date": "Feb 4",
+     "probe": null,
+     "text": "Selma reminded the robot that the battery recycling goes out on Thursdays."
+    },
+    {
+     "date": "Feb 7",
+     "probe": null,
+     "text": "Marta left a red umbrella by the front door."
+    },
+    {
+     "date": "Feb 10",
+     "probe": null,
+     "text": "Wen asked the robot to play opera music in the evening."
+    },
+    {
+     "date": "Feb 13",
+     "probe": null,
+     "text": "Marta reminded the robot that the paper recycling goes out on Thursdays."
+    },
+    {
+     "date": "Feb 16",
+     "probe": "stale",
+     "text": "The spare robot charger is kept in the kitchen drawer."
+    },
+    {
+     "date": "Feb 18",
+     "probe": null,
+     "text": "Yusuf said the attic window sticks when it rains."
+    },
+    {
+     "date": "Feb 21",
+     "probe": null,
+     "text": "Clara is learning to bake muffins."
+    },
+    {
+     "date": "Feb 24",
+     "probe": null,
+     "text": "Ines reminded the robot that the glass recycling goes out on Thursdays."
+    },
+    {
+     "date": "Feb 27",
+     "probe": null,
+     "text": "Petra watered the lavender on the balcony."
+    },
+    {
+     "date": "Mar 2",
+     "probe": null,
+     "text": "Milan said the cellar window sticks when it rains."
+    },
+    {
+     "date": "Mar 5",
+     "probe": null,
+     "text": "Greta's rabbit is named Truffle."
+    },
+    {
+     "date": "Mar 8",
+     "probe": null,
+     "text": "Milan's favourite board game is Mahjong."
+    },
+    {
+     "date": "Mar 11",
+     "probe": null,
+     "text": "Ines borrowed the ladder from the garage."
+    },
+    {
+     "date": "Mar 14",
+     "probe": null,
+     "text": "Arjun's rabbit is named Poppy."
+    },
+    {
+     "date": "Mar 17",
+     "probe": null,
+     "text": "Yusuf watered the ferns on the balcony."
+    },
+    {
+     "date": "Mar 20",
+     "probe": null,
+     "text": "Rafael is learning to bake pita."
+    },
+    {
+     "date": "Mar 23",
+     "probe": null,
+     "text": "Tobias hung a glacier painting in the corridor."
+    },
+    {
+     "date": "Mar 26",
+     "probe": null,
+     "text": "Yusuf is learning to bake croissants."
+    },
+    {
+     "date": "Mar 29",
+     "probe": null,
+     "text": "Milan left a silver umbrella by the front door."
+    },
+    {
+     "date": "Apr 1",
+     "probe": "mid",
+     "text": "Oskar's bicycle lock code is 4417."
+    },
+    {
+     "date": "Apr 4",
+     "probe": "near",
+     "text": "Oskar's gym locker code is 9032."
+    },
+    {
+     "date": "Apr 7",
+     "probe": null,
+     "text": "Esra's spin class starts at 13:30 on Saturdays."
+    },
+    {
+     "date": "Apr 10",
+     "probe": null,
+     "text": "Esra's rabbit is named Sorrel."
+    },
+    {
+     "date": "Apr 13",
+     "probe": null,
+     "text": "Selma prefers the living room lights at 45 percent."
+    },
+    {
+     "date": "Apr 16",
+     "probe": null,
+     "text": "Hugo said the pantry window sticks when it rains."
+    },
+    {
+     "date": "Apr 19",
+     "probe": null,
+     "text": "Petra prefers the living room lights at 35 percent."
+    },
+    {
+     "date": "Apr 22",
+     "probe": null,
+     "text": "Petra hung a lighthouse painting in the corridor."
+    },
+    {
+     "date": "Apr 25",
+     "probe": null,
+     "text": "Tobias is learning to bake baguettes."
+    },
+    {
+     "date": "Apr 28",
+     "probe": null,
+     "text": "Yusuf prefers the living room lights at 30 percent."
+    },
+    {
+     "date": "May 1",
+     "probe": null,
+     "text": "Clara asked the robot to play salsa music in the evening."
+    },
+    {
+     "date": "May 4",
+     "probe": null,
+     "text": "Petra is learning to bake brioche."
+    },
+    {
+     "date": "May 7",
+     "probe": null,
+     "text": "Hugo borrowed the wrench from the garage."
+    },
+    {
+     "date": "May 10",
+     "probe": null,
+     "text": "Milan watered the cactus on the balcony."
+    },
+    {
+     "date": "May 13",
+     "probe": null,
+     "text": "Arjun said the laundry window sticks when it rains."
+    },
+    {
+     "date": "May 16",
+     "probe": "update",
+     "text": "Update: the spare robot charger is now kept on the hallway shelf."
+    },
+    {
+     "date": "May 18",
+     "probe": null,
+     "text": "Yusuf reminded the robot that the plastic recycling goes out on Thursdays."
+    },
+    {
+     "date": "May 21",
+     "probe": null,
+     "text": "Clara hung a canyon painting in the corridor."
+    },
+    {
+     "date": "May 24",
+     "probe": null,
+     "text": "Clara's rabbit is named Thistle."
+    },
+    {
+     "date": "May 27",
+     "probe": null,
+     "text": "Clara's spin class starts at 10:30 on Saturdays."
+    },
+    {
+     "date": "May 30",
+     "probe": null,
+     "text": "Ines hung a harbour painting in the corridor."
+    },
+    {
+     "date": "Jun 2",
+     "probe": null,
+     "text": "Ines's spin class starts at 7:00 on Saturdays."
+    },
+    {
+     "date": "Jun 5",
+     "probe": null,
+     "text": "Selma left a white umbrella by the front door."
+    },
+    {
+     "date": "Jun 8",
+     "probe": null,
+     "text": "Tobias left a orange umbrella by the front door."
+    },
+    {
+     "date": "Jun 11",
+     "probe": null,
+     "text": "Greta left a brown umbrella by the front door."
+    },
+    {
+     "date": "Jun 14",
+     "probe": null,
+     "text": "Milan prefers the living room lights at 80 percent."
+    },
+    {
+     "date": "Jun 17",
+     "probe": null,
+     "text": "Rafael hung a island painting in the corridor."
+    },
+    {
+     "date": "Jun 20",
+     "probe": null,
+     "text": "Esra hung a waterfall painting in the corridor."
+    },
+    {
+     "date": "Jun 23",
+     "probe": null,
+     "text": "Tobias borrowed the hose from the garage."
+    },
+    {
+     "date": "Jun 26",
+     "probe": null,
+     "text": "Arjun is learning to bake scones."
+    },
+    {
+     "date": "Jun 29",
+     "probe": "end",
+     "text": "Leo takes his tea with honey and no milk."
+    }
+   ],
+   "memory_text": "Memory (all dates in 2026, oldest first):\n- Jan 5: Nadia's cat is named Pepper.\n- Jan 8: Ines prefers the living room lights at 20 percent.\n- Jan 11: Greta asked the robot to play funk music in the evening.\n- Jan 14: Clara prefers the living room lights at 55 percent.\n- Jan 17: Selma watered the chillies on the balcony.\n- Jan 20: Clara reminded the robot that the compost recycling goes out on Thursdays.\n- Jan 23: Petra's spin class starts at 8:30 on Saturdays.\n- Jan 26: Esra said the loft window sticks when it rains.\n- Jan 29: Selma is learning to bake pretzels.\n- Feb 1: Ines left a blue umbrella by the front door.\n- Feb 4: Selma reminded the robot that the battery recycling goes out on Thursdays.\n- Feb 7: Marta left a red umbrella by the front door.\n- Feb 10: Wen asked the robot to play opera music in the evening.\n- Feb 13: Marta reminded the robot that the paper recycling goes out on Thursdays.\n- Feb 16: The spare robot charger is kept in the kitchen drawer.\n- Feb 18: Yusuf said the attic window sticks when it rains.\n- Feb 21: Clara is learning to bake muffins.\n- Feb 24: Ines reminded the robot that the glass recycling goes out on Thursdays.\n- Feb 27: Petra watered the lavender on the balcony.\n- Mar 2: Milan said the cellar window sticks when it rains.\n- Mar 5: Greta's rabbit is named Truffle.\n- Mar 8: Milan's favourite board game is Mahjong.\n- Mar 11: Ines borrowed the ladder from the garage.\n- Mar 14: Arjun's rabbit is named Poppy.\n- Mar 17: Yusuf watered the ferns on the balcony.\n- Mar 20: Rafael is learning to bake pita.\n- Mar 23: Tobias hung a glacier painting in the corridor.\n- Mar 26: Yusuf is learning to bake croissants.\n- Mar 29: Milan left a silver umbrella by the front door.\n- Apr 1: Oskar's bicycle lock code is 4417.\n- Apr 4: Oskar's gym locker code is 9032.\n- Apr 7: Esra's spin class starts at 13:30 on Saturdays.\n- Apr 10: Esra's rabbit is named Sorrel.\n- Apr 13: Selma prefers the living room lights at 45 percent.\n- Apr 16: Hugo said the pantry window sticks when it rains.\n- Apr 19: Petra prefers the living room lights at 35 percent.\n- Apr 22: Petra hung a lighthouse painting in the corridor.\n- Apr 25: Tobias is learning to bake baguettes.\n- Apr 28: Yusuf prefers the living room lights at 30 percent.\n- May 1: Clara asked the robot to play salsa music in the evening.\n- May 4: Petra is learning to bake brioche.\n- May 7: Hugo borrowed the wrench from the garage.\n- May 10: Milan watered the cactus on the balcony.\n- May 13: Arjun said the laundry window sticks when it rains.\n- May 16: Update: the spare robot charger is now kept on the hallway shelf.\n- May 18: Yusuf reminded the robot that the plastic recycling goes out on Thursdays.\n- May 21: Clara hung a canyon painting in the corridor.\n- May 24: Clara's rabbit is named Thistle.\n- May 27: Clara's spin class starts at 10:30 on Saturdays.\n- May 30: Ines hung a harbour painting in the corridor.\n- Jun 2: Ines's spin class starts at 7:00 on Saturdays.\n- Jun 5: Selma left a white umbrella by the front door.\n- Jun 8: Tobias left a orange umbrella by the front door.\n- Jun 11: Greta left a brown umbrella by the front door.\n- Jun 14: Milan prefers the living room lights at 80 percent.\n- Jun 17: Rafael hung a island painting in the corridor.\n- Jun 20: Esra hung a waterfall painting in the corridor.\n- Jun 23: Tobias borrowed the hose from the garage.\n- Jun 26: Arjun is learning to bake scones.\n- Jun 29: Leo takes his tea with honey and no milk.",
+   "memory_tokens": 1029,
+   "deviation_tokens": 5,
+   "deviation_pct": 0.49,
+   "shared_prefix_tokens": 1154,
+   "prefix_text_tokens": 1154,
+   "prompts": {
+    "q_begin": {
+     "tokens": 1169,
+     "ids_sha256": "2ac2c6ae9f4d282061eba8d7e2e695417e4ebaf8b04d330e82f50da7db103afa",
+     "text_sha256": "e423d9001437823fbc77be6cee3d65dbe1f6f4a5b37860d3867d6a28825bac47",
+     "lcp": {
+      "q_mid": 1156,
+      "q_end": 1155,
+      "q_update": 1154,
+      "q_absent_pet": 1162,
+      "q_absent_time": 1154
+     }
+    },
+    "q_mid": {
+     "tokens": 1168,
+     "ids_sha256": "d1f01fca6be1eec22545afabdb1cb038fd880705f58128c996575e88c24fc694",
+     "text_sha256": "8e3311df2467d6eca4aee88df45e851fdb299e107026ee6862de3bd82e24483d",
+     "lcp": {
+      "q_begin": 1156,
+      "q_end": 1155,
+      "q_update": 1154,
+      "q_absent_pet": 1156,
+      "q_absent_time": 1154
+     }
+    },
+    "q_end": {
+     "tokens": 1167,
+     "ids_sha256": "6168b08ab9fa97f58bdc6f3f7975068c1d7c0ce42ff576eaefc9f885ba51058f",
+     "text_sha256": "a35b563184b949a08b22bae6641bf5f9a34ded803a4b539639d0cfcc0ee96364",
+     "lcp": {
+      "q_begin": 1155,
+      "q_mid": 1155,
+      "q_update": 1154,
+      "q_absent_pet": 1155,
+      "q_absent_time": 1154
+     }
+    },
+    "q_update": {
+     "tokens": 1168,
+     "ids_sha256": "10692cba679b7010bc50cc26da5849cb0eac4f3fab7dfd112331607fc04f968c",
+     "text_sha256": "5f94db389dde8cda0c7ed324c9b0c469481e28e418b2fff72c2a6bb84a960e56",
+     "lcp": {
+      "q_begin": 1154,
+      "q_mid": 1154,
+      "q_end": 1154,
+      "q_absent_pet": 1154,
+      "q_absent_time": 1154
+     }
+    },
+    "q_absent_pet": {
+     "tokens": 1169,
+     "ids_sha256": "9565f3c41ce8b49e01e249b2c87bbca541c4009a8fe19c33ef5463a813090156",
+     "text_sha256": "018e7d725e7eb5c24d77eb5a09095e94f6909f4d783f9acb9516185e89517276",
+     "lcp": {
+      "q_begin": 1162,
+      "q_mid": 1156,
+      "q_end": 1155,
+      "q_update": 1154,
+      "q_absent_time": 1154
+     }
+    },
+    "q_absent_time": {
+     "tokens": 1169,
+     "ids_sha256": "f566901d9d859407f68acc048db2854b7f5f6211c5d763e2afb5168b6ca9f4cc",
+     "text_sha256": "549d098faf5cc05ca85288e7d194a9c62f530aaca50560793724ded11c27b797",
+     "lcp": {
+      "q_begin": 1154,
+      "q_mid": 1154,
+      "q_end": 1154,
+      "q_update": 1154,
+      "q_absent_pet": 1154
+     }
+    }
+   },
+   "prime_prompt": {
+    "tokens": 1167,
+    "ids_sha256": "0e841e9994efed61458342e9cce35e688063a3e01b5f7a8f27f2a35fab0c14c3",
+    "text_sha256": "92171af1ce55b937d1c861d0f9376c568332a1bba51a0f5b42cdc9ade176ebc0",
+    "lcp_with_scored": 1154,
+    "lcp_warmup": 2,
+    "lcp": {
+     "q_begin": 1154,
+     "q_mid": 1154,
+     "q_end": 1154,
+     "q_update": 1154,
+     "q_absent_pet": 1154,
+     "q_absent_time": 1154
+    }
+   },
+   "freetext": {
+    "shared_prefix_tokens": 1123,
+    "prefix_text_tokens": 1123,
+    "prompts": {
+     "q_begin": {
+      "tokens": 1138,
+      "ids_sha256": "39d464b52c291be8858bcf8073da8ba397b66181d59a0e6ecf291dc6865a9cb1",
+      "text_sha256": "1a65b69d173f22465dd148444c046d5234c9d88efe30b1e9f12fb524feeebca7",
+      "lcp": {
+       "q_mid": 1125,
+       "q_end": 1124,
+       "q_update": 1123,
+       "q_absent_pet": 1131,
+       "q_absent_time": 1123
+      }
+     },
+     "q_mid": {
+      "tokens": 1137,
+      "ids_sha256": "0f8dca85d474b666e275507549badfe58d48062daf1e169f9b208f2ff4ba23f9",
+      "text_sha256": "8136f38b3ff58576a04cb40aee9a7b025b4c7bdebfc54b98c18ba0c9f9bd040f",
+      "lcp": {
+       "q_begin": 1125,
+       "q_end": 1124,
+       "q_update": 1123,
+       "q_absent_pet": 1125,
+       "q_absent_time": 1123
+      }
+     },
+     "q_end": {
+      "tokens": 1136,
+      "ids_sha256": "5cfe282ca9066c54ff370f30697cc2253261ecc568b992623c848f18fee60048",
+      "text_sha256": "a81dd8df32e1d0cfbb6e5a0759f4144816e768b64b4bf5d51c157af3855b2d12",
+      "lcp": {
+       "q_begin": 1124,
+       "q_mid": 1124,
+       "q_update": 1123,
+       "q_absent_pet": 1124,
+       "q_absent_time": 1123
+      }
+     },
+     "q_update": {
+      "tokens": 1137,
+      "ids_sha256": "613bc557f659aa737039b1bf11f198e709c82005adae3078e78e1b86ee9f678a",
+      "text_sha256": "b72dc593bd8e69271e8a0f19333a151b2cd54ac530af61fe4f08b270bf21d420",
+      "lcp": {
+       "q_begin": 1123,
+       "q_mid": 1123,
+       "q_end": 1123,
+       "q_absent_pet": 1123,
+       "q_absent_time": 1123
+      }
+     },
+     "q_absent_pet": {
+      "tokens": 1138,
+      "ids_sha256": "ea3481820baf6a39c4e1e6f50de2d987da895b7cbe732909d17f01adf17ec745",
+      "text_sha256": "eb699b9ff7c6d784dd2c13291576eb5965c8aaa02e127ba781278591ad9dd4c9",
+      "lcp": {
+       "q_begin": 1131,
+       "q_mid": 1125,
+       "q_end": 1124,
+       "q_update": 1123,
+       "q_absent_time": 1123
+      }
+     },
+     "q_absent_time": {
+      "tokens": 1138,
+      "ids_sha256": "d1c1deaa145448d3dab88f1b4b10a525b8958d16a135edad63d350c018e47a79",
+      "text_sha256": "0d12e999bb56a2bacf806b057aaf32421dfc3ae8a943fa3c6100c81ad13af4eb",
+      "lcp": {
+       "q_begin": 1123,
+       "q_mid": 1123,
+       "q_end": 1123,
+       "q_update": 1123,
+       "q_absent_pet": 1123
+      }
+     }
+    },
+    "prime_prompt": {
+     "tokens": 1136,
+     "ids_sha256": "6e7a7145bcb7d48bec17405922f40695454f52a1402863aa2169df4dea482742",
+     "text_sha256": "a12f279e23737fa3a108533d9c8a11ae9c656f1eda0daa2b654d46a0102593a3",
+     "lcp_with_scored": 1123,
+     "lcp_warmup": 2,
+     "lcp": {
+      "q_begin": 1123,
+      "q_mid": 1123,
+      "q_end": 1123,
+      "q_update": 1123,
+      "q_absent_pet": 1123,
+      "q_absent_time": 1123
+     }
+    }
+   }
+  },
+  "2048": {
+   "target_tokens": 2048,
+   "fillers": 113,
+   "entries": [
+    {
+     "date": "Jan 5",
+     "probe": "begin",
+     "text": "Nadia's cat is named Pepper."
+    },
+    {
+     "date": "Jan 6",
+     "probe": null,
+     "text": "Ines prefers the living room lights at 20 percent."
+    },
+    {
+     "date": "Jan 8",
+     "probe": null,
+     "text": "Greta asked the robot to play funk music in the evening."
+    },
+    {
+     "date": "Jan 9",
+     "probe": null,
+     "text": "Clara prefers the living room lights at 55 percent."
+    },
+    {
+     "date": "Jan 11",
+     "probe": null,
+     "text": "Selma watered the chillies on the balcony."
+    },
+    {
+     "date": "Jan 12",
+     "probe": null,
+     "text": "Clara reminded the robot that the compost recycling goes out on Thursdays."
+    },
+    {
+     "date": "Jan 14",
+     "probe": null,
+     "text": "Petra's spin class starts at 8:30 on Saturdays."
+    },
+    {
+     "date": "Jan 15",
+     "probe": null,
+     "text": "Esra said the loft window sticks when it rains."
+    },
+    {
+     "date": "Jan 17",
+     "probe": null,
+     "text": "Selma is learning to bake pretzels."
+    },
+    {
+     "date": "Jan 18",
+     "probe": null,
+     "text": "Ines left a blue umbrella by the front door."
+    },
+    {
+     "date": "Jan 20",
+     "probe": null,
+     "text": "Selma reminded the robot that the battery recycling goes out on Thursdays."
+    },
+    {
+     "date": "Jan 21",
+     "probe": null,
+     "text": "Marta left a red umbrella by the front door."
+    },
+    {
+     "date": "Jan 23",
+     "probe": null,
+     "text": "Wen asked the robot to play opera music in the evening."
+    },
+    {
+     "date": "Jan 24",
+     "probe": null,
+     "text": "Marta reminded the robot that the paper recycling goes out on Thursdays."
+    },
+    {
+     "date": "Jan 26",
+     "probe": null,
+     "text": "Yusuf said the attic window sticks when it rains."
+    },
+    {
+     "date": "Jan 27",
+     "probe": null,
+     "text": "Clara is learning to bake muffins."
+    },
+    {
+     "date": "Jan 29",
+     "probe": null,
+     "text": "Ines reminded the robot that the glass recycling goes out on Thursdays."
+    },
+    {
+     "date": "Jan 30",
+     "probe": null,
+     "text": "Petra watered the lavender on the balcony."
+    },
+    {
+     "date": "Feb 1",
+     "probe": null,
+     "text": "Milan said the cellar window sticks when it rains."
+    },
+    {
+     "date": "Feb 2",
+     "probe": null,
+     "text": "Greta's rabbit is named Truffle."
+    },
+    {
+     "date": "Feb 4",
+     "probe": null,
+     "text": "Milan's favourite board game is Mahjong."
+    },
+    {
+     "date": "Feb 5",
+     "probe": null,
+     "text": "Ines borrowed the ladder from the garage."
+    },
+    {
+     "date": "Feb 7",
+     "probe": null,
+     "text": "Arjun's rabbit is named Poppy."
+    },
+    {
+     "date": "Feb 8",
+     "probe": null,
+     "text": "Yusuf watered the ferns on the balcony."
+    },
+    {
+     "date": "Feb 10",
+     "probe": null,
+     "text": "Rafael is learning to bake pita."
+    },
+    {
+     "date": "Feb 11",
+     "probe": null,
+     "text": "Tobias hung a glacier painting in the corridor."
+    },
+    {
+     "date": "Feb 13",
+     "probe": null,
+     "text": "Yusuf is learning to bake croissants."
+    },
+    {
+     "date": "Feb 14",
+     "probe": null,
+     "text": "Milan left a silver umbrella by the front door."
+    },
+    {
+     "date": "Feb 16",
+     "probe": null,
+     "text": "Esra's spin class starts at 13:30 on Saturdays."
+    },
+    {
+     "date": "Feb 17",
+     "probe": "stale",
+     "text": "The spare robot charger is kept in the kitchen drawer."
+    },
+    {
+     "date": "Feb 18",
+     "probe": null,
+     "text": "Esra's rabbit is named Sorrel."
+    },
+    {
+     "date": "Feb 20",
+     "probe": null,
+     "text": "Selma prefers the living room lights at 45 percent."
+    },
+    {
+     "date": "Feb 21",
+     "probe": null,
+     "text": "Hugo said the pantry window sticks when it rains."
+    },
+    {
+     "date": "Feb 23",
+     "probe": null,
+     "text": "Petra prefers the living room lights at 35 percent."
+    },
+    {
+     "date": "Feb 24",
+     "probe": null,
+     "text": "Petra hung a lighthouse painting in the corridor."
+    },
+    {
+     "date": "Feb 26",
+     "probe": null,
+     "text": "Tobias is learning to bake baguettes."
+    },
+    {
+     "date": "Feb 27",
+     "probe": null,
+     "text": "Yusuf prefers the living room lights at 30 percent."
+    },
+    {
+     "date": "Mar 1",
+     "probe": null,
+     "text": "Clara asked the robot to play salsa music in the evening."
+    },
+    {
+     "date": "Mar 2",
+     "probe": null,
+     "text": "Petra is learning to bake brioche."
+    },
+    {
+     "date": "Mar 4",
+     "probe": null,
+     "text": "Hugo borrowed the wrench from the garage."
+    },
+    {
+     "date": "Mar 5",
+     "probe": null,
+     "text": "Milan watered the cactus on the balcony."
+    },
+    {
+     "date": "Mar 7",
+     "probe": null,
+     "text": "Arjun said the laundry window sticks when it rains."
+    },
+    {
+     "date": "Mar 8",
+     "probe": null,
+     "text": "Yusuf reminded the robot that the plastic recycling goes out on Thursdays."
+    },
+    {
+     "date": "Mar 10",
+     "probe": null,
+     "text": "Clara hung a canyon painting in the corridor."
+    },
+    {
+     "date": "Mar 11",
+     "probe": null,
+     "text": "Clara's rabbit is named Thistle."
+    },
+    {
+     "date": "Mar 13",
+     "probe": null,
+     "text": "Clara's spin class starts at 10:30 on Saturdays."
+    },
+    {
+     "date": "Mar 14",
+     "probe": null,
+     "text": "Ines hung a harbour painting in the corridor."
+    },
+    {
+     "date": "Mar 16",
+     "probe": null,
+     "text": "Ines's spin class starts at 7:00 on Saturdays."
+    },
+    {
+     "date": "Mar 17",
+     "probe": null,
+     "text": "Selma left a white umbrella by the front door."
+    },
+    {
+     "date": "Mar 19",
+     "probe": null,
+     "text": "Tobias left a orange umbrella by the front door."
+    },
+    {
+     "date": "Mar 20",
+     "probe": null,
+     "text": "Greta left a brown umbrella by the front door."
+    },
+    {
+     "date": "Mar 22",
+     "probe": null,
+     "text": "Milan prefers the living room lights at 80 percent."
+    },
+    {
+     "date": "Mar 23",
+     "probe": null,
+     "text": "Rafael hung a island painting in the corridor."
+    },
+    {
+     "date": "Mar 25",
+     "probe": null,
+     "text": "Esra hung a waterfall painting in the corridor."
+    },
+    {
+     "date": "Mar 26",
+     "probe": null,
+     "text": "Tobias borrowed the hose from the garage."
+    },
+    {
+     "date": "Mar 28",
+     "probe": null,
+     "text": "Arjun is learning to bake scones."
+    },
+    {
+     "date": "Mar 29",
+     "probe": null,
+     "text": "Ines asked the robot to play jazz music in the evening."
+    },
+    {
+     "date": "Mar 31",
+     "probe": null,
+     "text": "Hugo left a grey umbrella by the front door."
+    },
+    {
+     "date": "Apr 1",
+     "probe": null,
+     "text": "Esra left a beige umbrella by the front door."
+    },
+    {
+     "date": "Apr 3",
+     "probe": "mid",
+     "text": "Oskar's bicycle lock code is 4417."
+    },
+    {
+     "date": "Apr 4",
+     "probe": "near",
+     "text": "Oskar's gym locker code is 9032."
+    },
+    {
+     "date": "Apr 5",
+     "probe": null,
+     "text": "Selma said the office window sticks when it rains."
+    },
+    {
+     "date": "Apr 7",
+     "probe": null,
+     "text": "Arjun's favourite board game is Catan."
+    },
+    {
+     "date": "Apr 8",
+     "probe": null,
+     "text": "Greta's favourite board game is Ticket-to-Ride."
+    },
+    {
+     "date": "Apr 10",
+     "probe": null,
+     "text": "Milan's spin class starts at 13:00 on Saturdays."
+    },
+    {
+     "date": "Apr 11",
+     "probe": null,
+     "text": "Clara said the dining window sticks when it rains."
+    },
+    {
+     "date": "Apr 13",
+     "probe": null,
+     "text": "Hugo asked the robot to play classical music in the evening."
+    },
+    {
+     "date": "Apr 14",
+     "probe": null,
+     "text": "Petra's rabbit is named Juniper."
+    },
+    {
+     "date": "Apr 16",
+     "probe": null,
+     "text": "Wen's spin class starts at 11:30 on Saturdays."
+    },
+    {
+     "date": "Apr 17",
+     "probe": null,
+     "text": "Arjun left a striped umbrella by the front door."
+    },
+    {
+     "date": "Apr 19",
+     "probe": null,
+     "text": "Petra's favourite board game is backgammon."
+    },
+    {
+     "date": "Apr 20",
+     "probe": null,
+     "text": "Esra's favourite board game is Monopoly."
+    },
+    {
+     "date": "Apr 22",
+     "probe": null,
+     "text": "Yusuf's favourite board game is checkers."
+    },
+    {
+     "date": "Apr 23",
+     "probe": null,
+     "text": "Hugo's spin class starts at 9:00 on Saturdays."
+    },
+    {
+     "date": "Apr 25",
+     "probe": null,
+     "text": "Selma hung a river painting in the corridor."
+    },
+    {
+     "date": "Apr 26",
+     "probe": null,
+     "text": "Rafael prefers the living room lights at 70 percent."
+    },
+    {
+     "date": "Apr 28",
+     "probe": null,
+     "text": "Marta borrowed the drill from the garage."
+    },
+    {
+     "date": "Apr 29",
+     "probe": null,
+     "text": "Hugo's favourite board game is Scrabble."
+    },
+    {
+     "date": "May 1",
+     "probe": null,
+     "text": "Arjun's spin class starts at 10:00 on Saturdays."
+    },
+    {
+     "date": "May 2",
+     "probe": null,
+     "text": "Ines said the bathroom window sticks when it rains."
+    },
+    {
+     "date": "May 4",
+     "probe": null,
+     "text": "Greta prefers the living room lights at 75 percent."
+    },
+    {
+     "date": "May 5",
+     "probe": null,
+     "text": "Yusuf asked the robot to play piano music in the evening."
+    },
+    {
+     "date": "May 7",
+     "probe": null,
+     "text": "Tobias prefers the living room lights at 60 percent."
+    },
+    {
+     "date": "May 8",
+     "probe": null,
+     "text": "Rafael asked the robot to play soul music in the evening."
+    },
+    {
+     "date": "May 10",
+     "probe": null,
+     "text": "Marta asked the robot to play folk music in the evening."
+    },
+    {
+     "date": "May 11",
+     "probe": null,
+     "text": "Greta said the porch window sticks when it rains."
+    },
+    {
+     "date": "May 13",
+     "probe": null,
+     "text": "Esra watered the succulents on the balcony."
+    },
+    {
+     "date": "May 14",
+     "probe": null,
+     "text": "Ines is learning to bake sourdough."
+    },
+    {
+     "date": "May 16",
+     "probe": "update",
+     "text": "Update: the spare robot charger is now kept on the hallway shelf."
+    },
+    {
+     "date": "May 17",
+     "probe": null,
+     "text": "Milan's rabbit is named Pebble."
+    },
+    {
+     "date": "May 18",
+     "probe": null,
+     "text": "Selma asked the robot to play blues music in the evening."
+    },
+    {
+     "date": "May 20",
+     "probe": null,
+     "text": "Marta's spin class starts at 7:30 on Saturdays."
+    },
+    {
+     "date": "May 21",
+     "probe": null,
+     "text": "Esra reminded the robot that the newspaper recycling goes out on Thursdays."
+    },
+    {
+     "date": "May 23",
+     "probe": null,
+     "text": "Wen's rabbit is named Bramble."
+    },
+    {
+     "date": "May 24",
+     "probe": null,
+     "text": "Petra borrowed the saw from the garage."
+    },
+    {
+     "date": "May 26",
+     "probe": null,
+     "text": "Wen reminded the robot that the carton recycling goes out on Thursdays."
+    },
+    {
+     "date": "May 27",
+     "probe": null,
+     "text": "Clara's favourite board game is Carcassonne."
+    },
+    {
+     "date": "May 29",
+     "probe": null,
+     "text": "Yusuf hung a forest painting in the corridor."
+    },
+    {
+     "date": "May 30",
+     "probe": null,
+     "text": "Rafael borrowed the stapler from the garage."
+    },
+    {
+     "date": "Jun 1",
+     "probe": null,
+     "text": "Greta's spin class starts at 12:30 on Saturdays."
+    },
+    {
+     "date": "Jun 2",
+     "probe": null,
+     "text": "Wen watered the strawberries on the balcony."
+    },
+    {
+     "date": "Jun 4",
+     "probe": null,
+     "text": "Rafael left a pink umbrella by the front door."
+    },
+    {
+     "date": "Jun 5",
+     "probe": null,
+     "text": "Ines watered the basil on the balcony."
+    },
+    {
+     "date": "Jun 7",
+     "probe": null,
+     "text": "Greta borrowed the sander from the garage."
+    },
+    {
+     "date": "Jun 8",
+     "probe": null,
+     "text": "Greta is learning to bake naan."
+    },
+    {
+     "date": "Jun 10",
+     "probe": null,
+     "text": "Marta watered the mint on the balcony."
+    },
+    {
+     "date": "Jun 11",
+     "probe": null,
+     "text": "Petra asked the robot to play reggae music in the evening."
+    },
+    {
+     "date": "Jun 13",
+     "probe": null,
+     "text": "Tobias's rabbit is named Willow."
+    },
+    {
+     "date": "Jun 14",
+     "probe": null,
+     "text": "Arjun prefers the living room lights at 50 percent."
+    },
+    {
+     "date": "Jun 16",
+     "probe": null,
+     "text": "Selma's rabbit is named Nutmeg."
+    },
+    {
+     "date": "Jun 17",
+     "probe": null,
+     "text": "Milan hung a sunset painting in the corridor."
+    },
+    {
+     "date": "Jun 19",
+     "probe": null,
+     "text": "Wen's favourite board game is Azul."
+    },
+    {
+     "date": "Jun 20",
+     "probe": null,
+     "text": "Hugo is learning to bake focaccia."
+    },
+    {
+     "date": "Jun 22",
+     "probe": null,
+     "text": "Ines's rabbit is named Clover."
+    },
+    {
+     "date": "Jun 23",
+     "probe": null,
+     "text": "Arjun watered the orchids on the balcony."
+    },
+    {
+     "date": "Jun 25",
+     "probe": null,
+     "text": "Arjun reminded the robot that the textile recycling goes out on Thursdays."
+    },
+    {
+     "date": "Jun 26",
+     "probe": null,
+     "text": "Ines's favourite board game is chess."
+    },
+    {
+     "date": "Jun 28",
+     "probe": null,
+     "text": "Marta said the bedroom window sticks when it rains."
+    },
+    {
+     "date": "Jun 29",
+     "probe": "end",
+     "text": "Leo takes his tea with honey and no milk."
+    }
+   ],
+   "memory_text": "Memory (all dates in 2026, oldest first):\n- Jan 5: Nadia's cat is named Pepper.\n- Jan 6: Ines prefers the living room lights at 20 percent.\n- Jan 8: Greta asked the robot to play funk music in the evening.\n- Jan 9: Clara prefers the living room lights at 55 percent.\n- Jan 11: Selma watered the chillies on the balcony.\n- Jan 12: Clara reminded the robot that the compost recycling goes out on Thursdays.\n- Jan 14: Petra's spin class starts at 8:30 on Saturdays.\n- Jan 15: Esra said the loft window sticks when it rains.\n- Jan 17: Selma is learning to bake pretzels.\n- Jan 18: Ines left a blue umbrella by the front door.\n- Jan 20: Selma reminded the robot that the battery recycling goes out on Thursdays.\n- Jan 21: Marta left a red umbrella by the front door.\n- Jan 23: Wen asked the robot to play opera music in the evening.\n- Jan 24: Marta reminded the robot that the paper recycling goes out on Thursdays.\n- Jan 26: Yusuf said the attic window sticks when it rains.\n- Jan 27: Clara is learning to bake muffins.\n- Jan 29: Ines reminded the robot that the glass recycling goes out on Thursdays.\n- Jan 30: Petra watered the lavender on the balcony.\n- Feb 1: Milan said the cellar window sticks when it rains.\n- Feb 2: Greta's rabbit is named Truffle.\n- Feb 4: Milan's favourite board game is Mahjong.\n- Feb 5: Ines borrowed the ladder from the garage.\n- Feb 7: Arjun's rabbit is named Poppy.\n- Feb 8: Yusuf watered the ferns on the balcony.\n- Feb 10: Rafael is learning to bake pita.\n- Feb 11: Tobias hung a glacier painting in the corridor.\n- Feb 13: Yusuf is learning to bake croissants.\n- Feb 14: Milan left a silver umbrella by the front door.\n- Feb 16: Esra's spin class starts at 13:30 on Saturdays.\n- Feb 17: The spare robot charger is kept in the kitchen drawer.\n- Feb 18: Esra's rabbit is named Sorrel.\n- Feb 20: Selma prefers the living room lights at 45 percent.\n- Feb 21: Hugo said the pantry window sticks when it rains.\n- Feb 23: Petra prefers the living room lights at 35 percent.\n- Feb 24: Petra hung a lighthouse painting in the corridor.\n- Feb 26: Tobias is learning to bake baguettes.\n- Feb 27: Yusuf prefers the living room lights at 30 percent.\n- Mar 1: Clara asked the robot to play salsa music in the evening.\n- Mar 2: Petra is learning to bake brioche.\n- Mar 4: Hugo borrowed the wrench from the garage.\n- Mar 5: Milan watered the cactus on the balcony.\n- Mar 7: Arjun said the laundry window sticks when it rains.\n- Mar 8: Yusuf reminded the robot that the plastic recycling goes out on Thursdays.\n- Mar 10: Clara hung a canyon painting in the corridor.\n- Mar 11: Clara's rabbit is named Thistle.\n- Mar 13: Clara's spin class starts at 10:30 on Saturdays.\n- Mar 14: Ines hung a harbour painting in the corridor.\n- Mar 16: Ines's spin class starts at 7:00 on Saturdays.\n- Mar 17: Selma left a white umbrella by the front door.\n- Mar 19: Tobias left a orange umbrella by the front door.\n- Mar 20: Greta left a brown umbrella by the front door.\n- Mar 22: Milan prefers the living room lights at 80 percent.\n- Mar 23: Rafael hung a island painting in the corridor.\n- Mar 25: Esra hung a waterfall painting in the corridor.\n- Mar 26: Tobias borrowed the hose from the garage.\n- Mar 28: Arjun is learning to bake scones.\n- Mar 29: Ines asked the robot to play jazz music in the evening.\n- Mar 31: Hugo left a grey umbrella by the front door.\n- Apr 1: Esra left a beige umbrella by the front door.\n- Apr 3: Oskar's bicycle lock code is 4417.\n- Apr 4: Oskar's gym locker code is 9032.\n- Apr 5: Selma said the office window sticks when it rains.\n- Apr 7: Arjun's favourite board game is Catan.\n- Apr 8: Greta's favourite board game is Ticket-to-Ride.\n- Apr 10: Milan's spin class starts at 13:00 on Saturdays.\n- Apr 11: Clara said the dining window sticks when it rains.\n- Apr 13: Hugo asked the robot to play classical music in the evening.\n- Apr 14: Petra's rabbit is named Juniper.\n- Apr 16: Wen's spin class starts at 11:30 on Saturdays.\n- Apr 17: Arjun left a striped umbrella by the front door.\n- Apr 19: Petra's favourite board game is backgammon.\n- Apr 20: Esra's favourite board game is Monopoly.\n- Apr 22: Yusuf's favourite board game is checkers.\n- Apr 23: Hugo's spin class starts at 9:00 on Saturdays.\n- Apr 25: Selma hung a river painting in the corridor.\n- Apr 26: Rafael prefers the living room lights at 70 percent.\n- Apr 28: Marta borrowed the drill from the garage.\n- Apr 29: Hugo's favourite board game is Scrabble.\n- May 1: Arjun's spin class starts at 10:00 on Saturdays.\n- May 2: Ines said the bathroom window sticks when it rains.\n- May 4: Greta prefers the living room lights at 75 percent.\n- May 5: Yusuf asked the robot to play piano music in the evening.\n- May 7: Tobias prefers the living room lights at 60 percent.\n- May 8: Rafael asked the robot to play soul music in the evening.\n- May 10: Marta asked the robot to play folk music in the evening.\n- May 11: Greta said the porch window sticks when it rains.\n- May 13: Esra watered the succulents on the balcony.\n- May 14: Ines is learning to bake sourdough.\n- May 16: Update: the spare robot charger is now kept on the hallway shelf.\n- May 17: Milan's rabbit is named Pebble.\n- May 18: Selma asked the robot to play blues music in the evening.\n- May 20: Marta's spin class starts at 7:30 on Saturdays.\n- May 21: Esra reminded the robot that the newspaper recycling goes out on Thursdays.\n- May 23: Wen's rabbit is named Bramble.\n- May 24: Petra borrowed the saw from the garage.\n- May 26: Wen reminded the robot that the carton recycling goes out on Thursdays.\n- May 27: Clara's favourite board game is Carcassonne.\n- May 29: Yusuf hung a forest painting in the corridor.\n- May 30: Rafael borrowed the stapler from the garage.\n- Jun 1: Greta's spin class starts at 12:30 on Saturdays.\n- Jun 2: Wen watered the strawberries on the balcony.\n- Jun 4: Rafael left a pink umbrella by the front door.\n- Jun 5: Ines watered the basil on the balcony.\n- Jun 7: Greta borrowed the sander from the garage.\n- Jun 8: Greta is learning to bake naan.\n- Jun 10: Marta watered the mint on the balcony.\n- Jun 11: Petra asked the robot to play reggae music in the evening.\n- Jun 13: Tobias's rabbit is named Willow.\n- Jun 14: Arjun prefers the living room lights at 50 percent.\n- Jun 16: Selma's rabbit is named Nutmeg.\n- Jun 17: Milan hung a sunset painting in the corridor.\n- Jun 19: Wen's favourite board game is Azul.\n- Jun 20: Hugo is learning to bake focaccia.\n- Jun 22: Ines's rabbit is named Clover.\n- Jun 23: Arjun watered the orchids on the balcony.\n- Jun 25: Arjun reminded the robot that the textile recycling goes out on Thursdays.\n- Jun 26: Ines's favourite board game is chess.\n- Jun 28: Marta said the bedroom window sticks when it rains.\n- Jun 29: Leo takes his tea with honey and no milk.",
+   "memory_tokens": 2055,
+   "deviation_tokens": 7,
+   "deviation_pct": 0.34,
+   "shared_prefix_tokens": 2180,
+   "prefix_text_tokens": 2180,
+   "prompts": {
+    "q_begin": {
+     "tokens": 2195,
+     "ids_sha256": "945d29184bbda534df6bb9bdb01bec06070b0382da8e7c44c28bbc4900c3d8d1",
+     "text_sha256": "3c8e69a3aa8303943d0b426ffa4156170de80384c71857ce2f62254a6eaf5cff",
+     "lcp": {
+      "q_mid": 2182,
+      "q_end": 2181,
+      "q_update": 2180,
+      "q_absent_pet": 2188,
+      "q_absent_time": 2180
+     }
+    },
+    "q_mid": {
+     "tokens": 2194,
+     "ids_sha256": "eda7d25a04bfd737b615be8d17a7236566d73d50975ce52bbc7fa71beb25f0f7",
+     "text_sha256": "a6e157e71d18918de9a10e1cf882bc52fd8b8538fd2593197264adf18f3a1d3b",
+     "lcp": {
+      "q_begin": 2182,
+      "q_end": 2181,
+      "q_update": 2180,
+      "q_absent_pet": 2182,
+      "q_absent_time": 2180
+     }
+    },
+    "q_end": {
+     "tokens": 2193,
+     "ids_sha256": "d3ccda8986d8b8887a9b47121d9982797f01346015c2774323d83558db62577b",
+     "text_sha256": "9f49dc555b75e5cb0f4570a7ebe679ba6c04b2e6de7f1d0aaccf290a4ac0f1fd",
+     "lcp": {
+      "q_begin": 2181,
+      "q_mid": 2181,
+      "q_update": 2180,
+      "q_absent_pet": 2181,
+      "q_absent_time": 2180
+     }
+    },
+    "q_update": {
+     "tokens": 2194,
+     "ids_sha256": "05a1086df2944f4ffe7f41deaa0c85b66346e686ad299a7f0397419770098f16",
+     "text_sha256": "15456342ac1f8088332accf6bc7779fdd6dadbc15bc9368d5519b536a5321e3b",
+     "lcp": {
+      "q_begin": 2180,
+      "q_mid": 2180,
+      "q_end": 2180,
+      "q_absent_pet": 2180,
+      "q_absent_time": 2180
+     }
+    },
+    "q_absent_pet": {
+     "tokens": 2195,
+     "ids_sha256": "9c6343be5d78f89db9dc02ec176a84dee951c8f4addb073c6d83ed5871b3e3f2",
+     "text_sha256": "d62696f7cd76dac61ddc4347aa0833c479494a580203f8abe5caaca7a999feb0",
+     "lcp": {
+      "q_begin": 2188,
+      "q_mid": 2182,
+      "q_end": 2181,
+      "q_update": 2180,
+      "q_absent_time": 2180
+     }
+    },
+    "q_absent_time": {
+     "tokens": 2195,
+     "ids_sha256": "fe002b152f82e64fc3a85258972c38811ae111c081629097ba649c090de4ac64",
+     "text_sha256": "8177a4e32431eadfdb979542eed7c5662ad8e26b038ad995d1f0b852f254f0c8",
+     "lcp": {
+      "q_begin": 2180,
+      "q_mid": 2180,
+      "q_end": 2180,
+      "q_update": 2180,
+      "q_absent_pet": 2180
+     }
+    }
+   },
+   "prime_prompt": {
+    "tokens": 2193,
+    "ids_sha256": "146bfb063b3db54b18972f65a76ace572750ca0c684c20b7d5a9b521ed7bea0d",
+    "text_sha256": "5e35b479578c303b679af2963307c48404b623ae404b6869ce8091826a5a1988",
+    "lcp_with_scored": 2180,
+    "lcp_warmup": 2,
+    "lcp": {
+     "q_begin": 2180,
+     "q_mid": 2180,
+     "q_end": 2180,
+     "q_update": 2180,
+     "q_absent_pet": 2180,
+     "q_absent_time": 2180
+    }
+   },
+   "freetext": {
+    "shared_prefix_tokens": 2149,
+    "prefix_text_tokens": 2149,
+    "prompts": {
+     "q_begin": {
+      "tokens": 2164,
+      "ids_sha256": "b70568ef882d3af985ac7c2d7c1c948f6d2852c79b34edb24e2592875e168beb",
+      "text_sha256": "bd5bfb2b0231a284b4796c77cc929b7c247756d1c29bfebed7010c3b143c5a46",
+      "lcp": {
+       "q_mid": 2151,
+       "q_end": 2150,
+       "q_update": 2149,
+       "q_absent_pet": 2157,
+       "q_absent_time": 2149
+      }
+     },
+     "q_mid": {
+      "tokens": 2163,
+      "ids_sha256": "57174aafd509850d2e40481afcbabaed03bfb726429e7579a8ad6edd4d23c9e5",
+      "text_sha256": "6d221945a9a2fb5180d65b403b62daf7fea8a1da5876dd0c4b0bba86dc3db0a4",
+      "lcp": {
+       "q_begin": 2151,
+       "q_end": 2150,
+       "q_update": 2149,
+       "q_absent_pet": 2151,
+       "q_absent_time": 2149
+      }
+     },
+     "q_end": {
+      "tokens": 2162,
+      "ids_sha256": "8419425014ae4057e6bfd9460e55d7df83c8c14161c34cea3ff26d6819deddc8",
+      "text_sha256": "d8c1633392d4b6ecfb0ab6fdfb5a7455382b8221eff6fdb9c81d3773c082eb7d",
+      "lcp": {
+       "q_begin": 2150,
+       "q_mid": 2150,
+       "q_update": 2149,
+       "q_absent_pet": 2150,
+       "q_absent_time": 2149
+      }
+     },
+     "q_update": {
+      "tokens": 2163,
+      "ids_sha256": "0163672893e8e775911d76f974f811dfd7924bebd11c6d40679ca4b938e47a8f",
+      "text_sha256": "5d5a64a6fe8ce86a63a809960a8ecda2cab2699be60acfe5e3c55625f859a1fa",
+      "lcp": {
+       "q_begin": 2149,
+       "q_mid": 2149,
+       "q_end": 2149,
+       "q_absent_pet": 2149,
+       "q_absent_time": 2149
+      }
+     },
+     "q_absent_pet": {
+      "tokens": 2164,
+      "ids_sha256": "becf90c25083c3eeb9e54d462137bf6c83405a20bb390f0d1f635483eb282ae7",
+      "text_sha256": "70290257d416f3ec368d3eb1853dacb3dac923b6ec2426295d15bc1e212f1f6f",
+      "lcp": {
+       "q_begin": 2157,
+       "q_mid": 2151,
+       "q_end": 2150,
+       "q_update": 2149,
+       "q_absent_time": 2149
+      }
+     },
+     "q_absent_time": {
+      "tokens": 2164,
+      "ids_sha256": "c3ec0ef7323a9e62049ac225183fe73708b803b1ab667ce6776e5fa6f34c7051",
+      "text_sha256": "e1bc01210155dbb60f56595249aea79305174f8bb063d2107b9e72d344ff9f99",
+      "lcp": {
+       "q_begin": 2149,
+       "q_mid": 2149,
+       "q_end": 2149,
+       "q_update": 2149,
+       "q_absent_pet": 2149
+      }
+     }
+    },
+    "prime_prompt": {
+     "tokens": 2162,
+     "ids_sha256": "79d5d349a47e5700e0943811017062026ca187a64a12d3c2b7497d7871811284",
+     "text_sha256": "1796867e81649090e596e81f236e3785799c43e43bddaf7adaa8519497883706",
+     "lcp_with_scored": 2149,
+     "lcp_warmup": 2,
+     "lcp": {
+      "q_begin": 2149,
+      "q_mid": 2149,
+      "q_end": 2149,
+      "q_update": 2149,
+      "q_absent_pet": 2149,
+      "q_absent_time": 2149
+     }
+    }
+   }
+  }
+ },
+ "tokenizer": {
+  "binary": "/data/data/com.termux/files/home/llama.cpp/build/bin/llama-tokenize",
+  "binary_sha256": "e0e52a10bc4cfec953f38ecd2cf486225230c1dc507987d26a658e15f852b7d6",
+  "commit": "e1a1abb7",
+  "model": "gemma-4-E2B-it-Q4_0.gguf",
+  "model_sha256": "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52",
+  "prompt_builder": "chat.build_prompt('gemma', [system, user])",
+  "counting": "BOS added, special tokens parsed (as /completion and /tokenize add_special)"
+ }
+}
