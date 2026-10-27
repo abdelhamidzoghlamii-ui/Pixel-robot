@@ -16,7 +16,7 @@ The robot's deployed text runtime, as `server_manager.start_setup('setup_q4')` l
 
 | Item | Value | Checked by |
 |---|---|---|
-| Binary | `~/llama.cpp-b1609-dotprod/build/bin/llama-server` (b1609, commit `e1a1abb7`, ARM dotprod, #114) | SHA-256 pinned (launcher `77eb35a0…`, `libggml-cpu.so` `a4ef0d97…`); every file of the bin folder hashed into `run.json` |
+| Binary | `~/llama.cpp-b1609-dotprod/build/bin/llama-server` (b1609, commit `e1a1abb7`, ARM dotprod, #114) | SHA-256 pinned (launcher `77eb35a0…`, `libggml-cpu.so` `a4ef0d97…`); every regular file of the bin folder hashed into `run.json`, plus `libggml-cpu.so` (a symlink, which that skips) under its own name |
 | Model | `~/models/gemma-4-E2B-it-Q4_0.gguf` | SHA-256 pinned `8e30dff3…` (same as #137/#142) |
 | Flags | `--threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1`, `--ctx-size` 2048 (4096 only in the capacity/long launches) | `mem1.command(2048) == taskset + coresidency.server_cmd()` (test) |
 | CPU | `taskset -c 4-7` for every condition, as the chat benchmarks (#137, #142); cores checked before and after every request | `Cpus_allowed_list` at block start and end |

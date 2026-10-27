@@ -135,6 +135,8 @@ PROVENANCE = {'model_sha256': {mem1.MODEL: mem1.PINNED[mem1.MODEL]}, 'pinned_sha
               'build_sha256': {Path(mem1.SERVER).name: mem1.PINNED[mem1.SERVER],
                                Path(repro.LIBGGML_CPU).name: mem1.PINNED[repro.LIBGGML_CPU]},
               'code_sha256': {str(p): 'c' * 64 for p in mem1.code_files()}}  # what main records
+REPRO_BUILD = {Path(mem1.SERVER).name: mem1.PINNED[mem1.SERVER],
+               'libggml-cpu.so.0.18.0': mem1.PINNED[repro.LIBGGML_CPU]}  # repro.build_sha256: regular files only
 DROP = object()
 PID = 4242
 CLOCK0 = datetime(2026, 10, 25, tzinfo=timezone.utc)  # the fixtures' UTC at mono 0: UTC follows mono
@@ -2013,7 +2015,7 @@ class Artifacts(FakeFrozenSet, Offline):
 class Launch(Offline):
     """main() end to end with every phone interface faked: run.json matrix, skipped blocks, result.json coverage."""
 
-    def launch(self, exp='capacity', lost_before=(), tel=None, agents=None):
+    def launch(self, exp='capacity', lost_before=(), tel=None, agents=None, extra=()):
         tmp, raw, stopped, tel = Path(tempfile.mkdtemp()), fake_raw(), [], tel or FakeTelemetry()
         post = FakeServer(raw, 1024, RIGHT).post
 
@@ -2031,14 +2033,14 @@ class Launch(Offline):
                    (mem1, 'SAMPLE_PERIOD_S', 0.02),
                    (mem1.pm, 'thermal_gate', {'return_value': {'skin': 25.0, 'status': 0, 'waited_s': 0,
                                                                'warm_start': False}}),
-                   (repro, 'build_sha256', {'return_value': PROVENANCE['build_sha256']}),
+                   (repro, 'build_sha256', {'return_value': REPRO_BUILD}),
                    (cr, 'sha256', {'return_value': 'c' * 64}),
                    (repro, 'agents', agents or {'return_value': ''}), (repro, 'port_free', {'return_value': True}),
                    (cm, 'spawn', {'return_value': FakeProc()}), (cm, 'stop', {'side_effect': stopped.append}),
                    (cr, 'healthy', tel.healthy), (cr, 'post', post),
                    (mem1, 'props_json', {'return_value': {'chat_template': 'T',
                                                           'default_generation_settings': {'n_ctx': 2048}}}),
-                   (mem1, 'proc_mem', {'return_value': PROC_MEM})]
+                   (mem1, 'proc_mem', {'return_value': PROC_MEM}), *extra]
         with ExitStack() as stack:
             for obj, attr, how in patches:  # a dict configures a Mock; anything else replaces the attribute
                 stack.enter_context(mock.patch.object(obj, attr, **how) if isinstance(how, dict)
@@ -2059,6 +2061,28 @@ class Launch(Offline):
         self.assertEqual({r['verdict'] for r in recs}, {'COMPARABLE'})
         blocks = [json.loads(l) for l in (out / 'blocks.jsonl').read_text().splitlines()]
         self.assertTrue(all(b['problems'] == [] for b in blocks), [b['problems'] for b in blocks])
+
+    def test_build_sha256_adds_the_symlinked_cpu_library(self):
+        """Smoke 20261027T091311Z: repro.build_sha256 skips symlinks, so libggml-cpu.so was missing and run.json
+        INVALID. main adds it under its own name with the verified pinned hash; the validation rule is unchanged."""
+        out, run, res, _ = self.launch()
+        self.assertNotIn(Path(repro.LIBGGML_CPU).name, REPRO_BUILD)
+        self.assertEqual(run['build_sha256'], {**REPRO_BUILD, 'libggml-cpu.so': mem1.PINNED[repro.LIBGGML_CPU]})
+        self.assertTrue(res['complete'], res['not_complete'])  # main's load_run applied run_problems
+        self.assertIn('build_sha256 missing, malformed or without the pinned llama-server and libggml-cpu.so',
+                      mem1.run_problems({**run, 'build_sha256': REPRO_BUILD}))  # the rule is unchanged
+
+    def test_an_invalid_run_json_is_reported_without_a_crash(self):
+        """Smoke 20261027T091311Z: load_run().run None made coverage raise TypeError before result.json, the report
+        and artifacts.sha256 were written."""
+        out, run, res, _ = self.launch(extra=[(mem1, 'run_problems', {'return_value': ['forced invalid']})])
+        self.assertFalse(res['complete'])
+        self.assertEqual(res['coverage'], {})
+        self.assertIn('run.json: forced invalid', res['not_complete'])
+        self.assertIn('run.json missing or INVALID: completeness cannot be verified', res['not_complete'])
+        self.assertIn('[INVALID]: run.json: forced invalid', (out / 'report.txt').read_text())
+        self.assertEqual(json.loads((out / 'comparisons.json').read_text()), [])
+        self.assertIn('result.json', (out / 'artifacts.sha256').read_text())
 
     def test_freetext_launch(self):
         out, run, res, _ = self.launch('freetext')

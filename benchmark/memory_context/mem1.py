@@ -1378,6 +1378,8 @@ def launch_problems(res):
 def coverage(run, blocks, rows, res):
     """Planned work (run.json 'matrix') against what was recorded. Returns ({block: COMPLETED | FAILED | SKIPPED |
     MISSING}, reasons the run is not COMPLETE); no reasons = COMPLETE. A result.json alone proves nothing."""
+    if run is None:
+        return {}, ['run.json missing or INVALID: completeness cannot be verified']
     if 'matrix' not in run:
         return {}, ['run.json has no planned matrix: completeness cannot be verified']
     got = {b['block']: b for b in blocks}
@@ -1781,7 +1783,9 @@ def main(argv=None):
             'started': cr.utc(),
             'schedule': plan, 'matrix': matrix(s, plan, a.smoke), 'prime': s['prime'], 'command': command(a.ctx), 'decoding': DECODING, 'warmup': WARMUP,
             'set_sha256': SET_SHA256, 'model_sha256': {MODEL: hashes[MODEL]}, 'pinned_sha256': hashes,
-            'build_sha256': repro.build_sha256(), 'code_sha256': {str(p): cr.sha256(p) for p in code},
+            # repro.build_sha256 skips symlinks; libggml-cpu.so (a symlink) is added with the hash verified above
+            'build_sha256': {**repro.build_sha256(), Path(repro.LIBGGML_CPU).name: hashes[repro.LIBGGML_CPU]},
+            'code_sha256': {str(p): cr.sha256(p) for p in code},
             'start': start, 'mem_available_start_mib': avail, 'gate_max_s': pm.GATE_MAX_S,
             'telemetry': {'sample_period_s': SAMPLE_PERIOD_S, 'sample_max_gap_s': SAMPLE_MAX_GAP_S,
                           'max_samples': MAX_SAMPLES, 'root_timeout_s': ROOT_TIMEOUT_S,
