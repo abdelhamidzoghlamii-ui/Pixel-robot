@@ -361,6 +361,44 @@ relax. A narrowly scoped next step needs its own review: gate each block on caps
 skin return) before it starts, and measure in a pilot how many blocks stay UNRESTRICTED. The experimental matrix is
 unchanged.
 
+**Sessions (`--session`, `--resume`; primary only in `oneshot.sh`).** The same single run, folder and 20-block
+matrix, executed in owner-operated sessions of `SESSION_BLOCKS` = 4 consecutive blocks (five sessions); nothing else
+of the method changes (order, rounds, questions, model, timings, telemetry, safety stops, validity, the 1.0 °C
+comparison rule, cap matching). The launch without `--session` is unchanged.
+
+- Session 1 (`--exp primary --ctx 2048 --session`) writes `run.json` as usual plus `session_blocks: 4`, runs blocks
+  0–3 and stops cleanly. Each later session (`--resume <folder name>`) runs the next four recorded-order blocks.
+- **Gate reference:** every session gates on the launch-start VIRTUAL-SKIN in `run.json` (`start.skin`), never on its
+  own start reading (which must still pass every field rule, or nothing starts).
+- **Deferral, never WARM START or SKIPPED:** when the gate is not passed after 8 min, the preflight reading taken
+  right after it is above the launch-start skin + 1.0 °C (or has no skin), or cores 4–7 are lost before the server
+  start, the session ends and that block, not started, is the first one of the next session. Agent processes
+  and the Android-status / battery stops end a session before a block as they end a launch.
+- **Resume refuses**, before anything is written, unless: `run.json` is valid (every existing provenance rule) with
+  `session_blocks` 4; there is no `result.json`; every artifact reads without an issue and no request lacks its
+  block record; the recorded blocks are exactly 0…n−1 with blocks left, every one COMPLETED (a block that ended early
+  can neither be finished nor repeated: that run stays INCOMPLETE; an INVALID but completed block does not stop it,
+  as in a single launch) and none with a telemetry `su` timeout or a sampler that outlived its join
+  (`root_left_running`: a root shell may still run, so no later session may observe either), no earlier session
+  whose start reading or last preflight reading (`start`, `preflight` in its end record) had a `su` timeout or was
+  interrupted while it ran (`OBSERVING`; fail closed, same reason), and the server logs are exactly theirs (a block started but not recorded, e.g. Ctrl-C
+  mid-block, can never be repeated); every earlier session has
+  readable start and end records; and the pinned model/server/library, `build_sha256`, `code_sha256` (every
+  benchmark source, `oneshot.sh` included), the skin-gate threshold and the gate's 8 min are exactly as recorded.
+- **Evidence is never overwritten:** `blocks.jsonl` and `requests.jsonl` are appended; `server_block*.log`,
+  `sessionNN.json` (planned blocks, reference skin, logger scheduling, the hashes it verified; a resume writes it after
+  its provenance check and before its start reading), `sessionNN_end.json` (end reason, recorded blocks, its start
+  reading and its last preflight reading, each `OBSERVING` if a signal came while it ran, agents and port 8080 at its
+  end; also written, as
+  `interrupted: …`, when a signal, error or refused start reading ends it) and `sessionNN_report.txt` are created exclusively.
+- **Reporting:** a session after which the run can never continue (those two cases) says so in its end reason
+  (`RUN CANNOT BE RESUMED (INCOMPLETE): …`) and prints no resume command. A session that leaves blocks writes no
+  `result.json`; its `sessionNN_report.txt` (and `--report`) says
+  INCOMPLETE with the missing blocks. Only after the last planned block are `result.json` (its `sessions`; agents at
+  any session end and port 8080 not free at any session end make the run TIMINGS NOT ELIGIBLE), `report.txt`,
+  `comparisons.json` and `artifacts.sha256` written. The report lists every session; a missing or unreadable session
+  record makes the run INCOMPLETE.
+
 ## Measurements
 
 Per request (`requests.jsonl`): expected and evaluated tokens, `cache_n`, `prompt_n`, server `prompt_ms`,
@@ -399,6 +437,13 @@ bash ~/robot/benchmark/memory_context/oneshot.sh --exp long --ctx 4096          
 bash ~/robot/benchmark/memory_context/oneshot.sh --exp freetext --ctx 2048          # unscored, manual review
 ```
 
+Primary in five sessions of four blocks (instead of the single primary launch; same run):
+
+```bash
+bash ~/robot/benchmark/memory_context/oneshot.sh --exp primary --ctx 2048 --session   # session 1: blocks 0-3
+bash ~/robot/benchmark/memory_context/oneshot.sh --resume <UTC>_primary_ctx2048        # sessions 2-5, one at a time
+```
+
 Report only (starts nothing; any folders; two capacity launches also give the 4096/2048 comparison):
 
 ```bash
@@ -428,6 +473,11 @@ and `thermal.log` (CPU-zone readings, not a heat state, #126) are in `~/robot_ru
 - Thermal drift can leave few or no COMPARABLE comparisons (see "Risk" above). Cap classification and cooling
   states are 15 s snapshots; the cooling read is unverified on the phone (a `null` shows it failed).
 - FIRST has two observations per memory length per launch; P95s rest on 10–12 values.
+- Sessions: the round-pair order balances a *linear* drift; changes between sessions (recharging, ambient, hours
+  apart) are not linear and coincide with block positions (sessions 0–3, 4–7, … split the 10-block rounds). The
+  unchanged ENV_UNMATCHED rule (skin span 1.0 °C, battery span 10 %, identical caps) still applies to blocks from
+  different sessions, so recharging between sessions can by itself leave comparisons NOT COMPARABLE. A session
+  interrupted mid-block (or killed without its end record) cannot be resumed; the run stays INCOMPLETE.
 - Battery % falls during a 20-block launch; the 10 % match rule (kept, over every reading) may mark comparisons
   NOT COMPARABLE (ENV_UNMATCHED) by itself. The smoke launch shows block durations; Local AI decides whether the run length needs changing
   (a new review).

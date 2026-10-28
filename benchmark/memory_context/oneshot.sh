@@ -7,6 +7,8 @@
 #   bash ~/robot/benchmark/memory_context/oneshot.sh --exp capacity --ctx 4096
 #   bash ~/robot/benchmark/memory_context/oneshot.sh --exp long --ctx 4096
 #   bash ~/robot/benchmark/memory_context/oneshot.sh --exp freetext --ctx 2048   (unscored replies, manual review)
+#   bash ~/robot/benchmark/memory_context/oneshot.sh --exp primary --ctx 2048 --session   (session 1 of 5: blocks 0-3)
+#   bash ~/robot/benchmark/memory_context/oneshot.sh --resume <UTC>_primary_ctx2048        (sessions 2-5: next 4 blocks)
 # VIS-3C's chat_mtp_repro/oneshot.sh with this folder's runner: same checks, lock and screen handling, no idle period;
 # the root thermal logger writes every 15 s (was 5 s; mem1.py's freshness limit is 30 s), pinned to cores 0-3 at nice 10
 # away from llama-server's cores 4-7, and records what it actually got in thermal_logger_sched.txt.
@@ -27,7 +29,8 @@ su -c id >/dev/null 2>&1 || { echo "No root: su failed. Check Magisk."; exit 1; 
 [ -f "$R/mem1.py" ] || { echo "Missing $R/mem1.py"; exit 1; }
 case "$*" in
   "--exp primary --ctx 2048"|"--exp primary --ctx 2048 --smoke"|"--exp capacity --ctx 2048"|"--exp capacity --ctx 4096"|"--exp long --ctx 4096"|"--exp freetext --ctx 2048") ;;
-  *) echo "Usage: oneshot.sh --exp primary --ctx 2048 [--smoke] | --exp capacity --ctx 2048|4096 | --exp long --ctx 4096 | --exp freetext --ctx 2048"; exit 1;;
+  "--exp primary --ctx 2048 --session"|"--resume "[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z_primary_ctx2048) ;;
+  *) echo "Usage: oneshot.sh --exp primary --ctx 2048 [--smoke | --session] | --resume <UTC>_primary_ctx2048 | --exp capacity --ctx 2048|4096 | --exp long --ctx 4096 | --exp freetext --ctx 2048"; exit 1;;
 esac
 if pgrep -fa 'claude|agy|node|codex' >/dev/null; then
   echo "An agent is still running:"; pgrep -fa 'claude|agy|node|codex'; echo "Quit it, then rerun."; exit 1

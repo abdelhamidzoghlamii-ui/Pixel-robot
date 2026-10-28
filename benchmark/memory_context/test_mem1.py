@@ -2138,8 +2138,8 @@ class Artifacts(FakeFrozenSet, Offline):
 class Launch(Offline):
     """main() end to end with every phone interface faked: run.json matrix, skipped blocks, result.json coverage."""
 
-    def launch(self, exp='capacity', lost_before=(), tel=None, agents=None, extra=()):
-        tmp, raw, stopped, tel = Path(tempfile.mkdtemp()), fake_raw(), [], tel or FakeTelemetry()
+    def launch(self, exp='capacity', lost_before=(), tel=None, agents=None, extra=(), argv=None, tmp=None):
+        tmp, raw, stopped, tel = Path(tmp or tempfile.mkdtemp()), fake_raw(), [], tel or FakeTelemetry()
         post = FakeServer(raw, 1024, RIGHT).post
 
         def check_cores(when):
@@ -2169,9 +2169,11 @@ class Launch(Offline):
                 stack.enter_context(mock.patch.object(obj, attr, **how) if isinstance(how, dict)
                                     else mock.patch.object(obj, attr, how))
             stack.enter_context(redirect_stdout(io.StringIO()))
-            mem1.main(['--exp', exp, '--ctx', '2048'] + (['--smoke'] if exp == 'freetext' else []))
-        out = next(tmp.iterdir())
-        return out, json.loads((out / 'run.json').read_text()), json.loads((out / 'result.json').read_text()), stopped
+            mem1.main(argv or ['--exp', exp, '--ctx', '2048'] + (['--smoke'] if exp == 'freetext' else []))
+        out, = tmp.iterdir()
+        res = out / 'result.json'  # absent after a session that leaves blocks for the next one
+        return out, json.loads((out / 'run.json').read_text()), json.loads(res.read_text()) if res.exists() else None, \
+            stopped
 
     def test_complete_launch(self):
         out, run, res, stopped = self.launch()
@@ -2279,6 +2281,408 @@ class Launch(Offline):
         out, run, res, _ = self.launch(tel=FailedRead())
         self.assertIn('stopped before block 1: Android status 0', res['end_reason'])
         self.assertIn('safety reads failed', res['end_reason'])
+
+
+def lines(path):
+    return [json.loads(l) for l in path.read_text().splitlines()] if path.exists() else []
+
+
+def snapshot(folder):
+    return {p.name: p.read_bytes() for p in Path(folder).iterdir()}
+
+
+class Sessions(Offline):
+    """--session / --resume: the one 20-block primary run in owner-operated sessions of four blocks (main() end to
+    end, every phone interface faked as in Launch)."""
+    START = ['--exp', 'primary', '--ctx', '2048', '--session']
+    launch = Launch.launch
+
+    def session(self, tmp, name=None, **kw):
+        return self.launch(argv=['--resume', name] if name else self.START, tmp=tmp, **kw)
+
+    def assert_kept(self, before, out):
+        """Every earlier file is still there, unchanged, or (the append-only JSONL) with its old bytes as a prefix."""
+        now = snapshot(out)
+        for name, data in before.items():
+            self.assertIn(name, now)
+            if name.endswith('.jsonl'):
+                self.assertTrue(now[name].startswith(data), name)
+            else:
+                self.assertEqual(now[name], data, name)
+
+    def test_five_sessions_make_one_complete_run(self):
+        tmp = tempfile.mkdtemp()
+        out, run, res, stopped = self.session(tmp)
+        self.assertEqual((run['session_blocks'], len(run['matrix'])), (4, 20))
+        self.assertEqual(run['matrix'], mem1.matrix(FAKE, mem1.schedule('primary', 2, False), False))
+        self.assertIsNone(res)  # blocks remain: no result.json, no complete report
+        self.assertEqual([b['block'] for b in lines(out / 'blocks.jsonl')], [0, 1, 2, 3])
+        self.assertEqual(len(stopped), 4)
+        end = json.loads((out / 'session01_end.json').read_text())
+        self.assertEqual((end['end_reason'], end['blocks_recorded']), ('session 1 done: blocks 0..3; 16 blocks remain',
+                                                                       [0, 1, 2, 3]))
+        text = (out / 'session01_report.txt').read_text()
+        self.assertIn('[INCOMPLETE]', text)
+        self.assertIn('MISSING 16 of 20 planned blocks', text)
+        self.assertIn('no usable result.json', text)
+        self.assertFalse((out / 'report.txt').exists())
+        for k in range(2, 6):
+            before = snapshot(out)
+            out2, _, res, stopped = self.session(tmp, out.name)
+            self.assertEqual(out2, out)
+            self.assert_kept(before, out)
+            self.assertEqual(len(stopped), 4)
+            self.assertEqual(json.loads((out / f'session{k:02d}.json').read_text())['blocks_planned'],
+                             [4 * (k - 1), 4 * k - 1])
+            self.assertEqual(res is None, k < 5)
+        blocks, rows = lines(out / 'blocks.jsonl'), lines(out / 'requests.jsonl')
+        self.assertEqual([b['block'] for b in blocks], list(range(20)))  # each block once, in the planned order
+        self.assertEqual(len({(r['block'], r['position']) for r in rows}), len(rows))
+        self.assertEqual(len(rows), 20 * 7)
+        self.assertTrue(all(b['problems'] == [] for b in blocks), [b['problems'] for b in blocks])
+        self.assertTrue(res['complete'], res['not_complete'])
+        self.assertEqual((res['end_reason'], len(res['sessions']), res['agents_end'], res['port_free_end']),
+                         ('all blocks done', 5, '', True))
+        text = (out / 'report.txt').read_text()
+        self.assertIn('[COMPLETE]', text)
+        self.assertEqual(text.count('skin reference 25.0 degC (launch start)'), 5)
+        self.assertEqual({r['verdict'] for r in json.loads((out / 'comparisons.json').read_text())}, {'COMPARABLE'})
+        self.assertIn('session05_end.json', (out / 'artifacts.sha256').read_text())
+        with self.assertRaises(SystemExit) as e:  # the run has ended
+            self.session(tmp, out.name)
+        self.assertIn('result.json exists', str(e.exception))
+
+    def test_single_launch_unchanged(self):
+        out, run, res, _ = self.launch()
+        self.assertNotIn('session_blocks', run)
+        self.assertEqual([p.name for p in out.glob('session*')], [])
+        self.assertTrue(res['complete'], res['not_complete'])
+        self.assertNotIn('sessions', res)
+
+    def test_gate_defers_and_the_launch_reference_is_kept(self):
+        """A block the gate does not pass in 8 min is deferred to the next session (never WARM START); every session
+        gates on the launch-start skin, not its own start."""
+        calls = []
+
+        def gate(path, idle, label, smoke):
+            calls.append((label, idle, smoke))
+            return {'skin': 26.5, 'status': 0, 'waited_s': 480, 'warm_start': label == 'block 2' and len(calls) < 4}
+
+        class Warmer(FakeTelemetry):  # the second session starts warmer than the launch did
+            def observe(self, log, pid=None):
+                x = super().observe(log, pid)
+                return {**x, 'skin': 25.6} if pid is None else x
+        tmp = tempfile.mkdtemp()
+        out, _, res, _ = self.session(tmp, extra=[(mem1.pm, 'thermal_gate', gate)])
+        self.assertIsNone(res)
+        end = json.loads((out / 'session01_end.json').read_text())
+        self.assertTrue(end['end_reason'].startswith('deferred before block 2: skin 26.5 degC not <= launch-start 25.0'
+                                                     ' + 1.0 degC after 480 s (no WARM START)'), end['end_reason'])
+        self.assertEqual(end['blocks_recorded'], [0, 1])
+        self.assertEqual([p.name[:14] for p in sorted(out.glob('server_block*'))], ['server_block00', 'server_block01'])
+        self.assertIn('[INCOMPLETE]', (out / 'session01_report.txt').read_text())
+        self.session(tmp, out.name, tel=Warmer(), extra=[(mem1.pm, 'thermal_gate', gate)])
+        s2, e2 = (json.loads((out / f'session02{x}.json').read_text()) for x in ('', '_end'))
+        self.assertEqual((s2['blocks_planned'], s2['reference_skin'], e2['start']['skin']), ([2, 5], 25.0, 25.6))
+        self.assertEqual([c[0] for c in calls], [f'block {i}' for i in (0, 1, 2, 2, 3, 4, 5)])
+        self.assertTrue(all(idle == {'skin': 25.0} and smoke is False for _, idle, smoke in calls))
+        blocks = lines(out / 'blocks.jsonl')
+        self.assertEqual([b['block'] for b in blocks], list(range(6)))
+        self.assertFalse(any(b['gate']['warm_start'] for b in blocks))
+
+    def test_lost_cores_defer_the_block_instead_of_skipping_it(self):
+        tmp = tempfile.mkdtemp()
+        out, _, res, _ = self.session(tmp, lost_before=(1,))
+        end = json.loads((out / 'session01_end.json').read_text())
+        self.assertEqual((end['end_reason'], end['skipped'], end['blocks_recorded']),
+                         ('deferred before block 1: cores 4-7 not all allowed before block 1', [], [0]))
+        self.session(tmp, out.name)
+        self.assertEqual([b['block'] for b in lines(out / 'blocks.jsonl')], [0, 1, 2, 3, 4])
+
+    def test_an_interrupted_session_is_recorded_and_resumable_between_blocks(self):
+        def gate(path, idle, label, smoke):
+            if label == 'block 1':
+                raise SystemExit(130)  # what cr.exit_on_signal raises on Ctrl-C
+            return {'skin': 25.0, 'status': 0, 'waited_s': 0, 'warm_start': False}
+        tmp = tempfile.mkdtemp()
+        with self.assertRaises(SystemExit):
+            self.session(tmp, extra=[(mem1.pm, 'thermal_gate', gate)])
+        out, = Path(tmp).iterdir()
+        end = json.loads((out / 'session01_end.json').read_text())
+        self.assertEqual((end['end_reason'], end['port_free_end']), ('interrupted: SystemExit(130)', True))
+        self.session(tmp, out.name)
+        self.assertEqual([b['block'] for b in lines(out / 'blocks.jsonl')], [0, 1, 2, 3, 4])
+        self.assertIn('ended: interrupted: SystemExit(130)', (out / 'session02_report.txt').read_text())
+
+    def test_port_or_agents_at_any_session_end_make_the_complete_run_ineligible(self):
+        tmp = tempfile.mkdtemp()
+        out, *_ = self.session(tmp)
+        end = json.loads((out / 'session01_end.json').read_text())
+        (out / 'session01_end.json').write_text(  # as if session 1 had ended with port 8080 still in use
+            json.dumps({**end, 'port_free_end': False}))
+        for _ in range(4):
+            out, _, res, _ = self.session(tmp, out.name)
+        self.assertFalse(res['port_free_end'])
+        self.assertIn('COMPLETE, TIMINGS NOT ELIGIBLE: PORT_NOT_FREE', (out / 'report.txt').read_text())
+
+    def test_resume_refusals_change_nothing(self):
+        """Every refusal comes before anything is written: the folder stays byte for byte as it was."""
+        tmp = tempfile.mkdtemp()
+        base, *_ = self.session(tmp)
+
+        def refused(want, tamper=None, extra=(), argv=None):
+            folder = Path(tempfile.mkdtemp()) / base.name
+            shutil.copytree(base, folder)
+            if tamper:
+                tamper(folder)
+            before = snapshot(folder)
+            with self.assertRaises(SystemExit) as e, mock.patch('sys.stderr', io.StringIO()):
+                self.launch(argv=argv or ['--resume', base.name], tmp=folder.parent, extra=extra)
+            self.assertIn(want, str(e.exception))
+            self.assertEqual(snapshot(folder), before)
+
+        def append(name, text):
+            return lambda f: (f / name).open('a').write(text)
+        refused('code_sha256 differs from run.json', extra=[(cr, 'sha256', {'return_value': 'd' * 64})])
+        refused('build_sha256 differs from run.json',
+                extra=[(repro, 'build_sha256', {'return_value': {**REPRO_BUILD, 'llama-cli': 'e' * 64}})])
+        refused('pinned_sha256 differs from run.json', extra=[(mem1, 'pinned_problems', {
+            'return_value': ([], {**mem1.PINNED, mem1.MODEL: 'f' * 64})})])
+        refused('skin_gate_c differs from run.json', extra=[(mem1, 'SKIN_MATCH_C', 1.5)])
+        row = lines(base / 'requests.jsonl')[-1]
+        refused('requests without a block record', append('requests.jsonl', json.dumps({**row, 'block': 4}) + '\n'))
+        refused('torn last line', append('blocks.jsonl', '{"block": 4, "rou'))
+        refused('a block was started but not recorded', lambda f: (f / 'server_block04_L512_FRESH.log').touch())
+
+        def drop_block_2(f):  # a gap: blocks 0, 1, 3 with their requests and logs (resuming at 3 would repeat it)
+            for name in ('blocks.jsonl', 'requests.jsonl'):
+                (f / name).write_text(''.join(l + '\n' for l in (f / name).read_text().splitlines()
+                                              if json.loads(l)['block'] != 2))
+            next(f.glob('server_block02_*')).unlink()
+        refused('recorded blocks [0, 1, 3] are not 0..2 in order', drop_block_2)
+
+        def swap_log(f):  # round 1 finding 3: an equal count of logs is not the recorded blocks' logs
+            next(f.glob('server_block02_*')).unlink()
+            (f / 'server_block99_L0_FRESH.log').touch()
+        refused("server logs ['server_block02_L128_FRESH.log', 'server_block99_L0_FRESH.log'] unexpected or missing",
+                swap_log)
+
+        refused('session 1: start or end record missing', lambda f: (f / 'session01_end.json').unlink())
+        refused('result.json exists', lambda f: (f / 'result.json').write_text('{}'))
+        refused('not a --session run', lambda f: (f / 'run.json').write_text(json.dumps(
+            {k: v for k, v in json.loads((f / 'run.json').read_text()).items() if k != 'session_blocks'})))
+        refused('is not a run folder', argv=['--resume', '../' + base.name])
+        refused('2', argv=['--resume', base.name, '--exp', 'primary'])  # argparse usage error, exit status 2
+
+    def test_a_block_that_ended_early_stops_the_run_from_resuming(self):
+        """Round 1 finding 2: a recorded block whose planned requests did not all finish can never be completed or
+        repeated: resume refuses (the run stays INCOMPLETE) instead of moving on."""
+        post, calls = FakeServer(fake_raw(), 1024, RIGHT).post, []
+
+        def failing(path, body, timeout=600):
+            calls.append(path)
+            if calls.count('/completion') == 3 * 8 + 4:  # block 3 (warm-up + 7 requests per block): its 3rd question
+                raise OSError('connection reset')
+            return post(path, body, timeout)
+        tmp = tempfile.mkdtemp()
+        out, *_ = self.session(tmp, extra=[(cr, 'post', failing)])
+        self.assertIn('failed', lines(out / 'blocks.jsonl')[3]['end_reason'])
+        before = snapshot(out)
+        with self.assertRaises(SystemExit) as e:
+            self.session(tmp, out.name)
+        self.assertIn('blocks [3] recorded but not completed: the run can never be complete', str(e.exception))
+        self.assertEqual(snapshot(out), before)
+        self.assertIn('RUN CANNOT BE RESUMED (INCOMPLETE): blocks [3] recorded but not completed',
+                      json.loads((out / 'session01_end.json').read_text())['end_reason'])  # round 2 finding 2
+
+    def test_a_possibly_lingering_root_shell_stops_the_run_from_resuming(self):
+        """Round 2 finding 1: block 0 completed every request, but its postflight su call timed out (the root shell
+        may still run): the session ends, and no later session may start an observation: resume refuses before any
+        phone access or write."""
+        class PostflightTimeout(FakeTelemetry):
+            n = 0
+
+            def observe(self, log, pid=None):
+                x = super().observe(log, pid)
+                if pid is None:  # 1 launch start, 2 before block 0, 3 its postflight
+                    self.n += 1
+                    return {**x, 'diag': [{'op': 'su', 'kind': 'timeout'}]} if self.n == 3 else x
+                return x
+        tmp = tempfile.mkdtemp()
+        out, *_ = self.session(tmp, tel=PostflightTimeout())
+        b0, = lines(out / 'blocks.jsonl')
+        self.assertEqual(b0['end_reason'], 'all questions done')
+        end = json.loads((out / 'session01_end.json').read_text())['end_reason']
+        self.assertIn('stopped after block 0: a telemetry su call timed out', end)
+        self.assertIn('RUN CANNOT BE RESUMED (INCOMPLETE): blocks [0]: a telemetry su call timed out', end)
+        before, tel = snapshot(out), FakeTelemetry()
+        with self.assertRaises(SystemExit) as e:
+            self.session(tmp, out.name, tel=tel)
+        self.assertIn('no further observation may start', str(e.exception))
+        self.assertEqual((snapshot(out), tel.threads), (before, []))  # nothing written, nothing observed
+        self.assertIn('[INCOMPLETE]', (out / 'session01_report.txt').read_text())
+
+    def test_a_preflight_su_timeout_stops_the_run_from_resuming(self):
+        """Round 3 finding: blocks 0 and 1 complete, the preflight su call before block 2 times out: the session stops,
+        keeps that reading in its end record, says the run cannot be resumed, and resume refuses before any phone
+        access or write (no block records the timeout)."""
+        class PreflightTimeout(FakeTelemetry):
+            n = 0
+
+            def observe(self, log, pid=None):
+                x = super().observe(log, pid)
+                if pid is None:  # 1 launch start, 2/3 block 0, 4/5 block 1, 6 before block 2
+                    self.n += 1
+                    return {**x, 'root_rc': None, 'diag': [{'op': 'su', 'kind': 'timeout'}]} if self.n == 6 else x
+                return x
+        tmp = tempfile.mkdtemp()
+        out, *_ = self.session(tmp, tel=PreflightTimeout())
+        self.assertEqual([b['block'] for b in lines(out / 'blocks.jsonl')], [0, 1])
+        end = json.loads((out / 'session01_end.json').read_text())
+        self.assertEqual(end['preflight']['diag'], [{'op': 'su', 'kind': 'timeout'}])
+        self.assertIn('stopped before block 2: ', end['end_reason'])
+        self.assertIn("RUN CANNOT BE RESUMED (INCOMPLETE): ['session 1 preflight']: a su call timed out or was interrupted outside a block",
+                      end['end_reason'])
+        before, tel = snapshot(out), FakeTelemetry()
+        with self.assertRaises(SystemExit) as e:
+            self.session(tmp, out.name, tel=tel)
+        self.assertIn("['session 1 preflight']: a su call timed out or was interrupted outside a block", str(e.exception))
+        self.assertEqual((snapshot(out), tel.threads), (before, []))
+
+    def test_a_preflight_timeout_is_kept_when_an_exception_ends_the_session(self):
+        """Round 4 finding 2: a signal after the timed-out preflight, before the ordinary end record: the end record
+        written in finally keeps the reading, so resume still refuses."""
+        class PreflightTimeout(FakeTelemetry):
+            n = 0
+
+            def observe(self, log, pid=None):
+                x = super().observe(log, pid)
+                if pid is None:  # 1 launch start, 2/3 block 0, 4 before block 1
+                    self.n += 1
+                    return {**x, 'root_rc': None, 'diag': [{'op': 'su', 'kind': 'timeout'}]} if self.n == 4 else x
+                return x
+        calls = []
+
+        def agents():  # 1/2 block 0, 3 before block 1, 4 the session end: SIGTERM arrives there
+            calls.append(1)
+            if len(calls) == 4:
+                raise SystemExit(143)
+            return ''
+        tmp = tempfile.mkdtemp()
+        with self.assertRaises(SystemExit):
+            self.session(tmp, tel=PreflightTimeout(), agents=agents)
+        out, = Path(tmp).iterdir()
+        end = json.loads((out / 'session01_end.json').read_text())
+        self.assertEqual((end['end_reason'], end['preflight']['diag']),
+                         ('interrupted: SystemExit(143)', [{'op': 'su', 'kind': 'timeout'}]))
+        tel = FakeTelemetry()
+        with self.assertRaises(SystemExit) as e:
+            self.session(tmp, out.name, tel=tel)
+        self.assertIn("['session 1 preflight']: a su call timed out or was interrupted outside a block", str(e.exception))
+        self.assertEqual(tel.threads, [])
+
+    def test_an_observation_interrupted_outside_a_block_is_kept_and_terminal(self):
+        """Round 5 finding: a signal while a preflight reading runs (or before it is judged) leaves OBSERVING in the
+        end record, never a clean value: resume refuses before any observation."""
+        class InterruptedPreflight(FakeTelemetry):
+            n = 0
+
+            def observe(self, log, pid=None):
+                if pid is None:  # 1 launch start, 2/3 block 0, 4 before block 1: SIGTERM arrives during it
+                    self.n += 1
+                    if self.n == 4:
+                        raise SystemExit(143)
+                return super().observe(log, pid)
+        tmp = tempfile.mkdtemp()
+        with self.assertRaises(SystemExit):
+            self.session(tmp, tel=InterruptedPreflight())
+        out, = Path(tmp).iterdir()
+        end = json.loads((out / 'session01_end.json').read_text())
+        self.assertEqual((end['end_reason'], end['preflight']), ('interrupted: SystemExit(143)', mem1.OBSERVING))
+        self.assertTrue(isinstance(end['start'], dict) and end['start'] != mem1.OBSERVING)
+        before, tel = snapshot(out), FakeTelemetry()
+        with self.assertRaises(SystemExit) as e:
+            self.session(tmp, out.name, tel=tel)
+        self.assertIn("['session 1 preflight']: a su call timed out or was interrupted outside a block",
+                      str(e.exception))
+        self.assertEqual((snapshot(out), tel.threads), (before, []))
+
+        class TimedOutPreflight(FakeTelemetry):  # the preflight before block 0 returns a su timeout ...
+            n = 0
+
+            def observe(self, log, pid=None):
+                x = super().observe(log, pid)
+                if pid is None:
+                    self.n += 1
+                    return {**x, 'root_rc': None, 'diag': [{'op': 'su', 'kind': 'timeout'}]} if self.n == 2 else x
+                return x
+        tmp = tempfile.mkdtemp()  # ... and SIGTERM arrives while it is judged
+        with self.assertRaises(SystemExit):
+            self.session(tmp, tel=TimedOutPreflight(), extra=[(mem1, 'safety_stop', {'side_effect': SystemExit(143)})])
+        out, = Path(tmp).iterdir()
+        end = json.loads((out / 'session01_end.json').read_text())
+        self.assertEqual(end['preflight']['diag'], [{'op': 'su', 'kind': 'timeout'}])
+        with self.assertRaises(SystemExit) as e:
+            self.session(tmp, out.name)
+        self.assertIn("['session 1 preflight']: a su call timed out or was interrupted", str(e.exception))
+
+    def test_a_resumed_session_whose_start_reading_timed_out_is_kept_and_terminal(self):
+        """Round 4 finding 1: a resume records its session before its start reading; a start su timeout refuses the
+        session, is kept in its end record, and every later resume refuses before any observation."""
+        class StartTimeout(FakeTelemetry):
+            def observe(self, log, pid=None):
+                x = super().observe(log, pid)
+                return {**x, 'root_rc': None, 'diag': [{'op': 'su', 'kind': 'timeout'}]} if pid is None else x
+        tmp = tempfile.mkdtemp()
+        out, *_ = self.session(tmp)
+        with self.assertRaises(SystemExit) as e:
+            self.session(tmp, out.name, tel=StartTimeout())
+        self.assertIn('not started: start: su rc None', str(e.exception))
+        end = json.loads((out / 'session02_end.json').read_text())
+        self.assertEqual(end['start']['diag'], [{'op': 'su', 'kind': 'timeout'}])
+        self.assertIn('interrupted: SystemExit', end['end_reason'])
+        self.assertIn('session 2:', (out / 'session01_report.txt').read_text() + '\n'.join(
+            mem1.session_lines(out)[0]))
+        before, tel = snapshot(out), FakeTelemetry()
+        with self.assertRaises(SystemExit) as e:
+            self.session(tmp, out.name, tel=tel)
+        self.assertIn("['session 2 start']: a su call timed out or was interrupted outside a block", str(e.exception))
+        self.assertEqual((snapshot(out), tel.threads), (before, []))
+
+        class InterruptedStart(FakeTelemetry):  # SIGTERM while a resumed session's start reading runs
+            def observe(self, log, pid=None):
+                if pid is None:
+                    raise SystemExit(143)
+                return super().observe(log, pid)
+        tmp = tempfile.mkdtemp()
+        out, *_ = self.session(tmp)
+        with self.assertRaises(SystemExit):
+            self.session(tmp, out.name, tel=InterruptedStart())
+        self.assertEqual(json.loads((out / 'session02_end.json').read_text())['start'], mem1.OBSERVING)
+        with self.assertRaises(SystemExit) as e:
+            self.session(tmp, out.name)
+        self.assertIn("['session 2 start']: a su call timed out or was interrupted", str(e.exception))
+
+    def test_a_preflight_reading_above_the_gate_defers_the_block(self):
+        """Round 1 finding 1: the gate passed, but the preflight reading taken just after it is above the launch
+        reference + 1.0 degC: the block is deferred, no server starts."""
+        class Warming(FakeTelemetry):
+            n = 0
+
+            def observe(self, log, pid=None):
+                x = super().observe(log, pid)
+                if pid is None:  # 1 launch start, 2 before block 0, 3 after it, 4 before block 1
+                    self.n += 1
+                    return {**x, 'skin': 26.2} if self.n == 4 else x
+                return x
+        tmp = tempfile.mkdtemp()
+        out, _, res, stopped = self.session(tmp, tel=Warming())
+        end = json.loads((out / 'session01_end.json').read_text())
+        self.assertEqual(end['end_reason'], 'deferred before block 1: preflight skin 26.2 degC not <= launch-start 25.0'
+                                            ' + 1.0 degC (the gate passed just before)')
+        self.assertEqual((end['blocks_recorded'], len(stopped)), ([0], 1))
+        self.session(tmp, out.name)
+        self.assertEqual([b['block'] for b in lines(out / 'blocks.jsonl')], [0, 1, 2, 3, 4])
 
 
 if __name__ == '__main__':

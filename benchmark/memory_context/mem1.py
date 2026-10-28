@@ -64,7 +64,16 @@ planned request; anything else is reported INCOMPLETE (or INVALID when run.json 
 are read defensively (load_run): torn or malformed lines and records missing keys are listed and left out, requests
 without a block record are listed as orphans; nothing missing is filled in.
 
-Usage: mem1.py --exp primary|capacity|long|freetext --ctx 2048|4096 [--rounds N] [--smoke] [--thermal-log PATH]
+Sessions (--session, then --resume RUN): the same single run and matrix in owner-operated sessions of SESSION_BLOCKS
+consecutive blocks, one run folder. Each session keeps the launch-start skin reference from run.json, never starts a
+block the gate did not pass (deferred, never WARM START) or skips one (cores lost: deferred), and records itself in
+sessionNN.json / sessionNN_end.json / sessionNN_report.txt (created once, never overwritten). A resume refuses unless
+code, model and build hash as recorded and the recorded blocks are exactly the first ones, each once. result.json and
+the complete report are written only after the last planned block.
+
+Usage: mem1.py --exp primary|capacity|long|freetext --ctx 2048|4096 [--rounds N] [--smoke | --session]
+               [--thermal-log PATH]
+       mem1.py --resume RUN [--thermal-log PATH]    (the next session; RUN = the folder name in ~/robot_runs/mem1)
        mem1.py --report RUN_DIR [RUN_DIR ...] [--json PATH]    (report only; starts nothing)
 Writes ~/robot_runs/mem1/<UTC>_<exp>_ctx<ctx>[_smoke]/: run.json, blocks.jsonl, requests.jsonl, server logs,
 result.json, report.txt, comparisons.json, artifacts.sha256.
@@ -130,6 +139,8 @@ JSON_INT_MAX = 2 ** 63  # a larger JSON integer is malformed evidence (rejected 
 BATTERY_MIN_C, SKIN_RANGE_C = -10, (0, 80)  # plausible ranges; outside = a malformed reading
 BATTERY_W_MAX, MEM_MIB_MAX, PSS_KB_MAX = 30, 65536, 16 << 20  # physical limits of a sample (Pixel 7: 8 GB RAM)
 BATTERY = '/sys/class/power_supply/battery'
+SESSION_BLOCKS = 4  # --session: consecutive blocks per owner-operated session (primary: 20 blocks = 5 sessions)
+OBSERVING = {'in_progress': 'an observation outside a block was interrupted: its root shell may still be running'}
 UNKNOWN = 'unknown'  # normalize('UNKNOWN'): the structured abstention
 FENCE = re.compile(r'```(?:json)?[ \t]*\n(.*?)\n?[ \t]*```', re.S)
 
@@ -671,7 +682,7 @@ def run_block(seq, rnd, length, mode, s, ctx, out, emit, thermal_log, smoke):
     rows, end_reason, samples, stop_sampling, sampler = [], 'all questions done', [], threading.Event(), None
     rec, why, status_start, status_end, hwm, load_s = None, [], {}, {}, None, None
     sampler_state = {'attempts': 0, 'dropped': 0, 'missed': 0}
-    with open(Path(out) / f'server_block{seq:02d}_L{length}_{mode}.log', 'w') as log:
+    with open(Path(out) / f'server_block{seq:02d}_L{length}_{mode}.log', 'x') as log:  # never overwrites evidence
         t0 = time.monotonic()
         proc = cm.spawn(command(ctx), log)
 
@@ -1527,6 +1538,32 @@ def recall_section(rows):
     return L
 
 
+def sessions(folder):
+    """[(k, start, end)] of a --session run's records sessionNN.json and sessionNN_end.json, by k; a missing or
+    unreadable record is None."""
+    folder = Path(folder)
+    ks = sorted({int(p.name[7:9]) for p in folder.glob('session[0-9][0-9]*.json')})
+    return [(k, *(read_json(folder / f'session{k:02d}{x}.json')[0] for x in ('', '_end'))) for k in ks]
+
+
+def session_lines(folder):
+    """(report lines, reasons the run is not complete) of a --session run: each session's planned blocks and how it
+    ended. No session, a gap in the numbering, or a missing or unreadable record (a session that ended uncontrolled)
+    is a reason."""
+    ss, L, why = sessions(folder), [], []
+    if [k for k, _, _ in ss] != list(range(1, len(ss) + 1)):
+        why.append(f'session records {[k for k, _, _ in ss]} are not sessions 1..n')
+    for k, st, en in ss:
+        if not (isinstance(st, dict) and isinstance(en, dict)):
+            why.append(f'session {k}: start or end record missing or unreadable (ended uncontrolled)')
+            L.append(f'session {k}: start or end record missing or unreadable')
+            continue
+        L.append(f"session {k}: {st.get('started')} .. {en.get('ended')}, blocks {st.get('blocks_planned')} planned, "
+                 f"skin reference {st.get('reference_skin')} degC (launch start); ended: {en.get('end_reason')}; "
+                 f"agents at end: {en.get('agents_end') or 'none'}; port 8080 free: {en.get('port_free_end')}")
+    return L, why
+
+
 def run_report(folder):
     """(text, comparison records) of one run folder."""
     name, R = Path(folder).name, load_run(folder)
@@ -1534,9 +1571,10 @@ def run_report(folder):
         return f'MEM-1 REPORT {name} [INVALID]: ' + '; '.join(R.issues), []
     run, blocks, rows, res = R.run, R.blocks, R.rows, R.res
     state, missing = coverage(run, blocks, rows, res)
+    slines, sgaps = session_lines(folder) if 'session_blocks' in run else ([], [])
     missing = R.issues + ([f'{len(R.orphans)} requests of blocks {sorted({r["block"] for r in R.orphans})} '
                            'without a block record (interrupted mid-block): kept out of every aggregate']
-                          if R.orphans else []) + missing
+                          if R.orphans else []) + sgaps + missing
     launch = launch_problems(res)
     tag = 'SMOKE - NOT A MEASUREMENT' if run['smoke'] else 'INCOMPLETE' if missing else \
         'COMPLETE, TIMINGS NOT ELIGIBLE: ' + '; '.join(f'{c} {d}' for c, d in launch) if launch else 'COMPLETE'
@@ -1547,6 +1585,8 @@ def run_report(folder):
                                   ('COMPLETED', 'FAILED', 'SKIPPED', 'MISSING')) +
          f' of {len(run.get("matrix", []))} planned blocks' + ('' if not missing else '; NOT COMPLETE: ' +
                                                                '; '.join(missing)),
+         *([f'sessions of {run["session_blocks"]} blocks (one run, one matrix; a complete report only after the '
+            'last planned block):'] + slines if 'session_blocks' in run else []),
          'times: prompt ms = server prompt_ms (TTFT PROXY: not streamed, no true TTFT); wall = client request time;',
          f'monitoring: measured with asynchronous telemetry running ({SAMPLE_PERIOD_S} s period, see the telemetry '
          'section); its effect on inference is NOT quantified: not an unmonitored baseline;',
@@ -1786,19 +1826,81 @@ def pinned_problems():
     return [f'{p}: SHA-256 {got[p][:12]} != pinned {want[:12]}' for p, want in PINNED.items() if got[p] != want], got
 
 
+def terminal_problems(R, ends):
+    """Why a loaded --session run (load_run) can never continue: a recorded block not COMPLETED by coverage (it ended
+    early: it can neither be finished nor repeated, so the run can never be complete), or a root shell that may still
+    run: a recorded block's root_left_running, or a session end record whose start reading or last preflight reading,
+    both kept there, timed out or was interrupted (OBSERVING). No further observation may start then, also in a later
+    session."""
+    ids, why = {b['block'] for b in R.blocks}, []
+    if failed := sorted(k for k, v in coverage(R.run, R.blocks, R.rows, None)[0].items() if k in ids and
+                        v != 'COMPLETED'):
+        why.append(f'blocks {failed} recorded but not completed: the run can never be complete')
+    if lingering := [(b['block'], why_) for b in R.blocks if (why_ := root_left_running(b))]:
+        why.append(f'blocks {[k for k, _ in lingering]}: {lingering[0][1]}; no further observation may start')
+    if timed := [f'session {e.get("session")} {k}' for e in ends if isinstance(e, dict) for k in ('start', 'preflight')
+                 if timed_out(e.get(k)) or e.get(k) == OBSERVING]:
+        why.append(f'{timed}: a su call timed out or was interrupted outside a block (its root shell may still be '
+                   'running); no further observation may start')
+    return why
+
+
+def resume_state(out):
+    """(run, next block, reasons the --session run in folder out cannot continue), from its files alone (no phone
+    access, nothing written): run.json valid (run_problems) with session_blocks and a launch-start skin; no result.json
+    (the run has ended); every artifact read without an issue and no orphan request; the recorded blocks exactly
+    0..n-1 with blocks left, none terminal (terminal_problems), and exactly their server logs (a block started but not recorded cannot be
+    repeated); every earlier session with readable start and end records, numbered 1..k."""
+    R = load_run(out)
+    if R.run is None:
+        return None, None, R.issues
+    run, n, why = R.run, len(R.blocks), list(R.issues)
+    if run.get('session_blocks') != SESSION_BLOCKS:
+        why.append(f'run.json session_blocks {run.get("session_blocks")!r}: not a --session run of {SESSION_BLOCKS}')
+    if not (isinstance(run.get('start'), dict) and num(run['start'].get('skin'))):
+        why.append('run.json has no launch-start skin reference')
+    if (out / 'result.json').exists():
+        why.append('result.json exists: the run has ended')
+    if R.orphans:
+        why.append(f'{len(R.orphans)} requests without a block record (a block interrupted mid-execution)')
+    if [b['block'] for b in R.blocks] != list(range(n)):
+        why.append(f'recorded blocks {[b["block"] for b in R.blocks]} are not 0..{n - 1} in order')
+    if not n < len(run.get('matrix', [])):
+        why.append(f'{n} blocks recorded: no planned block left')
+    why += terminal_problems(R, [e for _, _, e in sessions(out)])
+    want = {f'server_block{m["block"]:02d}_L{m["length"]}_{m["mode"]}.log' for m in run.get('matrix', [])[:n]}
+    if (logs := {p.name for p in out.glob('server_block*')}) != want:
+        why.append(f'server logs {sorted(logs ^ want)} unexpected or missing: a block was started but not recorded, '
+                   'or earlier evidence is missing')
+    if not sessions(out):
+        why.append('no session record')
+    why += session_lines(out)[1]
+    return run, n, why
+
+
+def provenance_problems(run, now):
+    """Why the code, model, build and gate of a resumed session are not the ones run.json recorded: now = this
+    session's pinned, build and code SHA-256 and gate constants."""
+    return [f'{k} differs from run.json (recorded at the launch start)' for k, v in now.items() if run.get(k) != v]
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--exp', choices=tuple(EXPERIMENTS))
     ap.add_argument('--ctx', type=int, choices=(2048, 4096))
-    ap.add_argument('--rounds', type=int, default=2, help='even, >= 2 (default 2); --smoke runs 1')
+    ap.add_argument('--rounds', type=int, help='even, >= 2 (default 2); --smoke runs 1')
     ap.add_argument('--smoke', action='store_true', help='1 round, shortest and longest memory, 2 questions: '
                     'checks the pipeline, NOT a measurement')
+    ap.add_argument('--session', action='store_true', help=f'start the run in owner-operated sessions of '
+                    f'{SESSION_BLOCKS} consecutive blocks (this is session 1; continue with --resume)')
+    ap.add_argument('--resume', metavar='RUN', help='the next session of a --session run: its folder name in '
+                    f'{OUT_ROOT}')
     ap.add_argument('--report', nargs='+', type=Path, metavar='RUN_DIR')
     ap.add_argument('--json', type=Path, metavar='PATH', help='with --report: write the comparison records here')
     ap.add_argument('--thermal-log', default=str(THERMAL_LOG))
     a = ap.parse_args(argv)
     if a.report:
-        if a.exp or a.ctx or a.smoke:
+        if a.exp or a.ctx or a.smoke or a.session or a.resume:
             ap.error('--report takes only run folders')
         text, recs = report(a.report)
         print(text)
@@ -1807,11 +1909,25 @@ def main(argv=None):
         return
     if a.json:
         ap.error('--json goes with --report')
-    if not (a.exp and a.ctx):
-        ap.error('give --exp and --ctx (or --report)')
-    rounds = 1 if a.smoke else a.rounds
-    if not a.smoke and (rounds < 2 or rounds % 2):
-        ap.error('--rounds must be even and >= 2 (each round pair balances the order)')
+    run, first = None, 0  # a resumed run's run.json and its next block
+    if a.resume:
+        if a.exp or a.ctx or a.smoke or a.session or a.rounds is not None:
+            ap.error('--resume takes only the run folder name (everything else is in its run.json)')
+        out = OUT_ROOT / a.resume
+        if Path(a.resume).name != a.resume or a.resume in ('.', '..') or not out.is_dir():
+            raise SystemExit(f'not resumed: {out} is not a run folder in {OUT_ROOT}')
+        run, first, why = resume_state(out)
+        if why:
+            raise SystemExit('not resumed: ' + '; '.join(why))
+        a.exp, a.ctx, a.smoke, a.session, rounds = run['exp'], run['ctx'], run['smoke'], True, run['rounds']
+    else:
+        if not (a.exp and a.ctx):
+            ap.error('give --exp and --ctx (or --resume, or --report)')
+        if a.smoke and a.session:
+            ap.error('--session needs the real skin gate, which --smoke skips')
+        rounds = 1 if a.smoke else 2 if a.rounds is None else a.rounds
+        if not a.smoke and (rounds < 2 or rounds % 2):
+            ap.error('--rounds must be even and >= 2 (each round pair balances the order)')
     s = task_view(load_set(), EXPERIMENTS[a.exp]['task'])
     if why := plan_problems(s, a.exp, a.ctx):
         raise SystemExit('not started: ' + '; '.join(why))
@@ -1819,6 +1935,9 @@ def main(argv=None):
     cr.SKIN_GATE_C = SKIN_MATCH_C  # power_map.thermal_gate reads it: a gated block starts <= launch start + 1.0 degC
     for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, cr.exit_on_signal)
+    session, session_ended, start, preflight = None, False, None, None  # session: its number once its start record
+    # exists; start, preflight: its start and last preflight reading, kept in its end record (also when an exception
+    # ends it); OBSERVING while the reading runs, so an interrupted one is never lost
     try:
         why = cm.refusals()
         avail = cr.meminfo_mib()['mem_available_mib']
@@ -1830,47 +1949,93 @@ def main(argv=None):
         bad, hashes = pinned_problems()
         if bad:
             raise SystemExit('not started: ' + '; '.join(bad))
+        plan = schedule(a.exp, rounds, a.smoke)
+        last = min(first + SESSION_BLOCKS, len(plan)) if a.session else len(plan)
+
+        def provenance():  # (build, code) SHA-256 now
+            # repro.build_sha256 skips symlinks; libggml-cpu.so (a symlink) is added with the hash verified above
+            return ({**repro.build_sha256(), Path(repro.LIBGGML_CPU).name: hashes[repro.LIBGGML_CPU]},
+                    {str(p): cr.sha256(p) for p in code_files()})
+
+        def open_session():  # this session's start record (created once, never overwritten); its number
+            k = len(sessions(out)) + 1
+            with open(out / f'session{k:02d}.json', 'x') as fh:
+                fh.write(dumps({
+                    'session': k, 'started': cr.utc(), 'blocks_planned': [first, last - 1],
+                    'reference_skin': run['start']['skin'], 'mem_available_start_mib': avail,
+                    'thermal_logger_sched': logger_sched(a.thermal_log), 'pinned_sha256': hashes,
+                    'build_sha256': build, 'code_sha256': code}, indent=1) + '\n')
+            return k
+        if run is not None:  # a resume: provenance before any observation, then the session record, so that its
+            build, code = provenance()  # start reading is kept in its end record whatever happens to it
+            if why := provenance_problems(run, {'pinned_sha256': hashes, 'build_sha256': build, 'code_sha256': code,
+                                                'skin_gate_c': cr.SKIN_GATE_C, 'gate_max_s': pm.GATE_MAX_S}):
+                raise SystemExit('not resumed: ' + '; '.join(why))
+            session = open_session()
         cr.wait_cores('start')
+        start = OBSERVING
         start = observe(a.thermal_log)
         if why := observation_problems(start, 'start'):  # every field valid, as inside a block
             raise SystemExit('not started: ' + '; '.join(why))
-        out = OUT_ROOT / f'{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_{a.exp}_ctx{a.ctx}{"_smoke" if a.smoke else ""}'
-        out.mkdir(parents=True)
-        plan = schedule(a.exp, rounds, a.smoke)
-        code = code_files()
-        (out / 'run.json').write_text(dumps({
-            'task': s['task'], 'benchmark': 'MEM-1', 'exp': a.exp, 'ctx': a.ctx, 'rounds': rounds, 'smoke': a.smoke,
-            'started': cr.utc(),
-            'schedule': plan, 'matrix': matrix(s, plan, a.smoke), 'prime': s['prime'], 'command': command(a.ctx), 'decoding': DECODING, 'warmup': WARMUP,
-            'set_sha256': SET_SHA256, 'model_sha256': {MODEL: hashes[MODEL]}, 'pinned_sha256': hashes,
-            # repro.build_sha256 skips symlinks; libggml-cpu.so (a symlink) is added with the hash verified above
-            'build_sha256': {**repro.build_sha256(), Path(repro.LIBGGML_CPU).name: hashes[repro.LIBGGML_CPU]},
-            'code_sha256': {str(p): cr.sha256(p) for p in code},
-            'start': start, 'mem_available_start_mib': avail, 'gate_max_s': pm.GATE_MAX_S,
-            'telemetry': {'sample_period_s': SAMPLE_PERIOD_S, 'sample_max_gap_s': SAMPLE_MAX_GAP_S,
-                          'max_samples': MAX_SAMPLES, 'root_timeout_s': ROOT_TIMEOUT_S,
-                          'sampler_cpus': list(SAMPLER_CPUS), 'sampler_nice': SAMPLER_NICE},
-            'thermal_logger_sched': logger_sched(a.thermal_log),
-            'skin_gate_c': cr.SKIN_GATE_C, 'thresholds': {'min_mem_available_mib': MIN_MEM_AVAILABLE_MIB,
-                                                          'status_stop': STATUS_STOP,
-                                                          'battery_max_c': repro.BATTERY_MAX_C,
-                                                          'request_timeout_s': REQUEST_TIMEOUT_S}}, indent=1) + '\n')
-        print(f'run folder {out}; {len(plan)} blocks', flush=True)
-        idle, end_reason, skipped = {'skin': start['skin']}, 'all blocks done', []
+        if run is None:
+            build, code = provenance()
+            out = OUT_ROOT / (f'{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_{a.exp}_ctx{a.ctx}'
+                              f'{"_smoke" if a.smoke else ""}')
+            out.mkdir(parents=True)
+            run = {
+                'task': s['task'], 'benchmark': 'MEM-1', 'exp': a.exp, 'ctx': a.ctx, 'rounds': rounds,
+                'smoke': a.smoke, 'started': cr.utc(),
+                'schedule': plan, 'matrix': matrix(s, plan, a.smoke), 'prime': s['prime'], 'command': command(a.ctx),
+                'decoding': DECODING, 'warmup': WARMUP,
+                'set_sha256': SET_SHA256, 'model_sha256': {MODEL: hashes[MODEL]}, 'pinned_sha256': hashes,
+                'build_sha256': build, 'code_sha256': code,
+                'start': start, 'mem_available_start_mib': avail, 'gate_max_s': pm.GATE_MAX_S,
+                'telemetry': {'sample_period_s': SAMPLE_PERIOD_S, 'sample_max_gap_s': SAMPLE_MAX_GAP_S,
+                              'max_samples': MAX_SAMPLES, 'root_timeout_s': ROOT_TIMEOUT_S,
+                              'sampler_cpus': list(SAMPLER_CPUS), 'sampler_nice': SAMPLER_NICE},
+                'thermal_logger_sched': logger_sched(a.thermal_log),
+                'skin_gate_c': cr.SKIN_GATE_C, 'thresholds': {'min_mem_available_mib': MIN_MEM_AVAILABLE_MIB,
+                                                              'status_stop': STATUS_STOP,
+                                                              'battery_max_c': repro.BATTERY_MAX_C,
+                                                              'request_timeout_s': REQUEST_TIMEOUT_S},
+                **({'session_blocks': SESSION_BLOCKS} if a.session else {})}
+            (out / 'run.json').write_text(dumps(run, indent=1) + '\n')
+            if a.session:
+                session = open_session()
+        idle = {'skin': run['start']['skin']}  # the launch-start reference, also in every later session
+        print(f'run folder {out}; {len(plan)} blocks' + (f'; session {session}: blocks {first}..{last - 1}, skin '
+                                                         f'reference {idle["skin"]} degC (launch start)'
+                                                         if session else ''), flush=True)
+        end_reason = 'all blocks done' if last == len(plan) else \
+            f'session {session} done: blocks {first}..{last - 1}; {len(plan) - last} blocks remain'
+        skipped, recorded, preflight = [], first, None  # recorded: blocks with a record after this session's last
+        # one; preflight: the reading that stopped this session before a block (kept in its end record)
         with open(out / 'requests.jsonl', 'a') as rlog, open(out / 'blocks.jsonl', 'a') as blog:
             def emit(row):
                 rlog.write(dumps(row) + '\n')
                 rlog.flush()
-            for seq, (rnd, length, mode) in enumerate(plan):
+            for seq in range(first, last):
+                rnd, length, mode = plan[seq]
                 cr.wait_cores(f'block {seq}')
                 if agents_before := repro.agents():
                     end_reason = f'stopped before block {seq}: agent processes running: {agents_before[:120]!r}'
                     print(end_reason, flush=True)
                     break
                 gate = pm.thermal_gate(a.thermal_log, idle, f'block {seq}', a.smoke)
-                cond = observe(a.thermal_log)
+                if session and gate['warm_start']:  # a session never starts a block above the gate
+                    end_reason = (f'deferred before block {seq}: skin {gate["skin"]} degC not <= launch-start '
+                                  f'{idle["skin"]} + {cr.SKIN_GATE_C} degC after {gate["waited_s"]} s (no WARM START)')
+                    print(end_reason, flush=True)
+                    break
+                preflight = OBSERVING
+                cond = preflight = observe(a.thermal_log)
                 if why := safety_stop(cond):
                     end_reason = f'stopped before block {seq}: {why}'
+                    print(end_reason, flush=True)
+                    break
+                if session and not (num(cond.get('skin')) and cond['skin'] <= idle['skin'] + cr.SKIN_GATE_C):
+                    end_reason = (f'deferred before block {seq}: preflight skin {cond.get("skin")!r} degC not <= '
+                                  f'launch-start {idle["skin"]} + {cr.SKIN_GATE_C} degC (the gate passed just before)')
                     print(end_reason, flush=True)
                     break
                 print(f'[block {seq} r{rnd} mem {length} {mode}] skin {gate["skin"]} degC, status {cond.get("status")}'
@@ -1879,6 +2044,10 @@ def main(argv=None):
                     cr.check_cores(f'before block {seq}')
                     b = run_block(seq, rnd, length, mode, s, a.ctx, out, emit, a.thermal_log, a.smoke)
                 except cr.CoresLost as e:
+                    if session:  # before the server start (run_block handles its own): deferred, never skipped
+                        end_reason = f'deferred before block {seq}: {e}'
+                        print(end_reason, flush=True)
+                        break
                     print(f'[block {seq}] {e}; block skipped: the run will be INCOMPLETE', flush=True)
                     skipped.append({'block': seq, 'reason': str(e)})
                     continue
@@ -1891,6 +2060,7 @@ def main(argv=None):
                 b['problems'] = validate_block(b, rows, a.ctx, s, a.smoke)  # the report recomputes it the same way
                 blog.write(dumps(b) + '\n')
                 blog.flush()
+                recorded = seq + 1
                 print(f'[block {seq}] {b["n_rows"]} requests, load {b["load_s"]} s; {b["end_reason"]}; '
                       f'{"VALID" if not b["problems"] else "INVALID: " + reasons_text(b["problems"])}', flush=True)
                 if b['refused']:
@@ -1902,6 +2072,27 @@ def main(argv=None):
                     break
         res = {'end_reason': end_reason, 'ended': cr.utc(), 'skipped': skipped, 'agents_end': repro.agents(),
                'port_free_end': repro.port_free()}
+        if session:
+            if terminal := recorded < len(plan) and terminal_problems(load_run(out), [  # never "resume" a dead run
+                    {'session': session, 'start': start, 'preflight': preflight}]):  # earlier: resume_state checked
+                res['end_reason'] = end_reason = f'{end_reason}; RUN CANNOT BE RESUMED (INCOMPLETE): ' + \
+                    '; '.join(terminal)
+            with open(out / f'session{session:02d}_end.json', 'x') as fh:
+                fh.write(dumps({'session': session, **res, 'blocks_recorded': list(range(first, recorded)),
+                                'start': start, 'preflight': preflight}, indent=1) + '\n')
+            session_ended = True
+            if recorded < len(plan):  # blocks remain: the run goes on, no result.json; this session's report
+                text = report([out])[0]
+                with open(out / f'session{session:02d}_report.txt', 'x') as fh:
+                    fh.write(text + '\n')
+                print(text, f'\nsession {session} ended; ' + (end_reason if terminal else f'next: --resume {out.name}'),
+                      flush=True)
+                return
+            ends = [e if isinstance(e, dict) else {} for _, _, e in sessions(out)]  # the run ends: its result
+            # covers the end of every session (a missing value is an agent / a port not shown free, never clean)
+            res.update(agents_end='; '.join(str(e.get('agents_end', 'not recorded')) for e in ends
+                                            if e.get('agents_end', 'not recorded') != ''),
+                       port_free_end=all(e.get('port_free_end') is True for e in ends), sessions=ends)
         R = load_run(out)
         state, missing = coverage(R.run, R.blocks, R.rows, res)
         missing = R.issues + ([f'{len(R.orphans)} orphan requests'] if R.orphans else []) + missing
@@ -1918,6 +2109,11 @@ def main(argv=None):
             signal.signal(sig, signal.SIG_IGN)
         for proc in list(cm.LIVE):
             cm.stop(proc)
+        if session and not session_ended:  # an exception or signal ended this session: recorded, never silent
+            with open(out / f'session{session:02d}_end.json', 'x') as fh:
+                fh.write(dumps({'session': session, 'end_reason': f'interrupted: {sys.exc_info()[1]!r}'[:DIAG_CHARS],
+                                'ended': cr.utc(), 'skipped': [], 'start': start, 'preflight': preflight,
+                                'agents_end': repro.agents(), 'port_free_end': repro.port_free()}, indent=1) + '\n')
 
 
 if __name__ == '__main__':
