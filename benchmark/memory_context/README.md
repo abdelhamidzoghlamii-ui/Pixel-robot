@@ -202,7 +202,9 @@ counted, never reconstructed) and written with the block. A preflight observatio
 postflight one after the stop stay outside the timed interval. One observation is **one** `su` call (timeout
 `ROOT_TIMEOUT_S` = 10 s) whose root shell first asks for cores 0–3 and nice 10 for itself (`taskset -p f`, `renice`;
 Magisk does not pass the caller's affinity on) and then reads battery sysfs (%, status, °C, current and voltage →
-W), `dumpsys thermalservice` (status, VIRTUAL-SKIN), the server's `/proc/<pid>/smaps_rollup` (PSS, RSS) and reports
+W), `dumpsys thermalservice` (status, VIRTUAL-SKIN), the `thermal-cpufreq-*` cooling devices' `cur_state`/`max_state`
+(`cooling`, optional supporting evidence: shell builtins only, no extra process or root call; any failed read or no
+device found records `cooling: null`, never state 0, and never affects validity), the server's `/proc/<pid>/smaps_rollup` (PSS, RSS) and reports
 its own `Cpus_allowed_list`, nice and CPU ticks. Cheap reads stay in Python: `/proc/meminfo`, the policy4/policy6
 `scaling_max_freq` (a sample) or the full `repro.cpufreq` (pre/postflight), and the last 4 KiB of the thermal log
 (not the whole file). Nothing is cached: every value is read fresh. The sampler thread asks for cores 0–3 and
@@ -278,7 +280,7 @@ Field rules (`observation_problems`; every field required, numbers finite and ne
 | Android thermal | status exactly 0 |
 | VIRTUAL-SKIN | in (0, 80) °C |
 | thermal log | no `thermal_error`; the stamp `at` well-formed; `thermal_age_s` a number in −2 … 30 s; and `utc` − `at` equal to that age within 2 s (freshness recomputed from the evidence, not from the absence of an error label) |
-| CPU caps | policy4 and policy6 positive integers (anything else reads as missing), equal to the preflight value |
+| CPU caps | policy4 and policy6 positive integers (anything else reads as missing). A cap that changes during the block is Android's thermal management: recorded and reported (`cap_limit`), never INVALID |
 | samples: memory | MemAvailable and swap used in 0 … 65536 MiB (no `meminfo_error`); `smaps_rc` 0, `pss_pid` = this block's server, PSS an integer in (0, 16 GiB] |
 
 **Strict numbers and JSON.** Artifacts are read with `strict_loads` (NaN, Infinity, −Infinity and overflowing
@@ -324,6 +326,40 @@ inference. A `run.json` with a wrong task, a `prime`
 without an id, an empty or non-string `command`, or another set's SHA-256 is INVALID; shallow block records
 (`start: {}`, missing times, non-object samples) are reported as INVALID with their reasons. Only these recognized
 artifact cases are handled; any other exception (a programming error) is raised, not hidden (test).
+
+## Integrity, observed performance and comparison eligibility
+
+Three separate judgements; none implies another.
+
+1. **Measurement integrity** (`validate_block`): VALID or INVALID per block, from requests, telemetry, timestamps,
+   memory readings and safety evidence (the codes above). A missing, malformed or non-positive cap reading is
+   INVALID; a cap that *changes* is not (smoke `20261028T011149Z`: policy6 2.850 → 0.851 GHz with Android status 0).
+2. **Observed performance under Android thermal management** (descriptive): the timing table, with each block's
+   policy4/policy6 cap range and its frequency limit (`cap_limit`): **LIMITED** (a cap reading below that policy's
+   `hw_max`), **UNRESTRICTED** (every reading at `hw_max`), **UNKNOWN** (no sample, a cap missing, not positive or
+   above `hw_max`, or `hw_max` missing or different between pre- and postflight). Readings are 15 s apart, so
+   UNRESTRICTED means "at every reading", not "never capped"; an external 3 s diagnostic saw caps change between
+   readings. Cooling-device states are shown as the highest recorded state per device with how many readings
+   recorded it, or `cooling not recorded` (never 0). These timings are what the phone delivered, not a causal
+   effect of memory length.
+3. **Controlled comparison eligibility** (`compare`): unchanged. ENV_UNMATCHED (skin span > 1.0 °C, battery > 10 %,
+   any cap difference, any missing value) keeps a comparison NOT COMPARABLE; each record also lists both sides'
+   frequency limits (`frequency_limits`). Only COMPARABLE ratios attribute a difference to memory length, cache mode
+   or ctx.
+
+**Historical runs.** The report recomputes validity under the current rules and never writes into a run folder.
+For a run recorded by another `mem1.py` it prints `provenance: recorded by mem1.py <sha>, reported by <sha>`; where
+the stored block labels differ (the 01:11 smoke's cap-change reasons), the existing "stored validity differs" issue
+marks the run NOT COMPLETE, so every comparison stays NOT COMPARABLE. A smoke stays SMOKE - NOT A MEASUREMENT. Runs
+without cooling evidence show `cooling not recorded`.
+
+**Risk: few or no eligible comparisons.** In the smoke, skin rose 29.2 → 37.3 °C over four blocks (about 2 min) and
+policy4/policy6 caps changed inside three of them. A comparison needs every reading of all its blocks (four in the
+full primary run, spread over the launch) within 1.0 °C of skin and at identical caps. The full launch can therefore
+produce few or no COMPARABLE comparisons; that is a finding about this phone's thermal behavior, not something to
+relax. A narrowly scoped next step needs its own review: gate each block on caps back at `hw_max` (and a tighter
+skin return) before it starts, and measure in a pilot how many blocks stay UNRESTRICTED. The experimental matrix is
+unchanged.
 
 ## Measurements
 
@@ -389,6 +425,8 @@ and `thermal.log` (CPU-zone readings, not a heat state, #126) are in `~/robot_ru
 ## Limitations and open measurement risks
 
 - No true TTFT (non-streamed); `ttft_proxy_s` is the server's prompt time.
+- Thermal drift can leave few or no COMPARABLE comparisons (see "Risk" above). Cap classification and cooling
+  states are 15 s snapshots; the cooling read is unverified on the phone (a `null` shows it failed).
 - FIRST has two observations per memory length per launch; P95s rest on 10–12 values.
 - Battery % falls during a 20-block launch; the 10 % match rule (kept, over every reading) may mark comparisons
   NOT COMPARABLE (ENV_UNMATCHED) by itself. The smoke launch shows block durations; Local AI decides whether the run length needs changing

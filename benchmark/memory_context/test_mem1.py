@@ -946,10 +946,11 @@ class Telemetry(Offline):
         self.assertEqual((st['requested_cpus'], st['requested_nice']), ([0, 1, 2, 3], 10))
 
     def root_out(self, battery='90\nDischarging\n300\n-500000\n4000000\n', brc=0, dump='Thermal Status: 0\n',
-                 drc=0, smaps='Rss:  3100000 kB\nPss:  3000000 kB\n', src=0):
+                 drc=0, smaps='Rss:  3100000 kB\nPss:  3000000 kB\n', src=0, cooling=None):
         return (f'=== battery\n{battery}rc={brc}\n=== thermalservice\n{dump}'
                 'Current temperatures from HAL:\n\tTemperature{mValue=25.5, mType=3, mName=VIRTUAL-SKIN, mStatus=0}\n'
-                f'rc={drc}\n=== smaps_rollup\n{smaps}rc={src}\n=== sched\nCpus_allowed_list:\t0-3\n'
+                f'rc={drc}\n' + (f'=== cooling\n{cooling}' if cooling is not None else '') +
+                f'=== smaps_rollup\n{smaps}rc={src}\n=== sched\nCpus_allowed_list:\t0-3\n'
                 '1234 (sh) S 1 1 0 0 -1 0 0 0 0 0 3 2 4 1 30 10 1 0\nrc=0\n')
 
     def observe(self, root, thermal=None, pid=PID):
@@ -977,7 +978,7 @@ class Telemetry(Offline):
         self.assertEqual((x['root_cpus'], x['root_nice']), ('0-3', 10))
         self.assertAlmostEqual(x['root_cpu_s'], 10 / os.sysconf('SC_CLK_TCK'))
         self.assertNotIn('diag', x)
-        self.assertEqual(mem1.observation_problems({**x, 't': 1.0, 't_end': 1.2}, 's', {}, PID), [])
+        self.assertEqual(mem1.observation_problems({**x, 't': 1.0, 't_end': 1.2}, 's', PID), [])
 
     def test_failed_reads_keep_bounded_diagnostics(self):
         x, _ = self.observe({'return_value': (1, self.root_out(brc=1, drc=255, dump='x' * 5000, src=1, smaps=''))},
@@ -988,7 +989,7 @@ class Telemetry(Offline):
                          ('smaps_rollup', 'non-zero return code')} <= kinds, kinds)
         self.assertTrue(all(len(d['raw']) <= mem1.DIAG_CHARS and d['stderr'] == 'su: denied' and d['utc']
                             and d['rc'] is not None for d in x['diag']))
-        why = mem1.observation_problems({**x, 't': 1.0, 't_end': 1.2}, 's', {}, PID)
+        why = mem1.observation_problems({**x, 't': 1.0, 't_end': 1.2}, 's', PID)
         for text in ('s: su rc 1', 's: battery read rc 1', 's: dumpsys thermalservice rc 255',
                      's: thermal log: ValueError: thermal log x last line is 95 s old'):
             self.assertIn(text, why)
@@ -996,10 +997,26 @@ class Telemetry(Offline):
         x, _ = self.observe({'side_effect': subprocess.TimeoutExpired('su', 10)})
         self.assertEqual([(d['op'], d['kind']) for d in x['diag']][0], ('su', 'timeout'))
         self.assertIsNone(x['root_rc'])
-        self.assertIn('s: su rc None', mem1.observation_problems(x, 's', {}))
+        self.assertIn('s: su rc None', mem1.observation_problems(x, 's'))
         x, _ = self.observe({'return_value': (0, self.root_out(battery='90\nDischarging\n'))}, pid=None)
         self.assertIn(('battery', 'unparseable'), {(d['op'], d['kind']) for d in x['diag']})
         self.assertNotIn('pss_kb', x)  # a pre/postflight reading reads no server
+
+    def test_cooling_states_in_the_same_root_call_and_missing_is_never_zero(self):
+        x, r = self.observe({'return_value': (0, self.root_out(
+            cooling='thermal-cpufreq-0 0 7\nthermal-cpufreq-2 15 18\nrc=0\n'))})
+        script = r.call_args[0][0]
+        self.assertEqual(r.call_count, 1)  # no extra root call
+        cool = script[script.index('=== cooling'):script.index('=== smaps_rollup')]
+        self.assertNotIn('cat ', cool)  # shell builtins only: no process per device
+        self.assertEqual((x['cooling_rc'], x['cooling']), (0, {'thermal-cpufreq-0': {'cur': 0, 'max': 7},
+                                                               'thermal-cpufreq-2': {'cur': 15, 'max': 18}}))
+        for out in (self.root_out(), self.root_out(cooling='rc=0\n'),  # absent section, no device found
+                    self.root_out(cooling='thermal-cpufreq-2 15 18\nrc=1\n'),  # a failed read
+                    self.root_out(cooling='thermal-cpufreq-2 x 18\nrc=0\n'), self.root_out(cooling='junk\nrc=0\n')):
+            x, _ = self.observe({'return_value': (0, out)})
+            self.assertIsNone(x['cooling'])
+            self.assertEqual(mem1.observation_problems({**x, 't': 1.0, 't_end': 1.2}, 's', PID), [])  # optional
 
     def test_thermal_tail_reads_only_the_end_and_rejects_stale(self):
         log = Path(tempfile.mkdtemp()) / 'thermal.log'
@@ -1198,9 +1215,11 @@ class Environment(Offline):
         self.assertEqual(self.block(end=cond(mono=150.001), mono_t0=100.001, server_s=50.001)['problems'], [])
 
     def test_cap_change_and_mid_block_thermal_change(self):
-        why = self.block(samples=self.with_sample(2, cpufreq={'policy4': {'max': 2350000},
-                                                              'policy6': {'max': 2000000}}))['problems']
-        self.assertIn('policy6 cap 2850000 -> 2000000', details(why))
+        b = self.block(samples=self.with_sample(2, cpufreq={'policy4': {'max': 2350000},
+                                                            'policy6': {'max': 2000000}}))
+        self.assertEqual(b['problems'], [])  # Android's thermal management, not an integrity failure
+        self.assertEqual(mem1.cap_limit(b), ('LIMITED', {'policy4': (2350000, 2350000),
+                                                         'policy6': (2000000, 2850000)}))
         self.assertIn('Android status 1', details(self.block(samples=self.with_sample(2, status=1))['problems']))
         why = self.block(end=cond(bstat='Charging', bat_c=45.0, mono=151.0))['problems']
         self.assertIn("end: battery status 'Charging'", details(why))
@@ -1249,6 +1268,92 @@ class Environment(Offline):
         for text in ('WARM_START warm start', 'ENDED_EARLY cores lost', 'start: Android status 1',
                      "SERVER_CORES server_start Cpus_allowed_list '0-7'", "invalid requests ['q_mid', 'q_end']"):
             self.assertIn(text, details(why))
+
+
+    def unrestricted(self, seq=0, **kw):
+        """A block whose policy4 and policy6 caps are at hw_max (2850000 in the fixtures) at every reading."""
+        full = {'policy4': {'max': 2850000}, 'policy6': {'max': 2850000}}
+        return self.block(seq, start=cond(cap4=2850000, mono=99.0), end=cond(cap4=2850000, mono=151.0),
+                          samples=[sample(float(t), cpufreq=full) for t in (0, 15, 30, 45)], **kw)
+
+    def test_changing_caps_are_valid_limited_and_measured(self):
+        self.assertEqual(mem1.cap_limit(self.unrestricted()), ('UNRESTRICTED', {'policy4': (2850000, 2850000),
+                                                                                'policy6': (2850000, 2850000)}))
+        xs = self.with_sample(1, cpufreq={'policy4': {'max': 1999000}, 'policy6': {'max': 851000}})
+        b = self.block(samples=xs, end=cond(cap4=2253000, cap6=2401000, mono=151.0))
+        self.assertEqual(b['problems'], [])
+        self.assertEqual(mem1.cap_limit(b), ('LIMITED', {'policy4': (1999000, 2350000),
+                                                         'policy6': (851000, 2850000)}))
+        self.assertEqual(mem1.telemetry(b, [])['failed'], 0)  # a capped sample is not a failed sample
+
+    def test_missing_or_malformed_caps_stay_integrity_failures_and_unknown(self):
+        for bad in ({'error': 'unreadable'}, {'max': 0}, {'max': True}, {'max': '2850000'}, {'max': 2.85e6}, {}):
+            xs = self.with_sample(1, cpufreq={'policy4': {'max': 2350000}, 'policy6': bad})
+            b = self.block(samples=xs)
+            self.assertIn('SAMPLE_INVALID', codes(b['problems']))
+            self.assertIn('policy6 cap', details(b['problems']))
+            self.assertEqual(mem1.cap_limit(b)[0], 'UNKNOWN')
+        b = self.block(end=cond(cap6=None, mono=151.0))
+        self.assertIn('end: policy6 cap None (missing or not a positive int)', details(b['problems']))
+        self.assertEqual(mem1.cap_limit(b)[0], 'UNKNOWN')
+        # caps present but the reference is inadequate: VALID integrity, UNKNOWN limit, never UNRESTRICTED
+        u = self.unrestricted()
+        for k, v in (('start', None), ('end', 2400000)):
+            b = json.loads(json.dumps(u))
+            b[k]['cpufreq']['policy6']['hw_max'] = v
+            self.assertEqual((mem1.validate_block(b, [], 2048, FAKE, False), mem1.cap_limit(b)[0]), ([], 'UNKNOWN'))
+        self.assertEqual(mem1.cap_limit({**u, 'samples': []})[0], 'UNKNOWN')
+        above = self.with_sample(1, cpufreq={'policy4': {'max': 2350000}, 'policy6': {'max': 3000000}})
+        self.assertEqual(mem1.cap_limit(self.block(samples=above))[0], 'UNKNOWN')
+
+    def test_cooling_states_are_supporting_evidence_and_missing_is_not_zero(self):
+        b = self.block()
+        self.assertEqual(mem1.cooling_text(b), 'cooling not recorded')
+        self.assertNotIn('0', mem1.cooling_text(b))
+        xs = [{**x, 'cooling': {'thermal-cpufreq-2': {'cur': c, 'max': 18}}}
+              for x, c in zip(b['samples'], (0, 3, 15, 8))]
+        b = self.block(samples=xs, start=cond(mono=99.0, cooling=None))
+        self.assertEqual(b['problems'], [])
+        self.assertEqual(mem1.cooling_text(b), 'cooling max cpufreq-2 15 (4/6 readings)')
+        self.assertEqual(mem1.cap_limit(b)[0], 'LIMITED')  # caps decide the class; cooling only supports it
+
+    def test_valid_but_unmatched_caps_or_skin_are_never_comparable(self):
+        self.assertEqual(mem1.SKIN_MATCH_C, 1.0)
+        side = lambda b: {'rows': [{'block': b['block'], 'question': 'q', 'valid': True, 'prompt_ms': 1.0,
+                                    'wall_s': 1.0, 'prompt_n': 1, 'cache_n': 0, 'gen_tok_s': None}],
+                          'expected': ['q'], 'repeats': 1, 'blocks': [b]}
+        a = self.unrestricted(0)
+        capped = self.block(1, samples=self.with_sample(2, cpufreq={'policy4': {'max': 2350000},
+                                                                    'policy6': {'max': 851000}}))
+        c = mem1.compare('x', 'v', [], {}, [side(a), side(capped)], [])
+        self.assertEqual((c['verdict'], c['environment_valid'], c['environment_matched'], c['ratios']),
+                         ('NOT COMPARABLE', True, False, None))
+        self.assertEqual(c['frequency_limits'], [['UNRESTRICTED'], ['LIMITED']])
+        self.assertTrue(any(r['code'] == 'ENV_UNMATCHED' and 'CPU caps differ' in r['detail'] for r in c['reasons']))
+        self.assertIn('frequency limit UNRESTRICTED / LIMITED', mem1.render([c])[0])
+        warm = self.unrestricted(1, skin=26.01)
+        c = mem1.compare('x', 'v', [], {}, [side(a), side(warm)], [])
+        self.assertEqual([r['code'] for r in c['reasons']], ['ENV_UNMATCHED'])  # 1.01 degC apart: still rejected
+        self.assertEqual(mem1.compare('x', 'v', [], {}, [side(a), side(self.unrestricted(1, skin=26.0))], [])[
+            'verdict'], 'COMPARABLE')
+
+    def test_safety_and_integrity_failures_are_kept_alongside_a_cap_change(self):
+        capped = {'cpufreq': {'policy4': {'max': 2350000}, 'policy6': {'max': 851000}}}
+        for kw, text in (({'status': 3}, 'Android status 3'), ({'battery_c': 45.0}, 'battery 45.0 degC'),
+                         ({'root_rc': 1}, 'su rc 1'), ({'dump_rc': None}, 'dumpsys thermalservice rc None'),
+                         ({'battery_status': 'Charging'}, "battery status 'Charging'"),
+                         ({'pss_kb': None}, 'PSS missing or invalid')):
+            b = self.block(samples=self.with_sample(2, **capped, **kw))
+            self.assertIn('SAMPLE_INVALID', codes(b['problems']))
+            self.assertIn(text, details(b['problems']))
+            self.assertNotIn('->', details(b['problems']))
+        self.assertIn('safety stop', mem1.safety_stop(obs(status=3, **capped)))
+        self.assertIsNone(mem1.safety_stop(obs(**capped)))
+        why = self.block(samples=self.with_sample(2, **capped), end_reason='a su call timed out',
+                         sampler={'ended_s': 49.1, 'alive_after_join': True, 'dropped': 0, 'missed': 0,
+                                  'attempts': 4}, agents={'before': 'claude', 'after': ''},
+                         server_end={'Cpus_allowed_list': '0-7'})['problems']
+        self.assertTrue({'ENDED_EARLY', 'SAMPLER_STATE', 'AGENTS_PRESENT', 'SERVER_CORES'} <= codes(why))
 
 
 def write_run(folder, s, exp, ctx, plan, smoke=False, skins=None, result=True, warm=(), drop_blocks=(),
@@ -1389,6 +1494,24 @@ class Report(FakeFrozenSet, Offline):
     def test_smoke_label(self):
         write_run(self.tmp / 'c', self.s, 'primary', 2048, mem1.schedule('primary', 1, True), smoke=True)
         self.assertIn('SMOKE - NOT A MEASUREMENT', mem1.report([self.tmp / 'c'])[0])
+
+    def test_historical_run_is_recomputed_without_rewriting_or_relabeling(self):
+        """A smoke run recorded by an earlier mem1.py: stored cap-change reasons, no cooling fields."""
+        rows, blocks = write_run(self.tmp / 'h', self.s, 'primary', 2048, mem1.schedule('primary', 1, True),
+                                 smoke=True)
+        for b in blocks:
+            b['problems'] = [{'code': 'READING_INVALID', 'detail': 'end: policy6 cap 2850000 -> 2401000'}]
+        (self.tmp / 'h' / 'blocks.jsonl').write_text(''.join(mem1.dumps(b) + '\n' for b in blocks))
+        before = {p.name: p.read_bytes() for p in (self.tmp / 'h').iterdir()}
+        text, recs = mem1.report([self.tmp / 'h'])
+        self.assertEqual({p.name: p.read_bytes() for p in (self.tmp / 'h').iterdir()}, before)  # nothing written
+        self.assertIn('[SMOKE - NOT A MEASUREMENT]', text)
+        self.assertIn('provenance: recorded by mem1.py cccccccccccc, reported by', text)
+        self.assertIn('stored validity differs from the recomputation (stored labels ignored)', text)
+        self.assertIn('cooling not recorded', text)
+        self.assertIn('frequency limit (descriptive, not a validity input', text)
+        self.assertTrue(recs and all(r['verdict'] == 'NOT COMPARABLE' and 'SMOKE_LAUNCH' in
+                                     {x['code'] for x in r['reasons']} for r in recs))
 
     def test_unequal_question_sides_not_comparable(self):
         rows, blocks = write_run(self.tmp / 'j', self.s, 'capacity', 2048, mem1.schedule('capacity', 2, False))

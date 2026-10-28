@@ -33,7 +33,7 @@ prime, then each question; no sensor command runs on the request path. After the
 observation. Telemetry (observe, sampler_loop): one asynchronous sampler thread, every SAMPLE_PERIOD_S (15 s) from the
 server start to the end of the requests, pinned to cores 0-3 at nice 10 (requested, then read back and recorded);
 each sample = cheap reads (/proc/meminfo, two cpufreq caps, the thermal log's last 4 KiB) + ONE su call (battery,
-dumpsys thermalservice, llama-server smaps_rollup) whose root shell also asks for cores 0-3 and nice 10 and reports
+dumpsys thermalservice, thermal-cpufreq cooling states, llama-server smaps_rollup) whose root shell also asks for cores 0-3 and nice 10 and reports
 what it got. Samples stay in memory (at most MAX_SAMPLES; a dropped sample is counted, never reconstructed) and are
 written with the block record after the server stop. The sampler measures its own cost (duration, su time, thread and
 root CPU time, missed slots, actual intervals). Before the warm-up and before every request the runner only checks,
@@ -42,7 +42,8 @@ SAFETY_MAX_AGE_S, failed its safety reads, or crossed a safety stop (each ends t
 timeout no further observation starts (no postflight) and the launch ends, as when the sampler outlives its join.
 Validity (fail closed; validate_block, the one contract of the runner and the report): the pre/postflight readings and
 every sample are checked field by field (observation_problems: return codes, finite values within physical limits,
-thermal log fresh by its own stamp and age against the reading's UTC, caps unchanged); every reading's UTC must agree
+thermal log fresh by its own stamp and age against the reading's UTC, caps present; a changing cap is recorded and
+reported as frequency limiting (cap_limit), never a validity failure); every reading's UTC must agree
 with its monotonic time and every sample's mono with mono_t0 + t; valid samples must cover the block from the server
 start to the sampling end, which must not precede the last request's end, with gaps <= SAMPLE_MAX_GAP_S; a failed,
 stopped or overflowing sampler, or one whose attempt count disagrees with its records, makes the block INVALID. The
@@ -479,13 +480,17 @@ def server_caps():
 
 def root_script(pid):
     """The one root command of an observation: the root shell first asks for cores 0-3 and nice 10 for itself (its
-    children inherit both), then reads the battery sysfs, dumpsys thermalservice and, for a sample, llama-server's
-    smaps_rollup; each section closes with its own return code; finally the shell's actual CPU list, nice and CPU
-    time (/proc/$$/stat: utime stime cutime cstime)."""
+    children inherit both), then reads the battery sysfs, dumpsys thermalservice, the thermal-cpufreq cooling-device
+    states and, for a sample, llama-server's smaps_rollup; each section closes with its own return code; finally the
+    shell's actual CPU list, nice and CPU time (/proc/$$/stat: utime stime cutime cstime)."""
     b = BATTERY
     s = (f'taskset -p {ROOT_CPU_MASK} $$ >/dev/null 2>&1; renice -n {SAMPLER_NICE} -p $$ >/dev/null 2>&1; '
          f'echo "=== battery"; cat {b}/capacity {b}/status {b}/temp {b}/current_now {b}/voltage_now; echo "rc=$?"; '
-         'echo "=== thermalservice"; dumpsys thermalservice; echo "rc=$?"; ')
+         'echo "=== thermalservice"; dumpsys thermalservice; echo "rc=$?"; '
+         # cpufreq cooling-device states: shell builtins only (no fork); any failed read -> rc 1 (cooling None)
+         'echo "=== cooling"; r=0; for d in /sys/class/thermal/cooling_device*; do read t < $d/type || r=1; '
+         'case $t in thermal-cpufreq-*) { read c < $d/cur_state && read m < $d/max_state && echo "$t $c $m"; } '
+         '|| r=1;; esac; done 2>/dev/null; echo "rc=$r"; ')
     if pid is not None:
         s += f'echo "=== smaps_rollup"; cat /proc/{int(pid)}/smaps_rollup; echo "rc=$?"; '
     return s + 'echo "=== sched"; grep Cpus_allowed_list /proc/$$/status; cat /proc/$$/stat; echo "rc=$?"'
@@ -552,6 +557,12 @@ def observe(thermal_log, pid=None):
     c.update(dump_rc=rc_d, status=d['status'], skin=d['skin'])
     if rc_d != 0 or d['status'] is None or d['skin'] is None:
         diag(c, 'dumpsys thermalservice', rc_d, text)
+    rc_c, text = sec.get('cooling', (None, ''))  # optional supporting evidence, never a validity input
+    try:
+        cool = {t: {'cur': int(cur), 'max': int(mx)} for t, cur, mx in (x.split() for x in text.splitlines())}
+    except ValueError:
+        cool = None
+    c.update(cooling_rc=rc_c, cooling=cool if rc_c == 0 and cool else None)  # missing is None, never state 0
     if pid is not None:
         rc_s, text = sec.get('smaps_rollup', (None, ''))
         pss, rss = (re.search(rf'^{k}:\s+(\d+) kB', text, re.M) for k in ('Pss', 'Rss'))
@@ -751,10 +762,11 @@ def run_block(seq, rnd, length, mode, s, ctx, out, emit, thermal_log, smoke):
 
 # ---------------------------------------------------------------- validity (one contract: runner and report)
 
-def cap_of(e, policy):
-    """The policy's int scaling_max_freq in an observation; None when missing or not an int."""
+def cap_of(e, policy, key='max'):
+    """The policy's int scaling_max_freq (key 'hw_max': cpuinfo_max_freq) in an observation; None when missing or not
+    an int."""
     c = e.get('cpufreq')
-    v = c[policy].get('max') if isinstance(c, dict) and isinstance(c.get(policy), dict) else None
+    v = c[policy].get(key) if isinstance(c, dict) and isinstance(c.get(policy), dict) else None
     return v if type(v) is int else None
 
 
@@ -794,7 +806,7 @@ def log_age(e):
     return []
 
 
-def observation_problems(e, label, caps0, pid=None):
+def observation_problems(e, label, pid=None):
     """Field-level validity of one observation (a pre/postflight reading, or with pid a sample of that server). Every
     field is required: a missing, failed (non-zero su, battery, dumpsys or smaps return code, parse error),
     non-finite, mistyped (a bool is not a number), out-of-range or stale (thermal log) value is a problem, never a
@@ -821,12 +833,10 @@ def observation_problems(e, label, caps0, pid=None):
         w(f'thermal log: {e["thermal_error"]}')
     for text in log_age(e):
         w(text)
-    for p in SERVER_POLICIES:
+    for p in SERVER_POLICIES:  # a changed cap is Android's thermal management, reported by cap_limit, not a failure
         c = cap_of(e, p)
         if not (c is not None and c > 0):
             w(f'{p} cap {c!r} (missing or not a positive int)')
-        elif caps0.get(p) is not None and c != caps0[p]:
-            w(f'{p} cap {caps0[p]} -> {c}')
     if pid is not None:
         t, te = e.get('t'), e.get('t_end')
         if not (num(t, 0) and num(te) and te >= t):
@@ -903,9 +913,8 @@ def validate_block(b, rows, ctx, s, smoke):
         add('WARM_START', 'warm start' if gate.get('warm_start') is True else 'gate record missing')
     if b.get('end_reason') != 'all questions done':
         add('ENDED_EARLY', str(b.get('end_reason'))[:200])
-    caps0 = {p: cap_of(start, p) for p in SERVER_POLICIES}
     for label, e in (('start', start), ('end', end)):
-        for text in observation_problems(e, label, caps0):
+        for text in observation_problems(e, label):
             add('READING_INVALID', text)
     t0, server_s, send = b.get('mono_t0'), b.get('server_s'), b.get('sampling_end_s')
     times = num(t0, 0) and num(server_s, 0) and num(send, 0) and send <= server_s + ROUND_S
@@ -931,7 +940,7 @@ def validate_block(b, rows, ctx, s, smoke):
     if not (type(b.get('server_pid')) is int and b['server_pid'] > 0):
         add('TIMES_INVALID', f'server pid {b.get("server_pid")!r}')
     for x in samples:  # in recorded order: the sampler is serial, so each begins after the previous one ended
-        bad = observation_problems(x, f'sample t {x.get("t")!r}', caps0, pid) if isinstance(x, dict) else \
+        bad = observation_problems(x, f'sample t {x.get("t")!r}', pid) if isinstance(x, dict) else \
             [f'sample is not an object ({type(x).__name__})']
         if not bad and times and abs(x['mono'] - (t0 + x['t'])) > CLOCK_TOL_S:
             bad = [f'sample t {x["t"]}: mono {x["mono"]} is not mono_t0 + t ({t0} + {x["t"]})']
@@ -1261,8 +1270,42 @@ def ratio(a, b):
     return a / b if a is not None and b else None
 
 
-def cap(b, policy='policy6'):
-    return cap_of(b['start'], policy)
+def cap_limit(b):
+    """Frequency limiting of a block (descriptive, never a validity input): (class, {policy: (min, max) cap or
+    None}). LIMITED: a policy4/policy6 cap reading (preflight, a sample, postflight) below that policy's hw_max;
+    UNRESTRICTED: every reading at hw_max; UNKNOWN: no sample, a cap reading missing, not positive or above hw_max,
+    or hw_max missing or not the same in the pre- and postflight. Samples are 15 s apart: a shorter cap between them
+    is not seen, so UNRESTRICTED means "at every reading", not "never capped"."""
+    readings, cls, span = env_readings(b), 'UNRESTRICTED', {}
+    ends = [x if isinstance(x, dict) else {} for x in (b.get('start'), b.get('end'))]
+    if not any(isinstance(x, dict) for x in b.get('samples') or []):
+        cls = 'UNKNOWN'
+    for p in SERVER_POLICIES:
+        caps = [c if c is not None and c > 0 else None for c in (cap_of(e, p) for e in readings)]
+        hw = {cap_of(e, p, 'hw_max') for e in ends}
+        known = [c for c in caps if c is not None]
+        span[p] = (min(known), max(known)) if known else None
+        if None in caps or None in hw or len(hw) != 1 or max(known) > min(hw):
+            cls = 'UNKNOWN'
+        elif cls == 'UNRESTRICTED' and min(known) < min(hw):
+            cls = 'LIMITED'
+    return cls, span
+
+
+def cooling_text(b):
+    """Highest recorded state per thermal-cpufreq cooling device over the block's readings (supporting evidence,
+    never a validity input), with how many readings recorded it: a reading without it is not recorded, never 0."""
+    rs = env_readings(b)
+    got = [e['cooling'] for e in rs if isinstance(e.get('cooling'), dict) and e['cooling']]
+    top = {}
+    for c in got:
+        for k, v in c.items():
+            if isinstance(v, dict) and type(v.get('cur')) is int:
+                top[k] = max(top.get(k, v['cur']), v['cur'])
+    if not top:
+        return 'cooling not recorded'
+    return 'cooling max ' + ' '.join(f'{k.replace("thermal-cpufreq-", "cpufreq-")} {v}' for k, v in sorted(
+        top.items())) + f' ({len(got)}/{len(rs)} readings)'
 
 
 def top_share(start, end, policy='policy6'):
@@ -1302,7 +1345,6 @@ def telemetry(b, rows):
     without that figure (unknown, never zero)."""
     xs = [x for x in b['samples'] if isinstance(x, dict)]
     sp = b['sampler']
-    caps0 = {p: cap_of(b['start'], p) for p in SERVER_POLICIES}
     vals = lambda k: [x[k] for x in xs if num(x.get(k))]
     t = vals('t')
     spans = [(x['t'], x['t_end']) for x in xs if num(x.get('t')) and num(x.get('t_end'))]
@@ -1312,7 +1354,7 @@ def telemetry(b, rows):
     dropped = sp.get('dropped') if type(sp.get('dropped')) is int else None
     attempts = sp.get('attempts') if type(sp.get('attempts')) is int else None
     unrecorded = attempts - len(xs) - (dropped or 0) if attempts is not None else None
-    failed = sum(bool(observation_problems(x, '', caps0, sample_pid(b))) for x in xs)
+    failed = sum(bool(observation_problems(x, '', sample_pid(b))) for x in xs)
     unmeasured = {k: (attempts - len(vals(k)) if attempts is not None else None) for k in ('root_s', 'cpu_s',
                                                                                           'root_cpu_s')}
     return {'attempts': attempts, 'failed': failed + max(0, unrecorded or 0), 'unrecorded': unrecorded,
@@ -1498,6 +1540,8 @@ def run_report(folder):
     launch = launch_problems(res)
     tag = 'SMOKE - NOT A MEASUREMENT' if run['smoke'] else 'INCOMPLETE' if missing else \
         'COMPLETE, TIMINGS NOT ELIGIBLE: ' + '; '.join(f'{c} {d}' for c, d in launch) if launch else 'COMPLETE'
+    recorded = next((v for k, v in run['code_sha256'].items() if Path(k).name == 'mem1.py'), None)
+    current = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     L = [f'MEM-1 REPORT {name}: exp {run["exp"]}, task {run["task"]}, ctx {run["ctx"]}, rounds {run["rounds"]} [{tag}]',
          'coverage: ' + ', '.join(f'{k} {list(state.values()).count(k)}' for k in
                                   ('COMPLETED', 'FAILED', 'SKIPPED', 'MISSING')) +
@@ -1506,10 +1550,17 @@ def run_report(folder):
          'times: prompt ms = server prompt_ms (TTFT PROXY: not streamed, no true TTFT); wall = client request time;',
          f'monitoring: measured with asynchronous telemetry running ({SAMPLE_PERIOD_S} s period, see the telemetry '
          'section); its effect on inference is NOT quantified: not an unmonitored baseline;',
+         *([] if recorded == current else [
+             f'provenance: recorded by mem1.py {str(recorded)[:12]}, reported by {current[:12]}: '
+             'validity recomputed under the current rules; the run\'s stored files and labels are unchanged']),
          'gen t/s = median server predicted_per_second (replies >= 5 tokens); n = valid / all requests; P95 nearest rank',
          'classes: FRESH / CACHED = the scored questions (cache_prompt false / true, CACHED = server cache_n >= shared '
          'prefix); FIRST = the unscored prime in a CACHED block (cold first request with memory); PRIME = the same '
-         'prime in a FRESH block', '',
+         'prime in a FRESH block',
+         'three separate judgements: integrity = block VALID / INVALID (requests, telemetry, timestamps, memory, '
+         'safety evidence; a changing CPU cap is recorded, not INVALID); observed timings (this table) = descriptive, '
+         'under Android thermal management (per-block frequency limit LIMITED / UNRESTRICTED / UNKNOWN below); a '
+         'difference is attributed to memory length, cache mode or ctx only in a COMPARABLE comparison', '',
          f"{'mem':>5}{'class':>7}{'n':>7}{'prompt ms':>10}{'P95':>8}{'wall s':>8}{'P95':>7}{'prompt_n':>9}"
          f"{'cache_n':>8}{'gen t/s':>8}"]
     by = {}
@@ -1527,17 +1578,22 @@ def run_report(folder):
     else:
         L += recall_section(rows)
     L += ['', 'blocks: seq rnd mem mode | load s | PSS peak / HWM / RSS end MiB | min avail MiB, max swap MiB | '
-          'skin degC/status start -> end | battery % degC | X1 cap MHz, X1 top | VALID or INVALID (measurement)']
+          'skin degC/status start -> end | battery % degC | caps MHz policy4, policy6 min-max, frequency limit, '
+          'cooling | X1 top | integrity VALID or INVALID']
     for b in blocks:
-        mib, rs = (lambda v: f(v and v / 1024)), resources(b)
+        mib, rs, (lim, span) = (lambda v: f(v and v / 1024)), resources(b), cap_limit(b)
+        mhz = lambda p: 'n/a' if span[p] is None else f'{span[p][0] // 1000}-{span[p][1] // 1000}'
         L.append(f"  {b['block']:>2} {b['round']} {b['length']:>4} {b['mode']:<6} | {f(b['load_s'], '.1f')} | "
                  f"{mib(rs['peak_pss_kb'])}/{mib(rs['vm_hwm_kb'])}/{mib(rs['vm_rss_end_kb'])} | "
                  f"{f(rs['min_mem_available_mib'])}, {f(rs['max_swap_used_mib'])} | {f(b['gate'].get('skin'), '.2f')}/"
                  f"{b['start'].get('status')} -> {f(b['end'].get('skin'), '.2f')}/{b['end'].get('status')} | "
-                 f"{b['start'].get('battery_pct')} {b['start'].get('battery_c')} | {f(cap(b) and cap(b) / 1000)}, "
-                 f"{f(top_share(b['start'], b['end']), '.0%')} | "
+                 f"{b['start'].get('battery_pct')} {b['start'].get('battery_c')} | {mhz('policy4')}, {mhz('policy6')}, "
+                 f"{lim}, {cooling_text(b)} | {f(top_share(b['start'], b['end']), '.0%')} | "
                  f"{'VALID' if not b['problems'] else 'INVALID: ' + reasons_text(b['problems'])}")
     if blocks:
+        lims = [cap_limit(b)[0] for b in blocks]
+        L.append('  frequency limit (descriptive, not a validity input; 15 s samples miss shorter caps): ' +
+                 ', '.join(f'{k} {lims.count(k)}' for k in ('LIMITED', 'UNRESTRICTED', 'UNKNOWN')) + ' blocks')
         L.append(f"  model load: first block {f(blocks[0]['load_s'], '.1f')} s (page cache not dropped), later median "
                  f"{f(med([b['load_s'] for b in blocks[1:] if b['load_s'] is not None]), '.1f')} s")
     L += telemetry_lines(blocks, rows)
@@ -1594,7 +1650,9 @@ def compare(name, variable, allowed, identical, sides, run_why, smoke=(), launch
             'required_identical': identical, 'expected_questions': [s['expected'] for s in sides],
             'actual_questions': actual, 'expected_repeats': [s['repeats'] for s in sides], 'actual_repeats': reps,
             'complete': not run_why, 'environment_valid': not invalid and bool(blocks),
-            'environment_matched': not unmatched, 'verdict': 'COMPARABLE' if ok else 'NOT COMPARABLE',
+            'environment_matched': not unmatched,
+            'frequency_limits': [sorted({cap_limit(b)[0] for b in s['blocks']}) for s in sides],
+            'verdict': 'COMPARABLE' if ok else 'NOT COMPARABLE',
             'reasons': [{'code': c, 'detail': d} for c, d in why],
             'ratios': {k: ratio(st[0][k], st[1][k]) for k in ('prompt_ms', 'wall_s', 'gen_tok_s')} if ok else None}
 
@@ -1610,6 +1668,8 @@ def render(recs):
             codes = sorted({r['code'] for r in c['reasons']})
             out.append(f"  {c['name']}: NOT COMPARABLE {codes}: " +
                        '; '.join(f"{r['code']} {r['detail']}" for r in c['reasons']))
+        if c.get('frequency_limits'):
+            out[-1] += f" [frequency limit {' / '.join(','.join(x) or 'none' for x in c['frequency_limits'])}]"
     return out
 
 
@@ -1772,7 +1832,7 @@ def main(argv=None):
             raise SystemExit('not started: ' + '; '.join(bad))
         cr.wait_cores('start')
         start = observe(a.thermal_log)
-        if why := observation_problems(start, 'start', {}):  # every field valid, as inside a block
+        if why := observation_problems(start, 'start'):  # every field valid, as inside a block
             raise SystemExit('not started: ' + '; '.join(why))
         out = OUT_ROOT / f'{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_{a.exp}_ctx{a.ctx}{"_smoke" if a.smoke else ""}'
         out.mkdir(parents=True)
