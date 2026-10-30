@@ -79,9 +79,16 @@ The high-level selector (#109) is wired into the mission loop as the picker
 motors-off run it chose EXPLORE every time and cut the ACTIVE share to 0.48
 (#139); desk tests found no prompt or model that qualifies (#140). Owner
 direction (#140): Gemma becomes the robot's "mind", called at events (talk,
-describe, remember, plan); Python keeps every move. The mind is not designed
-yet; whether `--no-picker` becomes the default is open. Fine-tuning (Laya, Von
-or Gemma) is deferred to a later robot version. One resident Gemma for talk and
+describe, remember, plan); Python keeps every move. Updated owner direction
+(#146, 2026-10-29; DESIGN ONLY): begin with a Python-mediated, event-driven
+Gemma E2B high-level picker, initially offering a fixed bounded set of actions.
+Python handles sensor interpretation, safety, motor execution, heat and scheduling;
+Gemma proposes only high-level strategy. Evaluate cached navigation context,
+relevant mission memory, picker quality, latency and MTP before deciding whether
+to allow more flexible Python operations or independently warm navigation and
+companion contexts. These interfaces and caches are NOT implemented or qualified.
+Whether `--no-picker` becomes the default is open. Fine-tuning (Laya, Von or
+Gemma) is deferred to a later robot version. One resident Gemma for talk and
 selection was decided in #125.
 The current repo describes a mecanum prototype; the phone-mounted RC car with
 2D LiDAR is a proposed redesign.
@@ -207,6 +214,13 @@ duty-cycle and camera-power measurements (#128) and the owner's heat-pause desig
 `benchmark/duty_cycle/` and `benchmark/camera_power/`.
 
 ## Memory
+
+MEM-1 PRIMARY: owner reports a completed phone-local benchmark and an owner-
+verified artifact manifest (`MEM1_ALL_HASHES_OK`, reported 2026-10-29).
+GitHub still holds the prepared harness and no archived run artifacts. No
+original run outputs were inspected in this documentation transition; exact
+results, run labels, and any broader MEM-1 completion claim await the original
+artifacts and archival/review checks. No production memory feature is implied.
 
 Reported 2026-09-11: Gemma-4-E2B Q4_K_M left approximately 0.5 GB practical
 headroom after loading, without simultaneous full perception or dialogue.
@@ -451,7 +465,14 @@ and catalogs are in commit `4fd2b98` (#144, #145).
   strictly right vs the 70 % bar — M2 as built FAILS.
 - Picker (#138): motors-off run done (#139) — always EXPLORE, ACTIVE share 0.48;
   no qualifying prompt or model in the desk tests (#140). Open owner decision:
-  make `--no-picker` the default. Next: design the Gemma "mind" (#140).
+  make `--no-picker` the default. Next research gate (#146): design a Python-
+  mediated mind interface and compare the old picker with event-driven, cached,
+  memory-aware high-level selection using independently labeled motors-off cases.
+  Measure quality before accepting speed gains; include option-order changes,
+  prohibited choices, verified cache_n/reused prefix, per-request latency,
+  memory relevance and distractors, MTP on/off, RAM, heat and mode-switch cost.
+  Current picker uses cache_prompt false; two independently warm modes and
+  flexible Python operations are only possibilities, not working features.
 - Gemma fine-tuning restarts from scratch; old LoRA notebooks discarded (#124).
 - VIS-3C / VIS-3D / VIS-0 / M2-Q1 archives and vision qualification
   (#142–#145): archives, catalogs, REGENERATED comparison reports and review

@@ -1888,3 +1888,22 @@ Format: `NN. [area] decision — why`
      corroborated by the AGY log; it calls the SIGABRT exits a harness-teardown artifact, which was never investigated.
      Owner decision 2026-10-24: R1's substantive APPROVED WITH NOTES accepted for this unchanged candidate as a
      task-specific exception; R1 stays INVALID; not a WORKFLOW change. No commit or push authorized.
+
+146. **Mind-interface direction: event-driven Gemma E2B strategic picker first; Python owns execution; qualify cache, context and memory before expansion.**
+     Owner direction 2026-10-29 (planning only; no code or deployed-runtime change). Start with a Python-mediated
+     mind interface and an **event-driven**, not per-cycle, Gemma picker. Use a **fixed, bounded set of high-level
+     actions initially**; the precise expanded action vocabulary, argument schema and conditions for optional
+     Python operations remain to be designed and tested. Gemma proposes strategy only: Python owns sensor
+     validation and interpretation, movement, permissions, safety, heat management, event scheduling and final
+     execution. A normal picker input should be a concise interpreted situation plus relevant mission history,
+     rather than all raw sensor readings. Include validated numbers only when they influence strategy; do not
+     represent absent/stale sensor data as valid observations or infer safety from omitted fields. One resident
+     Gemma 4 E2B Q4_0 is the primary evaluation candidate, with prospective navigation-oriented and
+     companion/informational contexts and shared persistent memory. Independently warm dual contexts and mode
+     switching are **unverified**, particularly under the currently deployed one-slot server. **Qualification
+     gate:** independently labeled, motors-off tests of decision quality, prohibited choices, order sensitivity,
+     cache reuse and latency, relevant memory, MTP on/off, heat/RAM, and eventual mode-switch cost. Do not
+     extrapolate past MTP generation-throughput gains to the current one-token picker. Existing PICKER-1 and
+     PICKPROMPT failures (#139–#140) stand; no variant is qualified for deployment. More flexible Gemma-requested
+     Python operations, vision integration, 2D SLAM and sensor fusion remain subsequent research, not approved
+     implementation. The existing code/defaults are unchanged; the `--no-picker` default question remains open.

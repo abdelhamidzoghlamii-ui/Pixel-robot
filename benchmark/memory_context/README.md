@@ -1,7 +1,12 @@
 # MEM-1 — memory-context benchmark
 
-**Status: prepared, never run. No measured results exist.** Nothing in this folder is a measurement until a
-launch is listed in [RUN_INDEX.md](RUN_INDEX.md).
+**GitHub archive status: prepared benchmark; no run artifacts archived here.**
+Owner report (2026-10-29): the MEM-1 primary benchmark was completed on the phone
+and its artifact manifest was owner-verified (`MEM1_ALL_HASHES_OK`). Those
+artifacts are still phone-local. This report is not a GitHub-archived or
+independently audited measurement; precise metrics, validation labels and the
+scope of completed experiments require the original artifacts. The run index
+below lists only archived runs.
 
 ## Purpose
 

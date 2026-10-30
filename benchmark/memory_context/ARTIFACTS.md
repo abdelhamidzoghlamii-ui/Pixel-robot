@@ -1,6 +1,9 @@
 # Artifacts — MEM-1
 
-**No run artifacts yet.** When runs are archived, each original is copied byte for byte from
+**No run artifacts archived in GitHub yet.** Owner reports a completed
+phone-local MEM-1 primary run with a manifest check `MEM1_ALL_HASHES_OK`;
+original artifact bytes and checksums have not been transferred or verified
+here. Do not add hash rows without the originals. When runs are archived, each original is copied byte for byte from
 `~/robot_runs/mem1/` (`cp -p`), compared with `cmp`, and listed below with its SHA-256. Every run folder already
 carries the runner's own `artifacts.sha256` (all files of the folder at the end of the run); recheck it in place with
 `sha256sum -c artifacts.sha256`. `README.md`, `RUN_INDEX.md` and `ARTIFACTS.md` are documentation and stay out of
