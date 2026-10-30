@@ -1,0 +1,281 @@
+{
+ "task": "recall",
+ "benchmark": "MEM-1",
+ "exp": "capacity",
+ "ctx": 2048,
+ "rounds": 2,
+ "smoke": false,
+ "started": "2026-10-28T08:01:56+00:00",
+ "schedule": [
+  [
+   0,
+   1024,
+   "FRESH"
+  ],
+  [
+   0,
+   1024,
+   "CACHED"
+  ],
+  [
+   1,
+   1024,
+   "CACHED"
+  ],
+  [
+   1,
+   1024,
+   "FRESH"
+  ]
+ ],
+ "matrix": [
+  {
+   "block": 0,
+   "round": 0,
+   "length": 1024,
+   "mode": "FRESH",
+   "questions": [
+    "q_begin",
+    "q_mid",
+    "q_end",
+    "q_update",
+    "q_absent_pet",
+    "q_absent_time"
+   ]
+  },
+  {
+   "block": 1,
+   "round": 0,
+   "length": 1024,
+   "mode": "CACHED",
+   "questions": [
+    "q_begin",
+    "q_mid",
+    "q_end",
+    "q_update",
+    "q_absent_pet",
+    "q_absent_time"
+   ]
+  },
+  {
+   "block": 2,
+   "round": 1,
+   "length": 1024,
+   "mode": "CACHED",
+   "questions": [
+    "q_mid",
+    "q_end",
+    "q_update",
+    "q_absent_pet",
+    "q_absent_time",
+    "q_begin"
+   ]
+  },
+  {
+   "block": 3,
+   "round": 1,
+   "length": 1024,
+   "mode": "FRESH",
+   "questions": [
+    "q_mid",
+    "q_end",
+    "q_update",
+    "q_absent_pet",
+    "q_absent_time",
+    "q_begin"
+   ]
+  }
+ ],
+ "prime": {
+  "id": "prime",
+  "text": "Reply with the single word: ready."
+ },
+ "command": [
+  "taskset",
+  "-c",
+  "4-7",
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+  "-m",
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+  "--port",
+  "8080",
+  "--ctx-size",
+  "2048",
+  "--threads",
+  "4",
+  "--threads-batch",
+  "4",
+  "--parallel",
+  "1",
+  "--swa-full",
+  "--cache-ram",
+  "0",
+  "--host",
+  "127.0.0.1"
+ ],
+ "decoding": {
+  "n_predict": 48,
+  "temperature": 0,
+  "top_k": 1,
+  "seed": 0,
+  "stop": [
+   "<turn|>"
+  ],
+  "stream": false
+ },
+ "warmup": "<|turn>user\nHi<turn|>\n<|turn>model\n",
+ "set_sha256": "8feb74f97429417e8e504be1abce979b958950e1b80692b332b7d88cde8f8df4",
+ "model_sha256": {
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf": "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52"
+ },
+ "pinned_sha256": {
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf": "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52",
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libggml-cpu.so": "a4ef0d97e741f5902919af5e9cef95f808bd98581be76bca66fcee3f4ac8a0dd",
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server": "77eb35a0e716dff307e0d33b0b45ce0ed91e216a20db9411a7b9dc94e6624053"
+ },
+ "build_sha256": {
+  "libggml-base.so.0.18.0": "0f0ba8b6603eacd6c2dee49b316507035955654bbd2de78adb804471674fe13b",
+  "libggml-cpu.so.0.18.0": "a4ef0d97e741f5902919af5e9cef95f808bd98581be76bca66fcee3f4ac8a0dd",
+  "libggml.so.0.18.0": "d168dd8ae5971457a0c206023b20368ada0542d1c2f1cd1b3f5161bd0b1a00e4",
+  "libllama-common.so.0.0.1609": "a2d842ef57a4e7bbaf2769a484fae34dbeba73f9bb3690448e904e65bb2961ac",
+  "libllama-server-impl.so": "9f560899cd63bbdbbd439759e70061e8cd2106d103e8fad3e7351bc64f61ad37",
+  "libllama.so.0.0.1609": "5fae808a94b84f3254f267da3b315ebf57ede496c76450e1e29f5072cd7ab44c",
+  "libmtmd.so.0.0.1609": "b9d641c7b853e111be4fdfb7c7a17bec74a757c6d2475964895051bb15a33f84",
+  "llama-server": "77eb35a0e716dff307e0d33b0b45ce0ed91e216a20db9411a7b9dc94e6624053",
+  "libggml-cpu.so": "a4ef0d97e741f5902919af5e9cef95f808bd98581be76bca66fcee3f4ac8a0dd"
+ },
+ "code_sha256": {
+  "/data/data/com.termux/files/home/robot/benchmark/memory_context/mem1.py": "d88259acfbb9414dd7b4184ee82fbc7be2677b74dfc636aad31190a7dc634628",
+  "/data/data/com.termux/files/home/robot/benchmark/memory_context/oneshot.sh": "84e57b8878d350b339ff92e2f0148c096d317d8fafa0c72cc8a6050abf28b4ce",
+  "/data/data/com.termux/files/home/robot/benchmark/llm_objective_setting/conversation/chat_mtp_repro/repro.py": "29276a35618e66833a214fba77c8ce0770bbe37d4fa9e2b4b9de105c13a00a46",
+  "/data/data/com.termux/files/home/robot/benchmark/llm_objective_setting/conversation/chat_mtp/chat_mtp.py": "b2c370e23e5f7fa93996a28a9aaed2f3f5ee546f2ef70f94eaebe4b34a29cd24",
+  "/data/data/com.termux/files/home/robot/benchmark/coresidency/coresidency.py": "a6b0d65454c0c060927f744194a8cbb9f2a419a59e39fc82b0a510b9f92ed177",
+  "/data/data/com.termux/files/home/robot/benchmark/power_map/power_map.py": "4756ce7dc7ba4e358578288c0d2509345fc4e2fe02d45f077f65355792e29539",
+  "/data/data/com.termux/files/home/robot/chat.py": "5f08a9d65d2a1f8fb5b77cb40050a009b8729480327def91be19ec44bf835348",
+  "/data/data/com.termux/files/home/robot/server_manager.py": "4f63062a4dbc842538b72d1c28a8b2a721a0664a1a2bed8d2936e712984d84aa"
+ },
+ "start": {
+  "mono": 92548.662,
+  "utc": "2026-10-28T08:01:56+00:00",
+  "cpufreq": {
+   "policy0": {
+    "max": 1803000,
+    "hw_max": 1803000,
+    "time_in_state": {
+     "300000": 7845509,
+     "574000": 541011,
+     "738000": 190124,
+     "930000": 157002,
+     "1098000": 102130,
+     "1197000": 59541,
+     "1328000": 80587,
+     "1401000": 87588,
+     "1598000": 40124,
+     "1704000": 20406,
+     "1803000": 130750
+    }
+   },
+   "policy4": {
+    "max": 2348000,
+    "hw_max": 2348000,
+    "time_in_state": {
+     "400000": 8527016,
+     "553000": 115751,
+     "696000": 81972,
+     "799000": 66207,
+     "910000": 57052,
+     "1024000": 45276,
+     "1197000": 44913,
+     "1328000": 35944,
+     "1491000": 74631,
+     "1663000": 31861,
+     "1836000": 19620,
+     "1999000": 22807,
+     "2130000": 14392,
+     "2253000": 14929,
+     "2348000": 102398
+    }
+   },
+   "policy6": {
+    "max": 2850000,
+    "hw_max": 2850000,
+    "time_in_state": {
+     "500000": 8895703,
+     "851000": 62019,
+     "984000": 19139,
+     "1106000": 14032,
+     "1277000": 25641,
+     "1426000": 26038,
+     "1582000": 10918,
+     "1745000": 18524,
+     "1826000": 26889,
+     "2048000": 23256,
+     "2188000": 17514,
+     "2252000": 4246,
+     "2401000": 8602,
+     "2507000": 5298,
+     "2630000": 5923,
+     "2704000": 6913,
+     "2802000": 7548,
+     "2850000": 76566
+    }
+   }
+  },
+  "at": "2026-10-28T08:01:45Z",
+  "thermal_age_s": 11.6,
+  "z9": 47000,
+  "z10": 36000,
+  "z11": 37000,
+  "root_rc": 0,
+  "root_s": 0.269,
+  "battery_rc": 0,
+  "battery_pct": 97,
+  "battery_status": "Discharging",
+  "battery_c": 20.6,
+  "battery_w": 4.253966268516,
+  "dump_rc": 0,
+  "status": 0,
+  "skin": 21.205101,
+  "cooling_rc": 0,
+  "cooling": {
+   "thermal-cpufreq-1": {
+    "cur": 0,
+    "max": 14
+   },
+   "thermal-cpufreq-2": {
+    "cur": 0,
+    "max": 17
+   },
+   "thermal-cpufreq-0": {
+    "cur": 0,
+    "max": 10
+   }
+  },
+  "root_cpus": "0-3",
+  "root_nice": 10,
+  "root_cpu_s": 0.13
+ },
+ "mem_available_start_mib": 3458,
+ "gate_max_s": 480,
+ "telemetry": {
+  "sample_period_s": 15,
+  "sample_max_gap_s": 20,
+  "max_samples": 256,
+  "root_timeout_s": 10,
+  "sampler_cpus": [
+   0,
+   1,
+   2,
+   3
+  ],
+  "sampler_nice": 10
+ },
+ "thermal_logger_sched": "Cpus_allowed_list:\t0-3\nnice=10\n",
+ "skin_gate_c": 1.0,
+ "thresholds": {
+  "min_mem_available_mib": 3000,
+  "status_stop": 3,
+  "battery_max_c": 45,
+  "request_timeout_s": 240
+ }
+}

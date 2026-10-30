@@ -1,12 +1,8 @@
 # MEM-1 — memory-context benchmark
 
-**GitHub archive status: prepared benchmark; no run artifacts archived here.**
-Owner report (2026-10-29): the MEM-1 primary benchmark was completed on the phone
-and its artifact manifest was owner-verified (`MEM1_ALL_HASHES_OK`). Those
-artifacts are still phone-local. This report is not a GitHub-archived or
-independently audited measurement; precise metrics, validation labels and the
-scope of completed experiments require the original artifacts. The run index
-below lists only archived runs.
+**Status: primary run (ctx 2048) COMPLETE and archived in `runs/` (2026-10-30, #147).** Capacity is INCOMPLETE
+(ctx 2048 half only); ctx 4096, long and freetext were never launched. Labels, scope and caveats:
+[RUN_INDEX.md](RUN_INDEX.md); hashes: [ARTIFACTS.md](ARTIFACTS.md).
 
 ## Purpose
 
@@ -468,9 +464,10 @@ and `thermal.log` (CPU-zone readings, not a heat state, #126) are in `~/robot_ru
 | `build_set.py` | builds `memory_set.json`; `python3 -B build_set.py --check` rebuilds it in memory and compares (vocabulary-only tokenizer, about 4 min) |
 | `memory_set.json` | frozen memories, questions, answer key, both tasks' instructions and token counts |
 | `test_mem1.py` | offline tests (fakes only; every phone interface — `su`, dumpsys, sysfs/proc, processes, sockets, the server — is guarded and fails the test if reached, in proot or native Termux): `python3 -B -m unittest -v test_mem1`, from this folder |
-| `RUN_INDEX.md`, `ARTIFACTS.md` | run index and SHA-256 catalog, empty until runs are archived |
+| `RUN_INDEX.md`, `ARTIFACTS.md` | run index and SHA-256 catalog of the archived runs |
+| `runs/` | byte-for-byte archive of `~/robot_runs/mem1/` (2026-10-30, #147; 105 files) |
 
-`.gitignore` makes only these eight files trackable here; anything else created in this folder stays ignored. Archiving runs into the repository later needs its own exception.
+`.gitignore` makes only these eight files and `runs/` trackable here; anything else created in this folder stays ignored.
 
 ## Limitations and open measurement risks
 

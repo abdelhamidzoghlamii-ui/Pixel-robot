@@ -215,12 +215,13 @@ duty-cycle and camera-power measurements (#128) and the owner's heat-pause desig
 
 ## Memory
 
-MEM-1 PRIMARY: owner reports a completed phone-local benchmark and an owner-
-verified artifact manifest (`MEM1_ALL_HASHES_OK`, reported 2026-10-29).
-GitHub still holds the prepared harness and no archived run artifacts. No
-original run outputs were inspected in this documentation transition; exact
-results, run labels, and any broader MEM-1 completion claim await the original
-artifacts and archival/review checks. No production memory feature is implied.
+MEM-1 (#147): primary run at ctx 2048 COMPLETE (20/20 blocks VALID), archived in
+`benchmark/memory_context/runs/`. Recall 83 % at memory 128–1024 tokens, the same
+FRESH and CACHED; every miss is "Pepper" (the cat) to the absent-dog question.
+No speed comparison between memory lengths or cache modes is COMPARABLE
+(thermal, battery and CPU caps unmatched), so no speed effect is established.
+Capacity INCOMPLETE; ctx 4096, long and freetext not run. Research only; no
+production memory feature is implied.
 
 Reported 2026-09-11: Gemma-4-E2B Q4_K_M left approximately 0.5 GB practical
 headroom after loading, without simultaneous full perception or dialogue.

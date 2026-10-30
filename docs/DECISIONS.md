@@ -1907,3 +1907,18 @@ Format: `NN. [area] decision — why`
      PICKPROMPT failures (#139–#140) stand; no variant is qualified for deployment. More flexible Gemma-requested
      Python operations, vision integration, 2D SLAM and sensor fusion remain subsequent research, not approved
      implementation. The existing code/defaults are unchanged; the `--no-picker` default question remains open.
+
+147. **MEM-1 primary run (ctx 2048) archived: COMPLETE, 20/20 blocks VALID; recall 83 % at memory 128–1024 with FRESH = CACHED; no timing comparison COMPARABLE; other arms not run or INCOMPLETE.**
+     2026-10-30, Doc Keeper Claude Code `claude-opus-5-5`, Ponytail off. Replaces the owner-reported MEM-1 wording
+     added to STATUS and the MEM-1 docs in `84079c3`. All of `~/robot_runs/mem1/` except the empty `.stop_thermal`
+     sentinel (105 files) copied by `cp -p` to `benchmark/memory_context/runs/`, `cmp` equal; each run's
+     `artifacts.sha256` passes in the archive; `mem1.py --report` at `6f60a7e` regenerates the primary `report.txt`
+     and `comparisons.json` byte-identically (path prefix aside). Primary `20261028T161326Z_primary_ctx2048` (code
+     `806d6531…` = `6f60a7e`; b1609 E2B Q4_0 pinned; 10 owner sessions 2026-10-28 16:13Z – 10-29 08:06Z, six
+     deferred by the skin-temperature gate): 120/120 scored replies STRICT; at memory 128/256/512/1024, FRESH and
+     CACHED alike, 8 CORRECT, 2 ABSTAINED, 2 UNSUPPORTED of 12, every UNSUPPORTED being `Pepper` (the cat) for the
+     absent dog. Memory 0 is the unknown-answer baseline. Timings are descriptive (16/20 blocks frequency-LIMITED);
+     all 17 comparisons NOT COMPARABLE (`ENV_UNMATCHED`), so no speed effect of memory length or caching is
+     established by this run. Capacity `20261028T080156Z` INCOMPLETE (WARM_START, block 3 ENDED_EARLY); smokes are
+     not measurements; ctx 4096, long and freetext never launched. Labels are the runner's; no independent grading.
+     Research only; no production memory feature or code change.

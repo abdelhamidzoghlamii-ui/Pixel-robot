@@ -1,0 +1,115 @@
+[
+ {
+  "run": "20261028T080156Z_capacity_ctx2048",
+  "name": "mem 1024 CACHED / FRESH",
+  "independent_variable": "cache mode",
+  "allowed_to_differ": [
+   "cache_prompt and server prefix reuse"
+  ],
+  "required_identical": {
+   "one launch: one run.json (model, build, decoding, command, set, code, ctx)": true
+  },
+  "expected_questions": [
+   [
+    "q_absent_pet",
+    "q_absent_pet",
+    "q_absent_time",
+    "q_absent_time",
+    "q_begin",
+    "q_begin",
+    "q_end",
+    "q_end",
+    "q_mid",
+    "q_mid",
+    "q_update",
+    "q_update"
+   ],
+   [
+    "q_absent_pet",
+    "q_absent_pet",
+    "q_absent_time",
+    "q_absent_time",
+    "q_begin",
+    "q_begin",
+    "q_end",
+    "q_end",
+    "q_mid",
+    "q_mid",
+    "q_update",
+    "q_update"
+   ]
+  ],
+  "actual_questions": [
+   [
+    "q_absent_pet",
+    "q_absent_pet",
+    "q_absent_time",
+    "q_absent_time",
+    "q_begin",
+    "q_begin",
+    "q_end",
+    "q_end",
+    "q_mid",
+    "q_mid",
+    "q_update",
+    "q_update"
+   ],
+   [
+    "q_absent_pet",
+    "q_absent_time",
+    "q_begin",
+    "q_end",
+    "q_mid",
+    "q_mid",
+    "q_update"
+   ]
+  ],
+  "expected_repeats": [
+   2,
+   2
+  ],
+  "actual_repeats": [
+   2,
+   2
+  ],
+  "complete": false,
+  "environment_valid": false,
+  "environment_matched": false,
+  "frequency_limits": [
+   [
+    "LIMITED"
+   ],
+   [
+    "LIMITED"
+   ]
+  ],
+  "verdict": "NOT COMPARABLE",
+  "reasons": [
+   {
+    "code": "RUN_NOT_COMPLETE",
+    "detail": "blocks FAILED: [3]"
+   },
+   {
+    "code": "RUN_NOT_COMPLETE",
+    "detail": "19/24 planned scored requests answered"
+   },
+   {
+    "code": "QUESTIONS_NOT_AS_PLANNED",
+    "detail": "side 1: 7 valid of 12 planned"
+   },
+   {
+    "code": "ENV_INVALID",
+    "detail": "blocks ['1', '2', '3'] INVALID"
+   },
+   {
+    "code": "ENV_UNMATCHED",
+    "detail": "skin 21.21-32.47 degC over the blocks (> 1.0 apart)"
+   },
+   {
+    "code": "ENV_UNMATCHED",
+    "detail": "CPU caps differ {'policy4': [2348000], 'policy6': [2188000, 2252000, 2401000, 2507000, 2630000, 2704000, 2802000, 2850000]}"
+   }
+  ],
+  "ratios": null
+ }
+]

@@ -1,0 +1,54 @@
+MEM-1 REPORT 20261028T011149Z_primary_ctx2048_smoke: exp primary, task recall, ctx 2048, rounds 1 [SMOKE - NOT A MEASUREMENT]
+coverage: COMPLETED 4, FAILED 0, SKIPPED 0, MISSING 0 of 4 planned blocks
+times: prompt ms = server prompt_ms (TTFT PROXY: not streamed, no true TTFT); wall = client request time;
+monitoring: measured with asynchronous telemetry running (15 s period, see the telemetry section); its effect on inference is NOT quantified: not an unmonitored baseline;
+gen t/s = median server predicted_per_second (replies >= 5 tokens); n = valid / all requests; P95 nearest rank
+classes: FRESH / CACHED = the scored questions (cache_prompt false / true, CACHED = server cache_n >= shared prefix); FIRST = the unscored prime in a CACHED block (cold first request with memory); PRIME = the same prime in a FRESH block
+
+  mem  class      n prompt ms     P95  wall s    P95 prompt_n cache_n gen t/s
+    0  FRESH   2/2       1915    1952    2.38   2.40      140       0   15.24
+    0  PRIME   1/1       2020    2020    2.47   2.47      138       0   15.84
+    0  FIRST   1/1       2387    2387    2.89   2.89      136       2   14.15
+    0 CACHED   2/2        330     395    0.82   0.88       14     126   14.52
+ 1024  FRESH   2/2      21840   23241   22.56  24.17     1168       0   12.88
+ 1024  PRIME   1/1      19785   19785   20.28  20.28     1167       0   14.49
+ 1024  FIRST   1/1      19121   19121   19.61  19.61     1165       2   14.51
+ 1024 CACHED   2/2        322     363    0.96   1.07       14    1155   13.57
+
+format compliance (structured replies; ERROR = request failed): strict % = STRICT / N, parsed % = (STRICT + FENCED) / N
+  mem   mode   N     STRICT    FENCED MALFORMED     EMPTY     ERROR  strict  parsed
+    0 CACHED   2          2         0         0         0         0    100%    100%
+    0  FRESH   2          2         0         0         0         0    100%    100%
+ 1024 CACHED   2          2         0         0         0         0    100%    100%
+ 1024  FRESH   2          2         0         0         0         0    100%    100%
+
+recall accuracy (exact match against the frozen key; right = CORRECT + ABSTAINED): accuracy = right / N; parsed-only = right / parsed replies (conditional, shown separately). memory 0 = unknown-answer baseline: nothing to recall, not comparable to recall at memory > 0
+  mem   mode   N    CORRECT ABSTAINED    MISSED     STALE DISTRACTO     WRONG UNSUPPORT MALFORMED     EMPTY     ERROR   acc  parsed
+    0 CACHED   2          0         2         0         0         0         0         0         0         0         0  100%    100%  baseline
+    0  FRESH   2          0         2         0         0         0         0         0         0         0         0  100%    100%  baseline
+ 1024 CACHED   2          2         0         0         0         0         0         0         0         0         0  100%    100%
+ 1024  FRESH   2          2         0         0         0         0         0         0         0         0         0  100%    100%
+
+blocks: seq rnd mem mode | load s | PSS peak / HWM / RSS end MiB | min avail MiB, max swap MiB | skin degC/status start -> end | battery % degC | X1 cap MHz, X1 top | VALID or INVALID (measurement)
+   0 0    0 FRESH  | 5.0 | 37/3823/3603 | 3633, 2034 | 29.23/0 -> 30.36/0 | 94 28.8 | 2850, 40% | VALID
+   1 0 1024 CACHED | 4.1 | 4014/4191/4019 | 2612, 2166 | 30.36/0 -> 33.79/0 | 94 29.2 | 2850, 9% | INVALID: READING_INVALID end: policy6 cap 2850000 -> 2802000; SAMPLE_INVALID sample t 15.001: policy6 cap 2850000 -> 2401000; SAMPLE_GAP valid samples leave gaps [26.1] s (> 20 s or out of order; block start to first sample, between samples, last sample to sampling end)
+   2 0 1024 FRESH  | 3.7 | 4143/4258/3993 | 2681, 2272 | 33.79/0 -> 37.30/0 | 94 29.0 | 2850, 1% | INVALID: READING_INVALID end: policy4 cap 2348000 -> 2253000; READING_INVALID end: policy6 cap 2850000 -> 2401000; SAMPLE_INVALID sample t 0.002: policy6 cap 2850000 -> 2802000; SAMPLE_INVALID sample t 15.001: policy6 cap 2850000 -> 2188000; SAMPLE_INVALID sample t 30.001: policy6 cap 2850000 -> 2188000; SAMPLE_INVALID sample t 45.001: policy6 cap 2850000 -> 2188000; SAMPLE_INVALID sample t 60.001: policy4 cap 2348000 -> 1999000; sample t 60.001: policy6 cap 2850000 -> 851000; SAMPLES_EMPTY no valid samples within the sampling interval (5 recorded)
+   3 0    0 CACHED | 3.9 | 35/4310/4310 | 4345, 2247 | 37.30/0 -> 36.96/0 | 93 29.7 | 2630, 0% | INVALID: READING_INVALID end: policy6 cap 2630000 -> 2401000
+  model load: first block 5.0 s (page cache not dropped), later median 3.9 s
+
+telemetry (asynchronous sampler, 15 s period, requested cores [0, 1, 2, 3] nice 10; its own measured cost, NOT a measurement of its effect on inference):
+  seq | samples failed/attempts, dropped, missed slots | interval med/max s | duration med/max s | su s total/max | CPU s sampler thread + root shells | sampling overlap with requests s (requests touched/all) | with the model load s | thread cpus/nice obtained | root shell cpus/nice obtained
+   0 | 0/1, 0, 0 | n/a/n/a | 0.31/0.31 | 0.30/0.30 | 0.009 + 0.15 | 0.00 (0/3) | 0.31 | [0, 1, 2, 3]/10 | 0-3/10
+   1 | 1/2, 0, 0 | 15.0/15.0 | 0.37/0.47 | 0.74/0.47 | 0.013 + 0.48 | 0.47 (1/3) | 0.27 | [0, 1, 2, 3]/10 | 0-3/10
+   2 | 5/5, 0, 0 | 15.0/15.0 | 0.59/0.61 | 2.57/0.60 | 0.038 + 1.80 | 2.31 (3/3) | 0.29 | [0, 1, 2, 3]/10 | 0-3/10
+   3 | 0/1, 0, 0 | n/a/n/a | 0.28/0.28 | 0.28/0.28 | 0.007 + 0.15 | 0.00 (0/3) | 0.28 | [0, 1, 2, 3]/10 | 0-3/10
+  all blocks: su 3.9 s wall, sampler CPU 0.07 s + root shells 2.6 s (system_server's dumpsys work not attributable) over 120 s of server time
+
+comparisons (median prompt ms, wall s and gen t/s ratios, shown only when COMPARABLE):
+  FRESH mem 1024 / mem 0: NOT COMPARABLE ['ENV_INVALID', 'ENV_UNMATCHED', 'SMOKE_LAUNCH']: SMOKE_LAUNCH smoke launch; ENV_INVALID blocks ['2'] INVALID; ENV_UNMATCHED skin 29.23-37.30 degC over the blocks (> 1.0 apart); ENV_UNMATCHED CPU caps differ {'policy4': [1999000, 2253000, 2348000], 'policy6': [851000, 2188000, 2401000, 2802000, 2850000]}
+  FIRST mem 1024 / mem 0: NOT COMPARABLE ['ENV_INVALID', 'ENV_UNMATCHED', 'SMOKE_LAUNCH']: SMOKE_LAUNCH smoke launch; ENV_INVALID blocks ['1', '3'] INVALID; ENV_UNMATCHED skin 30.36-37.30 degC over the blocks (> 1.0 apart); ENV_UNMATCHED CPU caps differ {'policy4': [2253000, 2348000], 'policy6': [2401000, 2630000, 2802000, 2850000]}
+  CACHED mem 1024 / mem 0: NOT COMPARABLE ['ENV_INVALID', 'ENV_UNMATCHED', 'SMOKE_LAUNCH']: SMOKE_LAUNCH smoke launch; ENV_INVALID blocks ['1', '3'] INVALID; ENV_UNMATCHED skin 30.36-37.30 degC over the blocks (> 1.0 apart); ENV_UNMATCHED CPU caps differ {'policy4': [2253000, 2348000], 'policy6': [2401000, 2630000, 2802000, 2850000]}
+  mem 0 CACHED / FRESH: NOT COMPARABLE ['ENV_INVALID', 'ENV_UNMATCHED', 'SMOKE_LAUNCH']: SMOKE_LAUNCH smoke launch; ENV_INVALID blocks ['3'] INVALID; ENV_UNMATCHED skin 29.23-37.30 degC over the blocks (> 1.0 apart); ENV_UNMATCHED CPU caps differ {'policy4': [2253000, 2348000], 'policy6': [2401000, 2630000, 2850000]}
+  mem 1024 CACHED / FRESH: NOT COMPARABLE ['ENV_INVALID', 'ENV_UNMATCHED', 'SMOKE_LAUNCH']: SMOKE_LAUNCH smoke launch; ENV_INVALID blocks ['1', '2'] INVALID; ENV_UNMATCHED skin 30.36-37.30 degC over the blocks (> 1.0 apart); ENV_UNMATCHED CPU caps differ {'policy4': [1999000, 2253000, 2348000], 'policy6': [851000, 2188000, 2401000, 2802000, 2850000]}
+
+end: all blocks done; agents at end: none; port 8080 free: True
