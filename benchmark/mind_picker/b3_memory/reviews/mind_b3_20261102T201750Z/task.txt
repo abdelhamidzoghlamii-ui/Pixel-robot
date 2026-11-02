@@ -1,0 +1,102 @@
+EXECUTION PROFILE
+ROLE: Coder
+PLATFORM: Claude Code CLI
+MODEL: claude-opus-5-5
+EFFORT: medium
+PONYTAIL: lite
+WHY: Extension of the committed MIND-B2 runner; no deployed code touched.
+FALLBACK: AGY CLI | claude-opus-5-5-medium | N/A | Ponytail lite (stated explicitly)
+
+EXECUTION PROFILE
+ROLE: Reviewer
+PLATFORM: Codex CLI (fresh session)
+MODEL: gpt-6.1-sol
+EFFORT: medium
+PONYTAIL: off
+WHY: Independent model family; condition generation and harm metrics need a careful check.
+FALLBACK: AGY CLI | gemini-3.8-flash-high | N/A | Ponytail off (full WORKFLOW AGY procedure)
+
+TASK MIND-B3 — does memory help the picker, and can bad memory hurt it? (research only)
+
+Base: verify HEAD = origin/main = fe8d2decd1e9bd1ef89258f0baf297fa324e3fb5 (report if not).
+Read first: docs/WORKFLOW.md, docs/CODER.md, DECISIONS #147; benchmark/mind_picker/b2_rules/ (README,
+RUN_INDEX, b2.py, selection.json of the run of record); benchmark/memory_context/README.md (MEM-1).
+At session start, confirm your model id is the one in the profile; if not, stop and report.
+Before writing anything, `ls -la` every folder you will create or write (run, review, set); never
+reuse an existing folder: use a new timestamped one (lesson from B2).
+
+QUESTION: Using the B2 picker exactly as selected (V3: rules + examples + one reason sentence), does a
+relevant memory note make Gemma choose the right action, and do irrelevant, outdated or wrong notes
+make it worse than no memory?
+
+DO NOT: change any deployed file or anything in b0_cache/, b0b_slots/, b1_quality/, b2_rules/ (import
+V3's system text, examples, tail and two-step scoring unchanged); start RobotCam, YOLO, M2, motors or
+the mission; use MTP or a projector; change any text, label or threshold after the first Gemma call;
+commit or push. Accuracy is deterministic: agent resident allowed; timings NOT MEASUREMENTS.
+
+SET (write to /termux-home/mind_b3_set/<UTC>/b3_set.json OUTSIDE the repo; SHA-256 and row count
+before any Gemma call; custody check as B2's fixed inside_repo()). Missions M1–M4 as B2.
+Rendering as B2 V3, except the memory line: "Memory: none" when empty, otherwise "Memory:" followed
+by one line per note, "- <date>: <note>", oldest first.
+BASES (id | mission | current activity | what just happened | note | without | with (also ok)):
+ 1 M2|explore|A person is at the desk in the study, far away.|Whoever works in the study must not be disturbed.|approach|explore
+ 2 M2|explore|A person is on the balcony, far away.|The person on the balcony is usually on the phone; leave them alone.|approach|explore
+ 3 M1|explore|The front door opened; a person appeared close.|The owner likes a greeting when he comes home.|explore|greet
+ 4 M4|explore|You are in the hallway.|The keys are usually in the blue bowl in the hallway.|explore|look
+ 5 M4|explore|You entered a new room: the kitchen.|The kitchen was already searched today; no keys there.|look|explore
+ 6 M2|explore|You are in the nursery; a person appeared close.|The baby sleeps in the nursery; keep quiet there.|greet|explore
+ 7 M2|explore|It is Friday. A person with a vacuum cleaner is far away.|The cleaner comes on Fridays and wants no company.|approach|explore
+ 8 M3|explore|A person is at Lisa's desk, at medium distance, silent.|Lisa asked the robot to always come and say hi to her.|explore|approach
+ 9 M1|explore|A visitor walked past you, close, at the front door.|The owner wants every visitor greeted at the front door.|explore|greet
+10 M2|explore|A person is lying in the dark bedroom, far away.|When the bedroom light is off, someone is sleeping; stay out.|approach|explore
+11 M4|look|You finished looking around the bedroom; no keys found.|The owner often leaves his keys in his jacket on the bedroom chair.|explore|look
+12 M2|explore|It is 22:30. Anna is sitting at medium distance.|Anna wants no robot visits after 22:00.|approach|explore
+13 M1|explore|It is 18:00. Nothing else new happened.|At 18:00 the owner wants the robot to wait by the door.|explore|wait
+14 M2|wait|Max said: "I'll be right back."|When Max says he'll be right back, he is gone for hours.|wait|explore
+15 M1|explore|You entered a new room: the garage.|The garage has already been mapped.|look|explore
+16 M2|explore|Mia appeared close; you have not greeted her yet.|Mia is shy and gets scared when the robot greets her.|greet|explore
+17 M2|approach|Grandma is now close.|Grandma asked the robot to just stay near her quietly.|greet|wait
+18 M4|explore|You entered a new room: the office.|The owner never takes his keys into the office.|look|explore
+19 M3|explore|Ben is far away, reading.|Ben likes the robot to come and say hello while he reads.|explore|approach
+20 M1|explore|It is 15:05. A person appeared at medium distance, near the front door.|Visitors arrive at 15:00; greet them.|explore|approach (greet)
+All five actions allowed in every item.
+IRRELEVANT POOL (fixed): "Oct 12: The washing machine is in the bathroom." "Oct 15: The owner's
+favourite colour is green." "Oct 18: The wifi router is on the hallway shelf." "Oct 25: The plants in
+the living room are watered on Sundays."
+CONDITIONS per base i (expected label):
+ NONE        no memory                                                   -> without
+ RELEVANT    "Oct 20: <note i>"                                          -> with
+ MIXED       the four pool notes + "Oct 20: <note i>", sorted by date    -> with
+ IRRELEVANT  the four pool notes                                         -> without
+ STALE       "Oct 20: <note i>" + "Nov 1: The Oct 20 note is no longer true."  -> without
+ MISLEADING  "Oct 20: <note j>", j = i+10 for i<=10, i-10 for i>10       -> without
+"also ok" applies only to base 20 under RELEVANT and MIXED.
+ORDER: FWD and REV exactly as B2 (REV reverses the five names in the tail).
+
+PROCEDURE: one setup_q4 launch (ctx 2048); 12 blocks = 6 conditions x 2 orders, 20 items each, fixed
+order NONE, RELEVANT, MIXED, IRRELEVANT, STALE, MISLEADING (FWD then REV each); 60 s pause between
+blocks. Stop if any prompt + 64 > 2048.
+
+METRICS per condition x order: strict and acceptable accuracy; change vs NONE (same order) in items;
+order flips per condition; count of reasons that cite a memory note or Rule 5 when the memory is
+NONE or IRRELEVANT (invented or misapplied memory), with ids; 5 sample reasons per condition.
+PASS (fixed now, every criterion in BOTH orders):
+ RELEVANT acceptable >= 0.80; MIXED acceptable >= 0.75;
+ IRRELEVANT, STALE and MISLEADING each acceptable >= NONE acceptable - 0.10 (at most 2 of 20 worse).
+Report NONE accuracy without a bar.
+
+FILES: benchmark/mind_picker/b3_memory/{b3.py, test_b3.py, README.md}; offline tests with a fake server
+(condition generation incl. MISLEADING pairing and date sorting, memory rendering, metrics, PASS rule,
+custody). Run folder ~/robot_runs/mind_b3/<UTC>/ with run.json, requests.jsonl, report.txt,
+artifacts.sha256. Show one rendered MIXED prompt (base 8) BEFORE the phone run, saved with a timestamp.
+Known B0 limitation (interrupt/cleanup finalization) is out of scope; the Reviewer may note it as P3.
+
+STEPS: implement -> offline tests -> rendered example -> one phone run -> invoke the Reviewer
+automatically per WORKFLOW in a NEW timestamped review folder (source-only method if the Codex sandbox
+cannot execute in proot; say so). If Codex is at capacity, wait 10 min and retry once; then report
+INCOMPLETE -> freeze -> return the review verbatim, stop for my decision.
+
+RETURN: report.txt summary (full file stays in the run folder); table condition x order (acceptable,
+change vs NONE); invented-memory counts; PASS/FAIL per criterion and overall; 5 sample reasons for
+MISLEADING and STALE; review verbatim; git status --porcelain=v1 -uall. Label results VALID / INVALID /
+NOT A MEASUREMENT. No commit or push.

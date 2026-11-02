@@ -1,0 +1,1 @@
+cd /termux-home/robot && git rev-parse HEAD origin/main && git ls-remote origin refs/heads/main && git stash list && git status --porcelain=v1 -uall && sha256sum benchmark/mind_picker/b3_memory/* /termux-home/mind_b3_set/20261102T193300Z/b3_set.json /termux-home/robot_runs/mind_b3/20261102T193348Z/* && ls -A /termux-home/review/mind_b3_20261102T201750Z/empty_cwd

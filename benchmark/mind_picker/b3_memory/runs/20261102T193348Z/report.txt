@@ -1,0 +1,519 @@
+MIND-B3 20261102T193348Z  code bcead2d63123  b2 c5f0b2b42162  base fe8d2decd1e9bd1ef89258f0baf297fa324e3fb5
+SET 156542981e89e7afd0a2b833faf989449b9c11cc750b73fddf16f3a0cf4217ab (120 rows, /data/data/com.termux/files/home/mind_b3_set/20261102T193300Z/b3_set.json)
+server: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1
+n_ctx 2048; longest prompt 914 tokens; name first-token ids {'explore': 11327, 'approach': 4313, 'greet': 28197, 'look': 1385, 'wait': 4491}
+ACCURACY VALID (temperature 0; 240/240 rows; one server PID; exit 0; set hash unchanged)
+* timings NOT MEASUREMENTS (agent resident allowed)
+block NONE V3-FWD: 178.5 s*
+block NONE V3-REV: 152.7 s*
+block RELEVANT V3-FWD: 119.3 s*
+block RELEVANT V3-REV: 104.6 s*
+block MIXED V3-FWD: 154.4 s*
+block MIXED V3-REV: 156.9 s*
+block IRRELEVANT V3-FWD: 215.0 s*
+block IRRELEVANT V3-REV: 175.1 s*
+block STALE V3-FWD: 213.7 s*
+block STALE V3-REV: 209.6 s*
+block MISLEADING V3-FWD: 152.4 s*
+block MISLEADING V3-REV: 98.6 s*
+
+condition    order  strict  acceptable  change vs NONE (items)  flips
+NONE         FWD    14/20   14/20 0.700  +0                      1 [3]
+NONE         REV    14/20   14/20 0.700  +0
+RELEVANT     FWD     7/20    7/20 0.350  -7                      5 [2, 3, 10, 12, 19]
+RELEVANT     REV     6/20    6/20 0.300  -8
+MIXED        FWD     6/20    6/20 0.300  -8                      2 [10, 12]
+MIXED        REV     5/20    5/20 0.250  -9
+IRRELEVANT   FWD    12/20   12/20 0.600  -2                      5 [3, 7, 11, 14, 15]
+IRRELEVANT   REV    15/20   15/20 0.750  +1
+STALE        FWD     9/20    9/20 0.450  -5                      6 [2, 3, 7, 10, 14, 15]
+STALE        REV    12/20   12/20 0.600  -2
+MISLEADING   FWD    14/20   14/20 0.700  +0                      2 [3, 11]
+MISLEADING   REV    14/20   14/20 0.700  +0
+
+reasons citing a memory note or Rule 5 (regex '\\bmemor(y|ies)\\b|\\bnotes?\\b|\\bremember|\\brule\\s*5\\b') under NONE and IRRELEVANT (invented or misapplied memory):
+  NONE FWD: 1 [14]
+    14: 'Rule 5 applies because there is no specific instruction in the memory notes regarding Max.'
+  NONE REV: 1 [14]
+    14: 'Rule 5 applies because there is no specific instruction in the memory notes regarding Max.'
+  IRRELEVANT FWD: 0 []
+  IRRELEVANT REV: 0 []
+
+PASS rule (every criterion in both orders):
+  RELEVANT FWD acceptable >= 0.80: FAIL
+  MIXED FWD acceptable >= 0.75: FAIL
+  IRRELEVANT FWD acceptable >= NONE - 0.10: PASS
+  STALE FWD acceptable >= NONE - 0.10: FAIL
+  MISLEADING FWD acceptable >= NONE - 0.10: PASS
+  RELEVANT REV acceptable >= 0.80: FAIL
+  MIXED REV acceptable >= 0.75: FAIL
+  IRRELEVANT REV acceptable >= NONE - 0.10: PASS
+  STALE REV acceptable >= NONE - 0.10: PASS
+  MISLEADING REV acceptable >= NONE - 0.10: PASS
+  overall: FAIL
+  NONE acceptable (no bar): FWD 14/20, REV 14/20
+
+sample reasons (FWD, ids [1, 5, 9, 13, 17]; id: top (label) | reason):
+  NONE
+    1: approach (approach) | 'Rule 12 applies because the mission is about people and the person is far away.'
+    5: look (look) | 'Rule 11: The robot entered a new room.'
+    9: approach (explore) | 'Rule 12 applies because the mission is about exploring and the visitor is a close person not yet greeted.'
+    13: explore (explore) | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+    17: greet (greet) | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  RELEVANT
+    1: explore (explore) | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away, but the memory note states that whoever works in the study must not be disturbed.'
+    5: look (explore) | 'Rule 11: The robot entered a new room.'
+    9: greet (greet) | "Rule 3 fits because someone said hello or greeted the robot (implied by walking past, which often triggers a greeting protocol for visitors, and the memory note reinforces the owner's desire to greet visitors)."
+    13: explore (wait) | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+    17: greet (wait) | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  MIXED
+    1: explore (explore) | 'Rule 6 applies because the mission is to find people and keep them company, and the memory note states that whoever works in the study must not be disturbed.'
+    5: look (explore) | 'Rule 11: The robot entered a new room.'
+    9: greet (greet) | 'Rule 3 fits because someone said hello or greeted the robot (implied by a visitor walking past, which often warrants a greeting based on memory).'
+    13: explore (wait) | 'Rule 13 applies as no specific condition for other rules is met.'
+    17: greet (wait) | 'Rule 12 applies because Grandma is a close person not yet greeted.'
+  IRRELEVANT
+    1: approach (approach) | 'Rule 12 applies because the mission is about people and the person is far away.'
+    5: look (look) | 'Rule 11: The robot entered a new room.'
+    9: approach (explore) | 'Rule 12 applies because the mission is to explore and map the flat, and the visitor is a close person not yet greeted.'
+    13: explore (explore) | 'Rule 13 applies as no specific condition for other rules is met.'
+    17: greet (greet) | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  STALE
+    1: explore (approach) | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away, but the memory note suggests not disturbing them.'
+    5: look (look) | 'Rule 11: The robot entered a new room.'
+    9: greet (explore) | 'Rule 3 fits because someone said hello or greeted the robot (implied by walking past, which often triggers a greeting protocol, and the memory note suggests greetings are important).'
+    13: explore (explore) | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+    17: greet (greet) | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  MISLEADING
+    1: approach (approach) | 'Rule 12 applies because the mission is about people and the person is far away.'
+    5: look (look) | 'Rule 11: The robot entered a new room.'
+    9: greet (explore) | 'Rule 3 fits because someone said hello to the robot.'
+    13: explore (explore) | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+    17: greet (greet) | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+
+per item: id  label (also ok)  FWD top p | REV top p
+  NONE
+    1   approach           approach 1.00   approach 1.00
+    2   approach           approach 1.00   approach 1.00
+    3   explore            approach 0.95   greet 0.71
+    4   explore            look 0.96       look 0.99
+    5   look               look 0.87       look 0.99
+    6   greet              greet 0.95      greet 0.99
+    7   approach           explore 1.00    explore 1.00
+    8   explore            explore 1.00    explore 0.98
+    9   explore            approach 0.80   approach 0.83
+    10  approach           approach 0.99   approach 1.00
+    11  explore            look 0.81       look 0.94
+    12  approach           approach 1.00   approach 1.00
+    13  explore            explore 1.00    explore 0.99
+    14  wait               wait 0.58       wait 0.98
+    15  look               look 0.56       look 0.99
+    16  greet              greet 0.99      greet 1.00
+    17  greet              greet 0.99      greet 1.00
+    18  look               look 0.89       look 0.99
+    19  explore            explore 1.00    explore 0.99
+    20  explore            approach 0.98   approach 0.99
+  RELEVANT
+    1   explore            explore 0.98    explore 0.71
+    2   explore            explore 0.62    wait 0.85
+    3   greet              approach 0.91   greet 0.72
+    4   look               explore 1.00    explore 0.98
+    5   explore            look 0.88       look 0.99
+    6   explore            greet 0.90      greet 0.98
+    7   explore            explore 1.00    explore 1.00
+    8   approach           explore 1.00    explore 0.98
+    9   greet              greet 0.94      greet 0.98
+    10  explore            explore 0.77    wait 0.87
+    11  look               look 0.86       look 0.93
+    12  explore            approach 0.99   wait 0.59
+    13  wait               explore 1.00    explore 0.99
+    14  explore            wait 0.44       wait 0.95
+    15  explore            look 0.52       look 0.99
+    16  explore            greet 0.95      greet 0.99
+    17  wait               greet 0.96      greet 0.99
+    18  explore            look 0.88       look 0.99
+    19  approach           explore 0.65    wait 0.34
+    20  approach (greet)   approach 0.97   approach 0.99
+  MIXED
+    1   explore            explore 0.99    explore 0.87
+    2   explore            wait 0.45       wait 0.87
+    3   greet              approach 0.97   approach 0.76
+    4   look               explore 1.00    explore 0.96
+    5   explore            look 0.89       look 0.99
+    6   explore            greet 0.69      greet 0.94
+    7   explore            explore 1.00    explore 0.95
+    8   approach           explore 1.00    explore 0.99
+    9   greet              greet 0.98      greet 0.98
+    10  explore            explore 0.98    wait 0.73
+    11  look               look 0.55       look 0.86
+    12  explore            approach 0.48   wait 0.49
+    13  wait               explore 1.00    explore 0.99
+    14  explore            wait 0.50       wait 0.95
+    15  explore            look 0.98       look 1.00
+    16  explore            greet 0.90      greet 0.93
+    17  wait               greet 0.96      greet 0.99
+    18  explore            look 0.92       look 0.99
+    19  approach           explore 1.00    explore 0.99
+    20  approach (greet)   approach 1.00   approach 1.00
+  IRRELEVANT
+    1   approach           approach 1.00   approach 1.00
+    2   approach           approach 1.00   approach 1.00
+    3   explore            approach 0.81   greet 0.72
+    4   explore            look 0.96       look 0.99
+    5   look               look 0.87       look 0.99
+    6   greet              greet 0.82      greet 0.96
+    7   approach           explore 0.60    approach 0.69
+    8   explore            explore 1.00    explore 0.99
+    9   explore            approach 0.92   approach 0.58
+    10  approach           approach 0.99   approach 1.00
+    11  explore            look 0.90       wait 1.00
+    12  approach           approach 1.00   approach 1.00
+    13  explore            explore 1.00    explore 1.00
+    14  wait               explore 0.99    wait 1.00
+    15  look               explore 0.87    look 1.00
+    16  greet              greet 0.96      greet 0.99
+    17  greet              greet 0.98      greet 0.99
+    18  look               look 0.99       look 1.00
+    19  explore            explore 1.00    explore 0.99
+    20  explore            approach 0.99   approach 1.00
+  STALE
+    1   approach           explore 0.96    explore 0.81
+    2   approach           explore 1.00    wait 0.82
+    3   explore            approach 0.87   greet 0.83
+    4   explore            look 0.95       look 0.93
+    5   look               look 0.74       look 0.99
+    6   greet              greet 0.74      greet 0.95
+    7   approach           explore 0.89    approach 0.62
+    8   explore            explore 1.00    explore 0.99
+    9   explore            greet 0.94      greet 0.98
+    10  approach           explore 0.77    wait 0.82
+    11  explore            look 0.70       look 0.93
+    12  approach           approach 1.00   approach 1.00
+    13  explore            explore 1.00    explore 0.99
+    14  wait               explore 0.46    wait 0.93
+    15  look               explore 0.92    look 1.00
+    16  greet              greet 0.92      greet 0.98
+    17  greet              greet 0.95      greet 0.98
+    18  look               look 0.80       look 0.99
+    19  explore            explore 1.00    explore 0.99
+    20  explore            approach 0.96   approach 0.99
+  MISLEADING
+    1   approach           approach 1.00   approach 1.00
+    2   approach           approach 1.00   approach 1.00
+    3   explore            approach 0.76   greet 0.87
+    4   explore            look 0.94       look 0.99
+    5   look               look 0.84       look 0.99
+    6   greet              greet 0.94      greet 0.98
+    7   approach           explore 1.00    explore 0.99
+    8   explore            explore 1.00    explore 0.98
+    9   explore            greet 1.00      greet 1.00
+    10  approach           approach 0.99   approach 1.00
+    11  explore            look 0.87       wait 1.00
+    12  approach           approach 0.99   approach 1.00
+    13  explore            explore 1.00    explore 0.99
+    14  wait               wait 0.42       wait 0.91
+    15  look               look 0.71       look 0.99
+    16  greet              greet 0.97      greet 0.99
+    17  greet              greet 0.98      greet 0.99
+    18  look               look 0.94       look 0.99
+    19  explore            explore 1.00    explore 0.99
+    20  explore            approach 0.98   approach 0.99
+
+all reasons (condition order id: top | stop | reason):
+  NONE FWD 1   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  NONE FWD 2   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  NONE FWD 3   approach word | 'Rule 12 applies because the mission is about exploring and the person is close.'
+  NONE FWD 4   look     word | 'Rule 11: The robot entered a new room.'
+  NONE FWD 5   look     word | 'Rule 11: The robot entered a new room.'
+  NONE FWD 6   greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  NONE FWD 7   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away, so the robot should explore.'
+  NONE FWD 8   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  NONE FWD 9   approach word | 'Rule 12 applies because the mission is about exploring and the visitor is a close person not yet greeted.'
+  NONE FWD 10  approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  NONE FWD 11  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  NONE FWD 12  approach word | 'Rule 12 applies because the mission is about people and Anna is at a medium distance.'
+  NONE FWD 13  explore  word | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+  NONE FWD 14  wait     word | 'Rule 5 applies because there is no specific instruction in the memory notes regarding Max.'
+  NONE FWD 15  look     word | 'Rule 11: The robot entered a new room.'
+  NONE FWD 16  greet    word | 'Rule 12 applies because the mission is about people and Mia is a close person not yet greeted.'
+  NONE FWD 17  greet    word | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  NONE FWD 18  look     word | 'Rule 11: The robot entered a new room.'
+  NONE FWD 19  explore  word | 'Rule 6 applies because the mission is quiet and Ben has not invited the robot.'
+  NONE FWD 20  approach word | 'Rule 12 applies because the mission is about exploring and the person is at a medium distance.'
+  NONE REV 1   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  NONE REV 2   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  NONE REV 3   greet    word | 'Rule 12 applies because the mission is about exploring and the person is close.'
+  NONE REV 4   look     word | 'Rule 11: The robot entered a new room.'
+  NONE REV 5   look     word | 'Rule 11: The robot entered a new room.'
+  NONE REV 6   greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  NONE REV 7   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away, so the robot should explore.'
+  NONE REV 8   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  NONE REV 9   approach word | 'Rule 12 applies because the mission is about exploring and the person is close.'
+  NONE REV 10  approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  NONE REV 11  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  NONE REV 12  approach word | 'Rule 12 applies because the mission is about people and Anna is at a medium distance.'
+  NONE REV 13  explore  word | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+  NONE REV 14  wait     word | 'Rule 5 applies because there is no specific instruction in the memory notes regarding Max.'
+  NONE REV 15  look     word | 'Rule 11: The robot entered a new room.'
+  NONE REV 16  greet    word | 'Rule 12 applies because the mission is about people and Mia is a close person not yet greeted.'
+  NONE REV 17  greet    word | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  NONE REV 18  look     word | 'Rule 11: The robot entered a new room.'
+  NONE REV 19  explore  word | 'Rule 6 applies because the mission is quiet and Ben has not invited the robot.'
+  NONE REV 20  approach word | 'Rule 12 applies because the mission is about exploring and the person is at a medium distance.'
+  RELEVANT FWD 1   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away, but the memory note states that whoever works in the study must not be disturbed.'
+  RELEVANT FWD 2   explore  word | 'Rule 5 applies because there is a memory note about the person on the balcony.'
+  RELEVANT FWD 3   approach word | 'Rule 12 applies because the mission is about exploring and the person is close.'
+  RELEVANT FWD 4   explore  word | 'Rule 6 applies because the mission is about finding an object, and there is no specific instruction to approach or greet anyone.'
+  RELEVANT FWD 5   look     word | 'Rule 11: The robot entered a new room.'
+  RELEVANT FWD 6   greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  RELEVANT FWD 7   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away, suggesting a quiet exploration is appropriate unless an invitation is given.'
+  RELEVANT FWD 8   explore  word | 'Rule 6: Quiet mission: do not approach or greet a person who has not invited the robot; explore.'
+  RELEVANT FWD 9   greet    word | "Rule 3 fits because someone said hello or greeted the robot (implied by walking past, which often triggers a greeting protocol for visitors, and the memory note reinforces the owner's desire to greet visitors)."
+  RELEVANT FWD 10  explore  word | 'Rule 5 applies because there is a memory note about the bedroom light being off and someone sleeping there.'
+  RELEVANT FWD 11  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  RELEVANT FWD 12  approach word | 'Rule 12 applies because the mission is about people and Anna is at a medium distance.'
+  RELEVANT FWD 13  explore  word | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+  RELEVANT FWD 14  wait     word | 'Rule 5 applies because there is a memory note about Max.'
+  RELEVANT FWD 15  look     word | 'Rule 11: The robot entered a new room.'
+  RELEVANT FWD 16  greet    word | 'Rule 12 applies because the mission is about people and Mia is a close person not yet greeted.'
+  RELEVANT FWD 17  greet    word | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  RELEVANT FWD 18  look     word | 'Rule 11: The robot entered a new room.'
+  RELEVANT FWD 19  explore  word | 'Rule 5 applies because there is a memory note about Ben.'
+  RELEVANT FWD 20  approach word | 'Rule 12 applies because the mission is to explore and map the flat, and the person is at a medium distance.'
+  RELEVANT REV 1   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is at a far distance, but the memory note states that whoever works in the study must not be disturbed.'
+  RELEVANT REV 2   wait     word | 'Rule 5 applies because there is a memory note about the person on the balcony.'
+  RELEVANT REV 3   greet    word | 'Rule 12 applies because the mission is about exploring and mapping, and the person is close.'
+  RELEVANT REV 4   explore  word | 'Rule 13 applies.'
+  RELEVANT REV 5   look     word | 'Rule 11: The robot entered a new room.'
+  RELEVANT REV 6   greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  RELEVANT REV 7   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away, suggesting a quiet exploration is appropriate unless an invitation is given.'
+  RELEVANT REV 8   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  RELEVANT REV 9   greet    word | "Rule 3 fits because someone said hello or greeted the robot (implied by walking past, which often triggers a greeting protocol for visitors, and the memory note reinforces the owner's desire to greet visitors)."
+  RELEVANT REV 10  wait     word | 'Rule 5 applies because there is a memory note about the bedroom light being off and someone sleeping there.'
+  RELEVANT REV 11  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  RELEVANT REV 12  wait     word | 'Rule 5 applies because there is a memory note about Anna.'
+  RELEVANT REV 13  explore  word | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+  RELEVANT REV 14  wait     word | 'Rule 5 applies because there is a memory note about Max.'
+  RELEVANT REV 15  look     word | 'Rule 11: The robot entered a new room.'
+  RELEVANT REV 16  greet    word | 'Rule 12 applies because the mission is about people and Mia is a close person not yet greeted.'
+  RELEVANT REV 17  greet    word | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  RELEVANT REV 18  look     word | 'Rule 11: The robot entered a new room.'
+  RELEVANT REV 19  wait     word | 'Rule 5 applies because there is a memory note about Ben.'
+  RELEVANT REV 20  approach word | 'Rule 12 applies because the mission is to explore and map the flat, and the person is at a medium distance.'
+  MIXED FWD 1   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the memory note states that whoever works in the study must not be disturbed.'
+  MIXED FWD 2   wait     word | 'Rule 5 applies because there is a memory note about the person on the balcony.'
+  MIXED FWD 3   approach word | 'Rule 12 applies because the mission is about exploring and the person is close.'
+  MIXED FWD 4   explore  word | 'Rule 13 applies as no specific rule dictates the next action for this situation.'
+  MIXED FWD 5   look     word | 'Rule 11: The robot entered a new room.'
+  MIXED FWD 6   greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  MIXED FWD 7   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is not inviting the robot.'
+  MIXED FWD 8   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  MIXED FWD 9   greet    word | 'Rule 3 fits because someone said hello or greeted the robot (implied by a visitor walking past, which often warrants a greeting based on memory).'
+  MIXED FWD 10  explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is in the dark bedroom, which implies they are not actively inviting the robot.'
+  MIXED FWD 11  look     word | 'Rule 10 applies because the person the robot was approaching (the owner, implied by the mission) is gone or the search area is exhausted.'
+  MIXED FWD 12  approach word | 'Rule 5 applies because there is a memory note about Anna.'
+  MIXED FWD 13  explore  word | 'Rule 13 applies as no specific condition for other rules is met.'
+  MIXED FWD 14  wait     word | 'Rule 5 applies because there is a memory note about Max.'
+  MIXED FWD 15  look     word | 'Rule 11 states that when the robot enters a new room, it should look around.'
+  MIXED FWD 16  greet    word | 'Rule 12 applies because Mia is a close person not yet greeted.'
+  MIXED FWD 17  greet    word | 'Rule 12 applies because Grandma is a close person not yet greeted.'
+  MIXED FWD 18  look     word | 'Rule 11: The robot entered a new room.'
+  MIXED FWD 19  explore  word | 'Rule 6 applies because the mission is quiet and Ben has not invited the robot.'
+  MIXED FWD 20  approach word | 'Rule 12 applies because a person is at medium distance.'
+  MIXED REV 1   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the memory note states that whoever works in the study must not be disturbed.'
+  MIXED REV 2   wait     word | 'Rule 5 applies because there is a memory note about the person on the balcony.'
+  MIXED REV 3   approach word | 'Rule 12 applies because the mission is about exploring and the person is close.'
+  MIXED REV 4   explore  word | 'Rule 13 applies as no specific rule dictates the next action for this situation.'
+  MIXED REV 5   look     word | 'Rule 11: The robot entered a new room.'
+  MIXED REV 6   greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  MIXED REV 7   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the memory note states the cleaner comes on Fridays and wants no company.'
+  MIXED REV 8   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  MIXED REV 9   greet    word | 'Rule 3 fits because someone said hello or greeted the robot (implied by a visitor walking past, which often warrants a greeting based on memory).'
+  MIXED REV 10  wait     word | 'Rule 5 applies because there is a memory note about the bedroom light being off and someone sleeping there.'
+  MIXED REV 11  look     word | 'Rule 10 applies because the person the robot was approaching (the owner, implied by the mission) is gone or the search area is exhausted.'
+  MIXED REV 12  wait     word | 'Rule 5 applies because there is a memory note about Anna.'
+  MIXED REV 13  explore  word | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+  MIXED REV 14  wait     word | 'Rule 5 applies because there is a memory note about Max.'
+  MIXED REV 15  look     word | 'Rule 11 states that when the robot enters a new room, it should look around.'
+  MIXED REV 16  greet    word | 'Rule 12 applies because Mia is a close person not yet greeted.'
+  MIXED REV 17  greet    word | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  MIXED REV 18  look     word | 'Rule 11: The robot entered a new room.'
+  MIXED REV 19  explore  word | 'Rule 6 applies because the mission is quiet and Ben has not invited the robot.'
+  MIXED REV 20  approach word | 'Rule 12 applies because a person is at medium distance.'
+  IRRELEVANT FWD 1   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  IRRELEVANT FWD 2   approach word | 'Rule 12 applies because the person is far away.'
+  IRRELEVANT FWD 3   approach word | 'Rule 12 applies because a person is close and not yet greeted.'
+  IRRELEVANT FWD 4   look     word | 'Rule 11: The robot entered a new room.'
+  IRRELEVANT FWD 5   look     word | 'Rule 11: The robot entered a new room.'
+  IRRELEVANT FWD 6   greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  IRRELEVANT FWD 7   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away.'
+  IRRELEVANT FWD 8   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  IRRELEVANT FWD 9   approach word | 'Rule 12 applies because the mission is to explore and map the flat, and the visitor is a close person not yet greeted.'
+  IRRELEVANT FWD 10  approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  IRRELEVANT FWD 11  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  IRRELEVANT FWD 12  approach word | 'Rule 12 applies because Anna is a medium person and the mission is about people.'
+  IRRELEVANT FWD 13  explore  word | 'Rule 13 applies as no specific condition for other rules is met.'
+  IRRELEVANT FWD 14  explore  word | 'Rule 7 applies because a person is busy and does not want the robot.'
+  IRRELEVANT FWD 15  explore  word | 'Rule 11 states that when the robot enters a new room, it should look around, and if the look-around is finished, it should explore.'
+  IRRELEVANT FWD 16  greet    word | 'Rule 12 applies because Mia is a close person not yet greeted.'
+  IRRELEVANT FWD 17  greet    word | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  IRRELEVANT FWD 18  look     word | 'Rule 11 states that when the robot enters a new room, it should look around.'
+  IRRELEVANT FWD 19  explore  word | 'Rule 6 applies because the mission is quiet and Ben is not inviting the robot.'
+  IRRELEVANT FWD 20  approach word | 'Rule 12 applies because a person is at a medium distance.'
+  IRRELEVANT REV 1   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  IRRELEVANT REV 2   approach word | 'Rule 12 applies because the person is far away.'
+  IRRELEVANT REV 3   greet    word | 'Rule 12 applies because a person is close and not yet greeted.'
+  IRRELEVANT REV 4   look     word | 'Rule 11: The robot entered a new room.'
+  IRRELEVANT REV 5   look     word | 'Rule 11: The robot entered a new room.'
+  IRRELEVANT REV 6   greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  IRRELEVANT REV 7   approach word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away.'
+  IRRELEVANT REV 8   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  IRRELEVANT REV 9   approach word | 'Rule 12 applies because the mission is to explore and map the flat, and the visitor is a close person not yet greeted.'
+  IRRELEVANT REV 10  approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  IRRELEVANT REV 11  wait     word | 'Rule 9 states that the mission or task is finished.'
+  IRRELEVANT REV 12  approach word | 'Rule 12 applies because Anna is a medium person and the mission is about people.'
+  IRRELEVANT REV 13  explore  word | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+  IRRELEVANT REV 14  wait     word | 'Rule 1 applies because someone asked the robot to stop, stay, wait, hold on or pause.'
+  IRRELEVANT REV 15  look     word | 'Rule 11 states that when the robot enters a new room, it should look around.'
+  IRRELEVANT REV 16  greet    word | 'Rule 12 applies because a close person has appeared and the robot has not yet greeted them.'
+  IRRELEVANT REV 17  greet    word | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  IRRELEVANT REV 18  look     word | 'Rule 11 states that when the robot enters a new room, it should look around.'
+  IRRELEVANT REV 19  explore  word | 'Rule 6 applies because the mission is quiet and Ben is not inviting the robot.'
+  IRRELEVANT REV 20  approach word | 'Rule 12 applies because a person is at a medium distance.'
+  STALE FWD 1   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away, but the memory note suggests not disturbing them.'
+  STALE FWD 2   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away, suggesting a quiet exploration is appropriate unless they invite the robot.'
+  STALE FWD 3   approach word | 'Rule 12 applies because the mission is about exploring and the person is close.'
+  STALE FWD 4   look     word | 'Rule 11: The robot entered a new room.'
+  STALE FWD 5   look     word | 'Rule 11: The robot entered a new room.'
+  STALE FWD 6   greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  STALE FWD 7   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away.'
+  STALE FWD 8   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  STALE FWD 9   greet    word | 'Rule 3 fits because someone said hello or greeted the robot (implied by walking past, which often triggers a greeting protocol, and the memory note suggests greetings are important).'
+  STALE FWD 10  explore  word | 'Rule 5 applies because there is a memory note about the person in the dark bedroom.'
+  STALE FWD 11  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  STALE FWD 12  approach word | 'Rule 12 applies because Anna is a medium person and the mission is about people.'
+  STALE FWD 13  explore  word | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+  STALE FWD 14  explore  word | 'Rule 5 applies because there is a memory note about Max.'
+  STALE FWD 15  explore  word | 'Rule 11 states that when the robot enters a new room, it should look around, and if the look-around is finished, it should explore.'
+  STALE FWD 16  greet    word | 'Rule 12 applies because the mission is about people and Mia is a close person not yet greeted.'
+  STALE FWD 17  greet    word | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  STALE FWD 18  look     word | 'Rule 11: The robot entered a new room.'
+  STALE FWD 19  explore  word | 'Rule 6 applies because the mission is quiet and Ben has not invited the robot.'
+  STALE FWD 20  approach word | 'Rule 12 applies because the mission is to explore and map the flat, and the person is at a medium distance.'
+  STALE REV 1   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is at a far distance, but the memory note suggests not disturbing them.'
+  STALE REV 2   wait     word | 'Rule 5 applies because there is a memory note about the person on the balcony.'
+  STALE REV 3   greet    word | 'Rule 12 applies because the mission is about exploring and the person is close and not yet greeted.'
+  STALE REV 4   look     word | 'Rule 10: The person the robot was approaching is gone.'
+  STALE REV 5   look     word | 'Rule 11: The robot entered a new room.'
+  STALE REV 6   greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  STALE REV 7   approach word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away.'
+  STALE REV 8   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  STALE REV 9   greet    word | 'Rule 3 fits because someone said hello or greeted the robot (implied by walking past, which often triggers a greeting protocol, and the memory suggests greetings are important).'
+  STALE REV 10  wait     word | 'Rule 5 applies because there is a memory note about the bedroom light being off.'
+  STALE REV 11  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  STALE REV 12  approach word | 'Rule 12 applies because the mission is about people and Anna is at a medium distance.'
+  STALE REV 13  explore  word | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+  STALE REV 14  wait     word | 'Rule 5 applies because there is a memory note about Max.'
+  STALE REV 15  look     word | 'Rule 11 states that when the robot enters a new room, it should look around.'
+  STALE REV 16  greet    word | 'Rule 12 applies because the mission is about people and Mia is a close person not yet greeted.'
+  STALE REV 17  greet    word | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  STALE REV 18  look     word | 'Rule 11: The robot entered a new room.'
+  STALE REV 19  explore  word | 'Rule 6 applies because the mission is quiet and Ben has not invited the robot.'
+  STALE REV 20  approach word | 'Rule 12 applies because the mission is to explore and map the flat, and a person is at medium distance.'
+  MISLEADING FWD 1   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  MISLEADING FWD 2   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  MISLEADING FWD 3   approach word | 'Rule 12 applies because the mission is about people and the person is close.'
+  MISLEADING FWD 4   look     word | 'Rule 11: The robot entered a new room.'
+  MISLEADING FWD 5   look     word | 'Rule 11: The robot entered a new room.'
+  MISLEADING FWD 6   greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  MISLEADING FWD 7   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away, suggesting a quiet exploration is appropriate.'
+  MISLEADING FWD 8   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  MISLEADING FWD 9   greet    word | 'Rule 3 fits because someone said hello to the robot.'
+  MISLEADING FWD 10  approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  MISLEADING FWD 11  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  MISLEADING FWD 12  approach word | 'Rule 12 applies because the mission is about people and Anna is at a medium distance.'
+  MISLEADING FWD 13  explore  word | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+  MISLEADING FWD 14  wait     word | 'Rule 5 applies because there is a memory note about Max.'
+  MISLEADING FWD 15  look     word | 'Rule 11: The robot entered a new room.'
+  MISLEADING FWD 16  greet    word | 'Rule 12 applies because the mission is about people and Mia is a close person not yet greeted.'
+  MISLEADING FWD 17  greet    word | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  MISLEADING FWD 18  look     word | 'Rule 11: The robot entered a new room.'
+  MISLEADING FWD 19  explore  word | 'Rule 6 applies because the mission is quiet and Ben has not invited the robot.'
+  MISLEADING FWD 20  approach word | 'Rule 12 applies because the mission is to explore and the person is at a medium distance.'
+  MISLEADING REV 1   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  MISLEADING REV 2   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  MISLEADING REV 3   greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  MISLEADING REV 4   look     word | 'Rule 11: The robot entered a new room.'
+  MISLEADING REV 5   look     word | 'Rule 11: The robot entered a new room.'
+  MISLEADING REV 6   greet    word | 'Rule 12 applies because the mission is about people and the person is close and not yet greeted.'
+  MISLEADING REV 7   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the person is far away, suggesting a quiet exploration is appropriate.'
+  MISLEADING REV 8   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  MISLEADING REV 9   greet    word | 'Rule 3 fits because someone said hello to the robot.'
+  MISLEADING REV 10  approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  MISLEADING REV 11  wait     word | 'Rule 9: The mission or task is finished.'
+  MISLEADING REV 12  approach word | 'Rule 12 applies because the mission is about people and Anna is at a medium distance.'
+  MISLEADING REV 13  explore  word | 'Rule 13 applies as no specific rule dictates the next action for this general exploration.'
+  MISLEADING REV 14  wait     word | 'Rule 5 applies because there is a memory note about Max.'
+  MISLEADING REV 15  look     word | 'Rule 11: The robot entered a new room.'
+  MISLEADING REV 16  greet    word | 'Rule 12 applies because the mission is about people and Mia is a close person not yet greeted.'
+  MISLEADING REV 17  greet    word | 'Rule 12 applies because the mission is about people and Grandma is a close person not yet greeted.'
+  MISLEADING REV 18  look     word | 'Rule 11: The robot entered a new room.'
+  MISLEADING REV 19  explore  word | 'Rule 6 applies because the mission is quiet and Ben has not invited the robot.'
+  MISLEADING REV 20  approach word | 'Rule 12 applies because the mission is to explore and the person is at a medium distance.'
+
+--- rendered prompt, MIXED FWD, base 8 (/detokenize) ---
+<bos><|turn>system
+You are the mind of a small home robot. A separate safety program drives the wheels, avoids obstacles and may refuse any action. Each time something happens, you choose the robot's next action, using the mission, what just happened and the memory notes.
+
+Actions:
+explore: drive on and explore the home
+approach: drive to a person
+greet: stop and say hello or goodbye to a person
+look: stop and look around in place
+wait: stay still and wait
+
+Rules (the first rule that fits decides):
+1. Someone asks the robot to stop, stay, wait, hold on or pause: wait.
+2. Someone asks the robot to come, come here or follow them: approach.
+3. Someone says hello or goodbye to the robot, or waves at it: greet.
+4. Someone asks the robot to look at or check something: look.
+5. Follow memory notes about people (for example: leave them alone, or greet them).
+6. Quiet mission: do not approach or greet a person who has not invited the robot; explore.
+7. A person is busy, does not want the robot, or tells it to carry on or go: explore.
+8. A person is talking with the robot: wait.
+9. The mission or task is finished: wait.
+10. The person the robot was approaching is gone: look.
+11. The robot entered a new room: look. A look-around is finished: explore.
+12. Mission about people: a far or medium person: approach; a close person not yet greeted: greet.
+13. Otherwise: keep the current activity.
+
+Examples:
+Mission: Explore and map the flat. | Current activity: exploring | You entered a new room: the laundry room. -> look
+Mission: Find people and keep them company. | Current activity: exploring | Someone said: "Wait for me here." -> wait
+Mission: Explore and map the flat. | Current activity: waiting | Someone said: "Follow me to the hallway." -> approach
+Mission: Find people and keep them company. | Current activity: looking | A person appeared far away in the hallway. -> approach
+Mission: Find people and keep them company. | Current activity: waiting | A person walked up to you and is now close. -> greet
+Mission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person is sitting close, typing on a laptop. -> explore
+Mission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person at medium distance said: "Hey robot, come here!" -> approach
+Mission: Find people and keep them company. | Current activity: approaching | A person close said: "Sorry, I have no time now." -> explore
+Mission: Help the owner find his keys. | Current activity: looking | The owner said: "Never mind, I found them." -> wait
+Mission: Explore and map the flat. | Current activity: exploring | Someone said: "What's under the table?" -> look
+Mission: Explore and map the flat. | Current activity: exploring | A person close said: "See you later, robot!" -> greet
+Mission: Find people and keep them company. | Current activity: looking | You finished looking around the garage. -> explore
+Mission: Explore and map the flat. | Current activity: exploring | Nothing new happened. -> explore<turn|>
+<|turn>user
+Mission: Map the flat quietly and do not disturb anyone.
+Current activity: exploring
+What just happened: A person is at Lisa's desk, at medium distance, silent.
+Memory:
+- Oct 12: The washing machine is in the bathroom.
+- Oct 15: The owner's favourite colour is green.
+- Oct 18: The wifi router is on the hallway shelf.
+- Oct 20: Lisa asked the robot to always come and say hi to her.
+- Oct 25: The plants in the living room are watered on Sundays.
+Allowed actions: explore, approach, greet, look, wait
+
+Which action next? First write one short sentence naming the rule that fits. Then write a new line starting with 'Action:' and one word: explore, approach, greet, look or wait.<turn|>
+<|turn>model
+
+server exit code 0; SIGKILL needed False
