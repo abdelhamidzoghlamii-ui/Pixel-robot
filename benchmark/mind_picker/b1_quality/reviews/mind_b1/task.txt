@@ -1,0 +1,121 @@
+EXECUTION PROFILE
+ROLE: Coder
+PLATFORM: Claude Code CLI
+MODEL: claude-opus-5-5
+EFFORT: medium
+PONYTAIL: lite
+WHY: Research runner reusing MIND-B0 and picker.Gemma; no deployed code touched.
+FALLBACK: AGY CLI | claude-opus-5-5-medium | N/A | Ponytail lite (stated explicitly)
+
+EXECUTION PROFILE
+ROLE: Reviewer
+PLATFORM: Codex CLI (fresh session)
+MODEL: gpt-6.1-sol
+EFFORT: medium
+PONYTAIL: off
+WHY: Independent model family; scoring and label handling need a careful check.
+FALLBACK: AGY CLI | gemini-3.8-flash-high | N/A | Ponytail off (full WORKFLOW AGY procedure)
+
+TASK MIND-B1 — picker decision quality: old layout vs new layout (research only)
+
+Base: verify HEAD = origin/main = d0c9cd5e3953cfe77c209b9083d74b37945bb2ca (report if not).
+Read first: docs/WORKFLOW.md, docs/CODER.md, DECISIONS #116, #139, #140, #146; picker.py;
+benchmark/mind_picker/b0_cache/ (b0.py, b0_set.json, README); benchmark/mind_picker/b0b_slots/README.md;
+benchmark/strategic_selector/picker_prompt/README.md (what went wrong before).
+At session start, confirm your model id is the one in the profile; if not, stop and report.
+
+QUESTION: When Python has already removed forbidden actions, does Gemma E2B pick the action the
+owner would pick, using mission wording, speech, events and memory? Is the new layout better than
+the old one, and how sensitive is each to option order?
+Accuracy is deterministic (temperature 0): agent resident allowed. Timings NOT MEASUREMENTS.
+
+DO NOT: change any deployed file or anything in b0_cache/ or b0b_slots/ (import instead); start
+RobotCam, YOLO, M2, motors or the mission; use MTP or a projector; tune any prompt, wording or
+threshold after the first Gemma call; commit or push.
+
+TEST-SET CUSTODY (WORKFLOW): write the set to /termux-home/mind_b1_set/b1_set.json, OUTSIDE the
+repo; record its SHA-256 and row count before any Gemma call. It enters the repo only in the
+archive step after scoring, on my decision.
+
+ACTIONS: explore, visit (go to a person), greet, look (look around in place), wait.
+All five allowed unless an item says otherwise. Scoring is over allowed actions only (renormalised).
+MISSIONS: M1 "Explore and map the flat." M2 "Find people and keep them company."
+ M3 "Map the flat quietly and do not disturb anyone." M4 "Help the owner find his keys."
+ITEMS (id | mission | current activity | what just happened | memory | allowed | strict (also ok)):
+ 1 M1|explore|A person appeared far away and said nothing.|-|all|explore (look)
+ 2 M2|explore|A person appeared far away.|-|all|visit
+ 3 M3|explore|A person appeared close and said nothing.|-|all|explore (wait)
+ 4 M2|wait|A person is close. You greeted them 3 minutes ago.|-|explore,visit,look,wait|wait (visit)
+ 5 M1|explore|Someone said: "Come here, robot!"|-|all|visit
+ 6 M2|visit|A person close said: "Go away, I'm on a call."|-|all|explore (look)
+ 7 M1|explore|Someone said: "Stay right there."|-|all|wait
+ 8 M1|explore|A person at medium distance said: "Hello robot!"|-|all|greet
+ 9 M2|wait|Someone said: "What's over there by the window?"|-|all|look
+10 M1|wait|Someone said: "Go check the kitchen."|-|all|explore
+11 M2|explore|A person is lying on the couch, close.|Leo sleeps on the couch; do not wake him.|all|explore (look)
+12 M1|explore|The front door opened; a person appeared at medium distance.|The owner likes to be greeted when he comes home.|all|greet (visit)
+13 M4|explore|You entered the living room.|The keys were last seen near the sofa.|all|look
+14 M4|look|You finished looking around the living room; no keys found.|-|all|explore
+15 M2|visit|A person is far away. Going to them failed twice; they keep moving away.|-|all|wait (explore)
+16 M1|explore|No new room found for 3 minutes; the way was blocked twice.|-|all|look (explore)
+17 M1|explore|Nothing new happened.|-|all|explore
+18 M2|visit|The person is still at medium distance; nothing new happened.|-|all|visit
+19 M2|wait|The person said: "I'm off to work, bye!"|-|all|greet (explore)
+20 M3|explore|A person at medium distance said: "Robot, come say hello!"|-|all|visit (greet)
+21 M2|visit|A person close said: "Not now, I'm busy."|-|all|explore (wait)
+22 M1|explore|Someone said: "Pause, I'm moving furniture."|-|all|wait
+23 M1|wait|Someone said: "OK, you can carry on."|-|all|explore
+24 M2|wait|A person close said: "OK, you can carry on."|-|all|explore
+25 M1|explore|It is 15:02. The front door opened; a person appeared far away.|Visitors arrive at 15:00.|all|visit (greet)
+26 M2|explore|A person appeared very close.|-|all|greet
+27 M2|explore|You entered the office; a person is at medium distance.|People in the office do not want visits.|all|explore (look)
+28 M1|explore|You entered a new room: the bedroom.|-|all|look
+29 M1|look|You finished looking around the bedroom.|-|all|explore
+30 M2|greet|You finished greeting. The person, close, said: "Nice to meet you, what can you do?"|-|all|wait (greet)
+31 M1|explore|Someone said: "Follow me!"|-|all|visit (wait)
+32 M1|explore|Someone said: "Turn around and look at the door."|-|all|look
+33 M2|visit|Someone said: "Stop, don't move."|-|all|wait
+34 M3|explore|A person close waved at you.|-|all|greet (explore)
+35 M2|explore|No people found for 5 minutes; all known rooms visited.|-|all|explore (look)
+36 M1|explore|All rooms are now mapped.|-|all|wait (look)
+37 M4|look|The owner said: "I found the keys, thanks!"|-|all|wait (greet)
+38 M2|visit|The person you were going to left your view.|-|all|look (explore)
+39 M1|wait|Someone said: "Can you show me how you map a room?"|-|all|look (explore)
+40 M2|look|A person appeared far away.|-|all|visit
+Store these texts exactly. "Current activity" is rendered neutrally ("Current activity: exploring"),
+never as an option phrase.
+
+ARMS (fixed now; same situation facts in both):
+ A OLD: picker.Gemma layout exactly (raw <state> block, letters, "Answer: (", no chat template,
+   cache_prompt false). State lines: Mission, Current activity, What just happened, Memory (or none),
+   Allowed actions. Options = allowed actions as "<name>: <one-line description>" (descriptions from
+   b0_set.json's catalogue, verbatim).
+ B NEW: B0 layout: Gemma 4 template via /apply-template, thinking off; system turn = b0_set.json's
+   SYS + catalogue verbatim; user turn = the same state lines, then the B0 picker tail with the allowed
+   names; score the first token over allowed names (B0 ids). cache_prompt true (shared system prefix,
+   as deployed with save/restore); record cache_n.
+ ORDER: each arm in catalogue order (FWD) and reversed (REV): A reverses the option list; B reverses
+   the names in the tail.
+BLOCKS: one setup_q4 launch (ctx 2048), four blocks A-FWD, A-REV, B-FWD, B-REV, 40 items each,
+ fixed item order, 60 s pause between blocks; if a block would exceed ~4 min, report and continue.
+
+METRICS per arm×order: strict accuracy; acceptable accuracy (strict or also-ok); recall per strict
+label; confusion matrix; copy rate (choice == current activity when strict != current activity);
+near-ties (top-2 margin < 0.05, list ids). Per arm: order flips (FWD top != REV top, count and ids).
+PASS for an arm (fixed now): acceptable >= 0.80 in BOTH orders AND strict >= 0.65 in both orders AND
+order flips <= 4/40. Report PASS/FAIL for A and B; no other selection.
+
+FILES: benchmark/mind_picker/b1_quality/{b1.py, test_b1.py, README.md} (no set in the repo yet);
+offline tests with a fake server (rendering of both arms, eligibility renormalisation, metrics,
+custody: refuses a set inside the repo). Run folder ~/robot_runs/mind_b1/<UTC>/ with run.json,
+requests.jsonl (all probabilities), report.txt, artifacts.sha256.
+Known limitation carried over from B0 (interrupt/cleanup finalization) is out of scope; the Reviewer
+may note it as P3, it is not a reason to request changes.
+
+STEPS: implement -> offline tests -> show one rendered prompt per arm (item 11) in your report ->
+one phone run -> invoke the Reviewer automatically per WORKFLOW (source-only method if the Codex
+sandbox cannot execute in proot; say so) -> freeze -> return the review verbatim, stop for my decision.
+
+RETURN: report.txt verbatim, a 2x2 table (arm x order: strict, acceptable), flips, copy rate,
+near-tie ids, PASS/FAIL per arm, the two rendered prompts, review verbatim,
+git status --porcelain=v1 -uall. Label results VALID / INVALID / NOT A MEASUREMENT. No commit or push.

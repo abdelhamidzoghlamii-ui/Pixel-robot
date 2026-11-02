@@ -1,0 +1,1134 @@
+{
+ "utc": "20261102T131422Z",
+ "set_path": "/data/data/com.termux/files/home/mind_b1_set/b1_set.json",
+ "set_sha256": "b1abba5daa3cb87c30a225af40d3e19e6f0feaf82ba95af48f8b48c4a23461eb",
+ "set_rows": 40,
+ "b0_set_sha256": "dddb288ace1642b1e93a6e268cb68ff1a028121b6853dfa837ac7849cfaa187b",
+ "code_sha256": "26b10c6536e32e59c7a351e342c6627b8a80e1b8461ad5a24c33b7a44b5d5e14",
+ "picker_sha256": "b152947be98f8bde83ad0d6e34118c999f90b59025308cef2f3ebc3cf745df66",
+ "b0_sha256": "cb42caafe9d8fb5207bed76f581c660f4e81d2b2949e6c7f1c5802cb5daad3f2",
+ "git_head": "d0c9cd5e3953cfe77c209b9083d74b37945bb2ca",
+ "command": [
+  "taskset",
+  "-c",
+  "4-7",
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+  "-m",
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+  "--port",
+  "8080",
+  "--ctx-size",
+  "2048",
+  "--threads",
+  "4",
+  "--threads-batch",
+  "4",
+  "--parallel",
+  "1",
+  "--swa-full",
+  "--cache-ram",
+  "0",
+  "--host",
+  "127.0.0.1"
+ ],
+ "decode_b": {
+  "temperature": 0,
+  "seed": 0,
+  "stream": false,
+  "return_tokens": true,
+  "n_predict": 1,
+  "n_probs": 1000,
+  "post_sampling_probs": false,
+  "cache_prompt": true
+ },
+ "missions": {
+  "M1": "Explore and map the flat.",
+  "M2": "Find people and keep them company.",
+  "M3": "Map the flat quietly and do not disturb anyone.",
+  "M4": "Help the owner find his keys."
+ },
+ "items": [
+  {
+   "id": 1,
+   "mission": "M1",
+   "current": "explore",
+   "event": "A person appeared far away and said nothing.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 2,
+   "mission": "M2",
+   "current": "explore",
+   "event": "A person appeared far away.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "visit",
+   "also_ok": []
+  },
+  {
+   "id": 3,
+   "mission": "M3",
+   "current": "explore",
+   "event": "A person appeared close and said nothing.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "wait"
+   ]
+  },
+  {
+   "id": 4,
+   "mission": "M2",
+   "current": "wait",
+   "event": "A person is close. You greeted them 3 minutes ago.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": [
+    "visit"
+   ]
+  },
+  {
+   "id": 5,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Come here, robot!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "visit",
+   "also_ok": []
+  },
+  {
+   "id": 6,
+   "mission": "M2",
+   "current": "visit",
+   "event": "A person close said: \"Go away, I'm on a call.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 7,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Stay right there.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": []
+  },
+  {
+   "id": 8,
+   "mission": "M1",
+   "current": "explore",
+   "event": "A person at medium distance said: \"Hello robot!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": []
+  },
+  {
+   "id": 9,
+   "mission": "M2",
+   "current": "wait",
+   "event": "Someone said: \"What's over there by the window?\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 10,
+   "mission": "M1",
+   "current": "wait",
+   "event": "Someone said: \"Go check the kitchen.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 11,
+   "mission": "M2",
+   "current": "explore",
+   "event": "A person is lying on the couch, close.",
+   "memory": "Leo sleeps on the couch; do not wake him.",
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 12,
+   "mission": "M1",
+   "current": "explore",
+   "event": "The front door opened; a person appeared at medium distance.",
+   "memory": "The owner likes to be greeted when he comes home.",
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": [
+    "visit"
+   ]
+  },
+  {
+   "id": 13,
+   "mission": "M4",
+   "current": "explore",
+   "event": "You entered the living room.",
+   "memory": "The keys were last seen near the sofa.",
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 14,
+   "mission": "M4",
+   "current": "look",
+   "event": "You finished looking around the living room; no keys found.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 15,
+   "mission": "M2",
+   "current": "visit",
+   "event": "A person is far away. Going to them failed twice; they keep moving away.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": [
+    "explore"
+   ]
+  },
+  {
+   "id": 16,
+   "mission": "M1",
+   "current": "explore",
+   "event": "No new room found for 3 minutes; the way was blocked twice.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": [
+    "explore"
+   ]
+  },
+  {
+   "id": 17,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Nothing new happened.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 18,
+   "mission": "M2",
+   "current": "visit",
+   "event": "The person is still at medium distance; nothing new happened.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "visit",
+   "also_ok": []
+  },
+  {
+   "id": 19,
+   "mission": "M2",
+   "current": "wait",
+   "event": "The person said: \"I'm off to work, bye!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": [
+    "explore"
+   ]
+  },
+  {
+   "id": 20,
+   "mission": "M3",
+   "current": "explore",
+   "event": "A person at medium distance said: \"Robot, come say hello!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "visit",
+   "also_ok": [
+    "greet"
+   ]
+  },
+  {
+   "id": 21,
+   "mission": "M2",
+   "current": "visit",
+   "event": "A person close said: \"Not now, I'm busy.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "wait"
+   ]
+  },
+  {
+   "id": 22,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Pause, I'm moving furniture.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": []
+  },
+  {
+   "id": 23,
+   "mission": "M1",
+   "current": "wait",
+   "event": "Someone said: \"OK, you can carry on.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 24,
+   "mission": "M2",
+   "current": "wait",
+   "event": "A person close said: \"OK, you can carry on.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 25,
+   "mission": "M1",
+   "current": "explore",
+   "event": "It is 15:02. The front door opened; a person appeared far away.",
+   "memory": "Visitors arrive at 15:00.",
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "visit",
+   "also_ok": [
+    "greet"
+   ]
+  },
+  {
+   "id": 26,
+   "mission": "M2",
+   "current": "explore",
+   "event": "A person appeared very close.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": []
+  },
+  {
+   "id": 27,
+   "mission": "M2",
+   "current": "explore",
+   "event": "You entered the office; a person is at medium distance.",
+   "memory": "People in the office do not want visits.",
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 28,
+   "mission": "M1",
+   "current": "explore",
+   "event": "You entered a new room: the bedroom.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 29,
+   "mission": "M1",
+   "current": "look",
+   "event": "You finished looking around the bedroom.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 30,
+   "mission": "M2",
+   "current": "greet",
+   "event": "You finished greeting. The person, close, said: \"Nice to meet you, what can you do?\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": [
+    "greet"
+   ]
+  },
+  {
+   "id": 31,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Follow me!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "visit",
+   "also_ok": [
+    "wait"
+   ]
+  },
+  {
+   "id": 32,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Turn around and look at the door.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 33,
+   "mission": "M2",
+   "current": "visit",
+   "event": "Someone said: \"Stop, don't move.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": []
+  },
+  {
+   "id": 34,
+   "mission": "M3",
+   "current": "explore",
+   "event": "A person close waved at you.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": [
+    "explore"
+   ]
+  },
+  {
+   "id": 35,
+   "mission": "M2",
+   "current": "explore",
+   "event": "No people found for 5 minutes; all known rooms visited.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 36,
+   "mission": "M1",
+   "current": "explore",
+   "event": "All rooms are now mapped.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 37,
+   "mission": "M4",
+   "current": "look",
+   "event": "The owner said: \"I found the keys, thanks!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": [
+    "greet"
+   ]
+  },
+  {
+   "id": 38,
+   "mission": "M2",
+   "current": "visit",
+   "event": "The person you were going to left your view.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": [
+    "explore"
+   ]
+  },
+  {
+   "id": 39,
+   "mission": "M1",
+   "current": "wait",
+   "event": "Someone said: \"Can you show me how you map a room?\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": [
+    "explore"
+   ]
+  },
+  {
+   "id": 40,
+   "mission": "M2",
+   "current": "look",
+   "event": "A person appeared far away.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "visit",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "visit",
+   "also_ok": []
+  }
+ ],
+ "timings": "NOT MEASUREMENTS",
+ "server_pid": 30495,
+ "exit_code": 0,
+ "killed": false,
+ "info": {
+  "problems": [],
+  "letter_ids": {
+   "A": 236776,
+   "B": 236799,
+   "C": 236780,
+   "D": 236796,
+   "E": 236788
+  },
+  "prompt_A_item11": "<bos><state>\nMission: Find people and keep them company.\nCurrent activity: exploring\nWhat just happened: A person is lying on the couch, close.\nMemory: Leo sleeps on the couch; do not wake him.\nAllowed actions: explore, visit, greet, look, wait\n</state>\n\nQuestion (choice): Choose the single best next action for the robot.\nOptions:\n(A) explore: drive on and explore the home\n(B) visit: go to a person\n(C) greet: stop and greet a person\n(D) look: look around in place\n(E) wait: stay still and wait\nAnswer: (",
+  "name_ids": {
+   "explore": [
+    108331
+   ],
+   "visit": [
+    37620
+   ],
+   "greet": [
+    183583
+   ],
+   "look": [
+    7780
+   ],
+   "wait": [
+    12429
+   ]
+  },
+  "prompt_B_item11": "<bos><|turn>system\nYou are the mind of a small four-wheeled home robot. You do not drive the wheels yourself: a separate safety program moves the robot, avoids obstacles, watches the temperature and may refuse any action. Your job is to choose the next high-level action from the catalogue below when something happens. Choose calmly and briefly. Prefer actions that serve the mission. Never pretend to see something that the event log does not report. If nobody is present, do not choose actions that need a person. If a person spoke to the robot recently, stay friendly and attentive. If nothing new has happened for a while, keep exploring the home. When in doubt, look around in place before moving. Events arrive as short lines written by the safety program; each line describes something that has just been seen or heard, and the newest line is always the last one. The memory lines are notes from earlier days and may be out of date. A person who is far away may not have noticed the robot yet, so going closer is polite before speaking. A person who is close and looking at the robot can be greeted directly. Waiting is useful when a person is busy or when the robot has just spoken and expects an answer. Do not repeat the same action again and again if nothing changes.\n\nActions:\nexplore: drive on and explore the home\nvisit: go to a person\ngreet: stop and greet a person\nlook: look around in place\nwait: stay still and wait<turn|>\n<|turn>user\nMission: Find people and keep them company.\nCurrent activity: exploring\nWhat just happened: A person is lying on the couch, close.\nMemory: Leo sleeps on the couch; do not wake him.\nAllowed actions: explore, visit, greet, look, wait\n\nWhich action next? Answer with one word: explore, visit, greet, look or wait.<turn|>\n<|turn>model\n",
+  "prompt_tokens": {
+   "A": [
+    121,
+    149
+   ],
+   "B": [
+    370,
+    395
+   ]
+  },
+  "n_ctx": 2048,
+  "blocks": [
+   {
+    "block": "A-FWD",
+    "duration_s": 79.4,
+    "over_warn": false
+   },
+   {
+    "block": "A-REV",
+    "duration_s": 80.1,
+    "over_warn": false
+   },
+   {
+    "block": "B-FWD",
+    "duration_s": 132.3,
+    "over_warn": false
+   },
+   {
+    "block": "B-REV",
+    "duration_s": 122.0,
+    "over_warn": false
+   }
+  ]
+ },
+ "set_sha256_end": "b1abba5daa3cb87c30a225af40d3e19e6f0feaf82ba95af48f8b48c4a23461eb",
+ "metrics": {
+  "blocks": {
+   "A-FWD": {
+    "n": 40,
+    "rows": 40,
+    "strict": 0.35,
+    "acceptable": 0.5,
+    "recall": {
+     "explore": [
+      4,
+      13
+     ],
+     "greet": [
+      3,
+      5
+     ],
+     "look": [
+      6,
+      7
+     ],
+     "visit": [
+      1,
+      7
+     ],
+     "wait": [
+      0,
+      8
+     ]
+    },
+    "confusion": {
+     "explore": {
+      "look": 7,
+      "explore": 4,
+      "visit": 1,
+      "greet": 1
+     },
+     "visit": {
+      "greet": 5,
+      "look": 1,
+      "visit": 1
+     },
+     "wait": {
+      "visit": 3,
+      "look": 4,
+      "explore": 1
+     },
+     "greet": {
+      "greet": 3,
+      "wait": 1,
+      "look": 1
+     },
+     "look": {
+      "look": 6,
+      "explore": 1
+     }
+    },
+    "copy_rate": 0.1875,
+    "copy": [
+     6,
+     32
+    ],
+    "copied_ids": [
+     15,
+     16,
+     19,
+     21,
+     36,
+     37
+    ],
+    "near_ties": [
+     20,
+     24
+    ]
+   },
+   "A-REV": {
+    "n": 40,
+    "rows": 40,
+    "strict": 0.35,
+    "acceptable": 0.525,
+    "recall": {
+     "explore": [
+      1,
+      13
+     ],
+     "greet": [
+      2,
+      5
+     ],
+     "look": [
+      6,
+      7
+     ],
+     "visit": [
+      1,
+      7
+     ],
+     "wait": [
+      4,
+      8
+     ]
+    },
+    "confusion": {
+     "explore": {
+      "look": 2,
+      "wait": 8,
+      "visit": 1,
+      "greet": 1,
+      "explore": 1
+     },
+     "visit": {
+      "greet": 4,
+      "wait": 2,
+      "visit": 1
+     },
+     "wait": {
+      "visit": 1,
+      "wait": 4,
+      "look": 1,
+      "greet": 1,
+      "explore": 1
+     },
+     "greet": {
+      "look": 1,
+      "greet": 2,
+      "wait": 2
+     },
+     "look": {
+      "look": 6,
+      "explore": 1
+     }
+    },
+    "copy_rate": 0.1875,
+    "copy": [
+     6,
+     32
+    ],
+    "copied_ids": [
+     16,
+     19,
+     23,
+     24,
+     30,
+     36
+    ],
+    "near_ties": [
+     10,
+     23
+    ]
+   },
+   "B-FWD": {
+    "n": 40,
+    "rows": 40,
+    "strict": 0.475,
+    "acceptable": 0.7,
+    "recall": {
+     "explore": [
+      8,
+      13
+     ],
+     "greet": [
+      4,
+      5
+     ],
+     "look": [
+      2,
+      7
+     ],
+     "visit": [
+      0,
+      7
+     ],
+     "wait": [
+      5,
+      8
+     ]
+    },
+    "confusion": {
+     "explore": {
+      "explore": 8,
+      "greet": 2,
+      "wait": 2,
+      "look": 1
+     },
+     "visit": {
+      "explore": 2,
+      "greet": 3,
+      "wait": 2
+     },
+     "wait": {
+      "wait": 5,
+      "explore": 3
+     },
+     "greet": {
+      "greet": 4,
+      "wait": 1
+     },
+     "look": {
+      "look": 2,
+      "explore": 5
+     }
+    },
+    "copy_rate": 0.1875,
+    "copy": [
+     6,
+     32
+    ],
+    "copied_ids": [
+     2,
+     13,
+     16,
+     19,
+     28,
+     36
+    ],
+    "near_ties": [
+     31
+    ]
+   },
+   "B-REV": {
+    "n": 40,
+    "rows": 40,
+    "strict": 0.5,
+    "acceptable": 0.7,
+    "recall": {
+     "explore": [
+      7,
+      13
+     ],
+     "greet": [
+      4,
+      5
+     ],
+     "look": [
+      2,
+      7
+     ],
+     "visit": [
+      0,
+      7
+     ],
+     "wait": [
+      7,
+      8
+     ]
+    },
+    "confusion": {
+     "explore": {
+      "explore": 7,
+      "greet": 1,
+      "wait": 4,
+      "look": 1
+     },
+     "visit": {
+      "explore": 1,
+      "greet": 3,
+      "wait": 2,
+      "look": 1
+     },
+     "wait": {
+      "wait": 7,
+      "explore": 1
+     },
+     "greet": {
+      "greet": 4,
+      "wait": 1
+     },
+     "look": {
+      "look": 2,
+      "explore": 4,
+      "wait": 1
+     }
+    },
+    "copy_rate": 0.21875,
+    "copy": [
+     7,
+     32
+    ],
+    "copied_ids": [
+     2,
+     13,
+     16,
+     19,
+     24,
+     28,
+     40
+    ],
+    "near_ties": [
+     1,
+     27
+    ]
+   }
+  },
+  "arms": {
+   "A": {
+    "flips": [
+     3,
+     6,
+     7,
+     8,
+     10,
+     11,
+     14,
+     15,
+     18,
+     20,
+     21,
+     22,
+     23,
+     24,
+     30,
+     33,
+     34,
+     35,
+     37
+    ],
+    "verdict": "FAIL"
+   },
+   "B": {
+    "flips": [
+     11,
+     24,
+     30,
+     36,
+     38,
+     40
+    ],
+    "verdict": "FAIL"
+   }
+  }
+ },
+ "validity": [
+  "VALID",
+  []
+ ]
+}

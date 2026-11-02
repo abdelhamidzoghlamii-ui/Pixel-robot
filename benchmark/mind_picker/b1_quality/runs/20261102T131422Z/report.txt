@@ -1,0 +1,116 @@
+MIND-B1 20261102T131422Z  code 26b10c6536e3  set b1abba5daa3c (40 rows, /data/data/com.termux/files/home/mind_b1_set/b1_set.json)  base d0c9cd5e3953cfe77c209b9083d74b37945bb2ca
+server: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1
+n_ctx 2048; prompt tokens (min, max) {'A': (121, 149), 'B': (370, 395)}
+letter ids {'A': 236776, 'B': 236799, 'C': 236780, 'D': 236796, 'E': 236788}; name ids {'explore': [108331], 'visit': [37620], 'greet': [183583], 'look': [7780], 'wait': [12429]}
+ACCURACY VALID (temperature 0; 160/160 rows; one server PID; exit 0; set hash unchanged)
+* timings NOT MEASUREMENTS (agent resident allowed)
+block A-FWD: 79.4 s*
+block A-REV: 80.1 s*
+block B-FWD: 132.3 s*
+block B-REV: 122.0 s*
+
+block   strict        acceptable    copy rate      near-ties (margin < 0.05)
+A-FWD   0.350 14/40  0.500 20/40  0.188  6/32  [20, 24]
+A-REV   0.350 14/40  0.525 21/40  0.188  6/32  [10, 23]
+B-FWD   0.475 19/40  0.700 28/40  0.188  6/32  [31]
+B-REV   0.500 20/40  0.700 28/40  0.219  7/32  [1, 27]
+
+recall per strict label (hits/n):
+  A-FWD   explore 4/13  greet 3/5  look 6/7  visit 1/7  wait 0/8
+  A-REV   explore 1/13  greet 2/5  look 6/7  visit 1/7  wait 4/8
+  B-FWD   explore 8/13  greet 4/5  look 2/7  visit 0/7  wait 5/8
+  B-REV   explore 7/13  greet 4/5  look 2/7  visit 0/7  wait 7/8
+
+confusion (rows strict, columns chosen):
+  A-FWD  explore -> explore 4, greet 1, look 7, visit 1; greet -> greet 3, look 1, wait 1; look -> explore 1, look 6; visit -> greet 5, look 1, visit 1; wait -> explore 1, look 4, visit 3
+  A-REV  explore -> explore 1, greet 1, look 2, visit 1, wait 8; greet -> greet 2, look 1, wait 2; look -> explore 1, look 6; visit -> greet 4, visit 1, wait 2; wait -> explore 1, greet 1, look 1, visit 1, wait 4
+  B-FWD  explore -> explore 8, greet 2, look 1, wait 2; greet -> greet 4, wait 1; look -> explore 5, look 2; visit -> explore 2, greet 3, wait 2; wait -> explore 3, wait 5
+  B-REV  explore -> explore 7, greet 1, look 1, wait 4; greet -> greet 4, wait 1; look -> explore 4, look 2, wait 1; visit -> explore 1, greet 3, look 1, wait 2; wait -> explore 1, wait 7
+
+copied current activity (ids): A-FWD [15, 16, 19, 21, 36, 37]; A-REV [16, 19, 23, 24, 30, 36]; B-FWD [2, 13, 16, 19, 28, 36]; B-REV [2, 13, 16, 19, 24, 28, 40]
+
+PASS rule: acceptable >= 0.8 and strict >= 0.65 in both orders, flips <= 4/40
+  arm A: flips 19 [3, 6, 7, 8, 10, 11, 14, 15, 18, 20, 21, 22, 23, 24, 30, 33, 34, 35, 37]  -> FAIL
+  arm B: flips 6 [11, 24, 30, 36, 38, 40]  -> FAIL
+
+id  strict (also ok)       A-FWD          A-REV          B-FWD          B-REV
+1   explore (look)         look 0.80      look 0.86      explore 0.85   explore 0.40   
+2   visit                  greet 0.62     greet 0.72     explore 0.89   explore 0.59   
+3   explore (wait)         look 0.78      wait 0.60      greet 0.71     greet 0.48     
+4   wait (visit)           visit 0.95     visit 0.82     wait 0.59      wait 0.78      
+5   visit                  greet 0.64     greet 0.68     greet 0.94     greet 0.92     
+6   explore (look)         look 0.48      wait 0.74      wait 0.87      wait 0.97      
+7   wait                   look 0.75      wait 0.83      wait 0.89      wait 0.97      
+8   greet                  greet 0.60     look 0.63      greet 0.95     greet 0.96     
+9   look                   look 0.94      look 0.95      look 0.78      look 0.85      
+10  explore                explore 0.41   visit 0.32     explore 0.96   explore 0.91   
+11  explore (look)         look 0.45      wait 0.76      greet 0.69     wait 0.61      
+12  greet (visit)          greet 0.92     greet 0.87     greet 0.97     greet 0.95     
+13  look                   look 0.96      look 0.85      explore 0.89   explore 0.71   
+14  explore                explore 0.81   wait 0.60      explore 0.98   explore 0.87   
+15  wait (explore)         visit 0.58     look 0.44      explore 0.96   explore 0.75   
+16  look (explore)         explore 0.88   explore 0.80   explore 0.96   explore 0.76   
+17  explore                look 0.76      look 0.44      explore 1.00   explore 0.99   
+18  visit                  greet 0.42     wait 0.78      wait 0.69      wait 0.88      
+19  greet (explore)        wait 0.72      wait 0.90      wait 0.86      wait 0.93      
+20  visit (greet)          look 0.45      wait 0.74      greet 0.97     greet 0.96     
+21  explore (wait)         visit 0.45     wait 0.76      wait 0.82      wait 0.95      
+22  wait                   look 0.74      wait 0.47      wait 0.71      wait 0.90      
+23  explore                look 0.63      wait 0.44      explore 0.98   explore 0.94   
+24  explore                look 0.33      wait 0.83      explore 0.51   wait 0.70      
+25  visit (greet)          greet 0.63     greet 0.61     greet 0.52     greet 0.34     
+26  greet                  greet 0.84     greet 0.85     greet 0.99     greet 0.96     
+27  explore (look)         greet 0.60     greet 0.57     look 0.39      look 0.40      
+28  look                   look 0.89      look 0.53      explore 0.99   explore 0.94   
+29  explore                explore 0.92   explore 0.72   explore 0.99   explore 0.97   
+30  wait (greet)           visit 0.53     greet 0.61     explore 0.81   wait 0.44      
+31  visit (wait)           visit 0.72     visit 0.67     wait 0.36      wait 0.74      
+32  look                   look 0.95      look 0.92      look 0.88      look 0.95      
+33  wait                   look 0.64      wait 0.94      wait 0.95      wait 0.99      
+34  greet (explore)        look 0.76      wait 0.58      greet 0.95     greet 0.93     
+35  explore (look)         explore 0.87   wait 0.44      explore 0.99   explore 0.97   
+36  wait (look)            explore 0.96   explore 0.75   explore 0.67   wait 0.55      
+37  wait (greet)           look 0.75      wait 0.91      wait 0.83      wait 0.92      
+38  look (explore)         look 0.63      look 0.74      explore 0.67   wait 0.46      
+39  look (explore)         look 0.88      look 0.87      explore 0.83   explore 0.45   
+40  visit                  greet 0.65     greet 0.77     explore 0.84   look 0.39      
+
+--- rendered prompt, arm A FWD, item 11 (/detokenize) ---
+<bos><state>
+Mission: Find people and keep them company.
+Current activity: exploring
+What just happened: A person is lying on the couch, close.
+Memory: Leo sleeps on the couch; do not wake him.
+Allowed actions: explore, visit, greet, look, wait
+</state>
+
+Question (choice): Choose the single best next action for the robot.
+Options:
+(A) explore: drive on and explore the home
+(B) visit: go to a person
+(C) greet: stop and greet a person
+(D) look: look around in place
+(E) wait: stay still and wait
+Answer: (
+
+--- rendered prompt, arm B FWD, item 11 (/detokenize) ---
+<bos><|turn>system
+You are the mind of a small four-wheeled home robot. You do not drive the wheels yourself: a separate safety program moves the robot, avoids obstacles, watches the temperature and may refuse any action. Your job is to choose the next high-level action from the catalogue below when something happens. Choose calmly and briefly. Prefer actions that serve the mission. Never pretend to see something that the event log does not report. If nobody is present, do not choose actions that need a person. If a person spoke to the robot recently, stay friendly and attentive. If nothing new has happened for a while, keep exploring the home. When in doubt, look around in place before moving. Events arrive as short lines written by the safety program; each line describes something that has just been seen or heard, and the newest line is always the last one. The memory lines are notes from earlier days and may be out of date. A person who is far away may not have noticed the robot yet, so going closer is polite before speaking. A person who is close and looking at the robot can be greeted directly. Waiting is useful when a person is busy or when the robot has just spoken and expects an answer. Do not repeat the same action again and again if nothing changes.
+
+Actions:
+explore: drive on and explore the home
+visit: go to a person
+greet: stop and greet a person
+look: look around in place
+wait: stay still and wait<turn|>
+<|turn>user
+Mission: Find people and keep them company.
+Current activity: exploring
+What just happened: A person is lying on the couch, close.
+Memory: Leo sleeps on the couch; do not wake him.
+Allowed actions: explore, visit, greet, look, wait
+
+Which action next? Answer with one word: explore, visit, greet, look or wait.<turn|>
+<|turn>model
+
+server exit code 0; SIGKILL needed False
