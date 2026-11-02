@@ -1,0 +1,487 @@
+diff --git a/benchmark/mind_picker/b0_cache/b0.py b/benchmark/mind_picker/b0_cache/b0.py
+new file mode 100644
+index 0000000..7bf9692
+--- /dev/null
++++ b/benchmark/mind_picker/b0_cache/b0.py
+@@ -0,0 +1,320 @@
++#!/data/data/com.termux/files/usr/bin/python
++"""MIND-B0: prefix-cache mechanics of the mind/picker layout on the deployed one-slot server. Research only: no motors,
++camera, YOLO, M2, main.py or run_mission.py; no MTP, no projector. Counters (prompt_n, cache_n) and probabilities
++only; timings are recorded but are NOT MEASUREMENTS (an agent may be resident).
++
++Runtime: MEM-1's server (mem1.command(2048), mem1.PINNED SHA-256 checked before the start). Prompts:
++chat.build_prompt('gemma', ...) checked equal to the server's /apply-template (thinking off), tokenized by the server
++(add_special, parse_special) and sent as token ids. Decoding: temperature 0, seed 0, return_tokens.
++
++Layout (b0_set.json, SHA-256 recorded before the server starts): system = SYS + action catalogue + mission + memory +
++'Events so far:' + one line per event E1..Ek = the transcript T(k). Picker = [system T(k), user TAIL], scored on the
++first generated token (n_predict 1, n_probs 1000, as picker.Gemma.decide) over the five names' token ids. Chat SHARED =
++[system T(1), user SPEECH]; chat SEPARATE = [system COMPANION_SYS, user SPEECH]; both n_predict 32, stop <turn|>. E2 is
++filled at run time with the speech and R4's reply.
++Before any /completion: every name after the model turn must be exactly one token, all five distinct (else STOP:
++a finding), T(4) + tail with an empty reply must be 400..668 tokens (700 minus the 32-token reply), n_ctx 2048.
++
++Sequence: R1..R8 (cache_prompt true), then R1, R3, R5, R7, R8 again with cache_prompt false (FRESH, same ids). For each
++request: ids hash/count, token LCP with the slot's previous prompt + generated tokens, prompt_n, cache_n, probabilities,
++prompt_ms, wall, server PID + start time. Criteria (criteria()): C1 R2/R3/R5/R8 cache_n >= min(LCP, n - 1) (the server
++evaluates at least one prompt token); C2 R5 cache_n >= tokens of T(1) without the tail (BOS + system turn opening +
++T(1) text); C3 R7 prompt_n, informational; C4 cached vs fresh: same top action for all five, max |dp| (renormalised
++over the five) <= 0.02; C5 one server PID, 0 request errors, server exit code 0 after SIGTERM (no SIGKILL).
++
++Usage (from proot Debian or native Termux, with Termux python): b0.py
++Writes ~/robot_runs/mind_b0/<UTC>/: run.json, requests.jsonl, server.log, report.txt, artifacts.sha256.
++"""
++import hashlib
++import json
++import math
++import os
++import signal
++import subprocess
++import sys
++import time
++from pathlib import Path
++
++sys.dont_write_bytecode = True
++HERE = Path(__file__).resolve().parent
++sys.path.insert(0, str(HERE.parents[1] / 'memory_context'))
++import mem1  # noqa: E402  command(), PINNED, pinned_problems(), lcp(); imports chat and the harness
++
++cr, chat, repro = mem1.cr, mem1.chat, mem1.repro
++SET = HERE / 'b0_set.json'
++OUT_ROOT = cr.HOME / 'robot_runs' / 'mind_b0'
++CTX = 2048
++DECODE = {'temperature': 0, 'seed': 0, 'stream': False, 'return_tokens': True}
++PICK = {'n_predict': 1, 'n_probs': 1000, 'post_sampling_probs': False}  # picker.Gemma.decide
++CHAT = {'n_predict': 32, 'stop': chat.get_stop_tokens('gemma')}
++SIZE = (400, 700 - CHAT['n_predict'])
++MAX_DP = 0.02
++LOAD_TIMEOUT_S, REQUEST_TIMEOUT_S, TERM_WAIT_S = 120, 300, 30
++# (id, kind, k): picker at T(k); 'shared' chat at T(1); 'separate' chat
++SEQUENCE = [('R1', 'picker', 0), ('R2', 'picker', 0), ('R3', 'picker', 1), ('R4', 'shared', 1),
++            ('R5', 'picker', 2), ('R6', 'separate', None), ('R7', 'picker', 3), ('R8', 'picker', 4)]
++FRESH = ('R1', 'R3', 'R5', 'R7', 'R8')
++
++
++def sha(b):
++    return hashlib.sha256(b if isinstance(b, bytes) else b.encode()).hexdigest()
++
++
++def transcript(s, k, reply=''):
++    """T(k): the system text with events E1..Ek (E2 = the speech and R4's reply)."""
++    e2 = s['e2_format'].format(speech=s['speech'], reply=' '.join(reply.split()))
++    events = [e.format(e2=e2) for e in s['events'][:k]]
++    return '\n'.join([s['sys'], '', 'Actions:', *s['catalogue'], '', f'Mission: {s["mission"]}', 'Memory:',
++                      *(f'- {m}' for m in s['memory']), '', 'Events so far:', *(f'- {e}' for e in events)])
++
++
++def messages(s, kind, k, reply=''):
++    if kind == 'picker':
++        return [{'role': 'system', 'content': transcript(s, k, reply)}, {'role': 'user', 'content': s['tail']}]
++    if kind == 'shared':
++        return [{'role': 'system', 'content': transcript(s, k)}, {'role': 'user', 'content': s['speech']}]
++    return [{'role': 'system', 'content': s['companion_sys']}, {'role': 'user', 'content': s['speech']}]
++
++
++def tokenize(post, text, special=True):
++    return post('/tokenize', {'content': text, 'add_special': special, 'parse_special': True})['tokens']
++
++
++def render(post, msgs):
++    """(prompt text, ids, problem): chat.build_prompt checked against the server's GGUF template."""
++    p = chat.build_prompt('gemma', msgs)
++    t = post('/apply-template', {'messages': msgs, 'chat_template_kwargs': {'enable_thinking': False}})
++    return p, tokenize(post, p), None if t.get('prompt') == p else 'GGUF template render differs from build_prompt'
++
++
++def name_ids(post, prompt, ids, names):
++    """({name: ids after the prompt}, problems): each name must add exactly one token to the prompt's ids, the five
++    distinct. A problem STOPs the run before any inference."""
++    tails, why = {}, []
++    for n in names:
++        full = tokenize(post, prompt + n)
++        tails[n] = full[len(ids):]
++        if full[:len(ids)] != ids:
++            why.append(f'{n!r}: prompt ids change when the name follows')
++        elif len(tails[n]) != 1:
++            why.append(f'{n!r}: {len(tails[n])} tokens after the model turn {tails[n]}, not one')
++    firsts = [t[0] for t in tails.values() if t]
++    if len(set(firsts)) != len(firsts):
++        why.append(f'first tokens not distinct: {tails}')
++    return tails, why
++
++
++def probs(res, ids_by_name):
++    """Raw probabilities of the names' tokens at the first generated position (picker.Gemma.decide), None outside
++    the top n_probs; renormalised over the five only when all are present."""
++    by_id = {e['id']: (e['prob'] if 'prob' in e else math.exp(e['logprob']))
++             for e in res['completion_probabilities'][0]['top_logprobs']}
++    raw = {n: by_id.get(i[0]) for n, i in ids_by_name.items()}
++    mass = sum(v for v in raw.values() if v is not None)
++    norm = {n: v / mass for n, v in raw.items()} if None not in raw.values() and mass > 0 else None
++    return raw, norm
++
++
++def pid_start(pid):
++    try:
++        return Path(f'/proc/{pid}/stat').read_text().rsplit(')', 1)[1].split()[19]  # field 22: start time
++    except (OSError, IndexError):
++        return None
++
++
++def run_sequence(post, s, pid, emit):
++    """Checks, then R1..R8 and the FRESH repeats, in order; returns (rows, info). Stops at the first problem or error."""
++    rows, info = [], {'problems': []}
++    msgs0 = messages(s, 'picker', 0)
++    p0, ids0, bad = render(post, msgs0)
++    info['name_ids'], why = name_ids(post, p0, ids0, s['names'])
++    info['problems'] += why + ([bad] if bad else [])
++    _, ids4, _ = render(post, messages(s, 'picker', 4))
++    info['t4_tail_tokens_empty_reply'] = len(ids4)
++    if not SIZE[0] <= len(ids4) <= SIZE[1]:
++        info['problems'].append(f'T(4) + tail = {len(ids4)} tokens with an empty reply, not in {SIZE}')
++    props = post('/props', None)
++    info['n_ctx'] = props.get('default_generation_settings', {}).get('n_ctx')
++    if info['n_ctx'] != CTX:
++        info['problems'].append(f'server n_ctx {info["n_ctx"]!r} != {CTX}')
++    info['parts'] = {'sys+catalogue': len(tokenize(post, '\n'.join([s['sys'], *s['catalogue']]), False)),
++                     'mission+memory': len(tokenize(post, '\n'.join([s['mission'], *s['memory']]), False)),
++                     'tail': len(tokenize(post, s['tail'], False)), 'speech': len(tokenize(post, s['speech'], False)),
++                     'companion_sys': len(tokenize(post, s['companion_sys'], False))}
++    # C2's reference: BOS + '<|turn>system\n' + T(1), i.e. the R4 prompt up to the end of E1
++    info['t1_prefix_tokens'] = len(tokenize(post, '<|turn>system\n' + transcript(s, 1)))
++    if info['problems']:
++        info['stopped'] = 'STOP before any inference: ' + '; '.join(info['problems'])
++        return rows, info
++    slot, reply, sent = None, '', {}
++    plan = [(r, kind, k, True) for r, kind, k in SEQUENCE] + [(r, None, None, False) for r in FRESH]
++    for rid, kind, k, cache in plan:
++        if cache:
++            prompt, ids, bad = render(post, messages(s, kind, k, reply))
++            if bad:
++                info['stopped'] = f'{rid}: {bad}'
++                break
++            sent[rid] = (kind, k, ids)
++        else:
++            kind, k, ids = sent[rid]
++        body = {'prompt': ids, **DECODE, **(PICK if kind == 'picker' else CHAT), 'cache_prompt': cache}
++        row = {'id': rid if cache else rid + '_FRESH', 'kind': kind, 'k': k, 'cache_prompt': cache,
++               'prompt_tokens': len(ids), 'prompt_ids_sha256': sha(json.dumps(ids)),
++               'lcp_prev_slot': mem1.lcp(ids, slot) if slot is not None else None,
++               'pid': pid, 'pid_start': pid_start(pid)}
++        if kind == 'picker' and not cache:
++            row['probs_cached_ref'] = rid
++        t0 = time.perf_counter()
++        try:
++            res = post('/completion', body)
++        except Exception as e:  # fail closed: recorded, the sequence ends
++            row.update(error=f'{type(e).__name__}: {e}', wall_s=round(time.perf_counter() - t0, 3))
++            rows.append(row)
++            emit(row)
++            info['stopped'] = f'{row["id"]} failed: {e!r}'
++            break
++        tm, gen = res.get('timings', {}), res.get('tokens') or []
++        row.update(wall_s=round(time.perf_counter() - t0, 3), prompt_n=tm.get('prompt_n'), cache_n=tm.get('cache_n'),
++                   prompt_ms=tm.get('prompt_ms'), generated_ids=gen, content=res.get('content'),
++                   tokens_cached=res.get('tokens_cached'), timings=tm)
++        if kind == 'picker':
++            row['probs_raw'], row['probs'] = probs(res, info['name_ids'])
++            row['top'] = max(row['probs'], key=row['probs'].get) if row['probs'] else None
++        if rid == 'R4':
++            reply = res.get('content') or ''
++            info['reply'] = reply
++        slot = ids + gen
++        rows.append(row)
++        emit(row)
++    return rows, info
++
++
++def criteria(rows, info, exit_code, killed):
++    """[(name, PASS|FAIL|INFO, numbers)], from the recorded rows alone."""
++    r = {x['id']: x for x in rows}
++    out = []
++
++    def got(rid, key):
++        return r.get(rid, {}).get(key)
++    c1 = []
++    for rid in ('R2', 'R3', 'R5', 'R8'):
++        n, lcp, cn = got(rid, 'prompt_tokens'), got(rid, 'lcp_prev_slot'), got(rid, 'cache_n')
++        need = min(lcp, n - 1) if None not in (n, lcp) else None
++        c1.append((rid, cn, need, cn is not None and need is not None and cn >= need))
++    out.append(('C1', 'PASS' if all(x[3] for x in c1) else 'FAIL',
++                '; '.join(f'{a}: cache_n {b} vs shared {c}' for a, b, c, _ in c1)))
++    cn, need = got('R5', 'cache_n'), info.get('t1_prefix_tokens')
++    out.append(('C2', 'PASS' if None not in (cn, need) and cn >= need else 'FAIL',
++                f'R5 cache_n {cn} vs T(1) without tail {need}'))
++    out.append(('C3', 'INFO', f'R7 prompt_n {got("R7", "prompt_n")} (rebuild cost after the separate chat; '
++                f'cache_n {got("R7", "cache_n")}, prompt {got("R7", "prompt_tokens")})'))
++    c4, dps = [], []
++    for rid in FRESH:
++        a, b = got(rid, 'probs'), got(rid + '_FRESH', 'probs')
++        if a is None or b is None:
++            c4.append((rid, None, None, False))
++            continue
++        dp = max(abs(a[n] - b[n]) for n in a)
++        dps.append(dp)
++        c4.append((rid, got(rid, 'top'), got(rid + '_FRESH', 'top'), got(rid, 'top') == got(rid + '_FRESH', 'top')))
++    ok4 = all(x[3] for x in c4) and len(dps) == len(FRESH) and max(dps) <= MAX_DP
++    out.append(('C4', 'PASS' if ok4 else 'FAIL', (f'max |dp| {max(dps):.6f}; ' if dps else 'no pairs; ') +
++                '; '.join(f'{a}: cached {b} / fresh {c}' for a, b, c, _ in c4)))
++    pids = {(x['pid'], x['pid_start']) for x in rows}
++    errors = sum('error' in x for x in rows)
++    ok5 = len(pids) == 1 and errors == 0 and exit_code == 0 and not killed and len(rows) == len(SEQUENCE) + len(FRESH)
++    out.append(('C5', 'PASS' if ok5 else 'FAIL', f'PIDs {sorted(pids)}; {len(rows)} requests, {errors} errors; '
++                f'exit code {exit_code}, SIGKILL {killed}'))
++    return out
++
++
++def report(run, rows, info, crit):
++    L = [f'MIND-B0 {run["utc"]}  code {run["code_sha256"][:12]}  set {run["set_sha256"][:12]}  base {run["git_head"]}',
++         f'server: {" ".join(run["command"])}', f'--slot-save-path listed in --help: {run["slot_save_path_listed"]}',
++         f'n_ctx {info.get("n_ctx")}; T(4)+tail (empty reply) {info.get("t4_tail_tokens_empty_reply")} tokens; '
++         f'T(1) without tail {info.get("t1_prefix_tokens")} tokens; parts {info.get("parts")}',
++         f'name ids {info.get("name_ids")}', f'R4 reply: {info.get("reply")!r}']
++    if info.get('stopped'):
++        L.append(f'STOPPED: {info["stopped"]}')
++    L += ['', 'id        kind      cache  n    LCP  prompt_n cache_n  top      p(top)  prompt_ms* wall_s*']
++    for x in rows:
++        p = x.get('probs') or {}
++        L.append(f'{x["id"]:<9} {x["kind"]:<9} {str(x["cache_prompt"])[0]:<6} {x["prompt_tokens"]:<4} '
++                 f'{str(x["lcp_prev_slot"]):<4} {str(x.get("prompt_n")):<8} {str(x.get("cache_n")):<8} '
++                 f'{str(x.get("top")):<8} {p.get(x.get("top"), float("nan")):.4f}  '
++                 f'{str(x.get("prompt_ms")):<10.10} {x.get("wall_s")}' + (f'  ERROR {x["error"]}' if 'error' in x
++                                                                           else ''))
++    L += ['* timings NOT MEASUREMENTS (agent resident allowed; no thermal or core control)', '',
++          'probabilities (renormalised over the five; raw mass in brackets):']
++    for x in rows:
++        if x.get('probs_raw'):
++            mass = sum(v for v in x['probs_raw'].values() if v is not None)
++            L.append(f'  {x["id"]:<9} ' + ' '.join(f'{n}={v:.4f}' for n, v in (x['probs'] or {}).items()) +
++                     f'  [{mass:.4f}]')
++    L += ['', 'criteria:'] + [f'  {c}  {v:<4}  {t}' for c, v, t in crit]
++    L.append(f'server exit code {run.get("exit_code")}; SIGKILL needed {run.get("killed")}')
++    return '\n'.join(L) + '\n'
++
++
++def main():
++    s_bytes = SET.read_bytes()
++    s = json.loads(s_bytes)
++    if bad := mem1.pinned_problems()[0]:
++        raise SystemExit(f'refused: {bad}')
++    if not repro.port_free():
++        raise SystemExit('refused: port 8080 in use (never stops a server it did not start)')
++    utc = time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())
++    out = OUT_ROOT / utc
++    out.mkdir(parents=True)
++    help_text = subprocess.run([mem1.SERVER, '--help'], capture_output=True, text=True, timeout=60).stdout
++    run = {'utc': utc, 'set_sha256': sha(s_bytes), 'code_sha256': sha(Path(__file__).read_bytes()),
++           'mem1_sha256': sha(Path(mem1.__file__).read_bytes()), 'pinned_sha256': mem1.PINNED,
++           'git_head': subprocess.run(['git', '-C', str(HERE), 'rev-parse', 'HEAD'], capture_output=True,
++                                      text=True).stdout.strip(),
++           'command': mem1.command(CTX), 'decode': DECODE, 'picker': PICK, 'chat': CHAT,
++           'slot_save_path_listed': '--slot-save-path' in help_text, 'timings': 'NOT MEASUREMENTS'}
++    (out / 'run.json').write_text(json.dumps(run, indent=1) + '\n')  # set SHA-256 on disk before the server starts
++
++    def post(path, body):
++        if body is None:
++            return mem1.props_json()
++        return cr.post(path, body, timeout=REQUEST_TIMEOUT_S)
++
++    with open(out / 'requests.jsonl', 'x') as rq, open(out / 'server.log', 'x') as log:
++        def emit(row):
++            rq.write(json.dumps(row) + '\n')
++            rq.flush()
++        proc = subprocess.Popen(mem1.command(CTX), stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
++                                start_new_session=True)
++        killed, rows, info = False, [], {}
++        try:
++            t0 = time.monotonic()
++            while not cr.healthy():
++                if proc.poll() is not None or time.monotonic() - t0 > LOAD_TIMEOUT_S:
++                    raise RuntimeError(f'llama-server not healthy (exit {proc.poll()})')
++                time.sleep(0.1)
++            run['server_pid'], run['server_comm'] = proc.pid, Path(f'/proc/{proc.pid}/comm').read_text().strip()
++            rows, info = run_sequence(post, s, proc.pid, emit)
++        finally:
++            if proc.poll() is None:
++                os.killpg(proc.pid, signal.SIGTERM)
++                try:
++                    proc.wait(timeout=TERM_WAIT_S)
++                except subprocess.TimeoutExpired:
++                    os.killpg(proc.pid, signal.SIGKILL)
++                    proc.wait()
++                    killed = True
++            run.update(exit_code=proc.returncode, killed=killed, info=info)
++            (out / 'run.json').write_text(json.dumps(run, indent=1) + '\n')
++    crit = criteria(rows, info, run['exit_code'], killed)
++    run['criteria'] = crit
++    (out / 'run.json').write_text(json.dumps(run, indent=1) + '\n')
++    text = report(run, rows, info, crit)
++    (out / 'report.txt').write_text(text)
++    (out / 'artifacts.sha256').write_text(''.join(f'{sha(p.read_bytes())}  {p.name}\n' for p in sorted(out.iterdir())
++                                                  if p.name != 'artifacts.sha256'))
++    print(text + f'\n{out}')
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/benchmark/mind_picker/b0_cache/test_b0.py b/benchmark/mind_picker/b0_cache/test_b0.py
+new file mode 100644
+index 0000000..58f794a
+--- /dev/null
++++ b/benchmark/mind_picker/b0_cache/test_b0.py
+@@ -0,0 +1,101 @@
++"""Offline tests for b0.py with a fake server: LCP math, criteria, the token-uniqueness stop. No server, no phone."""
++import json
++import re
++import sys
++import unittest
++from pathlib import Path
++
++sys.dont_write_bytecode = True
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++import b0  # noqa: E402
++
++S = json.loads(b0.SET.read_text())
++
++
++class Fake:
++    """Word-level tokenizer; /completion follows llama-server's rule cache_n = min(LCP, n - 1) when cache_prompt."""
++
++    def __init__(self, split=(), cache=True, fresh_shift=0.0):
++        self.vocab, self.slot, self.split, self.cache, self.shift, self.completions = {}, [], split, cache, \
++            fresh_shift, 0
++
++    def ids(self, text):
++        out = []
++        for w in re.findall(r'<\|turn>|<turn\|>|\w+|\s|[^\w\s]', text):
++            for piece in ([w[:2], w[2:]] if w in self.split else [w]):
++                out.append(self.vocab.setdefault(piece, len(self.vocab) + 10))
++        return out
++
++    def __call__(self, path, body):
++        if path == '/tokenize':
++            return {'tokens': ([2] if body['add_special'] else []) + self.ids(body['content'])}
++        if path == '/apply-template':
++            return {'prompt': b0.chat.build_prompt('gemma', body['messages'])}
++        if path == '/props':
++            return {'default_generation_settings': {'n_ctx': 2048}}
++        assert path == '/completion'
++        self.completions += 1
++        ids = body['prompt']
++        cn = min(b0.mem1.lcp(ids, self.slot), len(ids) - 1) if body['cache_prompt'] and self.cache else 0
++        gen = [self.vocab.setdefault(w, len(self.vocab) + 10) for w in (['look'] if body['n_predict'] == 1 else
++                                                                          ['I', 'am', 'exploring'])]
++        self.slot = ids + gen
++        shift = 0 if body['cache_prompt'] else self.shift
++        p = {'explore': 0.1, 'visit': 0.2, 'greet': 0.3 - shift, 'look': 0.35 + shift, 'wait': 0.05}
++        return {'content': 'I am exploring', 'tokens': gen,
++                'timings': {'prompt_n': len(ids) - cn, 'cache_n': cn, 'prompt_ms': 1.0},
++                'completion_probabilities': [{'top_logprobs': [{'id': self.vocab[n], 'prob': v}
++                                                               for n, v in p.items()]}]}
++
++
++def run(fake):
++    b0.SIZE = (1, 10 ** 6)  # the fake tokenizer is word-level
++    return b0.run_sequence(fake, S, 123, lambda row: None)
++
++
++class T(unittest.TestCase):
++    def test_lcp(self):
++        self.assertEqual(b0.mem1.lcp([1, 2, 3], [1, 2, 4, 5]), 2)
++        self.assertEqual(b0.mem1.lcp([1, 2], [1, 2, 3]), 2)
++
++    def test_full_sequence_passes(self):
++        rows, info = run(Fake())
++        self.assertNotIn('stopped', info)
++        self.assertEqual([r['id'] for r in rows], [x[0] for x in b0.SEQUENCE] + [r + '_FRESH' for r in b0.FRESH])
++        r = {x['id']: x for x in rows}
++        self.assertEqual(r['R2']['cache_n'], r['R2']['prompt_tokens'] - 1)  # repeat: n - 1
++        self.assertEqual(r['R2']['lcp_prev_slot'], r['R2']['prompt_tokens'])
++        self.assertIn('I am exploring', b0.transcript(S, 2, info['reply']))
++        self.assertEqual(r['R5_FRESH']['prompt_ids_sha256'], r['R5']['prompt_ids_sha256'])
++        self.assertLess(r['R7']['cache_n'], 10)  # after the separate chat only BOS, turn opening, 'You are ' survive
++        crit = dict((c, v) for c, v, _ in b0.criteria(rows, info, 0, False))
++        self.assertEqual(crit, {'C1': 'PASS', 'C2': 'PASS', 'C3': 'INFO', 'C4': 'PASS', 'C5': 'PASS'})
++
++    def test_criteria_fail(self):
++        rows, info = run(Fake(cache=False, fresh_shift=0.1))
++        crit = dict((c, v) for c, v, _ in b0.criteria(rows, info, 0, False))
++        self.assertEqual((crit['C1'], crit['C2'], crit['C4']), ('FAIL', 'FAIL', 'FAIL'))
++        rows, info = run(Fake(fresh_shift=0.03))  # same top, |dp| 0.03 > 0.02
++        self.assertEqual(dict((c, v) for c, v, _ in b0.criteria(rows, info, 0, False))['C4'], 'FAIL')
++        for code, killed in ((1, False), (-15, False), (0, True)):
++            self.assertEqual(b0.criteria(rows, info, code, killed)[4][1], 'FAIL')
++        self.assertEqual(b0.criteria(rows[:-1], info, 0, False)[4][1], 'FAIL')  # a request missing
++
++    def test_name_token_stop(self):
++        fake = Fake(split=('greet',))
++        rows, info = run(fake)
++        self.assertEqual((rows, fake.completions), ([], 0))
++        self.assertIn('STOP before any inference', info['stopped'])
++        self.assertIn("'greet': 2 tokens", info['stopped'])
++
++    def test_name_duplicate_stop(self):
++        fake = Fake()
++        fake.ids('look')  # fix 'look' first, then give 'wait' the same id
++        fake.vocab['wait'] = fake.vocab['look']
++        rows, info = run(fake)
++        self.assertEqual((rows, fake.completions), ([], 0))
++        self.assertIn('not distinct', info['stopped'])
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/benchmark/mind_picker/b0_cache/b0_set.json b/benchmark/mind_picker/b0_cache/b0_set.json
+new file mode 100644
+index 0000000..cfcc774
+--- /dev/null
++++ b/benchmark/mind_picker/b0_cache/b0_set.json
+@@ -0,0 +1,27 @@
++{
++ "sys": "You are the mind of a small four-wheeled home robot. You do not drive the wheels yourself: a separate safety program moves the robot, avoids obstacles, watches the temperature and may refuse any action. Your job is to choose the next high-level action from the catalogue below when something happens. Choose calmly and briefly. Prefer actions that serve the mission. Never pretend to see something that the event log does not report. If nobody is present, do not choose actions that need a person. If a person spoke to the robot recently, stay friendly and attentive. If nothing new has happened for a while, keep exploring the home. When in doubt, look around in place before moving. Events arrive as short lines written by the safety program; each line describes something that has just been seen or heard, and the newest line is always the last one. The memory lines are notes from earlier days and may be out of date. A person who is far away may not have noticed the robot yet, so going closer is polite before speaking. A person who is close and looking at the robot can be greeted directly. Waiting is useful when a person is busy or when the robot has just spoken and expects an answer. Do not repeat the same action again and again if nothing changes.",
++ "catalogue": [
++  "explore: drive on and explore the home",
++  "visit: go to a person",
++  "greet: stop and greet a person",
++  "look: look around in place",
++  "wait: stay still and wait"
++ ],
++ "names": ["explore", "visit", "greet", "look", "wait"],
++ "mission": "Find the owner in the flat and say good evening.",
++ "memory": [
++  "The owner usually sits on the sofa in the living room after dinner",
++  "The kitchen door is often closed in the evening",
++  "Yesterday the robot met the owner's neighbour in the hallway"
++ ],
++ "events": [
++  "person appeared, far left",
++  "{e2}",
++  "person moved closer, centre, about two metres away",
++  "the person is still in front of the robot and looking at it"
++ ],
++ "e2_format": "the person said \"{speech}\" and the robot replied \"{reply}\"",
++ "speech": "Hello robot, what are you doing right now?",
++ "companion_sys": "You are a friendly companion robot that chats with people at home. Answer in one or two short, warm sentences.",
++ "tail": "Which action next? Answer with one word: explore, visit, greet, look or wait."
++}
+diff --git a/benchmark/mind_picker/b0_cache/README.md b/benchmark/mind_picker/b0_cache/README.md
+new file mode 100644
+index 0000000..cbff72a
+--- /dev/null
++++ b/benchmark/mind_picker/b0_cache/README.md
+@@ -0,0 +1,15 @@
++# MIND-B0 — prefix-cache mechanics of the mind/picker layout
++
++Research only (#146). How many prompt tokens the deployed one-slot server re-processes when the picker is called again
++on a growing event transcript, when a chat turn shares that transcript, and when a chat turn uses a separate context;
++and whether cached scoring gives the same action probabilities as fresh scoring. Counters and probabilities only;
++timings are recorded but are NOT MEASUREMENTS (agent resident allowed per WORKFLOW "Timed benchmarks").
++
++- Runtime: MEM-1's `mem1.command(2048)` (b1609 dotprod, Gemma 4 E2B Q4_0, `--parallel 1 --swa-full --cache-ram 0`)
++  with MEM-1's SHA-256 pins; no MTP, no projector; temperature 0, seed 0.
++- Frozen set `b0_set.json`, SHA-256 `dddb288ace1642b1e93a6e268cb68ff1a028121b6853dfa837ac7849cfaa187b`
++  (recorded 2026-11-02T10:06:44Z, before any inference; sizing used tokenize-only server calls).
++- Layout, sequence R1..R8 + FRESH repeats, and criteria C1–C5: see the docstring of `b0.py`.
++- Run: `python b0.py` with Termux python (works from proot Debian); writes
++  `~/robot_runs/mind_b0/<UTC>/` (run.json, requests.jsonl, server.log, report.txt, artifacts.sha256).
++- Offline tests: `python -B test_b0.py` (fake server; no phone).

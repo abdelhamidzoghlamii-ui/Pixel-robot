@@ -1,0 +1,43 @@
+MIND-B0 20261102T100659Z  code aaa9476a02ce  set dddb288ace16  base fc6cf1abdf130f55465512b2555dceedae36b07b
+server: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1
+--slot-save-path listed in --help: True
+n_ctx 2048; T(4)+tail (empty reply) 447 tokens; T(1) without tail 370 tokens; parts {'sys+catalogue': 294, 'mission+memory': 48, 'tail': 19, 'speech': 10, 'companion_sys': 23}
+name ids {'explore': [108331], 'visit': [37620], 'greet': [183583], 'look': [7780], 'wait': [12429]}
+R4 reply: 'greet'
+
+id        kind      cache  n    LCP  prompt_n cache_n  top      p(top)  prompt_ms* wall_s*
+R1        picker    T      392  None 392      0        explore  0.7875  5456.906   5.483
+R2        picker    T      392  392  1        391      explore  0.7789  81.557     0.123
+R3        picker    T      399  363  36       363      look     0.6018  538.289    0.56
+R4        shared    T      390  375  15       375      None     nan  292.064    0.38
+R5        picker    T      422  370  52       370      greet    0.7277  768.179    0.791
+R6        separate  T      47   6    41       6        None     nan  549.744    2.437
+R7        picker    T      434  6    428      6        greet    0.5945  6027.471   6.049
+R8        picker    T      449  405  44       405      greet    0.6417  690.328    0.712
+R1_FRESH  picker    F      392  363  392      0        explore  0.7875  5639.698   5.678
+R3_FRESH  picker    F      399  363  399      0        look     0.5920  5862.927   5.897
+R5_FRESH  picker    F      422  370  422      0        greet    0.7439  6182.909   6.206
+R7_FRESH  picker    F      434  393  434      0        greet    0.5945  6381.101   6.404
+R8_FRESH  picker    F      449  405  449      0        greet    0.6291  6686.741   6.707
+* timings NOT MEASUREMENTS (agent resident allowed; no thermal or core control)
+
+probabilities (renormalised over the five; raw mass in brackets):
+  R1        explore=0.7875 visit=0.0000 greet=0.0003 look=0.1494 wait=0.0628  [0.9990]
+  R2        explore=0.7789 visit=0.0000 greet=0.0003 look=0.1508 wait=0.0700  [0.9989]
+  R3        explore=0.2333 visit=0.0087 greet=0.1054 look=0.6018 wait=0.0508  [0.9934]
+  R5        explore=0.1398 visit=0.0134 greet=0.7277 look=0.0253 wait=0.0937  [0.9944]
+  R7        explore=0.0420 visit=0.0155 greet=0.5945 look=0.0091 wait=0.3390  [0.9936]
+  R8        explore=0.0093 visit=0.0093 greet=0.6417 look=0.0120 wait=0.3277  [0.9937]
+  R1_FRESH  explore=0.7875 visit=0.0000 greet=0.0003 look=0.1494 wait=0.0628  [0.9990]
+  R3_FRESH  explore=0.2402 visit=0.0084 greet=0.1089 look=0.5920 wait=0.0504  [0.9933]
+  R5_FRESH  explore=0.1316 visit=0.0125 greet=0.7439 look=0.0221 wait=0.0899  [0.9946]
+  R7_FRESH  explore=0.0420 visit=0.0155 greet=0.5945 look=0.0091 wait=0.3390  [0.9936]
+  R8_FRESH  explore=0.0101 visit=0.0097 greet=0.6291 look=0.0130 wait=0.3380  [0.9936]
+
+criteria:
+  C1  PASS  R2: cache_n 391 vs shared 391; R3: cache_n 363 vs shared 363; R5: cache_n 370 vs shared 370; R8: cache_n 405 vs shared 405
+  C2  PASS  R5 cache_n 370 vs T(1) without tail 370
+  C3  INFO  R7 prompt_n 428 (rebuild cost after the separate chat; cache_n 6, prompt 434)
+  C4  PASS  max |dp| 0.016179; R1: cached explore / fresh explore; R3: cached look / fresh look; R5: cached greet / fresh greet; R7: cached greet / fresh greet; R8: cached greet / fresh greet
+  C5  PASS  PIDs [(18549, '55691805')]; 13 requests, 0 errors; exit code 0, SIGKILL False
+server exit code 0; SIGKILL needed False

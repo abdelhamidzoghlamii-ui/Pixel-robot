@@ -1,0 +1,90 @@
+EXECUTION PROFILE
+ROLE: Coder
+PLATFORM: Claude Code CLI
+MODEL: claude-opus-5-5
+EFFORT: medium
+PONYTAIL: lite
+WHY: Small new research runner reusing MEM-1 parts; no deployed code touched.
+FALLBACK: AGY CLI | claude-opus-5-5-medium | N/A | Ponytail lite (stated explicitly)
+
+EXECUTION PROFILE
+ROLE: Reviewer
+PLATFORM: Codex CLI (fresh session)
+MODEL: gpt-6.1-sol
+EFFORT: medium
+PONYTAIL: off
+WHY: Independent model family from the Coder; counter logic needs a careful check.
+FALLBACK: AGY CLI | gemini-3.8-flash-high | N/A | Ponytail off (full WORKFLOW AGY procedure)
+
+TASK MIND-B0 — prefix-cache mechanics for the new mind/picker layout (research only)
+
+Base: verify `git rev-parse HEAD origin/main` = fc6cf1abdf130f55465512b2555dceedae36b07b (report if not).
+Read first: docs/HANDOFF.md, docs/WORKFLOW.md, docs/CODER.md, DECISIONS #137, #146, #147,
+benchmark/memory_context/README.md and mem1.py, picker.py, chat.py (build_prompt), server_manager.py.
+At session start, confirm your model id is the one in the profile; if not, stop and report.
+
+QUESTION: On the deployed one-slot server, how many prompt tokens are re-processed when
+(a) the picker is called again on a growing event transcript, (b) a chat turn shares that
+transcript, (c) a chat turn uses a separate context? And does cached scoring give the same
+action probabilities as fresh scoring?
+Counters (prompt_n, cache_n) and probabilities only. Timings are recorded but labelled
+NOT MEASUREMENTS (agent resident is allowed per WORKFLOW "Timed benchmarks").
+
+DO NOT: change picker.py, main.py, run_mission.py, server_manager.py, chat.py or any deployed
+file; start RobotCam, YOLO, M2/RelateAnything, motors or the mission; use MTP or a projector;
+commit or push.
+
+RUNTIME: exactly MEM-1's setup_q4 server, ctx 2048 (reuse mem1.command(2048) and its binary/model
+SHA-256 pins). Gemma 4 chat template via the server's /apply-template, thinking off, as MEM-1.
+temperature 0, seed 0.
+
+FROZEN SET: new file benchmark/mind_picker/b0_cache/b0_set.json, SHA-256 recorded before any
+inference. Synthetic, English:
+- SYS: robot-mind policy plus an action catalogue of five actions, one line each:
+  explore, visit (go to a person), greet, look (look around in place), wait.
+- MISSION + 3 short memory lines.
+- Events E1..E4: one short line each (e.g. "person appeared, far left").
+- SPEECH: one user utterance; COMPANION_SYS: a different system prompt for the separate chat.
+- Picker tail: "Which action next? Answer with one word: explore, visit, greet, look or wait."
+  then the model turn. Score the first generated token over the five names
+  (/completion, n_predict 1, n_probs 1000, as picker.Gemma.decide). Before any inference, assert
+  via /tokenize that each name's first token in the model-turn position is a single distinct
+  token; if not, STOP and report (this is a finding, not something to work around).
+Transcript T(k) = SYS + MISSION/memory + E1..Ek, with the picker tail always last.
+Target size of T(4) + tail: 400–700 tokens.
+
+SEQUENCE (one launch, one block, fixed order):
+ R1 picker T(0), cache_prompt true (cold)
+ R2 picker T(0), cache_prompt true (repeat)
+ R3 picker T(1)
+ R4 chat SHARED: T(1) without the picker tail + SPEECH as a user turn; n_predict 32
+ R5 picker T(2), where E2 logs the speech and reply as one event line
+ R6 chat SEPARATE: COMPANION_SYS + SPEECH; n_predict 32
+ R7 picker T(3)
+ R8 picker T(4)
+ Phase 2: R1, R3, R5, R7, R8 prompts again with cache_prompt false (FRESH).
+For every request record: prompt token ids hash and count, token LCP with the slot's previous
+prompt+generated tokens, prompt_n, cache_n, probabilities, prompt_ms, wall, server PID.
+Read-only: record whether `llama-server --help` lists --slot-save-path (do not use it).
+
+CRITERIA (fixed now, report each PASS/FAIL with numbers):
+ C1 R2, R3, R5, R8: cache_n >= transcript prefix shared with the previous slot content.
+ C2 R5 (after the shared chat): cache_n >= tokens of T(1) without tail.
+ C3 R7 (after the separate chat): report prompt_n = rebuild cost. Informational only.
+ C4 cached vs fresh, same prompt: same top action for all five; report max |dp|; PASS if <= 0.02.
+ C5 one server PID throughout, 0 request errors, server stopped cleanly (report exit code).
+
+FILES: benchmark/mind_picker/b0_cache/{b0.py, test_b0.py, b0_set.json, README.md}. Offline unit
+tests with a fake server (LCP math, criteria, token-uniqueness stop). Run folder
+~/robot_runs/mind_b0/<UTC>/ with run.json, requests.jsonl, report.txt, artifacts.sha256.
+
+STEPS: implement -> offline tests -> one phone run (motors off, nothing else started) ->
+automatically invoke the Reviewer (Codex CLI, gpt-6.1-sol, medium, Ponytail off, fresh session)
+per WORKFLOW with base, full diff incl. new files, test output and run folder -> freeze ->
+return the review verbatim and stop for the owner's commit decision.
+If the Codex sandbox cannot execute commands in proot (as in #144 R3), the Reviewer reviews
+by reading the source and your saved check outputs, and says so in the review; that is not a pass
+by itself — report it.
+
+RETURN: report.txt verbatim, C1–C5 table, token counts per part, the review verbatim,
+`git status --porcelain=v1 -uall`. Mark each result VALID / INVALID / NOT A MEASUREMENT.

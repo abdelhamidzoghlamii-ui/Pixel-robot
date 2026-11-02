@@ -1,0 +1,14 @@
+Owner decision on MIND-B0:
+1. Fix the P2: if anything in run_sequence (or later) raises, keep the rows already
+   collected, record the exception in run.json, mark the affected criteria FAIL, and
+   always write report.txt and artifacts.sha256. Add an offline test for it (fake server
+   returning a reply without completion_probabilities).
+2. Add `!benchmark/mind_picker/` to .gitignore so the folder is tracked.
+3. C1/C2/C4 interpretations confirmed: C1 = min(LCP, n−1); C2 = BOS + system opening +
+   T(1); C4 on the five-way renormalised probabilities. State them in the README.
+4. Frozen set unchanged (same SHA-256 dddb288a…). Rerun once on the phone, same
+   conditions. Keep the first run folder 20261102T100659Z as superseded evidence.
+5. Review round 2: same Reviewer (Codex CLI gpt-6.1-sol, medium, Ponytail off, fresh
+   session), same source-only method. Then stop for my commit decision.
+Return: new report.txt verbatim, a diff of criteria vs run 1, review verbatim,
+git status --porcelain=v1 -uall. No commit or push.

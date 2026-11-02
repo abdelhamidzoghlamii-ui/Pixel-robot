@@ -1,0 +1,116 @@
+{
+ "utc": "20261102T100659Z",
+ "set_sha256": "dddb288ace1642b1e93a6e268cb68ff1a028121b6853dfa837ac7849cfaa187b",
+ "code_sha256": "aaa9476a02cec8594026746cf139c3fc412d774ad97530aad18e38611c8b4363",
+ "mem1_sha256": "806d6531e24727c4248825fdaaf619f1938a121b1d30487581b929944ccdd620",
+ "pinned_sha256": {
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf": "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52",
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libggml-cpu.so": "a4ef0d97e741f5902919af5e9cef95f808bd98581be76bca66fcee3f4ac8a0dd",
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server": "77eb35a0e716dff307e0d33b0b45ce0ed91e216a20db9411a7b9dc94e6624053"
+ },
+ "git_head": "fc6cf1abdf130f55465512b2555dceedae36b07b",
+ "command": [
+  "taskset",
+  "-c",
+  "4-7",
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+  "-m",
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+  "--port",
+  "8080",
+  "--ctx-size",
+  "2048",
+  "--threads",
+  "4",
+  "--threads-batch",
+  "4",
+  "--parallel",
+  "1",
+  "--swa-full",
+  "--cache-ram",
+  "0",
+  "--host",
+  "127.0.0.1"
+ ],
+ "decode": {
+  "temperature": 0,
+  "seed": 0,
+  "stream": false,
+  "return_tokens": true
+ },
+ "picker": {
+  "n_predict": 1,
+  "n_probs": 1000,
+  "post_sampling_probs": false
+ },
+ "chat": {
+  "n_predict": 32,
+  "stop": [
+   "<turn|>"
+  ]
+ },
+ "slot_save_path_listed": true,
+ "timings": "NOT MEASUREMENTS",
+ "server_pid": 18549,
+ "server_comm": "llama-server",
+ "exit_code": 0,
+ "killed": false,
+ "info": {
+  "problems": [],
+  "name_ids": {
+   "explore": [
+    108331
+   ],
+   "visit": [
+    37620
+   ],
+   "greet": [
+    183583
+   ],
+   "look": [
+    7780
+   ],
+   "wait": [
+    12429
+   ]
+  },
+  "t4_tail_tokens_empty_reply": 447,
+  "n_ctx": 2048,
+  "parts": {
+   "sys+catalogue": 294,
+   "mission+memory": 48,
+   "tail": 19,
+   "speech": 10,
+   "companion_sys": 23
+  },
+  "t1_prefix_tokens": 370,
+  "reply": "greet"
+ },
+ "criteria": [
+  [
+   "C1",
+   "PASS",
+   "R2: cache_n 391 vs shared 391; R3: cache_n 363 vs shared 363; R5: cache_n 370 vs shared 370; R8: cache_n 405 vs shared 405"
+  ],
+  [
+   "C2",
+   "PASS",
+   "R5 cache_n 370 vs T(1) without tail 370"
+  ],
+  [
+   "C3",
+   "INFO",
+   "R7 prompt_n 428 (rebuild cost after the separate chat; cache_n 6, prompt 434)"
+  ],
+  [
+   "C4",
+   "PASS",
+   "max |dp| 0.016179; R1: cached explore / fresh explore; R3: cached look / fresh look; R5: cached greet / fresh greet; R7: cached greet / fresh greet; R8: cached greet / fresh greet"
+  ],
+  [
+   "C5",
+   "PASS",
+   "PIDs [(18549, '55691805')]; 13 requests, 0 errors; exit code 0, SIGKILL False"
+  ]
+ ]
+}
