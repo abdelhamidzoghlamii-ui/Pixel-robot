@@ -1,0 +1,48 @@
+MIND-B0b L1 20261102T123830Z  code 933f4abfd9b5  b0 cb42caafe9d8  set dddb288ace16  base cac534893d0e9be700e42cd4473119fbcfaf1fd5
+server: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1 --slot-save-path /data/data/com.termux/files/home/robot_runs/mind_b0b/20261102T123830Z_L1/slots
+--help flags: {'--slot-save-path': True, '--parallel': True, '--kv-unified': True, '--slot-prompt-similarity': True, '--no-slots': True, '--slots': True}
+per-slot n_ctx [2048]; T(1) without tail 370; name ids {'explore': [108331], 'visit': [37620], 'greet': [183583], 'look': [7780], 'wait': [12429]}
+R4 reply: 'greet'
+R6 reply: "Hello! I'm here and ready to chat with you. I'm currently processing information and waiting for your next question."
+slot save: wall 0.019 s* response {'id_slot': 0, 'filename': 'picker.bin', 'n_saved': 422, 'n_written': 7790524, 'timings': {'save_ms': 6.265}}
+slot restore: wall 0.018 s* response {'id_slot': 0, 'filename': 'picker.bin', 'n_restored': 422, 'n_read': 7790524, 'timings': {'restore_ms': 6.566}}
+slot file picker.bin: 7790524 bytes
+
+id        kind      cache slot n    LCP  prompt_n cache_n  top      p(top)  prompt_ms* wall_s*
+R1        picker    T     0/0  392  None 392      0        explore  0.7875  5688.298   5.707
+R2        picker    T     0/0  392  392  1        391      explore  0.7789  82.326     0.11
+R3        picker    T     0/0  399  363  36       363      look     0.6018  570.86     0.609
+R4        shared    T     0/0  390  375  15       375      None     nan  312.638    0.404
+R5        picker    T     0/0  422  370  52       370      greet    0.7277  810.8      0.849
+R6        separate  T     0/0  47   6    41       6        None     nan  589.421    2.572
+R7        picker    T     0/0  434  393  41       393      greet    0.6139  703.445    0.726
+R8        picker    T     0/0  449  405  44       405      greet    0.6441  743.441    0.767
+R1_FRESH  picker    F     0/0  392  363  392      0        explore  0.7875  6030.252   6.051
+R3_FRESH  picker    F     0/0  399  363  399      0        look     0.5920  6223.957   6.245
+R5_FRESH  picker    F     0/0  422  370  422      0        greet    0.7439  6545.826   6.589
+R7_FRESH  picker    F     0/0  434  393  434      0        greet    0.5945  6734.121   6.757
+R8_FRESH  picker    F     0/0  449  405  449      0        greet    0.6291  7052.899   7.075
+* timings NOT MEASUREMENTS (agent resident; no thermal or core control); slot = asked/reported
+
+probabilities (renormalised over the five; raw mass in brackets):
+  R1        explore=0.7875 visit=0.0000 greet=0.0003 look=0.1494 wait=0.0628  [0.9990]
+  R2        explore=0.7789 visit=0.0000 greet=0.0003 look=0.1508 wait=0.0700  [0.9989]
+  R3        explore=0.2333 visit=0.0087 greet=0.1054 look=0.6018 wait=0.0508  [0.9934]
+  R5        explore=0.1398 visit=0.0134 greet=0.7277 look=0.0253 wait=0.0937  [0.9944]
+  R7        explore=0.0416 visit=0.0142 greet=0.6139 look=0.0094 wait=0.3210  [0.9934]
+  R8        explore=0.0108 visit=0.0093 greet=0.6441 look=0.0119 wait=0.3240  [0.9937]
+  R1_FRESH  explore=0.7875 visit=0.0000 greet=0.0003 look=0.1494 wait=0.0628  [0.9990]
+  R3_FRESH  explore=0.2402 visit=0.0084 greet=0.1089 look=0.5920 wait=0.0504  [0.9933]
+  R5_FRESH  explore=0.1316 visit=0.0125 greet=0.7439 look=0.0221 wait=0.0899  [0.9946]
+  R7_FRESH  explore=0.0420 visit=0.0155 greet=0.5945 look=0.0091 wait=0.3390  [0.9936]
+  R8_FRESH  explore=0.0101 visit=0.0097 greet=0.6291 look=0.0130 wait=0.3380  [0.9936]
+
+RAM (INDICATIVE, kB):
+  after_load: {'VmHWM': '4135404 kB', 'VmRSS': '4003076 kB', 'VmSwap': '0 kB', 'Cpus_allowed_list': '4-7', 'Pss': '3688175 kB', 'MemAvailable': '2589820 kB'}
+  end: {'VmHWM': '4135404 kB', 'VmRSS': '3804228 kB', 'VmSwap': '0 kB', 'Cpus_allowed_list': '4-7', 'Pss': '3800995 kB', 'MemAvailable': '2474504 kB'}
+
+criteria:
+  K1  PASS  R7 cache_n 393 vs min(LCP with restored, n-1) 393; save/restore ok True
+  K4  PASS  max |dp| 0.019413; R1: cached explore / fresh explore; R3: cached look / fresh look; R5: cached greet / fresh greet; R7: cached greet / fresh greet; R8: cached greet / fresh greet
+  K5  PASS  PIDs [(27062, '56600910')]; 13/13 requests, 0 errors; misrouted []; exit code 0, SIGKILL False; exception None
+server exit code 0; SIGKILL needed False

@@ -1,0 +1,79 @@
+EXECUTION PROFILE
+ROLE: Coder
+PLATFORM: Claude Code CLI
+MODEL: claude-opus-5-5
+EFFORT: medium
+PONYTAIL: lite
+WHY: Small extension of the committed MIND-B0 runner; no deployed code touched.
+FALLBACK: AGY CLI | claude-opus-5-5-medium | N/A | Ponytail lite (stated explicitly)
+
+EXECUTION PROFILE
+ROLE: Reviewer
+PLATFORM: Codex CLI (fresh session)
+MODEL: gpt-6.1-sol
+EFFORT: medium
+PONYTAIL: off
+WHY: Independent model family; slot and memory logic needs a careful check.
+FALLBACK: AGY CLI | gemini-3.8-flash-high | N/A | Ponytail off (full WORKFLOW AGY procedure)
+
+TASK MIND-B0b — keeping picker and chat contexts warm: slot save/restore vs two slots (research only)
+
+Base: verify `git rev-parse HEAD origin/main` = cac5348 (full hash in your report; report if different).
+Read first: docs/WORKFLOW.md, docs/CODER.md, benchmark/mind_picker/b0_cache/ (README, RUN_INDEX,
+b0.py, b0_set.json, run of record 20261102T110006Z), DECISIONS #146, #147.
+At session start, confirm your model id is the one in the profile; if not, stop and report.
+
+QUESTION: B0 showed that after a chat in a separate context, the picker rebuilt 428 of 434 tokens
+(R7). Can (a) saving/restoring the picker slot or (b) a second slot keep both contexts warm,
+what does each cost in tokens and RAM, and do picker probabilities stay unchanged?
+Counters, probabilities, file sizes and RAM snapshots only. Timings and RAM labelled
+NOT MEASUREMENTS / INDICATIVE (agent resident allowed).
+
+DO NOT: change any deployed file (picker.py, main.py, run_mission.py, server_manager.py, chat.py) or
+anything in b0_cache/ (import from it instead); start RobotCam, YOLO, M2, motors or the mission; use
+MTP or a projector; commit or push.
+
+SET: reuse benchmark/mind_picker/b0_cache/b0_set.json unchanged (SHA-256 dddb288a…, checked before
+any launch). Same prompts, scoring and picker tail as B0. temperature 0, seed 0.
+
+FIRST, read-only: from `llama-server --help` of the pinned b1609 binary, record whether these exist:
+--slot-save-path, --parallel, --kv-unified, --slot-prompt-similarity, --no-slots/--slots; and from the
+server source on the phone, whether /completion honours `id_slot` and how ctx is split per slot with
+--parallel 2. If save/restore or id_slot is not supported, stop that launch and report it as a finding.
+
+LAUNCHES (each one block, <= 3 min, setup_q4 flags + only the extra flags named; one at a time):
+ L0 reference: exactly B0 (one slot, ctx 2048). Run the B0 sequence. Must reproduce B0's counters
+    and probabilities exactly (proves the setup is the same).
+ L1 save/restore: L0 + --slot-save-path <run dir>/slots. Sequence R1..R5 as B0; then
+    SAVE slot 0 (POST /slots/0?action=save) -> R6 separate chat -> RESTORE slot 0 -> R7, R8.
+    Record file size, save/restore wall, cache_n of R7 after restore.
+ L2 two slots: --parallel 2, ctx 4096 (aim: 2048 per slot; report the actual per-slot n_ctx from
+    /props or /slots). Every picker request id_slot 0, every chat request id_slot 1. Sequence
+    R1..R8 as B0, then one extra chat turn R9 on slot 1 continuing R6 (SPEECH + reply + a second
+    fixed line "And what will you do next?"), then R10 = picker T(4) again on slot 0.
+ Phase 2 in each launch: R1, R3, R5, R7, R8 again with cache_prompt false (FRESH), on the picker slot.
+Per request record as B0, plus slot id. Per launch record llama-server PSS and VmHWM (from /proc,
+as mem1.proc_mem) after load and at the end, and MemAvailable at the same moments.
+
+CRITERIA (fixed now, PASS/FAIL with numbers):
+ K0 L0 counters and probabilities identical to B0 run of record (all 13 rows).
+ K1 L1 R7 after restore: cache_n >= min(LCP with the restored prompt, n-1); i.e. no rebuild.
+ K2 L2 R7 (after chat on slot 1): cache_n >= min(LCP with slot 0's previous prompt, n-1).
+ K3 L2 R9: chat slot 1 reuses its own previous turn (cache_n >= R6 prompt tokens).
+ K4 every launch: cached vs fresh same top action in 5/5, max |dp| <= 0.02.
+ K5 every launch: one server PID, 0 request errors, clean exit.
+ INFO: L1 slot file size and save/restore wall; L2 vs L0 PSS/VmHWM/MemAvailable difference;
+       R6 and R9 reply text verbatim (not graded).
+
+FILES: benchmark/mind_picker/b0b_slots/{b0b.py, test_b0b.py, README.md}; offline tests with a fake
+server (slot routing, restore counters, criteria). Run folders ~/robot_runs/mind_b0b/<UTC>_<L>/.
+Known limitation carried over from B0 (interrupt/cleanup finalization) is out of scope for this
+task; the Reviewer may note it as P3, it is not a reason to request changes.
+
+STEPS: implement -> offline tests -> run L0, L1, L2 on the phone (motors off, nothing else started)
+-> invoke the Reviewer automatically per WORKFLOW (source-only method as B0 if the Codex sandbox
+cannot execute in proot; say so) -> freeze -> return the review verbatim, stop for my commit decision.
+
+RETURN: each launch's report verbatim, K0–K5 table, the INFO numbers, the --help/source findings,
+review verbatim, `git status --porcelain=v1 -uall`. Label each result VALID / INVALID /
+NOT A MEASUREMENT / INDICATIVE. No commit or push.

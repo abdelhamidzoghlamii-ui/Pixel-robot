@@ -1,0 +1,120 @@
+{
+ "launch": "L2",
+ "utc": "20261102T123930Z",
+ "set_sha256": "dddb288ace1642b1e93a6e268cb68ff1a028121b6853dfa837ac7849cfaa187b",
+ "code_sha256": "933f4abfd9b55c45cfa1c5b4d1118eece63757e742f897228e2831ca5900b2a9",
+ "b0_sha256": "cb42caafe9d8fb5207bed76f581c660f4e81d2b2949e6c7f1c5802cb5daad3f2",
+ "mem1_sha256": "806d6531e24727c4248825fdaaf619f1938a121b1d30487581b929944ccdd620",
+ "b0_record_sha256": "3a34af20345c9b24ecffd8b0951f4e7f8d62d90e16b5070a0b0d4873fa3c527b",
+ "pinned_sha256": {
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf": "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52",
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libggml-cpu.so": "a4ef0d97e741f5902919af5e9cef95f808bd98581be76bca66fcee3f4ac8a0dd",
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server": "77eb35a0e716dff307e0d33b0b45ce0ed91e216a20db9411a7b9dc94e6624053"
+ },
+ "git_head": "cac534893d0e9be700e42cd4473119fbcfaf1fd5",
+ "command": [
+  "taskset",
+  "-c",
+  "4-7",
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+  "-m",
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+  "--port",
+  "8080",
+  "--ctx-size",
+  "4096",
+  "--threads",
+  "4",
+  "--threads-batch",
+  "4",
+  "--parallel",
+  "2",
+  "--swa-full",
+  "--cache-ram",
+  "0",
+  "--host",
+  "127.0.0.1"
+ ],
+ "help_flags": {
+  "--slot-save-path": true,
+  "--parallel": true,
+  "--kv-unified": true,
+  "--slot-prompt-similarity": true,
+  "--no-slots": true,
+  "--slots": true
+ },
+ "timings": "NOT MEASUREMENTS",
+ "ram": {
+  "after_load": {
+   "VmHWM": "4193004 kB",
+   "VmRSS": "4189852 kB",
+   "VmSwap": "0 kB",
+   "Cpus_allowed_list": "4-7",
+   "Pss": "3887548 kB",
+   "MemAvailable": "2635000 kB"
+  },
+  "end": {
+   "VmHWM": "4193004 kB",
+   "VmRSS": "4006364 kB",
+   "VmSwap": "0 kB",
+   "Cpus_allowed_list": "4-7",
+   "Pss": "4003408 kB",
+   "MemAvailable": "2496088 kB"
+  }
+ },
+ "server_pid": 27117,
+ "server_comm": "llama-server",
+ "exit_code": 0,
+ "killed": false,
+ "info": {
+  "problems": [],
+  "slot_actions": [],
+  "name_ids": {
+   "explore": [
+    108331
+   ],
+   "visit": [
+    37620
+   ],
+   "greet": [
+    183583
+   ],
+   "look": [
+    7780
+   ],
+   "wait": [
+    12429
+   ]
+  },
+  "t1_prefix_tokens": 370,
+  "slots_n_ctx": [
+   2048,
+   2048
+  ],
+  "reply": "greet",
+  "r6_reply": "Hello! I'm here and ready to chat with you. I'm currently processing information and waiting for your next question.",
+  "r9_reply": "I'll keep listening and ready to help you with whatever you need. I'm looking forward to our next conversation!"
+ },
+ "criteria": [
+  [
+   "K2",
+   "PASS",
+   "R7 cache_n 393 vs min(LCP with slot 0, n-1) 393"
+  ],
+  [
+   "K3",
+   "PASS",
+   "R9 cache_n 73 vs R6 prompt tokens 47"
+  ],
+  [
+   "K4",
+   "PASS",
+   "max |dp| 0.019413; R1: cached explore / fresh explore; R3: cached look / fresh look; R5: cached greet / fresh greet; R7: cached greet / fresh greet; R8: cached greet / fresh greet"
+  ],
+  [
+   "K5",
+   "PASS",
+   "PIDs [(27117, '56606946')]; 15/15 requests, 0 errors; misrouted []; exit code 0, SIGKILL False; exception None"
+  ]
+ ]
+}
