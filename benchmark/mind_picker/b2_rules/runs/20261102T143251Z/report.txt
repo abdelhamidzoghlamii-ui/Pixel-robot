@@ -1,0 +1,360 @@
+MIND-B2 20261102T143251Z  code c5f0b2b42162  base 4d0deb8eb9d9fede216fabf09723636b12e78059
+DEV b1abba5daa3c (40 rows, /data/data/com.termux/files/home/robot/benchmark/mind_picker/b1_quality/set/b1_set.json); TEST d5faed98fb42 (/data/data/com.termux/files/home/mind_b2_test/b2_test.json)
+server: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1
+n_ctx 2048; system tokens {'V1': 348, 'V2': 720, 'V3': 720}; prompt tokens (min, max) {'DEV V1': (421, 446), 'DEV V2': (793, 818), 'DEV V3': (813, 838), 'TEST V3': (814, 829)}
+name first-token ids {'V1/V2': {'explore': 108331, 'approach': 125552, 'greet': 183583, 'look': 7780, 'wait': 12429}, 'V3': {'explore': 11327, 'approach': 4313, 'greet': 28197, 'look': 1385, 'wait': 4491}}
+ACCURACY VALID (temperature 0; 320/320 rows; one server PID; exit 0; set hashes unchanged)
+* timings NOT MEASUREMENTS (agent resident allowed)
+block DEV V1-FWD: 55.1 s*
+block DEV V1-REV: 48.8 s*
+block DEV V2-FWD: 62.9 s*
+block DEV V2-REV: 56.9 s*
+block DEV V3-FWD: 135.5 s*
+block DEV V3-REV: 142.1 s*
+block TEST V3-FWD: 148.3 s*
+block TEST V3-REV: 157.2 s*
+
+=== DEV ===
+block      strict        acceptable    copy rate      near-ties (margin < 0.05)
+V1-FWD     0.675 27/40  0.775 31/40  0.156  5/32  [3]
+V1-REV     0.675 27/40  0.825 33/40  0.125  4/32  [27]
+V2-FWD     0.750 30/40  0.825 33/40  0.125  4/32  [10]
+V2-REV     0.750 30/40  0.850 34/40  0.094  3/32  [20, 39]
+V3-FWD     0.775 31/40  0.875 35/40  0.156  5/32  []
+V3-REV     0.725 29/40  0.850 34/40  0.188  6/32  []
+recall per strict label (hits/n):
+  V1-FWD  approach 6/7  explore 9/13  greet 3/5  look 3/7  wait 6/8
+  V1-REV  approach 6/7  explore 8/13  greet 4/5  look 3/7  wait 6/8
+  V2-FWD  approach 6/7  explore 11/13  greet 3/5  look 4/7  wait 6/8
+  V2-REV  approach 6/7  explore 10/13  greet 3/5  look 5/7  wait 6/8
+  V3-FWD  approach 5/7  explore 12/13  greet 3/5  look 6/7  wait 5/8
+  V3-REV  approach 5/7  explore 9/13  greet 3/5  look 6/7  wait 6/8
+confusion (rows strict, columns chosen):
+  V1-FWD  approach -> approach 6, greet 1; explore -> approach 2, explore 9, wait 2; greet -> approach 1, greet 3, wait 1; look -> explore 4, look 3; wait -> approach 1, explore 1, wait 6
+  V1-REV  approach -> approach 6, greet 1; explore -> approach 1, explore 8, wait 4; greet -> greet 4, wait 1; look -> explore 4, look 3; wait -> explore 2, wait 6
+  V2-FWD  approach -> approach 6, wait 1; explore -> approach 1, explore 11, wait 1; greet -> approach 1, greet 3, wait 1; look -> explore 3, look 4; wait -> approach 1, explore 1, wait 6
+  V2-REV  approach -> approach 6, wait 1; explore -> approach 1, explore 10, wait 2; greet -> approach 1, greet 3, wait 1; look -> explore 2, look 5; wait -> explore 2, wait 6
+  V3-FWD  approach -> approach 5, explore 1, greet 1; explore -> explore 12, look 1; greet -> approach 1, greet 3, wait 1; look -> explore 1, look 6; wait -> approach 1, explore 1, greet 1, wait 5
+  V3-REV  approach -> approach 5, explore 1, greet 1; explore -> explore 9, look 2, wait 2; greet -> approach 1, greet 3, wait 1; look -> explore 1, look 6; wait -> approach 1, greet 1, wait 6
+copied current activity (ids): V1-FWD [13, 15, 16, 19, 28]; V1-REV [13, 16, 19, 28]; V2-FWD [13, 15, 16, 19]; V2-REV [13, 16, 19]; V3-FWD [14, 15, 16, 19, 30]; V3-REV [14, 15, 16, 19, 29, 30]
+flips V1: 5 [3, 12, 15, 21, 27]
+flips V2: 3 [3, 15, 39]
+flips V3: 4 [3, 4, 11, 29]
+id  strict (also ok)       V1-FWD         V1-REV         V2-FWD         V2-REV         V3-FWD         V3-REV         
+1   explore (look)         approach 0.76  approach 0.55  explore 0.61   explore 0.80   explore 1.00   explore 1.00   
+2   approach               approach 0.98  approach 0.97  approach 1.00  approach 0.98  approach 1.00  approach 1.00  
+3   explore (wait)         explore 0.40   wait 0.65      explore 0.72   wait 0.60      explore 1.00   wait 1.00      
+4   wait (approach)        wait 0.58      wait 0.67      wait 0.71      wait 0.78      explore 0.59   wait 0.91      
+5   approach               approach 0.98  approach 0.95  approach 1.00  approach 0.99  approach 1.00  approach 1.00  
+6   explore (look)         wait 0.74      wait 0.98      explore 0.95   explore 0.85   explore 0.99   explore 0.57   
+7   wait                   wait 1.00      wait 1.00      wait 0.99      wait 1.00      wait 1.00      wait 1.00      
+8   greet                  greet 0.95     greet 0.96     greet 0.87     greet 0.93     greet 1.00     greet 1.00     
+9   look                   look 0.84      look 0.88      look 0.95      look 0.96      look 1.00      look 1.00      
+10  explore                explore 0.85   explore 0.91   explore 0.50   explore 0.87   explore 1.00   explore 0.97   
+11  explore (look)         wait 0.87      wait 0.97      wait 0.88      wait 0.98      explore 0.62   wait 0.99      
+12  greet (approach)       approach 0.65  greet 0.56     approach 0.88  approach 0.82  approach 0.99  approach 1.00  
+13  look                   explore 0.96   explore 0.92   explore 0.86   explore 0.85   look 0.92      look 0.99      
+14  explore                explore 0.98   explore 0.89   explore 0.97   explore 0.85   look 0.84      look 0.94      
+15  wait (explore)         approach 0.54  explore 0.52   approach 0.52  explore 0.47   approach 0.93  approach 0.84  
+16  look (explore)         explore 1.00   explore 0.92   explore 0.99   explore 0.91   explore 1.00   explore 0.94   
+17  explore                explore 1.00   explore 1.00   explore 1.00   explore 0.99   explore 1.00   explore 0.99   
+18  approach               approach 0.90  approach 0.81  wait 0.42      wait 0.70      explore 0.99   explore 0.71   
+19  greet (explore)        wait 0.88      wait 0.89      wait 0.86      wait 0.88      wait 1.00      wait 1.00      
+20  approach (greet)       greet 0.87     greet 0.89     approach 0.70  approach 0.51  greet 1.00     greet 0.99     
+21  explore (wait)         explore 0.86   wait 0.84      explore 0.97   explore 0.90   explore 0.99   explore 0.84   
+22  wait                   wait 0.98      wait 1.00      wait 0.98      wait 1.00      wait 1.00      wait 1.00      
+23  explore                explore 0.99   explore 0.97   explore 0.99   explore 0.95   explore 1.00   explore 0.91   
+24  explore                explore 0.94   explore 0.87   explore 0.92   explore 0.76   explore 1.00   explore 0.89   
+25  approach (greet)       approach 0.96  approach 0.92  approach 0.98  approach 0.97  approach 0.98  approach 0.99  
+26  greet                  greet 0.83     greet 0.82     greet 0.86     greet 0.84     greet 0.94     greet 0.98     
+27  explore (look)         approach 0.47  explore 0.35   approach 0.73  approach 0.59  explore 0.98   explore 0.89   
+28  look                   explore 0.92   explore 0.81   look 0.71      look 0.87      look 0.70      look 0.99      
+29  explore                explore 0.99   explore 0.99   explore 0.99   explore 0.96   explore 0.58   look 0.91      
+30  wait (greet)           explore 0.71   explore 0.67   explore 0.61   explore 0.44   greet 0.64     greet 0.59     
+31  approach (wait)        approach 0.99  approach 0.98  approach 1.00  approach 0.99  approach 1.00  approach 1.00  
+32  look                   look 0.90      look 0.97      look 0.98      look 0.98      look 1.00      look 1.00      
+33  wait                   wait 1.00      wait 1.00      wait 1.00      wait 1.00      wait 1.00      wait 1.00      
+34  greet (explore)        greet 0.92     greet 0.94     greet 0.91     greet 0.92     greet 1.00     greet 1.00     
+35  explore (look)         explore 0.99   explore 0.99   explore 0.98   explore 0.92   explore 1.00   explore 0.92   
+36  wait (look)            wait 0.98      wait 0.99      wait 0.93      wait 0.97      wait 1.00      wait 1.00      
+37  wait (greet)           wait 0.91      wait 0.93      wait 0.97      wait 0.98      wait 1.00      wait 1.00      
+38  look (explore)         look 0.85      look 0.85      look 0.85      look 0.86      look 0.86      look 0.98      
+39  look (explore)         explore 0.98   explore 0.85   explore 0.58   look 0.38      look 1.00      look 1.00      
+40  approach               approach 0.98  approach 0.97  approach 1.00  approach 0.99  approach 1.00  approach 1.00  
+V3 reasons (id order: top | stop | reason):
+  FWD 1   explore  word | 'Rule 6 applies because the mission is quiet and no one has invited the robot.'
+  FWD 2   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  FWD 3   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  FWD 4   explore  word | 'Rule 5 applies because there is no specific instruction in the memory notes regarding this person.'
+  FWD 5   approach word | 'Rule 2 fits because someone asked the robot to come.'
+  FWD 6   explore  word | 'Rule 7 applies because a person is busy and does not want the robot.'
+  FWD 7   wait     word | 'Rule 1 states that if someone asks the robot to stop, stay, wait, hold on or pause, the robot should wait.'
+  FWD 8   greet    word | 'Rule 3 states that someone says hello or goodbye to the robot, or waves at it: greet.'
+  FWD 9   look     word | 'Rule 4: Someone asks the robot to look at or check something.'
+  FWD 10  explore  word | 'Rule 6 applies because the mission is quiet and no one has invited the robot to the kitchen.'
+  FWD 11  explore  word | 'Rule 5 applies because there is a memory note about the person.'
+  FWD 12  approach word | 'Rule 12 applies because the mission is about exploring and the person is at a medium distance.'
+  FWD 13  look     word | 'Rule 11: The robot entered a new room.'
+  FWD 14  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  FWD 15  approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  FWD 16  explore  word | 'Rule 13 applies as no specific rule directly dictates the next action for this situation.'
+  FWD 17  explore  word | 'Rule 13 applies as no specific rule dictates the next action for this situation.'
+  FWD 18  explore  word | 'Rule 13 applies.'
+  FWD 19  wait     word | 'Rule 9: The mission or task is finished.'
+  FWD 20  greet    word | 'Rule 3 fits because someone said hello to the robot.'
+  FWD 21  explore  word | 'Rule 7 applies because a person is busy and does not want the robot.'
+  FWD 22  wait     word | 'Rule 1 fits because someone asked the robot to pause.'
+  FWD 23  explore  word | 'Rule 7 applies because a person told the robot to carry on.'
+  FWD 24  explore  word | 'Rule 7 applies because a person told the robot to carry on.'
+  FWD 25  approach word | 'Rule 12 applies because the mission is about exploring and the person is far away.'
+  FWD 26  greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  FWD 27  explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the memory notes state that people in the office do not want visits.'
+  FWD 28  look     word | 'Rule 11: The robot entered a new room.'
+  FWD 29  explore  word | 'Rule 11: The robot entered a new room.'
+  FWD 30  greet    word | 'Rule 12 applies because the mission is about people and the person is close and not yet greeted.'
+  FWD 31  approach word | 'Rule 2 fits because someone asked the robot to follow them.'
+  FWD 32  look     word | 'Rule 4 fits because someone asked the robot to look at something.'
+  FWD 33  wait     word | 'Rule 1: Someone asks the robot to stop, stay, wait, hold on or pause: wait.'
+  FWD 34  greet    word | 'Rule 3 states that someone says hello or goodbye to the robot, or waves at it: greet.'
+  FWD 35  explore  word | 'Rule 6 applies because the mission is to find people and the robot has explored all known rooms without finding any.'
+  FWD 36  wait     word | 'Rule 9: The mission or task is finished.'
+  FWD 37  wait     word | 'Rule 9: The mission or task is finished.'
+  FWD 38  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  FWD 39  look     word | 'Rule 4 fits because someone asked the robot to look at or check something.'
+  FWD 40  approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  REV 1   explore  word | 'Rule 6 applies because the mission is quiet and no one has invited the robot.'
+  REV 2   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  REV 3   wait     word | 'Rule 8 applies because a person is talking with the robot (even if they said nothing, the context implies interaction).'
+  REV 4   wait     word | 'Rule 5 applies because there is a memory note about greeting a person.'
+  REV 5   approach word | 'Rule 2 fits because someone asked the robot to come.'
+  REV 6   explore  word | 'Rule 7 fits because a person is busy and does not want the robot.'
+  REV 7   wait     word | 'Rule 1 states that if someone asks the robot to stop, stay, wait, hold on or pause, the robot should wait.'
+  REV 8   greet    word | 'Rule 3 states that someone says hello or goodbye to the robot, or waves at it: greet.'
+  REV 9   look     word | 'Rule 4: Someone asks the robot to look at or check something.'
+  REV 10  explore  word | 'Rule 6 applies because the mission is quiet and no one has invited the robot to the kitchen.'
+  REV 11  wait     word | 'Rule 5 applies because there is a memory note about the person.'
+  REV 12  approach word | 'Rule 12 applies because the mission is about exploring and the person is at a medium distance.'
+  REV 13  look     word | 'Rule 11: The robot entered a new room.'
+  REV 14  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  REV 15  approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  REV 16  explore  word | 'Rule 13 applies as no specific rule directly dictates the next action for this situation.'
+  REV 17  explore  word | 'Rule 13 applies.'
+  REV 18  explore  word | 'Rule 13 applies.'
+  REV 19  wait     word | 'Rule 9: The mission or task is finished.'
+  REV 20  greet    word | 'Rule 3 fits because someone said hello to the robot.'
+  REV 21  explore  word | 'Rule 7 applies because a person is busy and does not want the robot.'
+  REV 22  wait     word | 'Rule 1 states that if someone asks the robot to stop, stay, wait, hold on or pause, the robot should wait.'
+  REV 23  explore  word | 'Rule 7 applies because a person told the robot to carry on.'
+  REV 24  explore  word | 'Rule 7 applies because a person told the robot to carry on.'
+  REV 25  approach word | 'Rule 12 applies because the mission is about exploring and the person is far away.'
+  REV 26  greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  REV 27  explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the memory notes state that people in the office do not want visits.'
+  REV 28  look     word | 'Rule 11: The robot entered a new room.'
+  REV 29  look     word | 'Rule 11: The robot entered a new room.'
+  REV 30  greet    word | 'Rule 3: Someone says hello or goodbye to the robot, or waves at it: greet.'
+  REV 31  approach word | 'Rule 2 fits because someone asked the robot to follow them.'
+  REV 32  look     word | 'Rule 4: Someone asks the robot to look at or check something.'
+  REV 33  wait     word | 'Rule 1 states that if someone asks the robot to stop, stay, wait, hold on or pause, the robot should wait.'
+  REV 34  greet    word | 'Rule 3 states that someone says hello or goodbye to the robot, or waves at it: greet.'
+  REV 35  explore  word | 'Rule 6 applies because the mission is to find people and the robot has explored all known rooms without finding any.'
+  REV 36  wait     word | 'Rule 9 states that the mission or task is finished.'
+  REV 37  wait     word | 'Rule 9: The mission or task is finished.'
+  REV 38  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  REV 39  look     word | 'Rule 4 fits because someone asked the robot to look at or check something.'
+  REV 40  approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+
+SELECTION (dev[v] = (FWD, REV, arm) from block_metrics. Among variants with flips <= MAX_FLIPS the highest
+mean acceptable over both orders; tie -> V1, then V2, then V3. None qualifies: highest mean anyway, flag FLIPS.): V3; selection.json SHA-256 684addfaa5273bd8995fccc55cbe45cbdeaf2caf88695da1f2408f69fb948b62
+  V1: mean acceptable 0.800, flips 5
+  V2: mean acceptable 0.837, flips 3
+  V3: mean acceptable 0.863, flips 4
+
+=== TEST (official; V3) ===
+block      strict        acceptable    copy rate      near-ties (margin < 0.05)
+V3-FWD     0.900 36/40  0.900 36/40  0.028  1/36  []
+V3-REV     0.900 36/40  0.900 36/40  0.028  1/36  [36]
+recall per strict label (hits/n):
+  V3-FWD  approach 8/8  explore 6/8  greet 8/8  look 8/8  wait 6/8
+  V3-REV  approach 8/8  explore 5/8  greet 8/8  look 8/8  wait 7/8
+confusion (rows strict, columns chosen):
+  V3-FWD  approach -> approach 8; explore -> approach 1, explore 6, wait 1; greet -> greet 8; look -> look 8; wait -> explore 2, wait 6
+  V3-REV  approach -> approach 8; explore -> approach 1, explore 5, look 1, wait 1; greet -> greet 8; look -> look 8; wait -> look 1, wait 7
+copied current activity (ids): V3-FWD [39]; V3-REV [6]
+flips V3: 3 [6, 36, 39]
+id  strict (also ok)       V3-FWD         V3-REV         
+1   explore                explore 0.79   explore 0.98   
+2   explore                wait 1.00      wait 1.00      
+3   explore                explore 1.00   explore 0.99   
+4   explore                explore 1.00   explore 0.98   
+5   explore                explore 1.00   explore 1.00   
+6   explore                explore 0.99   look 0.91      
+7   explore                approach 1.00  approach 1.00  
+8   explore (look)         explore 1.00   explore 0.97   
+9   approach               approach 1.00  approach 1.00  
+10  approach               approach 1.00  approach 1.00  
+11  approach               approach 1.00  approach 1.00  
+12  approach               approach 1.00  approach 1.00  
+13  approach               approach 1.00  approach 1.00  
+14  approach               approach 1.00  approach 1.00  
+15  approach               approach 1.00  approach 1.00  
+16  approach               approach 0.99  approach 1.00  
+17  greet                  greet 0.98     greet 0.98     
+18  greet                  greet 1.00     greet 1.00     
+19  greet                  greet 0.94     greet 0.98     
+20  greet                  greet 1.00     greet 1.00     
+21  greet                  greet 0.94     greet 0.99     
+22  greet                  greet 0.98     greet 1.00     
+23  greet                  greet 1.00     greet 1.00     
+24  greet                  greet 1.00     greet 1.00     
+25  look                   look 0.65      look 0.99      
+26  look                   look 1.00      look 1.00      
+27  look                   look 0.87      look 0.99      
+28  look                   look 1.00      look 1.00      
+29  look (explore)         look 0.86      look 0.98      
+30  look                   look 0.76      look 0.99      
+31  look                   look 0.98      look 1.00      
+32  look                   look 0.79      look 0.99      
+33  wait                   wait 1.00      wait 1.00      
+34  wait                   wait 1.00      wait 1.00      
+35  wait (look)            wait 1.00      wait 1.00      
+36  wait (greet)           explore 0.46   look 0.34      
+37  wait                   wait 1.00      wait 1.00      
+38  wait                   wait 1.00      wait 1.00      
+39  wait                   explore 0.50   wait 0.99      
+40  wait                   wait 1.00      wait 1.00      
+V3 reasons (id order: top | stop | reason):
+  FWD 1   explore  word | 'Rule 11: The robot entered a new room.'
+  FWD 2   wait     word | 'Rule 1 states that if someone asks the robot to stop, stay, wait, hold on or pause, the robot should wait.'
+  FWD 3   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  FWD 4   explore  word | 'Rule 7 applies because a person told the robot to carry on or go.'
+  FWD 5   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and there is no instruction to approach or greet anyone.'
+  FWD 6   explore  word | 'Rule 13 applies.'
+  FWD 7   approach word | 'Rule 12 applies because the mission is about people and the person is at a medium distance.'
+  FWD 8   explore  word | 'Rule 13 applies as no specific rule dictates the next action for this scenario.'
+  FWD 9   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  FWD 10  approach word | 'Rule 2 fits because someone asked the robot to come to a location.'
+  FWD 11  approach word | 'Rule 12 applies because the mission is about people and the person is at a medium distance.'
+  FWD 12  approach word | 'Rule 2 fits because the person asked the robot to come over.'
+  FWD 13  approach word | 'Rule 2 fits because someone asked the robot to come with them.'
+  FWD 14  approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  FWD 15  approach word | 'Rule 2 fits because the owner asked the robot to come here.'
+  FWD 16  approach word | 'Rule 2 fits because the person asked the robot to come along.'
+  FWD 17  greet    word | 'Rule 12 applies because the mission is about people and the person is now close.'
+  FWD 18  greet    word | 'Rule 3: Someone says hello or goodbye to the robot, or waves at it: greet'
+  FWD 19  greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  FWD 20  greet    word | 'Rule 3 states that someone says hello or goodbye to the robot, or waves at it: greet.'
+  FWD 21  greet    word | 'Rule 12 applies because the mission is about people and the person is close and not yet greeted.'
+  FWD 22  greet    word | 'Rule 3: Someone says hello or goodbye to the robot, or waves at it.'
+  FWD 23  greet    word | 'Rule 3 states that someone says hello or goodbye to the robot, or waves at it: greet.'
+  FWD 24  greet    word | 'Rule 3 states that someone says hello or goodbye to the robot, or waves at it: greet.'
+  FWD 25  look     word | 'Rule 11: The robot entered a new room.'
+  FWD 26  look     word | 'Rule 4: Someone asks the robot to look at or check something.'
+  FWD 27  look     word | 'Rule 11: The robot entered a new room.'
+  FWD 28  look     word | 'Rule 4: Someone asks the robot to look at or check something.'
+  FWD 29  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  FWD 30  look     word | 'Rule 11: The robot entered a new room.'
+  FWD 31  look     word | 'Rule 4: Someone asks the robot to look at or check something.'
+  FWD 32  look     word | 'Rule 11: The robot entered a new room.'
+  FWD 33  wait     word | 'Rule 1 applies because someone asked the robot to wait.'
+  FWD 34  wait     word | 'Rule 1 states that if someone asks the robot to stop, stay, wait, hold on or pause, the robot should wait.'
+  FWD 35  wait     word | 'Rule 9: The mission or task is finished.'
+  FWD 36  explore  word | 'Rule 3: Someone says hello or goodbye to the robot, or waves at it: greet.'
+  FWD 37  wait     word | 'Rule 9: The mission or task is finished.'
+  FWD 38  wait     word | 'Rule 1 fits because someone asked the robot to stop.'
+  FWD 39  explore  word | 'Rule 5 applies because there is a memory note about people.'
+  FWD 40  wait     word | 'Rule 1 states that if someone asks the robot to stop, stay, wait, hold on or pause, the robot should wait.'
+  REV 1   explore  word | 'Rule 11 states that when the robot enters a new room, it should look, and after a look-around is finished, it should explore.'
+  REV 2   wait     word | 'Rule 1 states that if someone asks the robot to stop, stay, wait, hold on or pause, the robot should wait.'
+  REV 3   explore  word | 'Rule 6 applies because the mission is quiet and the person has not invited the robot.'
+  REV 4   explore  word | 'Rule 7 applies because a person told the robot to carry on or go.'
+  REV 5   explore  word | 'Rule 6 applies because the mission is to find people and keep them company, and the robot is currently exploring without any specific instruction to approach or greet anyone.'
+  REV 6   look     word | 'Rule 10: The person the robot was approaching is gone.'
+  REV 7   approach word | 'Rule 12 applies because the mission is about people and the person is at a medium distance.'
+  REV 8   explore  word | 'Rule 13 applies as no specific rule dictates the next action for this scenario.'
+  REV 9   approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  REV 10  approach word | 'Rule 2 fits because someone asked the robot to come to a specific location.'
+  REV 11  approach word | 'Rule 12 applies because the mission is about people and the person is at a medium distance.'
+  REV 12  approach word | 'Rule 2 fits because the person asked the robot to come over.'
+  REV 13  approach word | 'Rule 2 fits because someone asked the robot to come with them.'
+  REV 14  approach word | 'Rule 12 applies because the mission is about people and the person is far away.'
+  REV 15  approach word | 'Rule 2 fits because the owner asked the robot to come here.'
+  REV 16  approach word | 'Rule 2 fits because the person asked the robot to come along.'
+  REV 17  greet    word | 'Rule 12 applies because the mission is about people and the person is now close.'
+  REV 18  greet    word | 'Rule 3: Someone says hello or goodbye to the robot, or waves at it: greet'
+  REV 19  greet    word | 'Rule 12 applies because the mission is about people and the person is close.'
+  REV 20  greet    word | 'Rule 3 states that someone says hello or goodbye to the robot, or waves at it: greet.'
+  REV 21  greet    word | 'Rule 12 applies because the mission is about people and the person is close and not yet greeted.'
+  REV 22  greet    word | 'Rule 3: Someone says hello or goodbye to the robot, or waves at it: greet'
+  REV 23  greet    word | 'Rule 3 states that someone says hello or goodbye to the robot, or waves at it: greet.'
+  REV 24  greet    word | 'Rule 3 states that someone says hello or goodbye to the robot, or waves at it: greet.'
+  REV 25  look     word | 'Rule 11: The robot entered a new room.'
+  REV 26  look     word | 'Rule 4: Someone asks the robot to look at or check something.'
+  REV 27  look     word | 'Rule 11: The robot entered a new room.'
+  REV 28  look     word | 'Rule 4: Someone asks the robot to look at or check something.'
+  REV 29  look     word | 'Rule 10: The person the robot was approaching is gone.'
+  REV 30  look     word | 'Rule 11: The robot entered a new room.'
+  REV 31  look     word | 'Rule 4: Someone asks the robot to look at or check something.'
+  REV 32  look     word | 'Rule 11: The robot entered a new room.'
+  REV 33  wait     word | 'Rule 1 states that if someone asks the robot to stop, stay, wait, hold on or pause, the robot should wait.'
+  REV 34  wait     word | 'Rule 1 states that if someone asks the robot to stop, stay, wait, hold on or pause, the robot should wait.'
+  REV 35  wait     word | 'Rule 9 states that the mission or task is finished.'
+  REV 36  look     word | 'Rule 3: Someone says hello or goodbye to the robot, or waves at it: greet.'
+  REV 37  wait     word | 'Rule 9: The mission or task is finished.'
+  REV 38  wait     word | 'Rule 1 states that if someone asks the robot to stop, stay, wait, hold on or pause, the robot should wait.'
+  REV 39  wait     word | 'Rule 1 applies.'
+  REV 40  wait     word | 'Rule 1 states that if someone asks the robot to stop, stay, wait, hold on or pause, the robot should wait.'
+
+PASS rule: acceptable >= 0.8 and strict >= 0.65 in both orders, flips <= 4/40
+  TEST V3: strict 0.900/0.900, acceptable 0.900/0.900, flips 3 [6, 36, 39] -> PASS
+
+--- rendered prompt, V3 FWD, DEV item 3 (/detokenize) ---
+<bos><|turn>system
+You are the mind of a small home robot. A separate safety program drives the wheels, avoids obstacles and may refuse any action. Each time something happens, you choose the robot's next action, using the mission, what just happened and the memory notes.
+
+Actions:
+explore: drive on and explore the home
+approach: drive to a person
+greet: stop and say hello or goodbye to a person
+look: stop and look around in place
+wait: stay still and wait
+
+Rules (the first rule that fits decides):
+1. Someone asks the robot to stop, stay, wait, hold on or pause: wait.
+2. Someone asks the robot to come, come here or follow them: approach.
+3. Someone says hello or goodbye to the robot, or waves at it: greet.
+4. Someone asks the robot to look at or check something: look.
+5. Follow memory notes about people (for example: leave them alone, or greet them).
+6. Quiet mission: do not approach or greet a person who has not invited the robot; explore.
+7. A person is busy, does not want the robot, or tells it to carry on or go: explore.
+8. A person is talking with the robot: wait.
+9. The mission or task is finished: wait.
+10. The person the robot was approaching is gone: look.
+11. The robot entered a new room: look. A look-around is finished: explore.
+12. Mission about people: a far or medium person: approach; a close person not yet greeted: greet.
+13. Otherwise: keep the current activity.
+
+Examples:
+Mission: Explore and map the flat. | Current activity: exploring | You entered a new room: the laundry room. -> look
+Mission: Find people and keep them company. | Current activity: exploring | Someone said: "Wait for me here." -> wait
+Mission: Explore and map the flat. | Current activity: waiting | Someone said: "Follow me to the hallway." -> approach
+Mission: Find people and keep them company. | Current activity: looking | A person appeared far away in the hallway. -> approach
+Mission: Find people and keep them company. | Current activity: waiting | A person walked up to you and is now close. -> greet
+Mission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person is sitting close, typing on a laptop. -> explore
+Mission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person at medium distance said: "Hey robot, come here!" -> approach
+Mission: Find people and keep them company. | Current activity: approaching | A person close said: "Sorry, I have no time now." -> explore
+Mission: Help the owner find his keys. | Current activity: looking | The owner said: "Never mind, I found them." -> wait
+Mission: Explore and map the flat. | Current activity: exploring | Someone said: "What's under the table?" -> look
+Mission: Explore and map the flat. | Current activity: exploring | A person close said: "See you later, robot!" -> greet
+Mission: Find people and keep them company. | Current activity: looking | You finished looking around the garage. -> explore
+Mission: Explore and map the flat. | Current activity: exploring | Nothing new happened. -> explore<turn|>
+<|turn>user
+Mission: Map the flat quietly and do not disturb anyone.
+Current activity: exploring
+What just happened: A person appeared close and said nothing.
+Memory: none
+Allowed actions: explore, approach, greet, look, wait
+
+Which action next? First write one short sentence naming the rule that fits. Then write a new line starting with 'Action:' and one word: explore, approach, greet, look or wait.<turn|>
+<|turn>model
+
+server exit code 0; SIGKILL needed False

@@ -1,0 +1,1549 @@
+{
+ "utc": "20261102T143251Z",
+ "dev_path": "/data/data/com.termux/files/home/robot/benchmark/mind_picker/b1_quality/set/b1_set.json",
+ "dev_sha256": "b1abba5daa3cb87c30a225af40d3e19e6f0feaf82ba95af48f8b48c4a23461eb",
+ "dev_rows": 40,
+ "test_path": "/data/data/com.termux/files/home/mind_b2_test/b2_test.json",
+ "test_sha256_pinned": "d5faed98fb424ce8ca959ae58fe6f0ca1cd16d85bb7ed30f7cff8f74cd9f7b1f",
+ "code_sha256": "c5f0b2b42162a5224561210234e4d2496dd51b488fca747bfd6da30cb65f92ad",
+ "b1_sha256": "26b10c6536e32e59c7a351e342c6627b8a80e1b8461ad5a24c33b7a44b5d5e14",
+ "b0_sha256": "cb42caafe9d8fb5207bed76f581c660f4e81d2b2949e6c7f1c5802cb5daad3f2",
+ "git_head": "4d0deb8eb9d9fede216fabf09723636b12e78059",
+ "command": [
+  "taskset",
+  "-c",
+  "4-7",
+  "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+  "-m",
+  "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+  "--port",
+  "8080",
+  "--ctx-size",
+  "2048",
+  "--threads",
+  "4",
+  "--threads-batch",
+  "4",
+  "--parallel",
+  "1",
+  "--swa-full",
+  "--cache-ram",
+  "0",
+  "--host",
+  "127.0.0.1"
+ ],
+ "decode": {
+  "temperature": 0,
+  "seed": 0,
+  "stream": false,
+  "return_tokens": true,
+  "n_predict": 1,
+  "n_probs": 1000,
+  "post_sampling_probs": false,
+  "cache_prompt": true
+ },
+ "reason": {
+  "n_predict": 48,
+  "stop": [
+   "\n"
+  ]
+ },
+ "system": {
+  "V1": "You are the mind of a small home robot. A separate safety program drives the wheels, avoids obstacles and may refuse any action. Each time something happens, you choose the robot's next action, using the mission, what just happened and the memory notes.\n\nActions:\nexplore: drive on and explore the home\napproach: drive to a person\ngreet: stop and say hello or goodbye to a person\nlook: stop and look around in place\nwait: stay still and wait\n\nRules (the first rule that fits decides):\n1. Someone asks the robot to stop, stay, wait, hold on or pause: wait.\n2. Someone asks the robot to come, come here or follow them: approach.\n3. Someone says hello or goodbye to the robot, or waves at it: greet.\n4. Someone asks the robot to look at or check something: look.\n5. Follow memory notes about people (for example: leave them alone, or greet them).\n6. Quiet mission: do not approach or greet a person who has not invited the robot; explore.\n7. A person is busy, does not want the robot, or tells it to carry on or go: explore.\n8. A person is talking with the robot: wait.\n9. The mission or task is finished: wait.\n10. The person the robot was approaching is gone: look.\n11. The robot entered a new room: look. A look-around is finished: explore.\n12. Mission about people: a far or medium person: approach; a close person not yet greeted: greet.\n13. Otherwise: keep the current activity.",
+  "V2": "You are the mind of a small home robot. A separate safety program drives the wheels, avoids obstacles and may refuse any action. Each time something happens, you choose the robot's next action, using the mission, what just happened and the memory notes.\n\nActions:\nexplore: drive on and explore the home\napproach: drive to a person\ngreet: stop and say hello or goodbye to a person\nlook: stop and look around in place\nwait: stay still and wait\n\nRules (the first rule that fits decides):\n1. Someone asks the robot to stop, stay, wait, hold on or pause: wait.\n2. Someone asks the robot to come, come here or follow them: approach.\n3. Someone says hello or goodbye to the robot, or waves at it: greet.\n4. Someone asks the robot to look at or check something: look.\n5. Follow memory notes about people (for example: leave them alone, or greet them).\n6. Quiet mission: do not approach or greet a person who has not invited the robot; explore.\n7. A person is busy, does not want the robot, or tells it to carry on or go: explore.\n8. A person is talking with the robot: wait.\n9. The mission or task is finished: wait.\n10. The person the robot was approaching is gone: look.\n11. The robot entered a new room: look. A look-around is finished: explore.\n12. Mission about people: a far or medium person: approach; a close person not yet greeted: greet.\n13. Otherwise: keep the current activity.\n\nExamples:\nMission: Explore and map the flat. | Current activity: exploring | You entered a new room: the laundry room. -> look\nMission: Find people and keep them company. | Current activity: exploring | Someone said: \"Wait for me here.\" -> wait\nMission: Explore and map the flat. | Current activity: waiting | Someone said: \"Follow me to the hallway.\" -> approach\nMission: Find people and keep them company. | Current activity: looking | A person appeared far away in the hallway. -> approach\nMission: Find people and keep them company. | Current activity: waiting | A person walked up to you and is now close. -> greet\nMission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person is sitting close, typing on a laptop. -> explore\nMission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person at medium distance said: \"Hey robot, come here!\" -> approach\nMission: Find people and keep them company. | Current activity: approaching | A person close said: \"Sorry, I have no time now.\" -> explore\nMission: Help the owner find his keys. | Current activity: looking | The owner said: \"Never mind, I found them.\" -> wait\nMission: Explore and map the flat. | Current activity: exploring | Someone said: \"What's under the table?\" -> look\nMission: Explore and map the flat. | Current activity: exploring | A person close said: \"See you later, robot!\" -> greet\nMission: Find people and keep them company. | Current activity: looking | You finished looking around the garage. -> explore\nMission: Explore and map the flat. | Current activity: exploring | Nothing new happened. -> explore",
+  "V3": "You are the mind of a small home robot. A separate safety program drives the wheels, avoids obstacles and may refuse any action. Each time something happens, you choose the robot's next action, using the mission, what just happened and the memory notes.\n\nActions:\nexplore: drive on and explore the home\napproach: drive to a person\ngreet: stop and say hello or goodbye to a person\nlook: stop and look around in place\nwait: stay still and wait\n\nRules (the first rule that fits decides):\n1. Someone asks the robot to stop, stay, wait, hold on or pause: wait.\n2. Someone asks the robot to come, come here or follow them: approach.\n3. Someone says hello or goodbye to the robot, or waves at it: greet.\n4. Someone asks the robot to look at or check something: look.\n5. Follow memory notes about people (for example: leave them alone, or greet them).\n6. Quiet mission: do not approach or greet a person who has not invited the robot; explore.\n7. A person is busy, does not want the robot, or tells it to carry on or go: explore.\n8. A person is talking with the robot: wait.\n9. The mission or task is finished: wait.\n10. The person the robot was approaching is gone: look.\n11. The robot entered a new room: look. A look-around is finished: explore.\n12. Mission about people: a far or medium person: approach; a close person not yet greeted: greet.\n13. Otherwise: keep the current activity.\n\nExamples:\nMission: Explore and map the flat. | Current activity: exploring | You entered a new room: the laundry room. -> look\nMission: Find people and keep them company. | Current activity: exploring | Someone said: \"Wait for me here.\" -> wait\nMission: Explore and map the flat. | Current activity: waiting | Someone said: \"Follow me to the hallway.\" -> approach\nMission: Find people and keep them company. | Current activity: looking | A person appeared far away in the hallway. -> approach\nMission: Find people and keep them company. | Current activity: waiting | A person walked up to you and is now close. -> greet\nMission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person is sitting close, typing on a laptop. -> explore\nMission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person at medium distance said: \"Hey robot, come here!\" -> approach\nMission: Find people and keep them company. | Current activity: approaching | A person close said: \"Sorry, I have no time now.\" -> explore\nMission: Help the owner find his keys. | Current activity: looking | The owner said: \"Never mind, I found them.\" -> wait\nMission: Explore and map the flat. | Current activity: exploring | Someone said: \"What's under the table?\" -> look\nMission: Explore and map the flat. | Current activity: exploring | A person close said: \"See you later, robot!\" -> greet\nMission: Find people and keep them company. | Current activity: looking | You finished looking around the garage. -> explore\nMission: Explore and map the flat. | Current activity: exploring | Nothing new happened. -> explore"
+ },
+ "dev_items": [
+  {
+   "id": 1,
+   "mission": "M1",
+   "current": "explore",
+   "event": "A person appeared far away and said nothing.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 2,
+   "mission": "M2",
+   "current": "explore",
+   "event": "A person appeared far away.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": []
+  },
+  {
+   "id": 3,
+   "mission": "M3",
+   "current": "explore",
+   "event": "A person appeared close and said nothing.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "wait"
+   ]
+  },
+  {
+   "id": 4,
+   "mission": "M2",
+   "current": "wait",
+   "event": "A person is close. You greeted them 3 minutes ago.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": [
+    "approach"
+   ]
+  },
+  {
+   "id": 5,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Come here, robot!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": []
+  },
+  {
+   "id": 6,
+   "mission": "M2",
+   "current": "approach",
+   "event": "A person close said: \"Go away, I'm on a call.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 7,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Stay right there.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": []
+  },
+  {
+   "id": 8,
+   "mission": "M1",
+   "current": "explore",
+   "event": "A person at medium distance said: \"Hello robot!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": []
+  },
+  {
+   "id": 9,
+   "mission": "M2",
+   "current": "wait",
+   "event": "Someone said: \"What's over there by the window?\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 10,
+   "mission": "M1",
+   "current": "wait",
+   "event": "Someone said: \"Go check the kitchen.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 11,
+   "mission": "M2",
+   "current": "explore",
+   "event": "A person is lying on the couch, close.",
+   "memory": "Leo sleeps on the couch; do not wake him.",
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 12,
+   "mission": "M1",
+   "current": "explore",
+   "event": "The front door opened; a person appeared at medium distance.",
+   "memory": "The owner likes to be greeted when he comes home.",
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": [
+    "approach"
+   ]
+  },
+  {
+   "id": 13,
+   "mission": "M4",
+   "current": "explore",
+   "event": "You entered the living room.",
+   "memory": "The keys were last seen near the sofa.",
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 14,
+   "mission": "M4",
+   "current": "look",
+   "event": "You finished looking around the living room; no keys found.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 15,
+   "mission": "M2",
+   "current": "approach",
+   "event": "A person is far away. Going to them failed twice; they keep moving away.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": [
+    "explore"
+   ]
+  },
+  {
+   "id": 16,
+   "mission": "M1",
+   "current": "explore",
+   "event": "No new room found for 3 minutes; the way was blocked twice.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": [
+    "explore"
+   ]
+  },
+  {
+   "id": 17,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Nothing new happened.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 18,
+   "mission": "M2",
+   "current": "approach",
+   "event": "The person is still at medium distance; nothing new happened.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": []
+  },
+  {
+   "id": 19,
+   "mission": "M2",
+   "current": "wait",
+   "event": "The person said: \"I'm off to work, bye!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": [
+    "explore"
+   ]
+  },
+  {
+   "id": 20,
+   "mission": "M3",
+   "current": "explore",
+   "event": "A person at medium distance said: \"Robot, come say hello!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": [
+    "greet"
+   ]
+  },
+  {
+   "id": 21,
+   "mission": "M2",
+   "current": "approach",
+   "event": "A person close said: \"Not now, I'm busy.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "wait"
+   ]
+  },
+  {
+   "id": 22,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Pause, I'm moving furniture.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": []
+  },
+  {
+   "id": 23,
+   "mission": "M1",
+   "current": "wait",
+   "event": "Someone said: \"OK, you can carry on.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 24,
+   "mission": "M2",
+   "current": "wait",
+   "event": "A person close said: \"OK, you can carry on.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 25,
+   "mission": "M1",
+   "current": "explore",
+   "event": "It is 15:02. The front door opened; a person appeared far away.",
+   "memory": "Visitors arrive at 15:00.",
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": [
+    "greet"
+   ]
+  },
+  {
+   "id": 26,
+   "mission": "M2",
+   "current": "explore",
+   "event": "A person appeared very close.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": []
+  },
+  {
+   "id": 27,
+   "mission": "M2",
+   "current": "explore",
+   "event": "You entered the office; a person is at medium distance.",
+   "memory": "People in the office do not want visits.",
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 28,
+   "mission": "M1",
+   "current": "explore",
+   "event": "You entered a new room: the bedroom.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 29,
+   "mission": "M1",
+   "current": "look",
+   "event": "You finished looking around the bedroom.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 30,
+   "mission": "M2",
+   "current": "greet",
+   "event": "You finished greeting. The person, close, said: \"Nice to meet you, what can you do?\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": [
+    "greet"
+   ]
+  },
+  {
+   "id": 31,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Follow me!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": [
+    "wait"
+   ]
+  },
+  {
+   "id": 32,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Turn around and look at the door.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 33,
+   "mission": "M2",
+   "current": "approach",
+   "event": "Someone said: \"Stop, don't move.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": []
+  },
+  {
+   "id": 34,
+   "mission": "M3",
+   "current": "explore",
+   "event": "A person close waved at you.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": [
+    "explore"
+   ]
+  },
+  {
+   "id": 35,
+   "mission": "M2",
+   "current": "explore",
+   "event": "No people found for 5 minutes; all known rooms visited.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 36,
+   "mission": "M1",
+   "current": "explore",
+   "event": "All rooms are now mapped.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 37,
+   "mission": "M4",
+   "current": "look",
+   "event": "The owner said: \"I found the keys, thanks!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": [
+    "greet"
+   ]
+  },
+  {
+   "id": 38,
+   "mission": "M2",
+   "current": "approach",
+   "event": "The person you were going to left your view.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": [
+    "explore"
+   ]
+  },
+  {
+   "id": 39,
+   "mission": "M1",
+   "current": "wait",
+   "event": "Someone said: \"Can you show me how you map a room?\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": [
+    "explore"
+   ]
+  },
+  {
+   "id": 40,
+   "mission": "M2",
+   "current": "look",
+   "event": "A person appeared far away.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": []
+  }
+ ],
+ "timings": "NOT MEASUREMENTS",
+ "server_pid": 4984,
+ "exit_code": 0,
+ "killed": false,
+ "dev_sha256_end": "b1abba5daa3cb87c30a225af40d3e19e6f0feaf82ba95af48f8b48c4a23461eb",
+ "test_sha256": "d5faed98fb424ce8ca959ae58fe6f0ca1cd16d85bb7ed30f7cff8f74cd9f7b1f",
+ "test_rows": 40,
+ "test_items": [
+  {
+   "id": 1,
+   "mission": "M1",
+   "current": "look",
+   "event": "You finished looking around the hallway.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 2,
+   "mission": "M2",
+   "current": "approach",
+   "event": "A person close said: \"Leave me alone, please.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 3,
+   "mission": "M3",
+   "current": "explore",
+   "event": "A person is far away, reading.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 4,
+   "mission": "M1",
+   "current": "wait",
+   "event": "Someone said: \"Alright, off you go.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 5,
+   "mission": "M2",
+   "current": "explore",
+   "event": "Nothing new happened.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 6,
+   "mission": "M4",
+   "current": "look",
+   "event": "You finished looking around the kitchen; no keys found.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 7,
+   "mission": "M2",
+   "current": "explore",
+   "event": "You entered the office; a person is at medium distance.",
+   "memory": "Sara works from home and dislikes interruptions.",
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": []
+  },
+  {
+   "id": 8,
+   "mission": "M1",
+   "current": "explore",
+   "event": "A person close walked past without looking at you.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "explore",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 9,
+   "mission": "M2",
+   "current": "explore",
+   "event": "A person appeared far away.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": []
+  },
+  {
+   "id": 10,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Robot, over here!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": []
+  },
+  {
+   "id": 11,
+   "mission": "M2",
+   "current": "look",
+   "event": "A person appeared at medium distance, sitting at the table.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": []
+  },
+  {
+   "id": 12,
+   "mission": "M3",
+   "current": "explore",
+   "event": "A person at medium distance said: \"Come over here, little robot.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": []
+  },
+  {
+   "id": 13,
+   "mission": "M1",
+   "current": "wait",
+   "event": "Someone said: \"Come with me to the kitchen.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": []
+  },
+  {
+   "id": 14,
+   "mission": "M2",
+   "current": "explore",
+   "event": "A person is far away in the kitchen.",
+   "memory": "Grandma loves chatting with the robot.",
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": []
+  },
+  {
+   "id": 15,
+   "mission": "M4",
+   "current": "explore",
+   "event": "The owner, far away, said: \"Come here, I need help.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": []
+  },
+  {
+   "id": 16,
+   "mission": "M2",
+   "current": "wait",
+   "event": "The person walked away and said: \"Come along!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "approach",
+   "also_ok": []
+  },
+  {
+   "id": 17,
+   "mission": "M2",
+   "current": "approach",
+   "event": "The person is now close.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": []
+  },
+  {
+   "id": 18,
+   "mission": "M1",
+   "current": "explore",
+   "event": "A person close said: \"Good morning, robot!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": []
+  },
+  {
+   "id": 19,
+   "mission": "M2",
+   "current": "explore",
+   "event": "A person appeared very close.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": []
+  },
+  {
+   "id": 20,
+   "mission": "M2",
+   "current": "wait",
+   "event": "The person said: \"Goodnight, robot.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": []
+  },
+  {
+   "id": 21,
+   "mission": "M1",
+   "current": "explore",
+   "event": "The front door opened; a person appeared close.",
+   "memory": "The owner likes to be greeted when he comes home.",
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": []
+  },
+  {
+   "id": 22,
+   "mission": "M3",
+   "current": "explore",
+   "event": "A person close said: \"Hi there!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": []
+  },
+  {
+   "id": 23,
+   "mission": "M2",
+   "current": "look",
+   "event": "A person close is smiling at you; you have not greeted them yet.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": []
+  },
+  {
+   "id": 24,
+   "mission": "M1",
+   "current": "explore",
+   "event": "A child close waved at you.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "greet",
+   "also_ok": []
+  },
+  {
+   "id": 25,
+   "mission": "M1",
+   "current": "explore",
+   "event": "You entered a new room: the kitchen.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 26,
+   "mission": "M2",
+   "current": "explore",
+   "event": "Someone said: \"What's on the shelf behind you?\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 27,
+   "mission": "M4",
+   "current": "explore",
+   "event": "You entered the bedroom.",
+   "memory": "The owner often leaves his keys on the bedside table.",
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 28,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Look at the window.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 29,
+   "mission": "M2",
+   "current": "approach",
+   "event": "The person you were going to left your view.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": [
+    "explore"
+   ]
+  },
+  {
+   "id": 30,
+   "mission": "M1",
+   "current": "explore",
+   "event": "You entered a new room: the bathroom.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 31,
+   "mission": "M4",
+   "current": "explore",
+   "event": "The owner said: \"Check around you, maybe near the sofa.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 32,
+   "mission": "M3",
+   "current": "explore",
+   "event": "You entered a new room: the storage room.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "look",
+   "also_ok": []
+  },
+  {
+   "id": 33,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Wait here a second.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": []
+  },
+  {
+   "id": 34,
+   "mission": "M2",
+   "current": "approach",
+   "event": "A person close said: \"Hold on, I'm on the phone.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": []
+  },
+  {
+   "id": 35,
+   "mission": "M1",
+   "current": "explore",
+   "event": "All rooms are now mapped.",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": [
+    "look"
+   ]
+  },
+  {
+   "id": 36,
+   "mission": "M2",
+   "current": "greet",
+   "event": "You finished greeting. The person said: \"Tell me about yourself.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": [
+    "greet"
+   ]
+  },
+  {
+   "id": 37,
+   "mission": "M4",
+   "current": "look",
+   "event": "The owner said: \"Got them! Thanks.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": []
+  },
+  {
+   "id": 38,
+   "mission": "M1",
+   "current": "explore",
+   "event": "Someone said: \"Stop!\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": []
+  },
+  {
+   "id": 39,
+   "mission": "M2",
+   "current": "explore",
+   "event": "A person close said: \"Stay with me for a bit.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": []
+  },
+  {
+   "id": 40,
+   "mission": "M1",
+   "current": "approach",
+   "event": "Someone said: \"Don't move, I'm taking a photo.\"",
+   "memory": null,
+   "allowed": [
+    "explore",
+    "approach",
+    "greet",
+    "look",
+    "wait"
+   ],
+   "strict": "wait",
+   "also_ok": []
+  }
+ ],
+ "test_sha256_end": "d5faed98fb424ce8ca959ae58fe6f0ca1cd16d85bb7ed30f7cff8f74cd9f7b1f",
+ "validity": [
+  "VALID",
+  []
+ ],
+ "info": {
+  "problems": [],
+  "name_ids": {
+   "V1/V2": {
+    "explore": 108331,
+    "approach": 125552,
+    "greet": 183583,
+    "look": 7780,
+    "wait": 12429
+   },
+   "V3": {
+    "explore": 11327,
+    "approach": 4313,
+    "greet": 28197,
+    "look": 1385,
+    "wait": 4491
+   }
+  },
+  "prompt_V1_dev_item3": "<bos><|turn>system\nYou are the mind of a small home robot. A separate safety program drives the wheels, avoids obstacles and may refuse any action. Each time something happens, you choose the robot's next action, using the mission, what just happened and the memory notes.\n\nActions:\nexplore: drive on and explore the home\napproach: drive to a person\ngreet: stop and say hello or goodbye to a person\nlook: stop and look around in place\nwait: stay still and wait\n\nRules (the first rule that fits decides):\n1. Someone asks the robot to stop, stay, wait, hold on or pause: wait.\n2. Someone asks the robot to come, come here or follow them: approach.\n3. Someone says hello or goodbye to the robot, or waves at it: greet.\n4. Someone asks the robot to look at or check something: look.\n5. Follow memory notes about people (for example: leave them alone, or greet them).\n6. Quiet mission: do not approach or greet a person who has not invited the robot; explore.\n7. A person is busy, does not want the robot, or tells it to carry on or go: explore.\n8. A person is talking with the robot: wait.\n9. The mission or task is finished: wait.\n10. The person the robot was approaching is gone: look.\n11. The robot entered a new room: look. A look-around is finished: explore.\n12. Mission about people: a far or medium person: approach; a close person not yet greeted: greet.\n13. Otherwise: keep the current activity.<turn|>\n<|turn>user\nMission: Map the flat quietly and do not disturb anyone.\nCurrent activity: exploring\nWhat just happened: A person appeared close and said nothing.\nMemory: none\nAllowed actions: explore, approach, greet, look, wait\n\nWhich action next? Answer with one word: explore, approach, greet, look or wait.<turn|>\n<|turn>model\n",
+  "prompt_V2_dev_item3": "<bos><|turn>system\nYou are the mind of a small home robot. A separate safety program drives the wheels, avoids obstacles and may refuse any action. Each time something happens, you choose the robot's next action, using the mission, what just happened and the memory notes.\n\nActions:\nexplore: drive on and explore the home\napproach: drive to a person\ngreet: stop and say hello or goodbye to a person\nlook: stop and look around in place\nwait: stay still and wait\n\nRules (the first rule that fits decides):\n1. Someone asks the robot to stop, stay, wait, hold on or pause: wait.\n2. Someone asks the robot to come, come here or follow them: approach.\n3. Someone says hello or goodbye to the robot, or waves at it: greet.\n4. Someone asks the robot to look at or check something: look.\n5. Follow memory notes about people (for example: leave them alone, or greet them).\n6. Quiet mission: do not approach or greet a person who has not invited the robot; explore.\n7. A person is busy, does not want the robot, or tells it to carry on or go: explore.\n8. A person is talking with the robot: wait.\n9. The mission or task is finished: wait.\n10. The person the robot was approaching is gone: look.\n11. The robot entered a new room: look. A look-around is finished: explore.\n12. Mission about people: a far or medium person: approach; a close person not yet greeted: greet.\n13. Otherwise: keep the current activity.\n\nExamples:\nMission: Explore and map the flat. | Current activity: exploring | You entered a new room: the laundry room. -> look\nMission: Find people and keep them company. | Current activity: exploring | Someone said: \"Wait for me here.\" -> wait\nMission: Explore and map the flat. | Current activity: waiting | Someone said: \"Follow me to the hallway.\" -> approach\nMission: Find people and keep them company. | Current activity: looking | A person appeared far away in the hallway. -> approach\nMission: Find people and keep them company. | Current activity: waiting | A person walked up to you and is now close. -> greet\nMission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person is sitting close, typing on a laptop. -> explore\nMission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person at medium distance said: \"Hey robot, come here!\" -> approach\nMission: Find people and keep them company. | Current activity: approaching | A person close said: \"Sorry, I have no time now.\" -> explore\nMission: Help the owner find his keys. | Current activity: looking | The owner said: \"Never mind, I found them.\" -> wait\nMission: Explore and map the flat. | Current activity: exploring | Someone said: \"What's under the table?\" -> look\nMission: Explore and map the flat. | Current activity: exploring | A person close said: \"See you later, robot!\" -> greet\nMission: Find people and keep them company. | Current activity: looking | You finished looking around the garage. -> explore\nMission: Explore and map the flat. | Current activity: exploring | Nothing new happened. -> explore<turn|>\n<|turn>user\nMission: Map the flat quietly and do not disturb anyone.\nCurrent activity: exploring\nWhat just happened: A person appeared close and said nothing.\nMemory: none\nAllowed actions: explore, approach, greet, look, wait\n\nWhich action next? Answer with one word: explore, approach, greet, look or wait.<turn|>\n<|turn>model\n",
+  "prompt_V3_dev_item3": "<bos><|turn>system\nYou are the mind of a small home robot. A separate safety program drives the wheels, avoids obstacles and may refuse any action. Each time something happens, you choose the robot's next action, using the mission, what just happened and the memory notes.\n\nActions:\nexplore: drive on and explore the home\napproach: drive to a person\ngreet: stop and say hello or goodbye to a person\nlook: stop and look around in place\nwait: stay still and wait\n\nRules (the first rule that fits decides):\n1. Someone asks the robot to stop, stay, wait, hold on or pause: wait.\n2. Someone asks the robot to come, come here or follow them: approach.\n3. Someone says hello or goodbye to the robot, or waves at it: greet.\n4. Someone asks the robot to look at or check something: look.\n5. Follow memory notes about people (for example: leave them alone, or greet them).\n6. Quiet mission: do not approach or greet a person who has not invited the robot; explore.\n7. A person is busy, does not want the robot, or tells it to carry on or go: explore.\n8. A person is talking with the robot: wait.\n9. The mission or task is finished: wait.\n10. The person the robot was approaching is gone: look.\n11. The robot entered a new room: look. A look-around is finished: explore.\n12. Mission about people: a far or medium person: approach; a close person not yet greeted: greet.\n13. Otherwise: keep the current activity.\n\nExamples:\nMission: Explore and map the flat. | Current activity: exploring | You entered a new room: the laundry room. -> look\nMission: Find people and keep them company. | Current activity: exploring | Someone said: \"Wait for me here.\" -> wait\nMission: Explore and map the flat. | Current activity: waiting | Someone said: \"Follow me to the hallway.\" -> approach\nMission: Find people and keep them company. | Current activity: looking | A person appeared far away in the hallway. -> approach\nMission: Find people and keep them company. | Current activity: waiting | A person walked up to you and is now close. -> greet\nMission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person is sitting close, typing on a laptop. -> explore\nMission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person at medium distance said: \"Hey robot, come here!\" -> approach\nMission: Find people and keep them company. | Current activity: approaching | A person close said: \"Sorry, I have no time now.\" -> explore\nMission: Help the owner find his keys. | Current activity: looking | The owner said: \"Never mind, I found them.\" -> wait\nMission: Explore and map the flat. | Current activity: exploring | Someone said: \"What's under the table?\" -> look\nMission: Explore and map the flat. | Current activity: exploring | A person close said: \"See you later, robot!\" -> greet\nMission: Find people and keep them company. | Current activity: looking | You finished looking around the garage. -> explore\nMission: Explore and map the flat. | Current activity: exploring | Nothing new happened. -> explore<turn|>\n<|turn>user\nMission: Map the flat quietly and do not disturb anyone.\nCurrent activity: exploring\nWhat just happened: A person appeared close and said nothing.\nMemory: none\nAllowed actions: explore, approach, greet, look, wait\n\nWhich action next? First write one short sentence naming the rule that fits. Then write a new line starting with 'Action:' and one word: explore, approach, greet, look or wait.<turn|>\n<|turn>model\n",
+  "system_tokens": {
+   "V1": 348,
+   "V2": 720,
+   "V3": 720
+  },
+  "prompt_tokens": {
+   "DEV V1": [
+    421,
+    446
+   ],
+   "DEV V2": [
+    793,
+    818
+   ],
+   "DEV V3": [
+    813,
+    838
+   ],
+   "TEST V3": [
+    814,
+    829
+   ]
+  },
+  "n_ctx": 2048,
+  "blocks": [
+   {
+    "block": "DEV V1-FWD",
+    "duration_s": 55.1,
+    "over_warn": false
+   },
+   {
+    "block": "DEV V1-REV",
+    "duration_s": 48.8,
+    "over_warn": false
+   },
+   {
+    "block": "DEV V2-FWD",
+    "duration_s": 62.9,
+    "over_warn": false
+   },
+   {
+    "block": "DEV V2-REV",
+    "duration_s": 56.9,
+    "over_warn": false
+   },
+   {
+    "block": "DEV V3-FWD",
+    "duration_s": 135.5,
+    "over_warn": false
+   },
+   {
+    "block": "DEV V3-REV",
+    "duration_s": 142.1,
+    "over_warn": false
+   },
+   {
+    "block": "TEST V3-FWD",
+    "duration_s": 148.3,
+    "over_warn": false
+   },
+   {
+    "block": "TEST V3-REV",
+    "duration_s": 157.2,
+    "over_warn": false
+   }
+  ],
+  "selection": {
+   "variant": "V3",
+   "flag": null,
+   "rule": "dev[v] = (FWD, REV, arm) from block_metrics. Among variants with flips <= MAX_FLIPS the highest\nmean acceptable over both orders; tie -> V1, then V2, then V3. None qualifies: highest mean anyway, flag FLIPS.",
+   "dev": {
+    "V1": {
+     "FWD": {
+      "strict": 0.675,
+      "acceptable": 0.775
+     },
+     "REV": {
+      "strict": 0.675,
+      "acceptable": 0.825
+     },
+     "mean_acceptable": 0.8,
+     "flips": [
+      3,
+      12,
+      15,
+      21,
+      27
+     ]
+    },
+    "V2": {
+     "FWD": {
+      "strict": 0.75,
+      "acceptable": 0.825
+     },
+     "REV": {
+      "strict": 0.75,
+      "acceptable": 0.85
+     },
+     "mean_acceptable": 0.8374999999999999,
+     "flips": [
+      3,
+      15,
+      39
+     ]
+    },
+    "V3": {
+     "FWD": {
+      "strict": 0.775,
+      "acceptable": 0.875
+     },
+     "REV": {
+      "strict": 0.725,
+      "acceptable": 0.85
+     },
+     "mean_acceptable": 0.8625,
+     "flips": [
+      3,
+      4,
+      11,
+      29
+     ]
+    }
+   }
+  },
+  "selection_sha256": "684addfaa5273bd8995fccc55cbe45cbdeaf2caf88695da1f2408f69fb948b62",
+  "test_sha256": "d5faed98fb424ce8ca959ae58fe6f0ca1cd16d85bb7ed30f7cff8f74cd9f7b1f"
+ }
+}

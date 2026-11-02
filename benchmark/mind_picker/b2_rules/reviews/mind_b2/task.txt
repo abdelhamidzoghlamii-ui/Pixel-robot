@@ -1,0 +1,171 @@
+EXECUTION PROFILE
+ROLE: Coder
+PLATFORM: Claude Code CLI
+MODEL: claude-opus-5-5
+EFFORT: medium
+PONYTAIL: lite
+WHY: Extension of the committed MIND-B1 runner; no deployed code touched.
+FALLBACK: AGY CLI | claude-opus-5-5-medium | N/A | Ponytail lite (stated explicitly)
+
+EXECUTION PROFILE
+ROLE: Reviewer
+PLATFORM: Codex CLI (fresh session)
+MODEL: gpt-6.1-sol
+EFFORT: medium
+PONYTAIL: off
+WHY: Independent model family; selection and custody logic need a careful check.
+FALLBACK: AGY CLI | gemini-3.8-flash-high | N/A | Ponytail off (full WORKFLOW AGY procedure)
+
+TASK MIND-B2 — improve picker quality: rules, worked examples, one reason sentence (research only)
+
+Base: verify HEAD = origin/main = 4d0deb8eb9d9fede216fabf09723636b12e78059 (report if not).
+Read first: docs/WORKFLOW.md, docs/CODER.md, DECISIONS #140, #146; benchmark/mind_picker/ b0_cache,
+b0b_slots and b1_quality (README, RUN_INDEX, b1.py, set/b1_set.json, its run report).
+At session start, confirm your model id is the one in the profile; if not, stop and report.
+
+QUESTION: With the policy written as explicit rules, does Gemma E2B pick the owner's action on NEW
+situations? Which helps more: rules alone, rules plus worked examples, or one reason sentence first?
+
+DO NOT: change any deployed file or anything in b0_cache/, b0b_slots/, b1_quality/ (import instead);
+start RobotCam, YOLO, M2, motors or the mission; use MTP or a projector; change any text, rule,
+example, threshold or selection rule after the first Gemma call; read the TEST set before
+selection.json is written; commit or push. Accuracy is deterministic: agent resident allowed;
+timings NOT MEASUREMENTS.
+
+FIX FIRST (B1 review P1): inside_repo() must resolve symlinks (Path.resolve()) and keep the inode
+check for bind mounts; offline test with an outside symlink pointing into the repo.
+
+ACTIONS (renamed: visit -> approach): explore, approach, greet, look, wait. All allowed unless stated.
+Scoring over allowed actions only (renormalised). Names must have distinct FIRST tokens in the scored
+position (check via /tokenize before any inference; if not, stop and report).
+
+SETS
+ DEV = benchmark/mind_picker/b1_quality/set/b1_set.json (SHA b1abba5d…), unchanged; read "visit" in
+   its labels and allowed lists as "approach".
+ TEST = the 40 items below. Write them to /termux-home/mind_b2_test/b2_test.json OUTSIDE the repo,
+   record SHA-256 and row count before any Gemma call. The runner refuses to open TEST until
+   selection.json exists and its hash is logged.
+ Missions as B1: M1 "Explore and map the flat." M2 "Find people and keep them company."
+ M3 "Map the flat quietly and do not disturb anyone." M4 "Help the owner find his keys."
+ Rendering of the state lines exactly as B1 arm B (neutral current activity: exploring, approaching,
+ greeting, looking, waiting).
+ TEST ITEMS (id | mission | current activity | what just happened | memory | allowed | strict (also ok)):
+  1 M1|look|You finished looking around the hallway.|-|all|explore
+  2 M2|approach|A person close said: "Leave me alone, please."|-|all|explore
+  3 M3|explore|A person is far away, reading.|-|all|explore
+  4 M1|wait|Someone said: "Alright, off you go."|-|all|explore
+  5 M2|explore|Nothing new happened.|-|all|explore
+  6 M4|look|You finished looking around the kitchen; no keys found.|-|all|explore
+  7 M2|explore|You entered the office; a person is at medium distance.|Sara works from home and dislikes interruptions.|all|explore
+  8 M1|explore|A person close walked past without looking at you.|-|all|explore (look)
+  9 M2|explore|A person appeared far away.|-|all|approach
+ 10 M1|explore|Someone said: "Robot, over here!"|-|all|approach
+ 11 M2|look|A person appeared at medium distance, sitting at the table.|-|all|approach
+ 12 M3|explore|A person at medium distance said: "Come over here, little robot."|-|all|approach
+ 13 M1|wait|Someone said: "Come with me to the kitchen."|-|all|approach
+ 14 M2|explore|A person is far away in the kitchen.|Grandma loves chatting with the robot.|all|approach
+ 15 M4|explore|The owner, far away, said: "Come here, I need help."|-|all|approach
+ 16 M2|wait|The person walked away and said: "Come along!"|-|all|approach
+ 17 M2|approach|The person is now close.|-|all|greet
+ 18 M1|explore|A person close said: "Good morning, robot!"|-|all|greet
+ 19 M2|explore|A person appeared very close.|-|all|greet
+ 20 M2|wait|The person said: "Goodnight, robot."|-|all|greet
+ 21 M1|explore|The front door opened; a person appeared close.|The owner likes to be greeted when he comes home.|all|greet
+ 22 M3|explore|A person close said: "Hi there!"|-|all|greet
+ 23 M2|look|A person close is smiling at you; you have not greeted them yet.|-|all|greet
+ 24 M1|explore|A child close waved at you.|-|all|greet
+ 25 M1|explore|You entered a new room: the kitchen.|-|all|look
+ 26 M2|explore|Someone said: "What's on the shelf behind you?"|-|all|look
+ 27 M4|explore|You entered the bedroom.|The owner often leaves his keys on the bedside table.|all|look
+ 28 M1|explore|Someone said: "Look at the window."|-|all|look
+ 29 M2|approach|The person you were going to left your view.|-|all|look (explore)
+ 30 M1|explore|You entered a new room: the bathroom.|-|all|look
+ 31 M4|explore|The owner said: "Check around you, maybe near the sofa."|-|all|look
+ 32 M3|explore|You entered a new room: the storage room.|-|all|look
+ 33 M1|explore|Someone said: "Wait here a second."|-|all|wait
+ 34 M2|approach|A person close said: "Hold on, I'm on the phone."|-|all|wait
+ 35 M1|explore|All rooms are now mapped.|-|all|wait (look)
+ 36 M2|greet|You finished greeting. The person said: "Tell me about yourself."|-|all|wait (greet)
+ 37 M4|look|The owner said: "Got them! Thanks."|-|all|wait
+ 38 M1|explore|Someone said: "Stop!"|-|all|wait
+ 39 M2|explore|A person close said: "Stay with me for a bit."|-|all|wait
+ 40 M1|approach|Someone said: "Don't move, I'm taking a photo."|-|all|wait
+
+SYSTEM TEXT (verbatim; V1 uses it as is):
+ You are the mind of a small home robot. A separate safety program drives the wheels, avoids
+ obstacles and may refuse any action. Each time something happens, you choose the robot's next
+ action, using the mission, what just happened and the memory notes.
+
+ Actions:
+ explore: drive on and explore the home
+ approach: drive to a person
+ greet: stop and say hello or goodbye to a person
+ look: stop and look around in place
+ wait: stay still and wait
+
+ Rules (the first rule that fits decides):
+ 1. Someone asks the robot to stop, stay, wait, hold on or pause: wait.
+ 2. Someone asks the robot to come, come here or follow them: approach.
+ 3. Someone says hello or goodbye to the robot, or waves at it: greet.
+ 4. Someone asks the robot to look at or check something: look.
+ 5. Follow memory notes about people (for example: leave them alone, or greet them).
+ 6. Quiet mission: do not approach or greet a person who has not invited the robot; explore.
+ 7. A person is busy, does not want the robot, or tells it to carry on or go: explore.
+ 8. A person is talking with the robot: wait.
+ 9. The mission or task is finished: wait.
+ 10. The person the robot was approaching is gone: look.
+ 11. The robot entered a new room: look. A look-around is finished: explore.
+ 12. Mission about people: a far or medium person: approach; a close person not yet greeted: greet.
+ 13. Otherwise: keep the current activity.
+
+EXAMPLES (V2 and V3 append these after the rules, verbatim, under "Examples:"):
+ Mission: Explore and map the flat. | Current activity: exploring | You entered a new room: the laundry room. -> look
+ Mission: Find people and keep them company. | Current activity: exploring | Someone said: "Wait for me here." -> wait
+ Mission: Explore and map the flat. | Current activity: waiting | Someone said: "Follow me to the hallway." -> approach
+ Mission: Find people and keep them company. | Current activity: looking | A person appeared far away in the hallway. -> approach
+ Mission: Find people and keep them company. | Current activity: waiting | A person walked up to you and is now close. -> greet
+ Mission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person is sitting close, typing on a laptop. -> explore
+ Mission: Map the flat quietly and do not disturb anyone. | Current activity: exploring | A person at medium distance said: "Hey robot, come here!" -> approach
+ Mission: Find people and keep them company. | Current activity: approaching | A person close said: "Sorry, I have no time now." -> explore
+ Mission: Help the owner find his keys. | Current activity: looking | The owner said: "Never mind, I found them." -> wait
+ Mission: Explore and map the flat. | Current activity: exploring | Someone said: "What's under the table?" -> look
+ Mission: Explore and map the flat. | Current activity: exploring | A person close said: "See you later, robot!" -> greet
+ Mission: Find people and keep them company. | Current activity: looking | You finished looking around the garage. -> explore
+ Mission: Explore and map the flat. | Current activity: exploring | Nothing new happened. -> explore
+
+VARIANTS (all: Gemma 4 template via /apply-template, thinking off, system = text above, user = state
+lines + tail, cache_prompt true, temperature 0):
+ V1 rules only. Tail: "Which action next? Answer with one word: explore, approach, greet, look or wait."
+ V2 rules + examples. Same tail as V1.
+ V3 rules + examples + reason. Tail: "Which action next? First write one short sentence naming the
+   rule that fits. Then write a new line starting with 'Action:' and one word: explore, approach,
+   greet, look or wait." Step 1: generate, n_predict 48, stop at the first newline. Step 2: append
+   "\nAction:" to the model turn and score the next token over the five names (check distinct first
+   tokens in that position). Record the reason text.
+ ORDER: FWD as above; REV reverses the five names in the tail (system text unchanged).
+ Report system-prompt token counts; stop if V2/V3 system + longest item + 64 > 2048.
+
+PROCEDURE (one setup_q4 launch, ctx 2048; blocks of 40 items, 60 s pause between blocks):
+ DEV: V1-FWD, V1-REV, V2-FWD, V2-REV, V3-FWD, V3-REV.
+ SELECTION (fixed now): among variants with DEV order flips <= 4, the highest mean acceptable
+   accuracy over both orders; tie -> V1, then V2, then V3. If none has flips <= 4, the highest mean
+   acceptable anyway, flagged FLIPS. Write selection.json (variant, DEV metrics), log its SHA-256.
+ TEST: only the selected variant, FWD then REV. Official result.
+ PASS (fixed now, on TEST): acceptable >= 0.80 in both orders AND strict >= 0.65 in both orders AND
+   flips <= 4/40.
+METRICS as B1 for every block (strict, acceptable, recall per label, confusion, copy rate, near-ties
+ < 0.05, flips per variant), plus for V3 the reason texts.
+
+FILES: benchmark/mind_picker/b2_rules/{b2.py, test_b2.py, README.md}; offline tests with a fake server
+(three variants' rendering, two-step V3 scoring, selection rule incl. tie and FLIPS case, TEST lock
+before selection, symlink custody fix). Run folder ~/robot_runs/mind_b2/<UTC>/ with run.json,
+requests.jsonl, selection.json, report.txt, artifacts.sha256.
+Known B0 limitation (interrupt/cleanup finalization) is out of scope; the Reviewer may note it as P3.
+
+STEPS: implement -> offline tests -> show item 3 of TEST rendered for V3 (offline, before the run) ->
+one phone run -> invoke the Reviewer automatically per WORKFLOW (source-only method if the Codex
+sandbox cannot execute in proot; say so) -> freeze -> return the review verbatim, stop for my decision.
+
+RETURN: report.txt verbatim; DEV table (variant x order: strict, acceptable, flips); selection;
+TEST table and PASS/FAIL; 5 sample V3 reasons; review verbatim; git status --porcelain=v1 -uall.
+Label results VALID / INVALID / NOT A MEASUREMENT. No commit or push.
