@@ -1,0 +1,110 @@
+/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_validation.py:66: UserWarning: Unsupported platform (android). ONNX Runtime supports Linux, macOS, AIX and Windows platforms, only.
+  warnings.warn(
+MIND-BC 20261102T213956Z  code e39abfdc8161  base 391bd5503ca3b3cbe31f0642f716372b0147c23d
+server: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1 --slot-save-path /data/data/com.termux/files/home/robot_runs/mind_bc/20261102T213956Z/slots --mmproj /data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf --image-min-tokens 70 --image-max-tokens 70
+pins: {'/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server': '0674f5c28aaf23068220fa4290c7a4199aa590127724d2b766bdbb961b768fdf', '/data/data/com.termux/files/home/llama.cpp-vis/build/bin/libggml-cpu.so.0.27.0': '9e4e11cf979ef78e1aa201ecaed67308520ffa9a6e3f19d028cfb1586b8ab333', '/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf': '8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52', '/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf': '9406f99c16d68cda4f1f0552192dcc99021ea1fc6d2fd50b1dc3ccf30d04b292'}
+label: counters and accuracy VALID; timings NOT MEASUREMENTS; RAM INDICATIVE
+
+--- provenance (read-only) ---
+== b1609 (upstream b10194): /data/data/com.termux/files/home/llama.cpp-b1609-dotprod
+source commit e1a1abb78746c025f5e9039f590e37ccdb758ae7  describe b10194  uncommitted 0 lines
+  CMAKE_BUILD_TYPE = Release
+  GGML_NATIVE = OFF
+  GGML_CPU_ARM_ARCH = armv8.2-a+dotprod+fp16
+  HAVE_DOTPROD = 1
+  CMAKE_C_FLAGS = 
+  CMAKE_CXX_FLAGS = 
+  BUILD_SHARED_LIBS = ON
+  GGML_BACKEND_DL = OFF
+  GGML_CPU_ALL_VARIANTS = OFF
+  i8mm entries: none
+  sha256 77eb35a0e716dff307e0d33b0b45ce0ed91e216a20db9411a7b9dc94e6624053  llama-server
+  sha256 a4ef0d97e741f5902919af5e9cef95f808bd98581be76bca66fcee3f4ac8a0dd  libggml-cpu.so.0.18.0
+  --help: --swa-full=yes --cache-ram=yes --parallel=yes --slot-save-path=yes --kv-unified=yes --mmproj=yes --image-min-tokens=yes --image-max-tokens=yes
+  help --cache-ram: -cram, --cache-ram N                    set the maximum cache size in MiB (default: 8192, -1 - no limit, 0 - disable)[(more info)](https://github.com/ggml-org/llama.cpp/pull/16391)
+  help --kv-unified-per-slot: absent
+== b11716: /data/data/com.termux/files/home/llama.cpp-vis
+source commit 797de63b2fa7396dcc8caca76834c699ac84e1c3  describe b11716  uncommitted 0 lines
+  CMAKE_BUILD_TYPE = Release
+  GGML_NATIVE = OFF
+  GGML_CPU_ARM_ARCH = armv8.2-a+dotprod+fp16
+  HAVE_DOTPROD = 1
+  CMAKE_C_FLAGS = 
+  CMAKE_CXX_FLAGS = 
+  BUILD_SHARED_LIBS = ON
+  GGML_BACKEND_DL = OFF
+  GGML_CPU_ALL_VARIANTS = OFF
+  i8mm entries: none
+  sha256 0674f5c28aaf23068220fa4290c7a4199aa590127724d2b766bdbb961b768fdf  llama-server
+  sha256 9e4e11cf979ef78e1aa201ecaed67308520ffa9a6e3f19d028cfb1586b8ab333  libggml-cpu.so.0.27.0
+  --help: --swa-full=yes --cache-ram=yes --parallel=yes --slot-save-path=yes --kv-unified=yes --mmproj=yes --image-min-tokens=yes --image-max-tokens=yes
+  help --cache-ram: -cram, --cache-ram N                    set the maximum cache size in MiB (default: 8192, 0 for decision models, -1 - no limit, 0 - disable)[(more info)](https://github.com/ggml-org/llama.cpp/pull/16391)
+  help --kv-unified-per-slot: --kv-unified-per-slot N                 context limit per parallel slot (default: unset, behavior unchanged). when set without -c/--ctx-size, the shared KV pool is sized to n_parallel*N
+
+--- K1 rows (now | B0 run of record, b1609) ---
+id        kind      n    prompt_n cache_n  top      | n    prompt_n cache_n  top
+R1        picker    392  392      0        explore  | 392  392      0        explore
+R2        picker    392  1        391      explore  | 392  1        391      explore
+R3        picker    399  36       363      look     | 399  36       363      look
+R4        shared    390  15       375      None     | 390  15       375      None
+R5        picker    422  52       370      greet    | 422  52       370      greet
+R6        separate  47   41       6        None     | 47   41       6        None
+R7        picker    434  428      6        greet    | 434  428      6        greet
+R8        picker    449  44       405      greet    | 449  44       405      greet
+R1_FRESH  picker    392  392      0        explore  | 392  392      0        explore
+R3_FRESH  picker    399  399      0        look     | 399  399      0        look
+R5_FRESH  picker    422  422      0        greet    | 422  422      0        greet
+R7_FRESH  picker    434  434      0        greet    | 434  434      0        greet
+R8_FRESH  picker    449  449      0        greet    | 449  449      0        greet
+  reply R4 'greet'; R6 None
+--- K2 rows (now | B0 run of record, b1609) ---
+id        kind      n    prompt_n cache_n  top      | n    prompt_n cache_n  top
+R1        picker    392  29       363      explore  | 392  392      0        explore
+R2        picker    392  1        391      explore  | 392  1        391      explore
+R3        picker    399  36       363      look     | 399  36       363      look
+R4        shared    390  15       375      None     | 390  15       375      None
+R5        picker    422  52       370      greet    | 422  52       370      greet
+R6        separate  47   41       6        None     | 47   41       6        None
+R7        picker    434  41       393      greet    | 434  428      6        greet
+R8        picker    449  44       405      greet    | 449  44       405      greet
+R1_FRESH  picker    392  392      0        explore  | 392  392      0        explore
+R3_FRESH  picker    399  399      0        look     | 399  399      0        look
+R5_FRESH  picker    422  422      0        greet    | 422  422      0        greet
+R7_FRESH  picker    434  434      0        greet    | 434  434      0        greet
+R8_FRESH  picker    449  449      0        greet    | 449  449      0        greet
+  reply R4 'greet'; R6 "Hello! I'm here and ready to chat with you. I'm currently processing information and waiting for your next question."
+  slot save: {'id_slot': 0, 'filename': 'picker.bin', 'n_saved': 422, 'n_written': 7790556, 'timings': {'save_ms': 8.234}}
+  slot restore: {'id_slot': 0, 'filename': 'picker.bin', 'n_restored': 422, 'n_read': 7790556, 'timings': {'restore_ms': 6.6}}
+
+--- K3 (B2 V3, TEST) ---
+prompt tokens {'TEST V3': (814, 829)}; name ids {'V3': {'explore': 11327, 'approach': 4313, 'greet': 28197, 'look': 1385, 'wait': 4491}}
+block TEST V3-FWD: 158.5 s*
+block TEST V3-REV: 165.0 s*
+B2 run of record (b1609): strict 0.900/0.900, acceptable 0.900/0.900, flips 3 [6, 36, 39] -> PASS
+
+--- K4 (image, VIS-3D frame 1) ---
+frame bench_photos__blocked_1; settings {'temperature': 0, 'top_k': 1, 'seed': 0, 'max_tokens': 96, 'cache_prompt': False, 'stream': False, 'chat_template_kwargs': {'enable_thinking': False}}
+reply (verbatim): 'In front of the robot, there is a wooden table with a laptop, a blue object, and some other items like a glass and scissors.'
+reasoning_content: None; finish stop; usage {'completion_tokens': 30, 'prompt_tokens': 96, 'total_tokens': 126, 'prompt_tokens_details': {'cached_tokens': 0}}; wall 6.739 s*
+VIS-3D D reply for this frame (server --reasoning off, ctx 4096): 'In front of the robot, there is a wooden table with a laptop, a blue object, and some other items like a glass and scissors.'
+
+RAM (INDICATIVE, kB): now b11716 + projector | b1609 B0b L0
+  after_load: Pss 3544201 kB | 3601416 kB; VmRSS 3544980 kB | 3604168 kB; VmHWM 3732228 kB | 3884860 kB; MemAvailable 2294352 kB | 2496728 kB
+  end: Pss 3374881 kB | 3535400 kB; VmRSS 3376828 kB | 3538688 kB; VmHWM 3732228 kB | 3884860 kB; MemAvailable 2024824 kB | 2351596 kB
+* timings NOT MEASUREMENTS (agent resident; no thermal or core control)
+
+criteria:
+  K1 C1         PASS    R2: cache_n 391 vs shared 391; R3: cache_n 363 vs shared 363; R5: cache_n 370 vs shared 370; R8: cache_n 405 vs shared 405
+  K1 C2         PASS    R5 cache_n 370 vs T(1) without tail 370
+  K1 C3         INFO    R7 prompt_n 428 (rebuild cost after the separate chat; cache_n 6, prompt 434)
+  K1 C4         PASS    max |dp| 0.016179; R1: cached explore / fresh explore; R3: cached look / fresh look; R5: cached greet / fresh greet; R7: cached greet / fresh greet; R8: cached greet / fresh greet
+  K1 C5         PASS    PIDs [(30907, '59849731')]; 13 requests, 0 errors; exit code 0, SIGKILL False; exception None
+  K1 diff       INFO    0 of 13 rows differ from the B0 run of record in ('prompt_tokens', 'prompt_ids_sha256', 'prompt_n', 'cache_n', 'top'): none
+  K2            PASS    R7 cache_n 393 vs min(LCP with restored, n-1) 393; save/restore ok True; slot file 7790556 bytes (b1609 B0b L1: 7790524)
+  K3            PASS    strict 0.900/0.900, acceptable 0.900/0.900 (FWD/REV), flips 3 [6, 36, 39]; 80/80 rows
+  K3 agreement  INFO    0 of 80 items differ from the B2 run of record (order, id, b1609, b11716): none
+  K4            PASS    reply 'In front of the robot, there is a wooden table with a laptop, a blue object, and some other items like a glass and scissors.'
+  K5            PASS    PIDs [(30907, '59849731')]; rows {'K1': 13, 'K2': 13, 'K3': 80, 'K4': 1} of {'K1': 13, 'K2': 13, 'K4': 1, 'K3': 80}; 0 errors; exception None; stops none
+  exit          INFO    server exit code 0 after SIGTERM, SIGKILL False
+
+/data/data/com.termux/files/home/robot_runs/mind_bc/20261102T213956Z

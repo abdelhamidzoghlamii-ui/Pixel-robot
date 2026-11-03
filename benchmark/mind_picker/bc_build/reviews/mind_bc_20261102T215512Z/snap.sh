@@ -1,0 +1,1 @@
+cd /termux-home/robot && git rev-parse HEAD origin/main && git ls-remote origin refs/heads/main && git stash list && git status --porcelain=v1 -uall && sha256sum benchmark/mind_picker/bc_build/* /termux-home/robot_runs/mind_bc/20261102T213956Z/*.* /termux-home/robot_runs/mind_bc/20261102T213956Z/slots/* && ls -A /termux-home/review/mind_bc_20261102T215512Z/empty_cwd

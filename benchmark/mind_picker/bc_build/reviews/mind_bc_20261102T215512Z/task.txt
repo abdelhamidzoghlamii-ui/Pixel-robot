@@ -1,0 +1,87 @@
+EXECUTION PROFILE
+ROLE: Coder
+PLATFORM: Claude Code CLI
+MODEL: claude-opus-5-5
+EFFORT: medium
+PONYTAIL: lite
+WHY: Reuses committed MIND runners on a second llama.cpp build; no deployed code touched.
+FALLBACK: AGY CLI | claude-opus-5-5-medium | N/A | Ponytail lite (stated explicitly)
+
+EXECUTION PROFILE
+ROLE: Reviewer
+PLATFORM: Codex CLI (fresh session)
+MODEL: gpt-6.1-sol
+EFFORT: medium
+PONYTAIL: off
+WHY: Independent model family; build provenance and equivalence claims need a careful check.
+FALLBACK: AGY CLI | gemini-3.8-flash-high | N/A | Ponytail off (full WORKFLOW AGY procedure)
+
+TASK MIND-BC — can the vision build (b11716 + projector) replace b1609 for the picker? (research only)
+
+Base: verify HEAD = origin/main = the MIND-B3 commit (report the full hash).
+Read first: docs/WORKFLOW.md, docs/CODER.md, DECISIONS #114, #119, #142, #143, #145;
+benchmark/gemma_vision/vis3d/ (README, RUN_INDEX); benchmark/mind_picker/ b0_cache, b0b_slots,
+b2_rules (README, RUN_INDEX, code).
+At session start, confirm your model id is the one in the profile; if not, stop and report.
+Before writing anything, ls -la every folder you will create or write; always use a new timestamped
+folder; never reuse one.
+
+QUESTION: On b11716 with the Q8 projector loaded, do prefix caching, slot save/restore and the B2
+picker (V3) behave as on b1609? Is b11716 built with ARM dotprod like b1609?
+
+DO NOT: change any deployed file or anything in the existing mind_picker or gemma_vision folders
+(import; override only the server command); rebuild or modify any llama.cpp tree; start RobotCam,
+YOLO, motors or the mission; use MTP; commit or push. Counters and accuracy are deterministic: agent
+resident allowed. Timings and RAM: NOT MEASUREMENTS / INDICATIVE.
+
+STEP 1, read-only build provenance (both trees: ~/llama.cpp-b1609-dotprod and ~/llama.cpp-vis):
+ source commit; CMakeCache.txt CPU/arch flags (GGML_NATIVE, GGML_CPU_ARM_ARCH, -march/-mcpu, dotprod,
+ i8mm); SHA-256 of llama-server and libggml-cpu*.so; `llama-server --help` presence of --swa-full,
+ --cache-ram, --parallel, --slot-save-path, --kv-unified, --mmproj, --image-min-tokens,
+ --image-max-tokens; any changed defaults you can see. If b11716 lacks dotprod: STOP after step 1 and
+ report (a rebuild is a separate owner decision).
+
+STEP 2, one launch on b11716: setup_q4's flags exactly (taskset 4-7, ctx 2048, --threads 4
+ --threads-batch 4 --parallel 1 --swa-full --cache-ram 0, host 127.0.0.1) + --slot-save-path
+ <run dir>/slots + --mmproj ~/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf --image-min-tokens 70
+ --image-max-tokens 70. Same model file and SHA-256 as b1609. Report any flag that does not exist.
+ Within it, in order:
+ K1 B0 sequence (b0_set.json unchanged): criteria C1–C5 as B0; plus a row-by-row diff of tokens,
+    prompt_n, cache_n and top action against the B0 run of record.
+ K2 B0b L1 save/restore sequence: K1 criterion of B0b (no rebuild after restore); report file size.
+ K3 B2 V3 on B2's TEST set (b2_rules/set/b2_test.json, SHA d5faed98…), FWD then REV, 60 s pause:
+    B2's PASS rule (acceptable >= 0.80 and strict >= 0.65 in both orders, flips <= 4); plus item-level
+    agreement with the B2 run of record (count and ids of items whose choice differs).
+ K4 one image request at the end (VIS-3D frame 1 of its fixed set, VIS-3D prompt and settings):
+    must return a non-empty reply; record it verbatim.
+ K5 one server PID throughout, 0 request errors; server stop exit code (b11716 had nonzero/SIGABRT
+    exits in VIS-0, #145): report it; a nonzero exit is a finding, not a fix-it task.
+ RAM: llama-server PSS/VmHWM after load and at the end (INDICATIVE).
+
+FILES: benchmark/mind_picker/bc_build/{bc.py, test_bc.py, README.md}; offline tests with a fake server
+(command override, diff logic, criteria). Run folder ~/robot_runs/mind_bc/<UTC>/ with run.json,
+requests.jsonl, provenance.txt, report.txt, artifacts.sha256.
+Known B0 limitation (interrupt/cleanup finalization) is out of scope; the Reviewer may note it as P3.
+
+STEPS: step 1 -> implement -> offline tests -> one phone run -> invoke the Reviewer automatically per
+WORKFLOW in a new timestamped review folder (source-only method if the Codex sandbox cannot execute in
+proot; say so). If Codex is at capacity, wait 10 min and retry once; then report INCOMPLETE -> freeze
+-> return the review verbatim, stop for my decision.
+
+RETURN: provenance table (b1609 vs b11716); K1–K5 table with numbers; K1 and K3 diffs vs b1609;
+RAM after load/end for both builds (b1609 from B0b L0); the image reply; review verbatim;
+git status --porcelain=v1 -uall. Label results VALID / INVALID / NOT A MEASUREMENT / INDICATIVE.
+No commit or push.
+
+--- Owner decision 1 (after the Coder reported that HEAD was fe8d2de, MIND-B2, not a MIND-B3 commit) ---
+Owner decision: option 1. First do the MIND-B3 commit below, then continue MIND-BC from Step 2 with the
+new HEAD as base. Step 1 provenance is accepted as done (VALID); include it in the BC report and name the
+b1609 tree's real upstream tag (b10194, #119).
+[MIND-B3 archive/commit/push instructions omitted here; done: commit 391bd55, pushed.]
+
+--- Owner decision 2 ---
+Owner: accepted — enable_thinking false in the image request instead of the --reasoning off server
+flag; record it as a deviation from VIS-3D (K4 is a function check only, not comparable to VIS-3D
+replies). Continue MIND-BC: read the report, build the K1–K5 tables, the diffs vs b1609 and the RAM
+comparison, run the Codex review in a new timestamped folder, return everything as the task says,
+then stop for my decision. No commit or push.

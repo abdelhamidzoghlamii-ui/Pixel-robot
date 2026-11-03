@@ -1,0 +1,30 @@
+# server.log lines 1-25 and the last 2 lines (full file hash in artifacts.sha256; 1517 lines)
+0.00.005.490 I srv  llama_server: initializing ...
+0.00.007.369 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.010.523 W srv  llama_server: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.013.079 I srv    load_model: loading model '/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf'
+0.02.079.820 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.02.092.677 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.02.137.626 W load: '</s>' is a normal token here, removing it from EOG list
+0.04.502.107 W llama_kv_cache_iswa: using full-size SWA cache (ref: https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
+0.04.523.976 I cmn          init: llama threadpool init, n_threads = 4
+0.05.895.702 W init_audio: audio input is in experimental stage and may have reduced quality:
+    https://github.com/ggml-org/llama.cpp/discussions/13759
+0.05.896.372 I srv    load_model: loaded multimodal model, '/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf'
+0.06.054.052 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 2048, kv_unified = 'false'
+0.06.058.295 W srv          init: --cache-idle-slots requires --cache-ram, disabling
+0.06.083.685 I srv  llama_server: model loaded
+0.06.083.968 I srv  llama_server: listening on http://127.0.0.1:8080
+0.06.422.456 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = -1
+0.06.422.573 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+0.11.954.425 I slot print_timing: id  0 | task 0 | prompt eval time =    5519.06 ms /   392 tokens (   14.08 ms per token,    71.03 tokens per second)
+0.11.954.513 I slot print_timing: id  0 | task 0 |        eval time =       0.00 ms /     1 tokens (    0.00 ms per token,     0.00 tokens per second)
+0.11.954.620 I slot print_timing: id  0 | task 0 |       total time =    5519.06 ms /   393 tokens
+0.11.954.622 I slot print_timing: id  0 | task 0 |    graphs reused =          1
+0.11.954.624 I slot print_timing: id  0 | task 0 |   graph reallocs =          0    /     0        (same size) / (changed size)
+0.11.955.340 I slot      release: id  0 | task 0 | stop processing: n_tokens = 392, truncated = 0
+0.12.083.953 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 1.000 (> 0.100 thold), f_keep = 1.000
+...
+9.25.283.729 I slot      release: id  0 | task 1818 | stop processing: n_tokens = 125, truncated = 0
+9.25.468.636 I srv    operator(): operator(): cleaning up before exit...
+# grep -c ' E ' (error-level lines): 0
