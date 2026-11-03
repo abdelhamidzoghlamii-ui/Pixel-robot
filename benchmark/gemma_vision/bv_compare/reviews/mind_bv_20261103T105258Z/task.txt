@@ -1,0 +1,111 @@
+EXECUTION PROFILE
+ROLE: Coder
+PLATFORM: Claude Code CLI
+MODEL: claude-opus-5-5
+EFFORT: medium
+PONYTAIL: lite
+WHY: Research runner reusing VIS-3D/BC server setup and M2-Q1 frames; no deployed code touched.
+FALLBACK: AGY CLI | claude-opus-5-5-medium | N/A | Ponytail lite (stated explicitly)
+
+EXECUTION PROFILE
+ROLE: Reviewer
+PLATFORM: Codex CLI (fresh session)
+MODEL: gpt-6.1-sol
+EFFORT: medium
+PONYTAIL: off
+WHY: Independent model family; parsing, YOLO rules and scoring need a careful check.
+FALLBACK: AGY CLI | gemini-3.8-flash-high | N/A | Ponytail off (full WORKFLOW AGY procedure)
+
+TASK MIND-BV — Gemma vision vs YOLO: room, person, distance (research only)
+
+Base: verify HEAD = origin/main = c7db8484aa9b38694f7ad1698cd9318d09b1f557 (report if not).
+Read first: docs/WORKFLOW.md, docs/CODER.md, DECISIONS #143, #145; benchmark/gemma_vision/vis3d/
+(README, code); benchmark/mind_picker/bc_build/ (README, RUN_INDEX, bc.py);
+benchmark/relate_anything/quality1/ (README, quality1.py, run 20261017T213604Z results.json).
+At session start, confirm your model id is the one in the profile; if not, stop and report.
+Before writing anything, ls -la every folder you will create or write; always a new timestamped
+folder; never reuse one.
+
+QUESTION: On the robot's photos, how well does Gemma 4 E2B vision name the room, see a person and judge the
+person's distance, compared with the robot's YOLO detections plus simple rules?
+
+DO NOT: change any deployed file or any existing benchmark folder (import; read frames and
+results.json only); start RobotCam, YOLO, motors or the mission; use MTP; change any prompt, rule, label
+or threshold after the first Gemma call; commit or push. Accuracy is deterministic (temperature 0):
+agent resident allowed; timings NOT MEASUREMENTS.
+
+PHOTOS: benchmark/relate_anything/quality1/runs/20261017T213604Z/frames/, sorted by name, numbered 1–70.
+Use ids 1–60 and 66 (61 photos; 61–65 and 67–70 are duplicates). Check each frame's SHA-256 against
+results.json before any call.
+
+KEY (owner-confirmed 2026-11-03). Write to /termux-home/mind_bv_key/<UTC>/bv_key.json OUTSIDE the repo,
+SHA-256 before any Gemma call; it enters the repo only after scoring, on my decision.
+Fields: room, person (yes/no), distance (close <1 m, medium 1–2 m, far >2 m, none).
+ 1-4 living room|no|none     5 bathroom|no|none     6 hallway|no|none     7 kitchen|no|none
+ 8 living room|no|none       9 bedroom|no|none
+ 10,11,12 living room|yes|close      13,14,15 living room|yes|medium      16 living room|yes|far
+ 17,18,19 living room|yes|close      20,21,22 living room|yes|medium      23 living room|yes|far
+ 24,25,26 bedroom|no|none
+ 27 living room|yes|close            28,29 living room|yes|medium
+ 30,31,32 kitchen|no|none            33,34,35 bathroom|no|none            36,37,38 living room|no|none
+ 39 kitchen|yes|medium               40,41 kitchen|yes|close              42,43,44 hallway|yes|medium
+ 45-48 living room|yes|close         49-52 living room|yes|far
+ 53-56 living room|yes|close         57-60 living room|yes|far            66 living room|yes|medium
+
+METHODS (all fixed now):
+ Y  YOLO + rules, from results.json detections of run 20261017T213604Z (no new YOLO run; report which
+    detector model, input size and confidence threshold produced them, from quality1.py/run.json).
+    Person = any "person" detection. Distance = the robot's bucket of the person with the largest box:
+    "very close"/"close" -> close, "medium" -> medium, "far" -> far; none if no person.
+    Room, first match: toilet -> bathroom; bed -> bedroom; refrigerator, oven or microwave -> kitchen;
+    couch, tv or dining table -> living room; else unknown. (YOLO has no hallway cue.)
+ V70  Gemma vision, image tokens 70.   V140  Gemma vision, image tokens 140.
+ VY70 Gemma vision, image tokens 70, plus a line listing method Y's detections
+      ("Objects the robot's detector found: <class> (<position>, <distance>), ..." or "none").
+ Server: exactly BC's b11716 command (mem1 setup_q4 flags, b11716 binary, --mmproj Q8 projector,
+ pins as BC), with --image-min-tokens/--image-max-tokens = 70 or 140 per launch; no --slot-save-path.
+ Requests: /v1/chat/completions, GGUF template, chat_template_kwargs enable_thinking false (as BC K4),
+ temperature 0, top_k 1, seed 0, max_tokens 32. Image as in VIS-3D (frame bytes unchanged).
+ Prompt (verbatim; VY70 inserts its detector line before "Answer"):
+   Look at this photo from a small home robot's camera.
+   Answer in exactly three lines:
+   Room: living room, kitchen, bedroom, bathroom, hallway or unknown
+   Person: yes or no
+   Distance: close (under 1 m), medium (1 to 2 m), far (over 2 m) or none
+   Give only these three lines.
+ Parsing: case-insensitive, one value per line from the allowed lists; anything else = UNPARSED for
+ that field (counts as wrong; reported separately). Keep every reply verbatim.
+
+PROCEDURE: launch A (70 tokens): V70 then VY70; launch B (140 tokens): V140. Blocks of at most 31
+ photos, fixed order, 60 s pause between blocks. Record server stop exit codes (b11716 history, #145).
+
+METRICS per method: room accuracy (61), person accuracy (61), distance accuracy on the 44 photos with a
+person (a "no" or wrong bucket = wrong), all-three-correct count, confusion matrices, UNPARSED counts,
+list of wrong ids per field.
+PASS (fixed now): the best vision method by room accuracy has room >= 0.80 AND its person accuracy >= Y's.
+Report PASS/FAIL, plus every method's numbers.
+
+FILES: benchmark/gemma_vision/bv_compare/{bv.py, test_bv.py, README.md}; offline tests with a fake server
+(Y rules incl. priority and largest-box choice, parsing incl. UNPARSED, metrics, PASS rule, custody).
+Run folder ~/robot_runs/mind_bv/<UTC>/ with run.json, requests.jsonl, report.txt, artifacts.sha256.
+Known B0 limitation (interrupt/cleanup finalization) is out of scope; the Reviewer may note it as P3.
+
+STEPS: implement -> offline tests -> one phone run -> invoke the Reviewer automatically per WORKFLOW in a
+new timestamped review folder (source-only method if the Codex sandbox cannot execute in proot; say so).
+If Codex is at capacity, wait 10 min and retry once; then report INCOMPLETE -> freeze -> return the
+review verbatim, stop for my decision.
+
+RETURN: table method x (room, person, distance, all three, UNPARSED); PASS/FAIL; the 10 most informative
+wrong replies verbatim (id, field, reply); detector model/size/threshold behind Y; server exit codes;
+review verbatim; git status --porcelain=v1 -uall. Label results VALID / INVALID / NOT A MEASUREMENT.
+No commit or push.
+
+OWNER DECISIONS (2026-11-03, before any Gemma call, answers to the Coder's questions):
+1. "The key you gave lists 40 photos with a person, not 44 as the task says. Which is right?"
+   -> "Key is right: 40". Distance accuracy is over the key's 40 person photos.
+2. "results.json keeps no box, position or distance for photos with only one detection (only 'classes').
+   That affects person photos 10, 12, 43 and 44, so method Y has no distance for them, and VY70's detector
+   line can't show position or distance there. A new YOLO run is forbidden."
+   -> "Y distance UNAVAILABLE = wrong": Y person = yes (class is known), Y distance scored wrong and listed as
+   UNAVAILABLE; VY70 line shows e.g. 'person (position unknown, distance unknown)'. Room rules still use the
+   class list.
