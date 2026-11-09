@@ -1,0 +1,349 @@
+diff -u mind_b4_round2_files_20261104T122238Z/README.md /termux-home/robot/benchmark/mind_picker/b4_baseline/README.md
+--- mind_b4_round2_files_20261104T122238Z/README.md	2026-11-03 21:32:30.791603500 +0000
++++ /termux-home/robot/benchmark/mind_picker/b4_baseline/README.md	2026-11-04 12:27:35.843629723 +0000
+@@ -18,7 +18,8 @@
+   run's 1.5 s move time; no navigation, picker or heat control. "no new" frames: at most 3 per block; any other camera
+   stop ends the phase and makes the block INVALID.
+ - Blocks I, P, P0, PT, V70, V140, Y, PY. Each work phase has an absolute 180 s deadline: nothing new starts after it,
+-  the operation in flight may finish, the overrun is recorded and must be ≤ 15 s (P0, two cold decisions, has no
++  the operation in flight may finish, the overrun is recorded and must be ≤ 15 s; a slot restore that ends past the
++  deadline is recorded alone and no decision follows it (P0, two cold decisions, has no
+   deadline). PT = P + root sampler every 5 s (its thread must get cores 0–3 at nice 10); PY = a P phase, then right
+   away a Y phase with the server idle (hand-off reading after the camera start).
+ - Before each block: cores 4–7, agent check, MEM-1 skin gate (launch-start skin + 1.0 °C, idle wait at most
+@@ -26,8 +27,10 @@
+   battery < 45 °C; a gate not passed, an agent or lost cores ends the session before the block, and the block itself
+   checks agent and cores again before any setup. During every block a watcher (cores 0–3, nice 10) scans `/proc`
+   every 30 s plus at the work start and end for claude/agy/codex/node processes and the affinities (runner cores
+-  4–7, llama-server 4–7, detector threads 4–5); any hit makes the block INVALID. Resolution 30 s: an agent that lives
+-  entirely between two scans is not seen. Every reading's section return codes and required fields are checked.
++  4–7, every llama-server thread 4–7, detector threads 4–5; a thread that exists but cannot be read is a hit, one
++  that disappeared before its read is skipped and counted as "vanished"); any hit makes the block INVALID.
++  Resolution 30 s: an agent that lives entirely between two scans is not seen. Every reading's section return
++  codes and required fields are checked, Pss and VmHWM for every process.
+   An INVALID block ends the session and is redone in the next. Details: docstring of `b4.py`.
+ - Frozen definition: the first session records the SHA-256 of `oneshot.sh` and every imported module file under the
+   repo, every server block's full command and the SHA-256 of the 10 frame files; `--resume` refuses any difference.
+diff -u mind_b4_round2_files_20261104T122238Z/b4.py /termux-home/robot/benchmark/mind_picker/b4_baseline/b4.py
+--- mind_b4_round2_files_20261104T122238Z/b4.py	2026-11-03 21:32:30.791603500 +0000
++++ /termux-home/robot/benchmark/mind_picker/b4_baseline/b4.py	2026-11-04 12:27:29.475629720 +0000
+@@ -16,7 +16,8 @@
+ Vision (V70, V140): BV ids FRAME_IDS (frame SHA-256 checked against results.json), bv.body: BV's prompt and settings,
+ one /v1/chat/completions call each, in that order, repeated; same frames, prompt and settings in both blocks.
+ Camera: main.Robot(motors=None) is created first, then start_camera() (CAMERA_RATE 1, PinnedDetector on cpus 4-5,
+-CAM1-MID #136); stop_camera() is attempted whenever a start was attempted. Each cycle = run_cycle's vision step (a new
++CAM1-MID #136); stop_camera() is attempted whenever a start was attempted, also when reading the detector's
++affinity at the stop fails (that failure makes the block INVALID). Each cycle = run_cycle's vision step (a new
+ frame of this session, SizePolicy size 640 every 5 s else 320, detect, observe) followed by the dry run's move time
+ (main.CYCLE_MOVE_TIME; the last one is cut at the deadline); no navigation rules, picker, M2 or heat control. A frame
+ that is not new ('no new') is re-read after 0.1 s, at most NO_NEW_MAX times per block; any other camera stop (an
+@@ -25,7 +26,8 @@
+ 
+ Time ceiling: each work phase has an absolute deadline (phase start + BLOCK_S); no decision (with its restore), call
+ or camera cycle starts after it, the one in flight may finish; the overrun is recorded and the block is VALID only
+-if it is <= OVERRUN_MAX_S (15 s). P0 (two fixed cold decisions, seconds only) has no deadline.
++if it is <= OVERRUN_MAX_S (15 s). A slot restore that ends at or after the deadline is recorded as a restore-only
++row and ends the phase; its decision never starts. P0 (two fixed cold decisions, seconds only) has no deadline.
+ Blocks, in ORDER: I idle (screen on), P picker, P0 two cold decisions (item 1 after /slots erase = full prefix
+ rebuild, then item 1 after slot restore; not a heat block), PT = P plus the root sampler (every SAMPLE_S s: skin,
+ status, CPU caps, battery; its thread must get cores 0-3 at nice 10, else PT INVALID), V70 and V140 vision, Y
+@@ -38,11 +40,14 @@
+ the session before the block. run_block checks agents and cores again before any workload setup and aborts (INVALID)
+ when they fail. During every block a watcher thread (cores 0-3, nice 10, same in all blocks) scans /proc every
+ WATCH_S s, at the work start and once more at its end: agent processes (claude|agy|codex|node in a cmdline), the
+-runner's cores 4-7, llama-server's affinity 4-7 and the detector threads' 4-5; any hit makes the block INVALID. The
++runner's cores 4-7, every llama-server thread's affinity 4-7 (/proc/<pid>/task; a thread that exists but cannot
++be read is a hit; one that disappeared before its read is skipped and counted as 'vanished' in the scan record)
++and the detector threads' 4-5; any hit makes the block INVALID. The
+ resolution is WATCH_S (30 s): an agent that lives entirely between two scans is not seen.
+ Start and end of each block (PY also at the hand-off): reading(): VIRTUAL-SKIN, Android thermal status, cpufreq caps
+ policy0/4/6, battery %, temp, charge counter and voltage, Pss/Rss/VmHWM/VmRSS of llama-server, the runner (detector)
+-and RobotCam, MemAvailable; every section's return code and every required field is checked (reading_problems).
++and RobotCam, MemAvailable; every section's return code and every required field is checked (reading_problems),
++Pss and VmHWM per process before they are summed.
+ Labels: block VALID only with every check clean (block_problems); an INVALID block ends the session and is redone in
+ a later one. Server exit code != 0 after SIGTERM is a FINDING (#145), not a validity input. P vs PT COMPARABLE only
+ when both are VALID with start skin within 1.0 degC and battery within 10 % (comparable()); other cross-block numbers
+@@ -137,14 +142,21 @@
+ 
+ 
+ def mem_section(text):
+-    """kB summed over the section's processes, and their pids."""
+-    m = {'pids': []}
++    """kB per pid ('per_pid'), then summed over the section's processes; 'missing' names every pid without Pss or
++    VmHWM (one process's field never stands in for another's)."""
++    m, per = {'pids': []}, {}
+     for line in text.splitlines():
+         k, _, v = line.partition(':')
+         if k == 'pid':
+             m['pids'].append(int(v))
+-        elif k in ('Pss', 'Rss', 'VmHWM', 'VmRSS') and v.split():
+-            m[k] = m.get(k, 0) + int(v.split()[0])
++            per[int(v)] = {}
++        elif k in ('Pss', 'Rss', 'VmHWM', 'VmRSS') and v.split() and m['pids']:
++            per[m['pids'][-1]][k] = int(v.split()[0])
++    for f in per.values():
++        for k, v in f.items():
++            m[k] = m.get(k, 0) + v
++    m['per_pid'] = per
++    m['missing'] = [f'pid {p} {k}' for p, f in per.items() for k in ('Pss', 'VmHWM') if k not in f]
+     return m
+ 
+ 
+@@ -186,7 +198,7 @@
+ 
+ def reading_problems(c, label, need=()):
+     """Every section's return code and every required field: skin, status, caps, battery %, charge counter, voltage;
+-    Pss and VmHWM of each process in need."""
++    Pss and VmHWM of every pid of each section in need."""
+     why = []
+     if c.get('root_rc') != 0:
+         why.append(f'{label}: root rc {c.get("root_rc")} {c.get("root_error", "")}'.strip())
+@@ -197,6 +209,7 @@
+         m = c.get(f'mem_{n}', {})
+         why += [f'{label}: {n} section rc {m.get("rc")}'] if m.get('rc') != 0 else []
+         why += [f'{label}: {n} {k} missing' for k in ('Pss', 'VmHWM') if not m.get(k)]
++        why += [f'{label}: {n} {x} missing' for x in m.get('missing', [])]
+     return why
+ 
+ 
+@@ -273,10 +286,16 @@
+     return cpus
+ 
+ 
++PROC = Path('/proc')  # llama-server's threads are read here (tests point it at a fake tree)
++
++
+ def watch_check(targets):
+-    """One light /proc scan: agent processes, the runner's cores 4-7, llama-server's affinity (targets['server_pid'])
+-    4-7, the detector threads' (targets['detector']) 4-5. Returns {'mono', 'hits'} (no hits: clean)."""
+-    hits = []
++    """One light /proc scan: agent processes, the runner's cores 4-7, the affinity of every llama-server thread
++    (targets['server_pid'], PROC/<pid>/task/*) 4-7, the detector threads' (targets['detector']) 4-5; an unreadable
++    thread list, or a thread that exists but cannot be read, is a hit; a thread that disappeared between the listing
++    and its read (FileNotFoundError / ProcessLookupError) is skipped and counted in 'vanished', not a hit.
++    Returns {'mono', 'hits', 'vanished'} (no hits: clean)."""
++    hits, vanished = [], 0
+     for p in Path('/proc').iterdir():
+         if p.name.isdigit():
+             try:
+@@ -289,17 +308,25 @@
+         hits.append(f'runner cores {sorted(cr.allowed_cpus())}')
+     if (pid := targets.get('server_pid')) is not None:
+         try:
+-            line = next(l for l in Path(f'/proc/{pid}/status').read_text().splitlines()
+-                        if l.startswith('Cpus_allowed_list'))
+-            if parse_cpus(line.split(':', 1)[1]) != SERVER_CPUS:
+-                hits.append(f'llama-server {line}')
+-        except (OSError, StopIteration, ValueError) as e:
+-            hits.append(f'llama-server affinity unreadable: {e}')
++            tids = sorted(t.name for t in (PROC / str(pid) / 'task').iterdir())
++        except OSError as e:
++            tids = []
++            hits.append(f'llama-server threads unreadable: {e}')
++        for tid in tids:  # affinity is per thread: every one, not only the leader
++            try:
++                line = next(l for l in (PROC / str(pid) / 'task' / tid / 'status').read_text().splitlines()
++                            if l.startswith('Cpus_allowed_list'))
++                if parse_cpus(line.split(':', 1)[1]) != SERVER_CPUS:
++                    hits.append(f'llama-server thread {tid} {line}')
++            except (FileNotFoundError, ProcessLookupError):
++                vanished += 1  # the thread ended after the listing
++            except (OSError, StopIteration, ValueError) as e:
++                hits.append(f'llama-server thread {tid} affinity unreadable: {e}')
+     if (det := targets.get('detector')) is not None:
+         bad = {t: c for t, c in det.affinity().items() if c != DETECTOR_CPUS}
+         if bad:
+             hits.append(f'detector threads {bad}')
+-    return {'mono': round(time.monotonic(), 3), 'hits': hits}
++    return {'mono': round(time.monotonic(), 3), 'hits': hits, 'vanished': vanished}
+ 
+ 
+ def Watch(targets, period=WATCH_S):
+@@ -434,7 +461,8 @@
+ 
+ def run_picker(ps, deadline, emit):
+     """Decisions on items 1-20 in order, repeated; none (with its restore) starts at or after the deadline; restore
+-    before every 5th."""
++    before every 5th. A restore that ends at or after the deadline is emitted as a restore-only row (kind 'restore',
++    not a decision) and ends the phase: its decision never starts."""
+     s, prompts = ps[0], ps[1]
+     t0, n = clock(), 0
+     while clock() < deadline:
+@@ -445,11 +473,13 @@
+                 row['restore'] = slot('restore')
+             except Exception as e:
+                 row['error'] = f'restore: {type(e).__name__}: {e}'
+-        if 'error' not in row:
++            if 'error' not in row and clock() >= deadline:
++                row['kind'] = 'restore'
++        if 'error' not in row and row['kind'] == 'decision':
+             row.update(decide(s, it, prompts['V3', 'FWD', it['id']]))
+         row.update(t=round(clock() - t0, 3), cores_ok=cores_ok())
+         emit(row)
+-        if 'error' in row:
++        if 'error' in row or row['kind'] == 'restore':
+             return
+         n += 1
+ 
+@@ -534,7 +564,11 @@
+ def stop_camera(robot):
+     """main.Robot.stop_camera(), then capture must show stopped (frame files gone) within CAMERA_STOP_S."""
+     t0 = time.monotonic()
+-    out = {'affinity_end': robot.detector.affinity() if robot.detector else None}
++    out = {}
++    try:  # metadata in its own step: a failure here never skips the stop below
++        out['affinity_end'] = robot.detector.affinity() if robot.detector else None
++    except Exception as e:
++        out['affinity_error'] = f'detector affinity at stop: {type(e).__name__}: {e}'
+     try:
+         robot.stop_camera()
+     except Exception as e:
+@@ -616,8 +650,7 @@
+         why.append(f'{stops.count("no new")} "no new" frames > {NO_NEW_MAX}')
+     why += [f'{p["phase"]} overrun {p["overrun_s"]} s > {OVERRUN_MAX_S} s' for p in rec.get('phases', [])
+             if p['overrun_s'] > OVERRUN_MAX_S]
+-    if rec.get('camera_stop', {}).get('error'):
+-        why.append(rec['camera_stop']['error'])
++    why += [rec['camera_stop'][k] for k in ('affinity_error', 'error') if rec.get('camera_stop', {}).get(k)]
+     if 'sampler' in rec:
+         why += sampler_problems(rec['sampler'], rec.get('start', {}).get('mono', 0), rec.get('end', {}).get('mono', 0))
+     if 'watch' in rec:
+diff -u mind_b4_round2_files_20261104T122238Z/test_b4.py /termux-home/robot/benchmark/mind_picker/b4_baseline/test_b4.py
+--- mind_b4_round2_files_20261104T122238Z/test_b4.py	2026-11-03 21:32:58.783603513 +0000
++++ /termux-home/robot/benchmark/mind_picker/b4_baseline/test_b4.py	2026-11-04 12:28:23.539629746 +0000
+@@ -241,6 +241,58 @@
+         self.assertEqual(b4.parse_cpus('4-7'), {4, 5, 6, 7})
+         self.assertEqual(b4.parse_cpus('0-1,4,6-7'), {0, 1, 4, 6, 7})
+ 
++    def test_watch_checks_every_server_thread(self):
++        saved = b4.cores_ok, b4.AGENT_RE, b4.PROC
++        b4.cores_ok, b4.AGENT_RE = (lambda: True), b4.re.compile('no-such-agent-name-xyz')
++        try:
++            with tempfile.TemporaryDirectory() as d:
++                b4.PROC = Path(d)
++                for tid, cpus in (('4242', '4-7'), ('4243', '4-7')):
++                    (Path(d) / '4242' / 'task' / tid).mkdir(parents=True)
++                    status = Path(d) / '4242' / 'task' / tid / 'status'
++                    status.write_text(f'Name:\tllama\nCpus_allowed_list:\t{cpus}\n')
++                self.assertEqual(b4.watch_check({'server_pid': 4242})['hits'], [])
++                (Path(d) / '4242' / 'task' / '4243' / 'status').write_text('Cpus_allowed_list:\t0-7\n')
++                hits = b4.watch_check({'server_pid': 4242})['hits']  # clean leader, one worker on 0-7
++                self.assertEqual(hits, ['llama-server thread 4243 Cpus_allowed_list:\t0-7'])
++                rec = record('P', [DECISION], watch=watch(hits))
++                self.assertIn('watch: llama-server thread 4243 Cpus_allowed_list:\t0-7', b4.block_problems(*rec))
++                (Path(d) / '4242' / 'task' / '4243' / 'status').write_text('Cpus_allowed_list:\t4-7\n')
++                (Path(d) / '4242' / 'task' / '4244' / 'status').mkdir(parents=True)  # exists, unreadable -> a hit
++                res = b4.watch_check({'server_pid': 4242})
++                self.assertEqual(res['vanished'], 0)
++                self.assertEqual(len(res['hits']), 1)
++                self.assertIn('thread 4244 affinity unreadable', res['hits'][0])
++        finally:
++            b4.cores_ok, b4.AGENT_RE, b4.PROC = saved
++
++    def test_watch_skips_a_vanished_server_thread(self):
++        saved = b4.cores_ok, b4.AGENT_RE, b4.PROC
++        b4.cores_ok, b4.AGENT_RE = (lambda: True), b4.re.compile('no-such-agent-name-xyz')
++        listdir = Path.iterdir
++        try:
++            with tempfile.TemporaryDirectory() as d:
++                b4.PROC = Path(d)
++                task = Path(d) / '4242' / 'task'
++                for tid in ('4242', '4243'):
++                    (task / tid).mkdir(parents=True)
++                    (task / tid / 'status').write_text('Cpus_allowed_list:\t4-7\n')
++
++                def iterdir(path):  # the worker ends between the listing and its read
++                    entries = list(listdir(path))
++                    if path == task:
++                        (task / '4243' / 'status').unlink()
++                        (task / '4243').rmdir()
++                    return iter(entries)
++                with unittest.mock.patch.object(Path, 'iterdir', iterdir):
++                    res = b4.watch_check({'server_pid': 4242})
++                self.assertEqual((res['hits'], res['vanished']), ([], 1))
++                rec = record('P', [DECISION])
++                rec[0]['watch']['samples'][1] = res
++                self.assertEqual(b4.block_problems(*rec), [])  # vanished is not a hit: still VALID
++        finally:
++            b4.cores_ok, b4.AGENT_RE, b4.PROC = saved
++
+ 
+ class Deadlines(Clocked):
+     def picker(self, durations, dur=180.0, restore_s=0.0):
+@@ -286,6 +338,14 @@
+         self.assertEqual(round(spent - 180, 3), over)
+         self.assertLess(spent - (rows[-1]['wall_s'] + rows[-1].get('restore', {}).get('wall_s', 0)), 180)
+ 
++    def test_restore_crossing_the_deadline_starts_no_decision(self):
++        rows, over = self.picker([44.0] * 4 + [1.0] * 5, restore_s=5.0)  # 4 x 44 = 176 s; the 5th restore ends at 181
++        self.assertEqual([r['kind'] for r in rows], ['decision'] * 4 + ['restore'])
++        self.assertEqual(rows[-1]['restore'], {'action': 'restore', 'wall_s': 5.0})
++        self.assertNotIn('wall_s', rows[-1])  # the 5th decision never started
++        self.assertEqual(over, 1.0)
++        self.assertEqual(b4.block_problems(*record('P', rows, phases=[{'phase': 'P', 'overrun_s': over}])), [])
++
+     def test_idle_and_vision(self):
+         rec = {'work_s': 180.0}
+         b4.phase(rec, 'I', lambda d: b4.pause(max(0.0, d - b4.clock())))
+@@ -414,6 +474,33 @@
+         self.assertFalse(robot.capturing)
+         self.assertEqual(rec['label'], 'INVALID')
+ 
++    def test_affinity_failure_at_stop_still_stops(self):
++        robot = FakeRobot([], fail_start=True)  # capture begins, then the start raises
++
++        def no_affinity():
++            raise OSError('task dir gone')
++        robot.affinity = no_affinity  # raises during cleanup too
++        b4.make_robot = lambda: robot
++        stopped = []
++
++        class Proc:
++            pid = 4242
++        b4.start_server = lambda out, name, cmd: (Proc(), None, 0.1)
++        b4.stop_server = lambda proc, log: stopped.append(proc) or (0, False)
++        b4.picker_setup = lambda test: ({'items': [{'id': 1}]}, {('V3', 'FWD', 1): None}, [])
++        b4.warm = lambda prefix: {}
++        with unittest.mock.patch.object(b4, 'decide', return_value={'id': 1, 'wall_s': 0.0}), \
++                unittest.mock.patch.object(b4, 'slot', return_value={'action': 'restore', 'wall_s': 0.0}):
++            rec, rows = b4.run_block('PY', Path('.'), {**self.ctx(), 'dur': 0.01}, lambda r: None)
++        self.assertEqual(robot.stops, 1)  # stop_camera attempted although affinity() raised
++        self.assertFalse(robot.capturing)
++        self.assertEqual(rec['camera_stop']['affinity_error'], 'detector affinity at stop: OSError: task dir gone')
++        self.assertIn('stopped_s', rec['camera_stop'])
++        self.assertEqual(len(stopped), 1)  # the other cleanups still run
++        self.assertIn('samples', rec['watch'])
++        self.assertIn('detector affinity at stop: OSError: task dir gone', rec['problems'])
++        self.assertEqual(rec['label'], 'INVALID')
++
+     def test_each_cleanup_runs_when_another_fails(self):
+         robot = FakeRobot([], fail_start=True)
+         b4.make_robot = lambda: robot
+@@ -588,8 +675,24 @@
+         self.assertEqual((c['battery_pct'], c['charge_uah'], c['status'], c['skin']), (88, 2900000, 1, 33.5))
+         self.assertEqual((c['battery_rc'], c['dump_rc']), (0, 0))
+         self.assertEqual(c['mem_llama_server']['Pss'], 200)
+-        self.assertEqual(c['mem_robotcam'], {'pids': [8, 9], 'Pss': 15, 'VmHWM': 20, 'rc': 0})
+-        self.assertEqual(b4.reading_problems(c, 's', ['llama_server', 'robotcam']), [])
++        self.assertEqual(c['mem_robotcam'], {'pids': [8, 9], 'Pss': 15, 'VmHWM': 20, 'rc': 0,
++                                             'missing': ['pid 8 VmHWM'],
++                                             'per_pid': {8: {'Pss': 10}, 9: {'Pss': 5, 'VmHWM': 20}}})
++        # pid 8 has no VmHWM: pid 9's VmHWM does not stand in for it -> the section fails
++        self.assertEqual(b4.reading_problems(c, 's', ['llama_server', 'robotcam']), ['s: robotcam pid 8 VmHWM missing'])
++        self.assertEqual(b4.reading_problems(c, 's', ['llama_server']), [])
++
++    def test_memory_checked_per_process(self):
++        no_pss = self.OUT.replace('pid: 8\nPss: 10 kB\npid: 9\nPss: 5 kB\nVmHWM: 20 kB',
++                                  'pid: 8\nPss: 10 kB\nVmHWM: 30 kB\npid: 9\nRss: 7 kB\nVmHWM: 20 kB')
++        c = self.read(no_pss)  # pid 9: Rss but no Pss (its grep succeeded on Rss alone)
++        self.assertEqual((c['mem_robotcam']['Pss'], c['mem_robotcam']['VmHWM']), (10, 50))
++        self.assertEqual(b4.reading_problems(c, 's', ['robotcam']), ['s: robotcam pid 9 Pss missing'])
++        whole = self.OUT.replace('pid: 8\nPss: 10 kB\n', 'pid: 8\nPss: 10 kB\nVmHWM: 30 kB\n')
++        self.assertEqual(b4.reading_problems(self.read(whole), 's', ['llama_server', 'robotcam']), [])
++        rec, rows = record('Y', [CYCLE])  # a failing per-process check makes the block INVALID
++        rec['start']['mem_robotcam'] = rec['end']['mem_robotcam'] = self.read(no_pss)['mem_robotcam']
++        self.assertIn('end: robotcam pid 9 Pss missing', b4.block_problems(rec, rows))
+ 
+     def test_unfinished_and_failed_sections(self):
+         cut = self.OUT.split('=== mem_robotcam')[0].replace('VmHWM: 400 kB\nVmRSS: 300 kB\nrc=0', 'rc=1')

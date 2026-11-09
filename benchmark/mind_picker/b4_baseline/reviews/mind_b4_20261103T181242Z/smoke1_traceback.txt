@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/robot/benchmark/mind_picker/b4_baseline/b4.py", line 803, in <module>
+    main()
+    ~~~~^^
+  File "/data/data/com.termux/files/home/robot/benchmark/mind_picker/b4_baseline/b4.py", line 794, in main
+    text = report(run, read_jsonl(out / 'blocks.jsonl'), read_jsonl(out / 'requests.jsonl'))
+  File "/data/data/com.termux/files/home/robot/benchmark/mind_picker/b4_baseline/b4.py", line 664, in report
+    f' {ph} RAM start: {mem_text(a)}', f' {ph} RAM   end: {mem_text(b)}']
+                        ~~~~~~~~^^^
+  File "/data/data/com.termux/files/home/robot/benchmark/mind_picker/b4_baseline/b4.py", line 586, in mem_text
+    parts = [f'{n[4:]} Pss {m.get("Pss")} HWM {m.get("VmHWM")}' for n, m in c.items() if n.startswith('mem_')]
+                            ^^^^^
+AttributeError: 'int' object has no attribute 'get'

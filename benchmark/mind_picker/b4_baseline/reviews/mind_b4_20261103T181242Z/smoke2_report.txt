@@ -1,0 +1,100 @@
+MIND-B4 20261103T180735Z  code 2ad50a19acd4  base df2bee597ed65a817ea03ab2e71ff45963e70ee5
+server: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1 --slot-save-path /data/data/com.termux/files/home/robot_runs/mind_b4/20261103T180735Z_smoke/slots --mmproj /data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf --image-min-tokens 70 --image-max-tokens 70
+launch-start skin None degC (gate reference)
+*** SMOKE - NOT A MEASUREMENT: 20 s blocks, no gate, checks not enforced ***
+timings: VALID blocks only, from the owner run with no agent resident; energy INDICATIVE
+
+== I: SMOKE - NOT A MEASUREMENT (session 1; 1 attempt(s); gate {'skipped': 'SMOKE - NOT A MEASUREMENT', 'passed': True})
+  problems: start: root rc 1; start: skin missing; start: status missing; start: battery_pct missing; start: charge_uah missing; start: runner memory missing; end: root rc 1; end: skin missing; end: status missing; end: battery_pct missing; end: charge_uah missing; end: runner memory missing; agent process running: '2139 /data/data/com.termux/files/usr/bin/proot --kill-on-exit --link2symlink --sysvipc --kernel-release=\\Linux\\localhost'; cores 4-7 not all allowed during the block
+  start: skin None status None caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000} battery None % None degC charge None uAh
+    end: skin None status None caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000} battery None % None degC charge None uAh
+  heat (change, min, degC/min): None; energy (mAh, J) INDICATIVE: None
+  RAM start: ; MemAvailable 4637396 kB
+  RAM   end: ; MemAvailable 4584740 kB
+
+== P: SMOKE - NOT A MEASUREMENT (session 1; 1 attempt(s); gate {'skipped': 'SMOKE - NOT A MEASUREMENT', 'passed': True})
+  problems: start: root rc 1; start: skin missing; start: status missing; start: battery_pct missing; start: charge_uah missing; start: runner memory missing; start: llama_server memory missing; end: root rc 1; end: skin missing; end: status missing; end: battery_pct missing; end: charge_uah missing; end: runner memory missing; end: llama_server memory missing; agent process running: '2139 /data/data/com.termux/files/usr/bin/proot --kill-on-exit --link2symlink --sysvipc --kernel-release=\\Linux\\localhost'; cores 4-7 not all allowed during the block
+  start: skin None status None caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000} battery None % None degC charge None uAh
+    end: skin None status None caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000} battery None % None degC charge None uAh
+  heat (change, min, degC/min): None; energy (mAh, J) INDICATIVE: None
+  RAM start: ; MemAvailable 1959416 kB
+  RAM   end: ; MemAvailable 2209532 kB
+  decisions 2: wall s median 8.348 p95 10.081 max 10.081 (n 2)
+    excl. b2 /tokenize checks: median 8.285 p95 10.018 max 10.018 (n 2)
+    reason tokens median 20.0 p95 28 max 28 (n 2); gen tok/s median 5.69 p95 6.25 max 6.25 (n 2)
+    step1 prompt_n median 88.0 p95 91 max 91 (n 2) cache_n median 731.0 p95 731 max 731 (n 2)
+    step2 prompt_n median 3.0 p95 3 max 3 (n 2) cache_n median 838.0 p95 849 max 849 (n 2)
+    restores 0: wall s n 0
+  load 5.464 s; warm prefix 731 tokens (prompt_n 731), save 0.019 s
+  server exit 0, SIGKILL False
+
+== P0: SMOKE - NOT A MEASUREMENT (session 1; 1 attempt(s); gate {'skipped': 'SMOKE - NOT A MEASUREMENT', 'passed': True})
+  problems: start: root rc 1; start: skin missing; start: status missing; start: battery_pct missing; start: charge_uah missing; start: runner memory missing; start: llama_server memory missing; end: root rc 1; end: skin missing; end: status missing; end: battery_pct missing; end: charge_uah missing; end: runner memory missing; end: llama_server memory missing; agent process running: '2139 /data/data/com.termux/files/usr/bin/proot --kill-on-exit --link2symlink --sysvipc --kernel-release=\\Linux\\localhost'; cores 4-7 not all allowed during the block
+  start: skin None status None caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000} battery None % None degC charge None uAh
+    end: skin None status None caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000} battery None % None degC charge None uAh
+  heat (change, min, degC/min): None; energy (mAh, J) INDICATIVE: None
+  RAM start: ; MemAvailable 2231804 kB
+  RAM   end: ; MemAvailable 2219984 kB
+  cold_erase: wall 30.914 s, step1 prompt_n 816 cache_n 0, slot 0.029 s {'id_slot': 0, 'n_erased': 731}
+  cold_restore: wall 6.42 s, step1 prompt_n 85 cache_n 731, slot 0.027 s {'id_slot': 0, 'filename': 'picker.bin', 'n_restored': 731, 'n_read': 10800996, 'timings': {'restore_ms': 13.416}}
+  load 7.626 s; warm prefix 731 tokens (prompt_n 731), save 0.024 s
+  server exit 0, SIGKILL False
+
+== PT: SMOKE - NOT A MEASUREMENT (session 1; 1 attempt(s); gate {'skipped': 'SMOKE - NOT A MEASUREMENT', 'passed': True})
+  problems: start: root rc 1; start: skin missing; start: status missing; start: battery_pct missing; start: charge_uah missing; start: runner memory missing; start: llama_server memory missing; end: root rc 1; end: skin missing; end: status missing; end: battery_pct missing; end: charge_uah missing; end: runner memory missing; end: llama_server memory missing; agent process running: '2139 /data/data/com.termux/files/usr/bin/proot --kill-on-exit --link2symlink --sysvipc --kernel-release=\\Linux\\localhost'; cores 4-7 not all allowed during the block; sampler: 4 of 4 samples failed; sampler: gap 16.0 s > 10 s
+  start: skin None status None caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000} battery None % None degC charge None uAh
+    end: skin None status None caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000} battery None % None degC charge None uAh
+  heat (change, min, degC/min): None; energy (mAh, J) INDICATIVE: None
+  RAM start: ; MemAvailable 2336204 kB
+  RAM   end: ; MemAvailable 2328324 kB
+  decisions 2: wall s median 7.87 p95 9.213 max 9.213 (n 2)
+    excl. b2 /tokenize checks: median 7.806 p95 9.148 max 9.148 (n 2)
+    reason tokens median 20.0 p95 28 max 28 (n 2); gen tok/s median 6.14 p95 6.15 max 6.15 (n 2)
+    step1 prompt_n median 88.0 p95 91 max 91 (n 2) cache_n median 731.0 p95 731 max 731 (n 2)
+    step2 prompt_n median 3.0 p95 3 max 3 (n 2) cache_n median 838.0 p95 849 max 849 (n 2)
+    restores 0: wall s n 0
+  sampler: 4 samples, root s median 0.15 p95 0.15 max 0.15 (n 4), sched {'tid': 15954, 'requested_cpus': [0, 1, 2, 3], 'requested_nice': 10, 'cpus': [0, 1, 2, 3], 'nice': 10}, error None
+  load 7.273 s; warm prefix 731 tokens (prompt_n 731), save 0.028 s
+  server exit 0, SIGKILL False
+
+== V: SMOKE - NOT A MEASUREMENT (session 1; 1 attempt(s); gate {'skipped': 'SMOKE - NOT A MEASUREMENT', 'passed': True})
+  problems: start: root rc 1; start: skin missing; start: status missing; start: battery_pct missing; start: charge_uah missing; start: runner memory missing; start: llama_server memory missing; end: root rc 1; end: skin missing; end: status missing; end: battery_pct missing; end: charge_uah missing; end: runner memory missing; end: llama_server memory missing; agent process running: '2139 /data/data/com.termux/files/usr/bin/proot --kill-on-exit --link2symlink --sysvipc --kernel-release=\\Linux\\localhost'; cores 4-7 not all allowed during the block
+  start: skin None status None caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000} battery None % None degC charge None uAh
+    end: skin None status None caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000} battery None % None degC charge None uAh
+  heat (change, min, degC/min): None; energy (mAh, J) INDICATIVE: None
+  RAM start: ; MemAvailable 2699180 kB
+  RAM   end: ; MemAvailable 2595164 kB
+  vision calls 1: wall s median 11.684 p95 11.684 max 11.684 (n 1)
+    prompt ms median 8818.0 p95 8818.0 max 8818.0 (n 1); gen tok/s median 6.48 p95 6.48 max 6.48 (n 1)
+  server exit 0, SIGKILL False
+
+== Y: SMOKE - NOT A MEASUREMENT (session 1; 1 attempt(s); gate {'skipped': 'SMOKE - NOT A MEASUREMENT', 'passed': True})
+  problems: CalledProcessError: Command '['am', 'start', '-n', 'com.pixelrobot.robotcam/.StartActivity', '--es', 'mode', 'B', '--ei', 'rate', '1']' returned non-zero exit status 1.; start reading missing; end reading missing; agent process running: '2139 /data/data/com.termux/files/usr/bin/proot --kill-on-exit --link2symlink --sysvipc --kernel-release=\\Linux\\localhost'; cores 4-7 not all allowed during the block; no camera cycles
+  start: -
+    end: -
+  heat (change, min, degC/min): None; energy (mAh, J) INDICATIVE: None
+  RAM start: -
+  RAM   end: -
+
+== PY: SMOKE - NOT A MEASUREMENT (session 1; 1 attempt(s); gate {'skipped': 'SMOKE - NOT A MEASUREMENT', 'passed': True})
+  problems: CalledProcessError: Command '['am', 'start', '-n', 'com.pixelrobot.robotcam/.StartActivity', '--es', 'mode', 'B', '--ei', 'rate', '1']' returned non-zero exit status 1.; start: root rc 1; start: skin missing; start: status missing; start: battery_pct missing; start: charge_uah missing; start: runner memory missing; start: llama_server memory missing; handoff reading missing; end reading missing; agent process running: '2139 /data/data/com.termux/files/usr/bin/proot --kill-on-exit --link2symlink --sysvipc --kernel-release=\\Linux\\localhost'; cores 4-7 not all allowed during the block; no camera cycles
+  P phase start: skin None status None caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000} battery None % None degC charge None uAh
+  P phase   end: -
+  P phase heat (change, min, degC/min): None; energy (mAh, J) INDICATIVE: None
+  P phase RAM start: ; MemAvailable 2402988 kB
+  P phase RAM   end: -
+  Y phase start: -
+  Y phase   end: -
+  Y phase heat (change, min, degC/min): None; energy (mAh, J) INDICATIVE: None
+  Y phase RAM start: -
+  Y phase RAM   end: -
+  decisions 2: wall s median 7.841 p95 9.179 max 9.179 (n 2)
+    excl. b2 /tokenize checks: median 7.771 p95 9.106 max 9.106 (n 2)
+    reason tokens median 20.0 p95 28 max 28 (n 2); gen tok/s median 6.15 p95 6.15 max 6.15 (n 2)
+    step1 prompt_n median 88.0 p95 91 max 91 (n 2) cache_n median 731.0 p95 731 max 731 (n 2)
+    step2 prompt_n median 3.0 p95 3 max 3 (n 2) cache_n median 838.0 p95 849 max 849 (n 2)
+    restores 0: wall s n 0
+  load 6.398 s; warm prefix 731 tokens (prompt_n 731), save 0.022 s
+  server exit 0, SIGKILL False
+
+P vs PT (monitoring cost): NOT COMPARABLE (P SMOKE - NOT A MEASUREMENT; PT SMOKE - NOT A MEASUREMENT); median decision wall P 8.347999999999999 s, PT 7.869999999999999 s, PT/P 0.943

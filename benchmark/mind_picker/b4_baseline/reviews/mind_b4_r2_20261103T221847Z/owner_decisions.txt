@@ -1,0 +1,60 @@
+=== Owner decision on MIND-B4 review round 1 (2026-11-03T18:38Z), verbatim ===
+Owner decision on MIND-B4 review round 1 (2026-11-03): fix, then one native smoke, then review round 2.
+Scope is limited to the items below; no other changes.
+
+1. P1-1 camera ownership: keep the Robot object before start_camera(); always attempt stop_camera() once
+   startup was attempted; protect each cleanup action (camera, server, sampler) separately so one failure
+   cannot skip the others. Test: fake start that begins capture and then raises -> stop is called.
+2. P1-2 time ceiling: absolute deadline per work phase (restore time included). No new decision/call/
+   camera cycle starts after the deadline; the one in flight may finish. Record the overrun; the block is
+   VALID only if the overrun is <= 15 s. Request timeout 60 s. Tests with an injected fake clock and
+   operations that advance it (variable durations, oversized first call, restore overhead, camera overrun).
+3. P1-3 camera validity: any camera_stop reason other than "no new" makes the block INVALID; "no new" is
+   allowed at most 3 times per block. Test: one good cycle then persistent capture failure -> INVALID.
+4. P1-4 frozen definition: at the first session record SHA-256 of oneshot.sh, b4.py and every imported
+   module file under the repo (from sys.modules), the full server command string of every launch, and the
+   SHA-256 of the 10 vision frames read from the frame files themselves; on --resume refuse any
+   difference. Tests: a changed dependency or frame -> refused.
+5. P1-5 agent and cores during work: abort before any workload setup if the initial checks fail. During
+   every block (all blocks alike, same cost) a light /proc scan every 30 s, pinned to cores 0–3 at nice 10,
+   checks for claude/agy/codex/node and for the workload's core affinity (llama-server 4–7, detector 4–5);
+   any hit -> block INVALID. Document the 30 s resolution. Tests for a violation between clean endpoints.
+6. P2-6 readings: check every section's return code and every required field (Pss, VmHWM, skin, status,
+   caps, battery %, charge counter, voltage); missing -> block INVALID. Tests for partial reads.
+7. P2-7 PT sampler: recorded affinity must be 0–3 and nice 10, else PT INVALID. Test.
+8. P3 inherited limitation stays out of scope beyond item 1's separate cleanup protection.
+9. Owner addition: block V runs twice, as V70 and V140 — separate server launches (image tokens are a
+   server flag: --image-min-tokens/--image-max-tokens 70, then 140), each gated, each <= 180 s, same 10
+   frames, prompt and settings. New block order: I, P, P0, PT, V70, V140, Y, PY. Update README and tests.
+[smoke command / round-2 procedure paragraph omitted]
+
+=== Later owner change A (2026-11-03T20:43Z), verbatim, after native smoke 20261103T192552Z_smoke ===
+Native smoke failed before any block: launch-start skin None -> TypeError in power_map.thermal_gate.
+1. Diagnose why the launch-start VIRTUAL-SKIN reading was None (read the run folder and console log;
+   check the #123 root-read form and what dumpsys thermalservice returned). Report the cause with evidence.
+2. Fix within item 6's scope: an incomplete launch-start reading (skin, status or any required field) must
+   refuse the session cleanly with a clear message before any gate, server or camera, and never crash.
+   Add an offline test for it. Fix the cause from step 1 if it is in b4.py; if it is outside the runner
+   (phone state), tell me what to do instead.
+
+Coder's diagnosis (claim to verify): launch-start reading had root_rc 1 after 0.022 s, empty output, all
+section rcs None. The light root script ended in `echo "rc=$?"; `; cr.root wraps scripts as `{ <script>; }`
+so the text ended `; ;` (sh -n: Syntax error: ";" unexpected). Fix: no trailing ';' in the light script;
+su stderr recorded in the reading; launch_start() refuses (also for --smoke) before folder/gate/server/
+camera when any required field or section rc is missing. Tests: both root scripts parse in cr.root's exact
+wrapper; incomplete launch-start reading -> clean refusal.
+
+=== Later owner change B (this round), verbatim, after native smoke 20261103T205510Z_smoke ===
+I and P ran (P: 7 decisions, restore 0.01 s, server exit 0); deferred before P0 after 486 s (skin 28.66 vs
+28.40). The gate works. Two changes, then a new smoke:
+1. --smoke only: apply the gate before the first block only; later smoke blocks run ungated (still labelled
+   SMOKE - NOT A MEASUREMENT). Timed runs keep the gate before every block.
+2. Timed run: keep the threshold (launch-start skin + 1.0 °C) but wait up to 30 min per block before
+   deferring (record the wait = cooling data). Smoke unchanged otherwise.
+Update README and tests.
+
+Coder's implementation (claim to verify): b4.GATE_MAX_S = 30*60 set into pm.GATE_MAX_S in main() for
+non-smoke runs only (smoke keeps power_map's default 480 s); session_loop gates only todo[0] when smoke and
+records gate {'passed': True, 'skipped': ...} for later smoke blocks; status/battery safety stop still
+before every block; run.json gate_max_s records the value in force. Tests: smoke gates only the first
+block; timed session gates every block; main sets 1800 for timed and leaves 480 for --smoke.

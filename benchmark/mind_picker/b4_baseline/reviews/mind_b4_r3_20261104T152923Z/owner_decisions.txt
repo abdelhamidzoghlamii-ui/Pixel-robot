@@ -1,0 +1,26 @@
+=== Owner decision on MIND-B4 review round 2 (2026-11-04), verbatim ===
+Owner decision on MIND-B4 review round 2 (2026-11-04): fix the four findings, nothing else.
+1. P1 camera stop: collect detector affinity in its own protected step; robot.stop_camera() is always
+   attempted after an attempted start, even if affinity() or other metadata raises. Test: fake capture
+   start, then affinity() raises during cleanup -> stop_camera is called and the other cleanups still run.
+2. P1 restore vs deadline: recheck the absolute deadline after every restore and before decide(); if past,
+   record a restore-only event (not a decision) and end the phase. Fake-clock test: the fifth restore
+   crosses the deadline -> the fifth decision never starts.
+3. P2 memory per process: keep Pss and VmHWM per PID, validate both for every included process, then
+   aggregate. A missing field in any process -> section fails. Change the partial RobotCam fixture to expect
+   INVALID and add a missing-Pss case.
+4. P2 server threads: the watcher checks every thread under /proc/<pid>/task/ of llama-server (cores 4–7);
+   an unreadable or wrong thread -> INVALID. Test: clean leader + one wrongly pinned worker -> INVALID.
+Then run the offline tests, give me the native smoke command again (same as before) and stop. After my
+smoke you check it and invoke review round 3 (Codex CLI gpt-6.1-sol, medium, Ponytail off, fresh session,
+source-only, new timestamped folder): its packet contains the round-2 review, this decision, the diff from
+the round-2 frozen files to the new files, test output and the new smoke. Round 3 reviews only these four
+fixes and anything they break. Stop with the review verbatim. No commit or push.
+
+=== Later owner decision before the smoke (2026-11-04), verbatim ===
+Owner decision before the smoke: in the server-thread watcher, a thread that has disappeared (its
+/proc/<pid>/task/<tid> entry or status file no longer exists: FileNotFoundError / ProcessLookupError) is
+skipped and counted as "vanished" in the watch record, not a hit. A thread that exists but cannot be read
+for any other reason, or has the wrong core range, stays a hit (INVALID). Add a test: one worker vanishes
+between listing and reading -> no hit, vanished count 1. Update README/docstring, rerun the offline tests,
+refreeze, give me the smoke command and stop.

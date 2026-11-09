@@ -1,0 +1,128 @@
+CHANGES REQUESTED
+
+This is a source-only static review of the supplied packet. I called no tools, read no workspace files, and ran no tests. Section F’s test outputs and smoke artifacts are **supplied evidence** from the Coder, not independently verified results.
+
+Findings, ranked by severity:
+
+1. **P1 — Camera startup failure can leave capture running without cleanup.**
+
+   `benchmark/mind_picker/b4_baseline/b4.py:411` — **803 lines**:
+   > `robot.start_camera()`
+
+   `benchmark/mind_picker/b4_baseline/b4.py:521` — **803 lines**:
+   > `robot = start_camera(rec)`
+
+   The caller receives `robot` only after startup and metadata collection succeed. However, `main.py:254` — **690 lines** — explicitly permits failure after starting Android capture:
+   > `raise RuntimeError('RobotCam did not publish a usable frame')`
+
+   In that case, `run_block` still has `robot=None`, so its cleanup does not call `stop_camera`. A failure collecting detector metadata after successful startup has the same ownership problem. This is a camera-specific defect, beyond merely preserving B0’s finalization limitation.
+
+   **Fix:** Retain the Robot object before invoking startup, and attempt its existing `stop_camera()` method whenever startup was attempted. Add a fake startup test that starts capture and then raises.
+
+2. **P1 — The 180-second work ceiling is not enforced.**
+
+   `benchmark/mind_picker/b4_baseline/b4.py:334` — **803 lines**:
+   > `while n == 0 or time.monotonic() - t0 + last <= dur:`
+
+   This predicts the next decision’s duration from the previous one. A slower decision, a restore before the next decision, or the unconditional first decision can exceed the limit. Vision uses the same approach. Camera detection and the following sleep can also cross its deadline. The request timeout is 300 seconds, exceeding the entire block limit.
+
+   **Fix:** Use an absolute deadline for each work phase, include restore time, and bound outstanding requests and camera work by the remaining budget. An operation exceeding that budget must not produce a VALID block. Define explicitly how an interrupted decision is recorded.
+
+3. **P1 — Camera failures can produce a VALID block.**
+
+   `benchmark/mind_picker/b4_baseline/b4.py:442` — **803 lines**:
+   > `emit({'kind': 'camera_stop', 'reason': r['status'] if r['status'] != 'ok' else 'no new',`
+
+   `benchmark/mind_picker/b4_baseline/b4.py:484` — **803 lines**:
+   > `if n := sum('error' in r for r in rows):`
+
+   Unusable frames and repeated frame failures generate `camera_stop` rows without an `error` field. Once one successful cycle exists, an otherwise failed camera phase can pass validity checks. This conflicts with I8’s promise that camera errors invalidate the block.
+
+   **Fix:** Classify camera-stop reasons explicitly. Treat unusable capture/session failures as invalidating errors; document any permitted transient “no new” condition and its limit. Test a phase with one successful cycle followed by persistent capture failure.
+
+4. **P1 — Resume does not freeze all inputs that determine block definitions.**
+
+   `benchmark/mind_picker/b4_baseline/b4.py:691` — **803 lines**:
+   > `'main', 'detect_person', 'detector_size_policy', 'robotcam_reader')`
+
+   `benchmark/mind_picker/b4_baseline/b4.py:692` — **803 lines**:
+   > `return [Path(__file__)] + [Path(sys.modules[n].__file__) for n in names]`
+
+   This selected list omits the launcher and dependencies such as `server_manager`, whose thread settings enter the command through `mem1.command`. It also does not freeze the original vision frame hashes independently of the mutable `results.json` used to validate them. Changing these inputs can change a resumed experiment without changing the checked dictionary.
+
+   **Fix:** Record and verify the complete definition inputs, including launcher, relevant transitive dependencies, actual server command/settings, and original frame hashes. Compare those frozen values on resume. Add refusal tests for changes to omitted dependencies and frame manifests.
+
+5. **P1 — Endpoint agent checks cannot establish an agent-free measurement.**
+
+   `benchmark/mind_picker/b4_baseline/b4.py:480` — **803 lines**:
+   > `if rec.get('agents_before') or rec.get('agents_after'):`
+
+   An agent that starts and exits during a block escapes both checks, allowing an agent-resident interval to receive VALID. The same endpoint limitation affects idle-block core losses; request-level core checks cover only selected instants in other blocks. An agent found in `run_block`’s initial check also does not prevent work from starting.
+
+   **Fix:** Abort before workload setup when the initial checks fail, and provide an observation mechanism that detects agent presence and core loss during work. Apply its cost consistently to P and PT, document the detection resolution, and invalidate on observed violations. Add tests for violations occurring between clean endpoints.
+
+6. **P2 — Failed or incomplete readings can pass validation.**
+
+   `benchmark/mind_picker/b4_baseline/b4.py:152` — **803 lines**:
+   > `c[name] = {**mem_section(text), 'rc': rc_m}`
+
+   `benchmark/mind_picker/b4_baseline/b4.py:162` — **803 lines**:
+   > `why += [f'{label}: {n} memory missing' for n in need if not c.get(f'mem_{n}', {}).get('Pss')]`
+
+   Memory section return codes are recorded but ignored. A successful PSS read followed by a failed status read can therefore pass without VmHWM. Battery and thermal section return codes are also discarded, and required voltage and battery-temperature fields are not validated by `reading_problems`.
+
+   **Fix:** Validate each required section’s completion and return code, plus every required field. Require VmHWM for the specified processes and voltage for energy reporting. Add partial-read and nonzero-section-return tests.
+
+7. **P2 — PT scheduling failures are recorded but do not invalidate the experiment.**
+
+   `benchmark/mind_picker/b4_baseline/b4.py:182` — **803 lines**:
+   > `self.sched = mem1.pin_sampler()`
+
+   `benchmark/mind_picker/b4_baseline/b4.py:199` — **803 lines**:
+   > `why = [f'sampler: {s["error"]}'] if s['error'] else []`
+
+   `sampler_problems` never checks the recorded CPU affinity, nice value, or scheduling errors. PT can therefore be VALID while sampling on the wrong cores or priority, changing the monitoring-cost experiment.
+
+   **Fix:** Require the recorded effective affinity to be cores 0–3 and nice 10 for measurement validity. Test refused affinity and priority changes. Validate detector affinity separately: the runner’s “cores 4–7 allowed” test does not establish that detector threads remained on cores 4–5.
+
+8. **P2 — The timing test does not exercise actual operation durations.**
+
+   `benchmark/mind_picker/b4_baseline/test_b4.py:153` — **283 lines**:
+   > `b4.decide = lambda s, it, p: {'id': it['id'], 'wall_s': 0.01}`
+
+   The fake reports elapsed time without advancing a fake clock or consuming that duration. Consequently, the test exercises a busy loop rather than realistic deadline behavior and misses finding 2. Existing tests cover the requested gate, order, sampler, labels, and comparability topics, but do not cover the failure paths above.
+
+   **Fix:** Inject a deterministic clock and operations that advance it. Test variable decision durations, restore overhead, an oversized first call, camera overruns, resource ownership on startup failure, and resume-definition changes.
+
+9. **P3 — The inherited cleanup/finalization limitation remains.**
+
+   `benchmark/mind_picker/b4_baseline/b4.py:549` — **803 lines**:
+   > `rec['camera_stop'] = stop_camera(robot)`
+
+   An exception escaping camera cleanup can prevent the subsequent server cleanup. Signals during startup or cleanup also have vulnerable ownership windows. The owner explicitly permits the inherited B0 limitation as a P3 note.
+
+   **Concrete follow-up:** Independently protect each cleanup action and defer repeated signals during resource acquisition and cleanup. Finding 1’s new camera-start ownership defect still needs correction before measurement.
+
+Judgment of I1–I13:
+
+| Interpretation | Judgment |
+|---|---|
+| **I1** | **Acceptable.** Restoring before decisions 5, 10, 15, etc. is a natural reading and matches the implementation. |
+| **I2** | **Acceptable with qualification.** Warming the shared token prefix preserves B2 scoring. Calling the entire LCP “the system turn” requires checking its boundary; it may include shared user-template text. |
+| **I3** | **Partly acceptable.** Excluding load/preflight/warm-up from work timing is reasonable. Predicting remaining work from the previous duration does not enforce the ceiling. |
+| **I4** | **Acceptable.** Both P0 decisions share one launch; erase versus restore matches the requested comparison. A separate gated P0 launch is reasonable. |
+| **I5** | **Partly acceptable.** Reusing Robot startup/shutdown and the vision step plus dry-run sleep fits the restricted camera workload. Silent retries through capture failures need explicit validity rules; startup cleanup is defective. |
+| **I6** | **Acceptable in principle.** A fresh gated P phase followed immediately by Y resolves the required order and warm hand-off. The reading after camera startup includes startup heat in the P phase and excludes it from Y; disclose that boundary explicitly. |
+| **I7** | **Acceptable.** The supplied gate implementation uses the intended threshold and bounded deferral, without running an ungated measurement block. |
+| **I8** | **Not established as claimed.** INVALID retry/order behavior is implemented, but camera errors, incomplete readings, transient contamination, and omitted definition inputs undermine the broader guarantee. |
+| **I9** | **Acceptable.** Treating post-SIGTERM nonzero exit as a finding follows the supplied BC precedent. Cleanup failures still need distinct treatment. |
+| **I10** | **Acceptable measurement design, incomplete validation.** Summed process PSS and indicative charge-based energy are reasonable. Runner VmHWM is process-lifetime high water, including previous blocks, not isolated detector-block peak RAM. |
+| **I11** | **Acceptable.** Whole-call wall time plus separately reported tokenize overhead is transparent; reason-generation tok/s is clearly identified. |
+| **I12** | **Acceptable smoke labeling, incomplete smoke coverage.** Smoke cannot resume into measurement and retains explicit nonmeasurement labels. However, native `--smoke` still skips the gate, so it cannot verify that gate. |
+| **I13** | **Partly acceptable.** Thread scheduling, skipped missed slots, and gap validation are sensible. Effective affinity/priority must affect validity, as in finding 7. |
+
+The supplied comparison-only diff shows that `oneshot.sh` preserves MEM-1’s native/root checks, Discharging checks, screen-timeout readback/restoration, lock, logger, and signal-forwarding structure. It expands runner detection and limits the agent exception to smoke. That establishes source similarity, not operational correctness.
+
+The source delegates to BC’s command, B2’s unchanged two-step scoring, and BV’s payload; the requested constants, frame order, restore cadence, comparability thresholds, and heat-rate formula are present. The actual BC command implementation and complete transitive import graph are not supplied, so their full fidelity and absence of motor/serial side effects cannot be independently established here.
+
+The **supplied evidence** reports 19 passing offline tests and a completed second smoke with server/slot/picker/vision activity. It also reports failed root readings and failed Y/PY camera startup. Thus it does **not** establish successful camera startup/shutdown, native root telemetry, gate operation, signal cleanup, or any valid timing measurement. A successful native verification of those paths remains necessary before the owner’s timed run.

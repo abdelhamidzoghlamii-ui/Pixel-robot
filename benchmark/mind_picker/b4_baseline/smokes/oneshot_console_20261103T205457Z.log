@@ -1,0 +1,113 @@
+[oneshot] screen timeout was 1800000 ms; set to 2147483647 for the run (read back)
+[oneshot] CPU-core reading, not a heat state: 2026-11-03T20:54:58Z z9=49000 z10=43000 z11=42000 CPU-core_reading,_not_a_heat_state=1
+/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_validation.py:66: UserWarning: Unsupported platform (android). ONNX Runtime supports Linux, macOS, AIX and Windows platforms, only.
+  warnings.warn(
+checking server, model and projector SHA-256 (about 30 s)
+run folder /data/data/com.termux/files/home/robot_runs/mind_b4/20261103T205510Z_smoke; session 1
+[block I] gate {'at': '2026-11-03T20:54:58Z', 'z9': 49000, 'z10': 43000, 'z11': 42000, 'skin': 27.4036, 'status': 0, 'waited_s': 0, 'warm_start': False, 'passed': True}
+[block I] SMOKE - NOT A MEASUREMENT; 0 rows
+[block P] gate {'at': '2026-11-03T20:55:29Z', 'z9': 31000, 'z10': 32000, 'z11': 32000, 'skin': 27.866302, 'status': 0, 'waited_s': 0, 'warm_start': False, 'passed': True}
+[block P] SMOKE - NOT A MEASUREMENT; 7 rows
+[block P0] waiting: skin 33.383503, need <= 28.4; 0 s
+[block P0] waiting: skin 33.5955, need <= 28.4; 10 s
+[block P0] waiting: skin 32.634502, need <= 28.4; 20 s
+[block P0] waiting: skin 31.733002, need <= 28.4; 30 s
+[block P0] waiting: skin 31.378902, need <= 28.4; 41 s
+[block P0] waiting: skin 30.802301, need <= 28.4; 51 s
+[block P0] waiting: skin 30.611301, need <= 28.4; 61 s
+[block P0] waiting: skin 30.272501, need <= 28.4; 71 s
+[block P0] waiting: skin 30.034603, need <= 28.4; 81 s
+[block P0] waiting: skin 29.974302, need <= 28.4; 91 s
+[block P0] waiting: skin 29.856802, need <= 28.4; 101 s
+[block P0] waiting: skin 29.763102, need <= 28.4; 111 s
+[block P0] waiting: skin 29.680801, need <= 28.4; 121 s
+[block P0] waiting: skin 29.580502, need <= 28.4; 132 s
+[block P0] waiting: skin 29.544603, need <= 28.4; 142 s
+[block P0] waiting: skin 29.4824, need <= 28.4; 152 s
+[block P0] waiting: skin 29.4535, need <= 28.4; 162 s
+[block P0] waiting: skin 29.395302, need <= 28.4; 172 s
+[block P0] waiting: skin 29.355402, need <= 28.4; 182 s
+[block P0] waiting: skin 29.295702, need <= 28.4; 192 s
+[block P0] waiting: skin 29.282501, need <= 28.4; 203 s
+[block P0] waiting: skin 29.2529, need <= 28.4; 213 s
+[block P0] waiting: skin 29.210802, need <= 28.4; 223 s
+[block P0] waiting: skin 29.181902, need <= 28.4; 233 s
+[block P0] waiting: skin 29.166502, need <= 28.4; 243 s
+[block P0] waiting: skin 29.0929, need <= 28.4; 253 s
+[block P0] waiting: skin 29.123701, need <= 28.4; 263 s
+[block P0] waiting: skin 29.0797, need <= 28.4; 273 s
+[block P0] waiting: skin 29.073101, need <= 28.4; 283 s
+[block P0] waiting: skin 28.990702, need <= 28.4; 294 s
+[block P0] waiting: skin 28.997303, need <= 28.4; 304 s
+[block P0] waiting: skin 28.970602, need <= 28.4; 314 s
+[block P0] waiting: skin 28.9552, need <= 28.4; 324 s
+[block P0] waiting: skin 28.910501, need <= 28.4; 334 s
+[block P0] waiting: skin 28.903603, need <= 28.4; 344 s
+[block P0] waiting: skin 28.881601, need <= 28.4; 354 s
+[block P0] waiting: skin 28.881601, need <= 28.4; 364 s
+[block P0] waiting: skin 28.836903, need <= 28.4; 374 s
+[block P0] waiting: skin 28.843502, need <= 28.4; 385 s
+[block P0] waiting: skin 28.8281, need <= 28.4; 395 s
+[block P0] waiting: skin 28.759203, need <= 28.4; 405 s
+[block P0] waiting: skin 28.7992, need <= 28.4; 415 s
+[block P0] waiting: skin 28.763302, need <= 28.4; 425 s
+[block P0] waiting: skin 28.763302, need <= 28.4; 435 s
+[block P0] waiting: skin 28.725603, need <= 28.4; 445 s
+[block P0] waiting: skin 28.719002, need <= 28.4; 455 s
+[block P0] waiting: skin 28.703604, need <= 28.4; 465 s
+[block P0] waiting: skin 28.690104, need <= 28.4; 476 s
+MIND-B4 20261103T205510Z  code 6ca61f17447b  base df2bee597ed65a817ea03ab2e71ff45963e70ee5
+server P: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1 --slot-save-path /data/data/com.termux/files/home/robot_runs/mind_b4/20261103T205510Z_smoke/slots --mmproj /data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf --image-min-tokens 70 --image-max-tokens 70
+server P0: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1 --slot-save-path /data/data/com.termux/files/home/robot_runs/mind_b4/20261103T205510Z_smoke/slots --mmproj /data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf --image-min-tokens 70 --image-max-tokens 70
+server PT: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1 --slot-save-path /data/data/com.termux/files/home/robot_runs/mind_b4/20261103T205510Z_smoke/slots --mmproj /data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf --image-min-tokens 70 --image-max-tokens 70
+server V70: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1 --slot-save-path /data/data/com.termux/files/home/robot_runs/mind_b4/20261103T205510Z_smoke/slots --mmproj /data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf --image-min-tokens 70 --image-max-tokens 70
+server V140: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1 --slot-save-path /data/data/com.termux/files/home/robot_runs/mind_b4/20261103T205510Z_smoke/slots --mmproj /data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf --image-min-tokens 140 --image-max-tokens 140
+server PY: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1 --slot-save-path /data/data/com.termux/files/home/robot_runs/mind_b4/20261103T205510Z_smoke/slots --mmproj /data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf --image-min-tokens 70 --image-max-tokens 70
+launch-start skin 27.4036 degC (gate reference)
+*** SMOKE - NOT A MEASUREMENT: 20 s blocks, gate applied, agent/cores checks not enforced ***
+timings: VALID blocks only, from the owner run with no agent resident; energy INDICATIVE
+
+== I: SMOKE - NOT A MEASUREMENT (session 1; 1 attempt(s); gate {'at': '2026-11-03T20:54:58Z', 'z9': 49000, 'z10': 43000, 'z11': 42000, 'skin': 27.4036, 'status': 0, 'waited_s': 0, 'warm_start': False, 'passed': True})
+  start: skin 27.4036 status 0 caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000} battery 87 % 27.3 degC charge 3248000 uAh
+    end: skin 27.866302 status 0 caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2850000} battery 87 % 27.1 degC charge 3248000 uAh
+  heat (change, min, degC/min): (0.46, 0.34, 1.363); energy (mAh, J) INDICATIVE: (0.0, 0.0)
+  RAM start: runner Pss 67758 HWM 71976; robotcam Pss None HWM None; MemAvailable 4184564 kB
+  RAM   end: runner Pss 67838 HWM 71976; robotcam Pss None HWM None; MemAvailable 4235492 kB
+  watch: 2 scans, hits 0, sched {'tid': 24617, 'requested_cpus': [0, 1, 2, 3], 'requested_nice': 10, 'cpus': [0, 1, 2, 3], 'nice': 10}
+  overrun s: I 0.001
+
+== P: SMOKE - NOT A MEASUREMENT (session 1; 1 attempt(s); gate {'at': '2026-11-03T20:55:29Z', 'z9': 31000, 'z10': 32000, 'z11': 32000, 'skin': 27.866302, 'status': 0, 'waited_s': 0, 'warm_start': False, 'passed': True})
+  start: skin 29.573301 status 0 caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2630000} battery 87 % 28.0 degC charge 3238000 uAh
+    end: skin 33.383503 status 0 caps {'policy0': 1803000, 'policy4': 2348000, 'policy6': 2401000} battery 87 % 28.3 degC charge 3224000 uAh
+  heat (change, min, degC/min): (3.81, 0.41, 9.338); energy (mAh, J) INDICATIVE: (14.0, 197.0)
+  RAM start: runner Pss 10308 HWM 72016; llama_server Pss 3838389 HWM 4065224; robotcam Pss None HWM None; MemAvailable 2356052 kB
+  RAM   end: runner Pss 22440 HWM 72016; llama_server Pss 3846193 HWM 4065224; robotcam Pss None HWM None; MemAvailable 2316940 kB
+  decisions 7: wall s median 3.209 p95 4.072 max 4.072 (n 7)
+    excl. b2 /tokenize checks: median 3.182 p95 4.044 max 4.044 (n 7)
+    reason tokens median 19 p95 28 max 28 (n 7); gen tok/s median 12.79 p95 12.8 max 12.8 (n 7)
+    step1 prompt_n median 90 p95 98 max 98 (n 7) cache_n median 731 p95 731 max 731 (n 7)
+    step2 prompt_n median 3 p95 3 max 3 (n 7) cache_n median 839 p95 849 max 849 (n 7)
+    restores 1: wall s median 0.01 p95 0.01 max 0.01 (n 1)
+  watch: 2 scans, hits 0, sched {'tid': 24766, 'requested_cpus': [0, 1, 2, 3], 'requested_nice': 10, 'cpus': [0, 1, 2, 3], 'nice': 10}
+  overrun s: P 3.073
+  load 5.777 s; warm prefix 731 tokens (prompt_n 731), save 0.01 s
+  server exit 0, SIGKILL False
+
+== P0: not run
+
+== PT: not run
+
+== V70: not run
+
+== V140: not run
+
+== Y: not run
+
+== PY: not run
+
+
+session 1: deferred before block P0: skin 28.658604 not <= 27.4036 + 1.0 degC after 486 s
+/data/data/com.termux/files/home/robot_runs/mind_b4/20261103T205510Z_smoke
+[oneshot] done; console log: /data/data/com.termux/files/home/robot_runs/mind_b4/oneshot_console_20261103T205457Z.log
+[oneshot] screen timeout restored to 1800000 ms; read back: 1800000
+[oneshot] stopped logger

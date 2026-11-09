@@ -1,0 +1,84 @@
+EXECUTION PROFILE
+ROLE: Coder
+PLATFORM: Claude Code CLI
+MODEL: claude-opus-5-5
+EFFORT: medium
+PONYTAIL: lite
+WHY: Timed baseline runner reusing MEM-1 oneshot/gating, BC server setup and CAM1-MID camera code.
+FALLBACK: AGY CLI | claude-opus-5-5-medium | N/A | Ponytail lite (stated explicitly)
+
+EXECUTION PROFILE
+ROLE: Reviewer
+PLATFORM: Codex CLI (fresh session)
+MODEL: gpt-6.1-sol
+EFFORT: medium
+PONYTAIL: off
+WHY: Independent model family; gating, agent-free checks and camera safety need a careful check.
+FALLBACK: AGY CLI | gemini-3.8-flash-high | N/A | Ponytail off (full WORKFLOW AGY procedure)
+
+TASK MIND-B4 — timed baselines: picker, vision call, RobotCam+YOLO, idle, monitoring cost (research only)
+
+Base: verify HEAD = origin/main = df2bee597ed65a817ea03ab2e71ff45963e70ee5 (report if not).
+Read first: docs/WORKFLOW.md ("Timed benchmarks on the phone"), docs/CODER.md, docs/COMMANDS.md,
+DECISIONS #123, #126, #128, #135, #136, #139, #143, #147; benchmark/memory_context/ (README, mem1.py,
+oneshot.sh: agent check, skin gate, cores check, root reads, sessions/--resume);
+benchmark/mind_picker/bc_build/ and b2_rules/; benchmark/gemma_vision/bv_compare/;
+benchmark/heat_control/ and run_mission.py/main.py for how CAM1-MID starts RobotCam and the detector.
+At session start, confirm your model id is the one in the profile; if not, stop and report.
+Before writing anything, ls -la every folder you will create or write; always a new timestamped folder.
+
+QUESTION: Measured alone, with no agent running: how long does one picker decision take, what does one
+vision call cost, how do RobotCam+YOLO behave, how fast does each heat the phone, what RAM does each use,
+and how much does 5-second monitoring slow the picker?
+
+DO NOT: change any deployed file or existing benchmark folder (import only); import motors.py, open any
+serial port or start the mission; use MTP; change any block definition or threshold after the owner's
+run starts; commit or push. Timings count ONLY from the owner's oneshot run with no agent resident.
+
+SERVER (blocks P, PT, V): exactly BC's b11716 command (setup_q4 flags, b11716 binary, Q8 projector,
+--image-min/max-tokens 70) + --slot-save-path <run dir>/slots. Picker = B2 V3 unchanged (rules,
+examples, reason sentence, two-step scoring), no memory, on B2 TEST items 1–20 FWD (fixed order).
+CAMERA (blocks Y, PY): RobotCam + detector exactly as CAM1-MID (#136: 1 frame/s, 640 every 5 s, else 320,
+MID cores 4–5), started and stopped with the existing code; no motors, no navigation, no picker.
+
+BLOCKS (each at most 180 s of work; before each: the MEM-1 skin gate (VIRTUAL-SKIN <= launch-start skin
++ 1.0 °C; wait idle until it passes; record the wait), cores check, agent check):
+ I   Idle reference: nothing running, screen on, 180 s.
+ P   Picker: server loaded and system prefix warmed once (not timed), slot saved; then decisions back to
+     back on items 1–20 (repeat the list until 180 s). Before every 5th decision: restore the slot
+     (records restore time). Per decision: wall, reason tokens, generation tok/s, prompt_n, cache_n.
+ P0  Two cold decisions in the same launch: one after a full prefix rebuild (cache cleared), one after
+     slot restore. Not a heat block (seconds only).
+ PT  Same as P, with a root sampler every 5 s (skin, status, CPU caps, battery), pinned to cores 0–3 at
+     nice 10 as in MEM-1. Paired with P for the monitoring cost.
+ V   Vision: BV frames 1–10 (ids 1,5,6,7,9,10,16,24,30,33), one image call each, back to back until
+     180 s, BV prompt and settings (70 tokens). Per call: wall, prompt ms, generation tok/s.
+ Y   RobotCam + YOLO alone (no llama-server), 180 s: detect ms (320 and 640 separately), cycle period,
+     max frame age.
+ PY  Warm hand-off: right after a P block (no gate), Y for 180 s with the server loaded but idle: skin
+     change while Gemma rests and camera+YOLO run.
+ Order: I, P, P0, PT, V, Y, PY. Sessions allowed (MEM-1 --resume pattern); never run a block whose gate
+ did not pass; a cores loss or agent found = block INVALID, redo in a later session.
+PER BLOCK, start and end only (except PT): VIRTUAL-SKIN, Android thermal status, CPU caps (policy 0/4/6),
+ battery %, battery charge counter (energy over the block, INDICATIVE), llama-server and RobotCam/detector
+ PSS and VmHWM, MemAvailable.
+LABELS: block VALID / INVALID (gate, cores, agent, errors). P vs PT: COMPARABLE only if start skin within
+ 1.0 °C and battery within 10 %, else NOT COMPARABLE. Other cross-block numbers are descriptive.
+ Heat rate = (end skin − start skin) / minutes, per block.
+
+FILES: benchmark/mind_picker/b4_baseline/{b4.py, test_b4.py, oneshot.sh, README.md}. oneshot.sh adapted
+from memory_context/oneshot.sh (native Termux only, root, agent and runner checks, battery Discharging,
+screen-timeout handling, lock, --resume). Offline tests with fakes (gate, block order, PT sampler,
+labels, comparability rule). Run folder ~/robot_runs/mind_b4/<UTC>/.
+Known B0 limitation (interrupt/cleanup finalization) is out of scope; the Reviewer may note it as P3.
+
+STEPS: implement -> offline tests -> SMOKE with you resident (each block 20 s, labelled NOT A MEASUREMENT,
+checks that camera start/stop, server, slot save/restore and sampler work) -> invoke the Reviewer
+automatically per WORKFLOW in a new timestamped review folder (source-only if the Codex sandbox cannot
+execute in proot; say so; if at capacity, wait 10 min, retry once, else INCOMPLETE) -> freeze -> return
+the review verbatim plus the EXACT owner commands (one per line: how to exit you, how to start each
+session from native Termux, how to resume, how to check it finished) and stop. You do not run the timed
+run yourself.
+
+RETURN: smoke summary (per block: ran / problem), review verbatim, owner commands,
+git status --porcelain=v1 -uall. No commit or push.
