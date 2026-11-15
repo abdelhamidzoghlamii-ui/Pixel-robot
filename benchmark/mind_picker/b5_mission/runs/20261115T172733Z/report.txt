@@ -1,0 +1,29 @@
+MIND-B5 20261115T172733Z  code c9dd0630cd99  base edbbc3558988937ecc0a103db1e665ba79424f17
+server: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1 --slot-save-path /data/data/com.termux/files/home/robot_runs/mind_b5/20261115T172733Z/slots --mmproj /data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf --image-min-tokens 70 --image-max-tokens 70
+launch-start skin 24.8496 degC (gate reference), battery 99 %
+timings: VALID arms only, from the owner run with no agent resident; energy INDICATIVE; A vs B descriptive
+
+== A: VALID (session 1; 1 attempt(s); gate {'at': '2026-11-15T17:27:21Z', 'z9': 56000, 'z10': 45000, 'z11': 43000, 'skin': 24.8496, 'status': 0, 'waited_s': 0, 'warm_start': False, 'passed': True})
+  decisions served 41; events {'scripted': {'served': 41, 'dropped': 138, 'cancelled': 0, 'unserved': 1, 'error': 0, 'offered': 180}, 'real': {'served': 0, 'dropped': 0, 'cancelled': 0, 'unserved': 0, 'error': 0, 'offered': 0, 'late_not_offered': 0}}; A ticks {'decided': 41, 'empty': 0, 'paused': 19, 'busy': 0}
+  latency event->decision s {'scripted': {'n': 41, 'median': 4.12, 'p95': 5.284}, 'real': {'n': 0}, 'all': {'n': 41, 'median': 4.12, 'p95': 5.284}}; wait s {'n': 41, 'median': 0.0, 'p95': 0.0}
+  decision wall s {'n': 41, 'median': 4.116, 'p95': 5.283}
+  heat: pauses 10 (resumes 9), first after 616.188 s, pause total 538.525 s of 1800 s, ACTIVE share 0.701; skin {'start': 26.9087, 'max_readings': 37.408104, 'max_trace': 37.446304, 'end': 35.7684}; caps min {'policy0': 1401000, 'policy4': 2348000, 'policy6': 2850000}
+  camera period s {'n': 668, 'median': 1.691, 'p95': 2.125}; detect ms {'320': {'n': 447, 'median': 152.4, 'p95': 269.8}, '640': {'n': 231, 'median': 568.4, 'p95': 924.6}}
+  MemAvailable min 1559732 kB; energy (mAh, J) INDICATIVE [372.0, 5491.0]
+  agreement with B2 run of record: {'compared': 41, 'agree': 41, 'ids_differ': []}
+  load 6.166 s; overrun 0.078 s; server exit 0, SIGKILL False
+  re-pins {'acted': {}, 'failed': 0, 'drifted_scans': {}, 'groups_seen': {'runner_cpuset': ['/top-app'], 'runner_cgroup': ['3:cpuset:/top-app\n2:cpu:/\n1:blkio:/\n0::/apps/uid_10311/pid_705'], 'llama_server_cpuset': ['/top-app'], 'llama_server_cgroup': ['3:cpuset:/top-app\n2:cpu:/\n1:blkio:/\n0::/apps/uid_10311/pid_705'], 'detector_cpuset': ['/top-app'], 'detector_cgroup': ['3:cpuset:/top-app\n2:cpu:/\n1:blkio:/\n0::/apps/uid_10311/pid_705']}}
+  watch: 62 scans, hits 0; readings start@-1.495 skin 26.9087 bat 99 %, pause_start@616.563 skin 37.2228 bat 94 %, pause_end@663.795 skin 34.7223 bat 93 %, pause_start@761.506 skin 37.070004 bat 93 %, pause_end@813.076 skin 34.9204 bat 93 %, pause_start@882.89 skin 37.121502 bat 92 %, pause_end@934.547 skin 34.9632 bat 92 %, pause_start@1002.969 skin 37.095 bat 92 %, pause_end@1054.632 skin 34.889603 bat 91 %, pause_start@1152.048 skin 37.189804 bat 91 %, pause_end@1214.164 skin 34.816105 bat 91 %, pause_start@1276.827 skin 37.235703 bat 90 %, pause_end@1328.477 skin 34.971703 bat 90 %, pause_start@1392.756 skin 37.066303 bat 90 %, pause_end@1448.537 skin 34.8226 bat 89 %, pause_start@1513.242 skin 37.109303 bat 89 %, pause_end@1573.672 skin 34.7824 bat 89 %, pause_start@1637.927 skin 37.408104 bat 88 %, pause_end@1708.99 skin 34.7444 bat 88 %, pause_start@1768.262 skin 37.117702 bat 88 %, end@1800.079 skin 35.7684 bat 88 %
+
+== B: VALID (session 2; 1 attempt(s); gate {'at': '2026-11-15T19:39:39Z', 'z9': 49000, 'z10': 40000, 'z11': 39000, 'skin': 24.191301, 'status': 0, 'waited_s': 0, 'warm_start': False, 'passed': True})
+  decisions served 46; events {'scripted': {'served': 41, 'dropped': 138, 'cancelled': 0, 'unserved': 1, 'error': 0, 'offered': 180}, 'real': {'served': 5, 'dropped': 24, 'cancelled': 0, 'unserved': 0, 'error': 0, 'offered': 29, 'late_not_offered': 0}}; A ticks {'decided': 0, 'empty': 0, 'paused': 0, 'busy': 0}
+  latency event->decision s {'scripted': {'n': 41, 'median': 4.276, 'p95': 10.603}, 'real': {'n': 5, 'median': 5.602, 'p95': 7.717}, 'all': {'n': 46, 'median': 4.455, 'p95': 10.603}}; wait s {'n': 46, 'median': 0.0, 'p95': 6.027}
+  decision wall s {'n': 46, 'median': 4.176, 'p95': 5.34}
+  heat: pauses 4 (resumes 4), first after 561.473 s, pause total 234.642 s of 1800 s, ACTIVE share 0.87; skin {'start': 26.875902, 'max_readings': 37.3582, 'max_trace': 38.2514, 'end': 36.786003}; caps min {'policy0': 1401000, 'policy4': 2348000, 'policy6': 2850000}
+  camera period s {'n': 849, 'median': 1.68, 'p95': 2.099}; detect ms {'320': {'n': 566, 'median': 146.8, 'p95': 261.9}, '640': {'n': 288, 'median': 549.2, 'p95': 916.2}}
+  MemAvailable min 1809272 kB; energy (mAh, J) INDICATIVE [432.0, 6092.0]
+  agreement with B2 run of record: {'compared': 41, 'agree': 40, 'ids_differ': [39]}
+  load 6.081 s; overrun 0.026 s; server exit 0, SIGKILL False
+  re-pins {'acted': {}, 'failed': 0, 'drifted_scans': {}, 'groups_seen': {'runner_cpuset': ['/top-app'], 'runner_cgroup': ['3:cpuset:/top-app\n2:cpu:/\n1:blkio:/\n0::/apps/uid_10311/pid_705'], 'llama_server_cpuset': ['/top-app'], 'llama_server_cgroup': ['3:cpuset:/top-app\n2:cpu:/\n1:blkio:/\n0::/apps/uid_10311/pid_705'], 'detector_cpuset': ['/top-app'], 'detector_cgroup': ['3:cpuset:/top-app\n2:cpu:/\n1:blkio:/\n0::/apps/uid_10311/pid_705']}}
+  watch: 62 scans, hits 0; readings start@-1.543 skin 26.875902 bat 82 %, pause_start@561.858 skin 37.287804 bat 75 %, pause_end@613.397 skin 34.9425 bat 75 %, pause_start@673.553 skin 37.2424 bat 75 %, pause_end@728.084 skin 34.9294 bat 74 %, pause_start@787.016 skin 37.0104 bat 74 %, pause_end@844.565 skin 34.842304 bat 74 %, pause_start@903.683 skin 37.3582 bat 73 %, pause_end@973.35 skin 34.726604 bat 73 %, end@1800.027 skin 36.786003 bat 68 %
+
