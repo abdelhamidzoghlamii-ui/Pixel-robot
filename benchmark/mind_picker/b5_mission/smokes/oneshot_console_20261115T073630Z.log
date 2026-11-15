@@ -1,0 +1,50 @@
+[oneshot] screen timeout was 1800000 ms; set to 2147483647 for the run (read back)
+[oneshot] CPU-core reading, not a heat state: 2026-11-15T07:36:31Z z9=50000 z10=39000 z11=39000 CPU-core_reading,_not_a_heat_state=1
+/data/data/com.termux/files/usr/lib/python3.13/site-packages/onnxruntime/capi/onnxruntime_validation.py:66: UserWarning: Unsupported platform (android). ONNX Runtime supports Linux, macOS, AIX and Windows platforms, only.
+  warnings.warn(
+checking server, model and projector SHA-256 (about 30 s)
+run folder /data/data/com.termux/files/home/robot_runs/mind_b5/20261115T073643Z_smoke; session 1
+[arm A] gate {'at': '2026-11-15T07:36:31Z', 'z9': 50000, 'z10': 39000, 'z11': 39000, 'skin': 25.521202, 'status': 0, 'waited_s': 0, 'warm_start': False, 'passed': True}
+[HEAT] trace: /data/data/com.termux/files/home/robot_runs/mind_b5/20261115T073643Z_smoke/heat_trace_20261115T073705Z.jsonl
+[arm A] SMOKE - NOT A MEASUREMENT; 90 rows
+[arm B] gate {'passed': True, 'skipped': 'smoke: gate before the first arm only'}
+[HEAT] trace: /data/data/com.termux/files/home/robot_runs/mind_b5/20261115T073643Z_smoke/heat_trace_20261115T074035Z.jsonl
+[arm B] SMOKE - NOT A MEASUREMENT; 95 rows
+MIND-B5 20261115T073643Z  code e0eb377635e1  base 72eac6c930f5be819a0af0ca147c0b5f5842443c
+server: taskset -c 4-7 /data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server -m /data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1 --slot-save-path /data/data/com.termux/files/home/robot_runs/mind_b5/20261115T073643Z_smoke/slots --mmproj /data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf --image-min-tokens 70 --image-max-tokens 70
+launch-start skin 25.521202 degC (gate reference), battery 86 %
+*** SMOKE - NOT A MEASUREMENT: 180 s arms, gate before the first arm only; SMOKE HEAT THRESHOLDS (not the deployed 37/35 degC): pause at arm-start skin + 1.0, resume at pause - 0.5 degC ***
+timings: VALID arms only, from the owner run with no agent resident; energy INDICATIVE; A vs B descriptive
+
+== A: SMOKE - NOT A MEASUREMENT (session 1; 1 attempt(s); gate {'at': '2026-11-15T07:36:31Z', 'z9': 50000, 'z10': 39000, 'z11': 39000, 'skin': 25.521202, 'status': 0, 'waited_s': 0, 'warm_start': False, 'passed': True})
+  smoke heat thresholds {'pause_c': 28.43, 'resume_c': 27.93, 'min_active_s': 60, 'min_pause_s': 30}; smoke heat check: 2 pause(s) with camera stop, 1 resume(s) with camera start
+  decisions served 4; events {'scripted': {'served': 4, 'dropped': 13, 'cancelled': 0, 'unserved': 1, 'error': 0, 'offered': 18}, 'real': {'served': 0, 'dropped': 0, 'cancelled': 0, 'unserved': 0, 'error': 0, 'offered': 0, 'late_not_offered': 0}}; A ticks {'decided': 4, 'empty': 0, 'paused': 2, 'busy': 0}
+  latency event->decision s {'scripted': {'n': 4, 'median': 3.623, 'p95': 3.919}, 'real': {'n': 0}, 'all': {'n': 4, 'median': 3.623, 'p95': 3.919}}; wait s {'n': 4, 'median': 0.0, 'p95': 0.0}
+  decision wall s {'n': 4, 'median': 3.62, 'p95': 3.918}
+  heat: pauses 2 (resumes 1), first after 57.11 s, pause total 64.437 s of 180 s, ACTIVE share 0.642; skin {'start': 27.4283, 'max_readings': 30.279501, 'max_trace': 30.279501, 'end': 30.221502}; caps min {'policy0': 1401000, 'policy4': 2348000, 'policy6': 2850000}
+  camera period s {'n': 60, 'median': 1.682, 'p95': 2.08}; detect ms {'320': {'n': 40, 'median': 145.3, 'p95': 236.9}, '640': {'n': 22, 'median': 538.8, 'p95': 1015.3}}
+  MemAvailable min 1902732 kB; energy (mAh, J) INDICATIVE [34.0, 504.0]
+  agreement with B2 run of record: {'compared': 4, 'agree': 4, 'ids_differ': []}
+  load 6.055 s; overrun 0.061 s; server exit 0, SIGKILL False
+  re-pins {'acted': {}, 'failed': 0, 'drifted_scans': {}, 'groups_seen': {'runner_cpuset': ['/top-app'], 'runner_cgroup': ['3:cpuset:/top-app\n2:cpu:/\n1:blkio:/\n0::/apps/uid_10311/pid_705'], 'llama_server_cpuset': ['/top-app'], 'llama_server_cgroup': ['3:cpuset:/top-app\n2:cpu:/\n1:blkio:/\n0::/apps/uid_10311/pid_705'], 'detector_cpuset': ['/top-app'], 'detector_cgroup': ['3:cpuset:/top-app\n2:cpu:/\n1:blkio:/\n0::/apps/uid_10311/pid_705']}}
+  watch: 8 scans, hits 0; readings start@-1.588 skin 27.4283 bat 86 %, pause_start@57.485 skin 29.812101 bat 86 %, pause_end@113.634 skin 27.7595 bat 86 %, pause_start@172.413 skin 30.279501 bat 85 %, end@180.061 skin 30.221502 bat 85 %
+
+== B: SMOKE - NOT A MEASUREMENT (session 1; 1 attempt(s); gate {'passed': True, 'skipped': 'smoke: gate before the first arm only'})
+  smoke heat thresholds {'pause_c': 31.67, 'resume_c': 31.17, 'min_active_s': 60, 'min_pause_s': 30}; smoke heat check: 1 pause(s) with camera stop, 1 resume(s) with camera start
+  decisions served 12; events {'scripted': {'served': 12, 'dropped': 6, 'cancelled': 0, 'unserved': 0, 'error': 0, 'offered': 18}, 'real': {'served': 0, 'dropped': 0, 'cancelled': 0, 'unserved': 0, 'error': 0, 'offered': 0, 'late_not_offered': 0}}; A ticks {'decided': 0, 'empty': 0, 'paused': 0, 'busy': 0}
+  latency event->decision s {'scripted': {'n': 12, 'median': 3.961, 'p95': 7.545}, 'real': {'n': 0}, 'all': {'n': 12, 'median': 3.961, 'p95': 7.545}}; wait s {'n': 12, 'median': 0.0, 'p95': 3.424}
+  decision wall s {'n': 12, 'median': 3.96, 'p95': 5.29}
+  heat: pauses 1 (resumes 1), first after 58.125 s, pause total 65.291 s of 180.0 s, ACTIVE share 0.637; skin {'start': 30.671001, 'max_readings': 35.5939, 'max_trace': 35.5939, 'end': 35.5939}; caps min {'policy0': 1401000, 'policy4': 2348000, 'policy6': 2850000}
+  camera period s {'n': 59, 'median': 1.76, 'p95': 2.431}; detect ms {'320': {'n': 41, 'median': 152.0, 'p95': 276.2}, '640': {'n': 20, 'median': 562.6, 'p95': 1022.4}}
+  MemAvailable min 2037692 kB; energy (mAh, J) INDICATIVE [56.0, 819.0]
+  agreement with B2 run of record: {'compared': 12, 'agree': 12, 'ids_differ': []}
+  load 5.398 s; overrun 0.034 s; server exit 0, SIGKILL False
+  re-pins {'acted': {}, 'failed': 0, 'drifted_scans': {}, 'groups_seen': {'runner_cpuset': ['/top-app'], 'runner_cgroup': ['3:cpuset:/top-app\n2:cpu:/\n1:blkio:/\n0::/apps/uid_10311/pid_705'], 'llama_server_cpuset': ['/top-app'], 'llama_server_cgroup': ['3:cpuset:/top-app\n2:cpu:/\n1:blkio:/\n0::/apps/uid_10311/pid_705'], 'detector_cpuset': ['/top-app'], 'detector_cgroup': ['3:cpuset:/top-app\n2:cpu:/\n1:blkio:/\n0::/apps/uid_10311/pid_705']}}
+  watch: 8 scans, hits 0; readings start@-1.523 skin 30.671001 bat 85 %, pause_start@58.457 skin 34.8109 bat 84 %, pause_end@123.417 skin 31.0517 bat 84 %, end@180.034 skin 35.5939 bat 83 %
+
+
+session 1: all arms done
+/data/data/com.termux/files/home/robot_runs/mind_b5/20261115T073643Z_smoke
+[oneshot] done; console log: /data/data/com.termux/files/home/robot_runs/mind_b5/oneshot_console_20261115T073630Z.log
+[oneshot] screen timeout restored to 1800000 ms; read back: 1800000
+[oneshot] stopped logger

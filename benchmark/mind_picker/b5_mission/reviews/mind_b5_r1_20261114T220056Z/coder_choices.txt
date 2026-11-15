@@ -1,0 +1,9 @@
+Coder interpretations presented to the owner after implementation (owner accepted 1, 2, 3, 4, 6, 7, 8; item 5 was replaced by owner change A):
+1. Real events: mission M1 ("Explore and map the flat."), current activity "exploring", memory none, all five actions; lines "A person appeared <bucket>.", "The person is now <bucket>.", "The person left your view.", from the most confident person (scene_from_detections) per ACTIVE cycle.
+2. Scripted items byte-identical to B2 TEST: items 7, 14, 21, 27 keep their B2 'memory' field (part of the B2 state); no B3 memory notes are added. Needed for agreement with the run of record.
+3. Arm B's skin < 36.0 degC gates the start of a decision only; a running decision is cancelled only by a heat pause or SEVERE (main.py's picker forbid).
+4. A decision cancelled by a forbid: its event goes back to pending unless a newer event is pending (then fate 'cancelled'); latency always from the original offer.
+5. (replaced by owner change A) battery >= 85 % at first timed start, >= 50 % at --resume; 30 % cut-off at readings and before each arm.
+6. A restore happens inside a decision admitted before the deadline (no B4-style restore-only row).
+7. Latency resolution 0.1 s (scheduler poll).
+8. oneshot.sh is B4's launcher with only paths, runner name and header changed (a shell script cannot import).

@@ -1,0 +1,1066 @@
+--- round1/b5.py
++++ round2/b5.py
+@@ -18,13 +18,25 @@
+ mission phase of ARM_S (30 min; smoke SMOKE_S) with an absolute deadline.
+ 
+ Mission loop (main thread) = Robot.run_mission motors-off: per cycle heat.decide(999); END ends the arm (INVALID);
+-ACTIVE -> PAUSE/HOLD: picker forbidden, B4's stop_camera (capture shown stopped), heat.enter(target, now), one reading;
+-PAUSE/HOLD -> ACTIVE: robot.start_camera(heat), heat.enter('ACTIVE', since=before the start), one reading; PAUSE <->
+-HOLD: heat.enter. A camera stop or start failure ends the arm (INVALID). HOLD sleeps 1 s; PAUSE sleeps the move time
+-(pause_cycle motors-off: distance 999 -> rotate -> move() sleeps CYCLE_MOVE_TIME); ACTIVE runs B4's camera cycle
+-(new frame, SizePolicy, detect, observe, B4's 'no new' rule) and then sleeps the move time (cut at the deadline). The
+-picker is allowed only while ACTIVE and Android status < SEVERE (request_pick); a forbid cancels a running decision
+-before its next HTTP request and for good (picker.Picker's generation rule).
++ACTIVE -> PAUSE/HOLD: picker forbidden, B4's stop_camera (capture shown stopped), heat.enter(target, now), one
++reading; PAUSE/HOLD -> ACTIVE: robot.start_camera(heat), heat.enter('ACTIVE', since=before the start), picker
++allowed (fresh SEVERE check, as main.py), then one reading (a battery stop or an exception there forbids at once and
++ends the arm); PAUSE <-> HOLD: heat.enter. Heat rows: 'intent' when a transition begins, 'done' when it completed; a
++pause runs from the intent to leave ACTIVE to the 'done' re-entry (camera stop/start and the pause_start reading
++count as pause, the pause_end reading as ACTIVE; a failed restart is no resume). A camera stop or start failure ends
++the arm (INVALID). HOLD sleeps 1 s; PAUSE sleeps the move time (pause_cycle motors-off: distance 999 -> rotate ->
++move() sleeps CYCLE_MOVE_TIME); ACTIVE runs B4's camera cycle (new frame, SizePolicy, detect, observe, B4's 'no new'
++rule) and then sleeps the move time (cut at the deadline). The picker is allowed only while ACTIVE and Android
++status < SEVERE (request_pick); a forbid cancels a running decision (checked before and after every HTTP request and
++before its result is accepted) for good (picker.Picker's generation rule). Start barrier: the scheduler thread
++starts only after the first heat / SEVERE assessment set the permission. No camera cycle starts at or after the
++deadline; a person change detected by a cycle that ends after it is counted 'late_not_offered', not offered.
++Re-pin (owner decision 2026-11-15): at arm start, at every camera start and whenever a watcher scan finds drift,
++every llama-server thread is re-pinned to 4-7 (os.sched_setaffinity per thread) and the detector to 4-5 (its
++check_affinity, as main.py; at camera start main.py's own re-pin is recorded). Every re-pin is recorded (time,
++trigger, process, threads, before/after). Drift corrected by one re-pin is recorded, not INVALID; a failed re-pin or
++the same process drifted in two consecutive scans is INVALID. Each scan also records /proc/<pid>/cpuset and cgroup
++of llama-server, the runner and the detector caller thread.
+ Events: (a) scripted: the 40 B2 TEST items in id order, cycled, item k offered at k * OFFER_S (10 s) while before the
+ deadline (180 per 30-min arm); (b) real: each ACTIVE cycle's most confident person (scene_from_detections) gives an
+ area bucket; appear / leave / bucket change becomes an event line in the B2 state format (mission REAL_MISSION,
+@@ -38,9 +50,9 @@
+ rendered first (b2.preflight, counted in its wall). A cancelled decision's event goes back to pending unless a newer
+ one is pending (then 'cancelled'). Latency = decision end - offer; wait = start - offer. Nothing starts after the
+ deadline; the decision or cycle in flight finishes; overrun (last of both) <= OVERRUN_MAX_S (15 s).
+-Readings (b4.reading, per-PID memory checked): start, end, and one at each heat-pause start (after the camera stop)
+-and end (after the camera start); robotcam memory required while the camera is on. Battery < BATTERY_STOP_PCT (30 %)
+-at any reading ends the arm (INVALID) and the session.
++Readings (b4.reading, per-PID memory checked): start (its t relative to t0, usually negative), end, and one at each
++heat-pause start (after the camera stop) and end (after the camera start); robotcam memory required while the camera
++is on. Battery < BATTERY_STOP_PCT (30 %) at any reading ends the arm (INVALID) and the session.
+ Before every arm: cores 4-7, agent check, MEM-1 skin gate (launch-start skin + 1.0 degC, idle wait at most GATE_MAX_S;
+ smoke: first arm only, pm's default wait), Android status < 3, battery < 45 degC and >= 30 %. A timed run needs
+ battery >= BATTERY_START_PCT (85 %) at its first start and >= BATTERY_RESUME_PCT (50 %) at each --resume. Smoke only:
+@@ -63,6 +75,7 @@
+ import argparse
+ import json
+ import os
++import re
+ import signal
+ import sys
+ import threading
+@@ -211,7 +224,8 @@
+ 
+ 
+ class Checked(b4.Recorder):
+-    """b4.Recorder that refuses every request once the picker is forbidden (picker.Picker's check())."""
++    """b4.Recorder that checks the picker (its generation and permission) before every request and again after
++    every response (picker.Picker's check()): a forbid at any time, even one followed by an allow, cancels."""
+ 
+     def __init__(self, ok):
+         super().__init__()
+@@ -220,7 +234,10 @@
+     def __call__(self, path, body):
+         if not self.ok():
+             raise Cancelled('picker forbidden (left ACTIVE, SEVERE or stop)')
+-        return super().__call__(path, body)
++        res = super().__call__(path, body)
++        if not self.ok():
++            raise Cancelled(f'picker forbidden while {path} was in flight')
++        return res
+ 
+ 
+ def real_item(n, text):
+@@ -238,6 +255,8 @@
+             if not ok():
+                 raise Cancelled('picker forbidden before the restore')
+             row['restore'] = b4.slot('restore')
++            if not ok():
++                raise Cancelled('picker forbidden while the restore was in flight')
+         it = ev['item']
+         prompt = prompts.get(('V3', 'FWD', it['id']))
+         if prompt is None:
+@@ -248,6 +267,8 @@
+                 raise RuntimeError(f'real event prompt: {info["problems"]}')
+         n0 = len(rec.completions)
+         r = b2.score(rec, it, 'V3', 'FWD', prompt)
++        if not ok():
++            raise Cancelled('picker forbidden before the result was accepted')
+         t1, t2 = (x.get('timings', {}) for x in rec.completions[n0:])
+         row.update(top=r['top'], reason=r['reason'], reason_tokens=r['reason_tokens'],
+                    gen_tok_s=t1.get('predicted_per_second'), step1_prompt_n=t1.get('prompt_n'),
+@@ -288,11 +309,17 @@
+     return bool(d) and d['status'] >= heat_control.STATUS_SEVERE
+ 
+ 
+-def mission_loop(robot, heat, m, rec, add, read, cam):
++def mission_loop(robot, heat, m, rec, add, read, cam, ready=lambda: None, repin=lambda: None):
+     """Robot.run_mission motors-off (see the module docstring) until the deadline. Returns at heat END, a camera
+-    failure or a battery stop, with the reason in rec['errors']."""
++    failure or a battery stop, with the reason in rec['errors']. ready() is called once, right after the first heat /
++    SEVERE assessment has set the picker's permission (the start barrier: the scheduler starts there). Heat rows:
++    stage 'intent' when a transition begins, stage 'done' when it completed (into ACTIVE: camera started and ACTIVE
++    entered). Detections of a cycle admitted before the deadline that end after it offer no real event (counted in
++    rec['late_not_offered'])."""
+     last = prev = None
+     no_new = n_real = 0
++    rec.setdefault('late_not_offered', 0)
++    first = True
+     while clock() < m.deadline:
+         target, reason = heat.decide(999)  # dry run: get_distance() is 999
+         sev = severe(heat)
+@@ -302,7 +329,8 @@
+             rec['errors'].append(f'heat END: {reason}')
+             return
+         if target != heat.phase:
+-            add({'kind': 'heat', 'from': heat.phase, 'to': target, 'reason': reason, 't': m.rel(clock())})
++            frm = heat.phase
++            add({'kind': 'heat', 'stage': 'intent', 'from': frm, 'to': target, 'reason': reason, 't': m.rel(clock())})
+             if heat.phase == 'ACTIVE':
+                 m.set_ok(False)
+                 st = b4.stop_camera(robot)
+@@ -314,6 +342,7 @@
+                 cam['on'] = False
+                 heat.event('camera_stop_ok')
+                 heat.enter(target, since=heat.now())
++                add({'kind': 'heat', 'stage': 'done', 'from': frm, 'to': target, 't': m.rel(clock())})
+                 if not read('pause_start'):
+                     return
+             elif target == 'ACTIVE':
+@@ -326,13 +355,26 @@
+                     rec['errors'].append(f'camera start after pause: {type(e).__name__}: {e}')
+                     return
+                 heat.event('camera_start_ok')
++                repin()  # llama-server threads to 4-7 at every camera start (the detector: main.py's start_camera)
+                 heat.enter('ACTIVE', since=started)
++                add({'kind': 'heat', 'stage': 'done', 'from': frm, 'to': 'ACTIVE', 't': m.rel(clock())})
+                 last, cam['slot'] = None, cam['slot'] + 1
+-                if not read('pause_end'):
+-                    return
++                sev = severe(heat)
++                m.set_ok(not sev)  # main.py: picker.allow() right after ACTIVE entry, before our reading
++                try:
++                    if not read('pause_end'):
++                        m.set_ok(False)
++                        return
++                except BaseException:
++                    m.set_ok(False)
++                    raise
+             else:
+                 heat.enter(target)
++                add({'kind': 'heat', 'stage': 'done', 'from': frm, 'to': target, 't': m.rel(clock())})
+         m.set_ok(heat.phase == 'ACTIVE' and not sev)
++        if first:
++            first = False
++            ready()
+         if heat.phase == 'HOLD':
+             pause(1)
+             continue
+@@ -340,6 +382,8 @@
+             pause(min(main.CYCLE_MOVE_TIME, max(0.0, m.deadline - clock())))
+             continue
+         c0 = clock()
++        if c0 >= m.deadline:  # a transition or reading crossed it: no new cycle
++            break
+         r = main.read_frame(session=robot.camera_session)
+         if r['status'] != 'ok' or (last is not None and r['frame'] <= last):
+             why = r['status'] if r['status'] != 'ok' else 'no new'
+@@ -368,7 +412,10 @@
+             rec['errors'].append(f'camera cycle: {row["error"]}')
+             return
+         cur = person[3] if person else None
+-        if text := person_event(prev, cur):
++        text = person_event(prev, cur)
++        if text and clock() >= m.deadline:
++            rec['late_not_offered'] += 1  # admitted before the deadline, ended after it
++        elif text:
+             n_real += 1
+             m.offer({'source': 'real', 'id': f'R{n_real}', 'item': real_item(n_real, text), 'text': text}, clock())
+         prev = cur
+@@ -377,6 +424,109 @@
+ 
+ # ---------------------------------------------------------------- one arm
+ 
++# ---------------------------------------------------------------- re-pin (owner decision 2026-11-15)
++
++class Repinner:
++    """Re-pins like a robot would: every llama-server thread to SERVER_CPUS (os.sched_setaffinity per thread) and the
++    detector to 4-5 (its own check_affinity, as main.py). Every re-pin is recorded in events (mono, trigger, process,
++    threads, before/after, ok). Called from the mission thread and the watcher thread (lock)."""
++
++    def __init__(self, targets):
++        self.targets, self.events, self.lock = targets, [], threading.Lock()
++
++    def add(self, ev):
++        with self.lock:
++            self.events.append({'mono': round(time.monotonic(), 3), **ev})
++        return self.events[-1]
++
++    def server(self, trigger):
++        pid = self.targets.get('server_pid')
++        before, after, errors = {}, {}, {}
++        try:
++            tids = sorted(int(t.name) for t in (b4.PROC / str(pid) / 'task').iterdir())
++        except OSError as e:
++            return self.add({'trigger': trigger, 'process': 'llama_server', 'ok': False, 'errors': {'task': str(e)}})
++        for tid in tids:
++            try:
++                before[tid] = sorted(os.sched_getaffinity(tid))
++                if set(before[tid]) != b4.SERVER_CPUS:
++                    os.sched_setaffinity(tid, b4.SERVER_CPUS)
++                    after[tid] = sorted(os.sched_getaffinity(tid))
++                    if set(after[tid]) != b4.SERVER_CPUS:
++                        errors[tid] = f'after {after[tid]}'
++            except ProcessLookupError:
++                before.pop(tid, None)  # the thread ended: nothing to pin
++            except OSError as e:
++                errors[tid] = f'{type(e).__name__}: {e}'
++        return self.add({'trigger': trigger, 'process': 'llama_server', 'threads': sorted(after),
++                         'before': before, 'after': after, 'ok': not errors, 'errors': errors})
++
++    def detector(self, trigger, result=None):
++        """result: a check_affinity() result already obtained (main.py's at camera start); else one is run now."""
++        r = result if result is not None else self.targets['detector'].check_affinity()
++        return self.add({'trigger': trigger, 'process': 'detector', 'threads': r['repinned'], 'before': r['before'],
++                         'after': r['after'], 'ok': r['ok'], 'errors': r['errors']})
++
++
++DRIFT = {'llama_server': re.compile(r'llama-server thread \d+ Cpus_allowed_list'),
++         'detector': re.compile(r'detector threads \{')}
++
++
++def groups(targets):
++    """/proc/<pid>/cpuset and cgroup of llama-server, the runner and the detector caller thread (error text when
++    unreadable): shows whether Android moved Termux between CPU groups."""
++    paths = {'runner': b4.PROC / str(os.getpid())}
++    if targets.get('server_pid') is not None:
++        paths['llama_server'] = b4.PROC / str(targets['server_pid'])
++    if targets.get('detector') is not None:
++        paths['detector'] = b4.PROC / str(os.getpid()) / 'task' / str(targets['detector'].caller_tid)
++    out = {}
++    for name, p in paths.items():
++        for f in ('cpuset', 'cgroup'):
++            try:
++                out[f'{name}_{f}'] = (p / f).read_text().strip()
++            except OSError as e:
++                out[f'{name}_{f}'] = f'{type(e).__name__}: {e}'
++    return out
++
++
++def scan(targets, rp):
++    """b4.watch_check, then drift (a llama-server thread off 4-7, a detector thread off 4-5) is split from the other
++    hits and re-pinned at once; the CPU groups are recorded."""
++    x = b4.watch_check(targets)
++    hits, drift = [], {}
++    for h in x['hits']:
++        p = next((k for k, rx in DRIFT.items() if rx.match(h)), None)
++        (drift.setdefault(p, []) if p else hits).append(h)
++    x.update(hits=hits, drift=drift, groups=groups(targets))
++    x['repins'] = [rp.server('watch') if p == 'llama_server' else rp.detector('watch') for p in sorted(drift)]
++    return x
++
++
++def watch_problems(w, repins):
++    """b4's watcher rules, except that drift corrected by one re-pin is recorded, not a problem; INVALID when any
++    re-pin fails or the same process is drifted in two consecutive scans."""
++    why = b4.thread_problems(w, 'watch')
++    why += [f'watch: {h}' for x in w['samples'] for h in x['hits']]
++    why += [f're-pin failed ({e["trigger"]}, {e["process"]}): {e.get("errors")}' for e in repins if not e['ok']]
++    for a, b in zip(w['samples'], w['samples'][1:]):
++        why += [f'watch: {p} drifted in two consecutive scans ({a["mono"]}, {b["mono"]})'
++                for p in sorted(set(a.get('drift', {})) & set(b.get('drift', {})))]
++    return why if w['samples'] else why + ['watch: no scan']
++
++
++def record_camera_repins(heat, rp):
++    """Records main.py's detector re-pin at every camera start: start_camera passes its check_affinity() result to
++    heat.event('detector_affinity', ...); this instance wrapper also hands it to rp (heat_control.py unchanged)."""
++    event = heat.event
++
++    def wrapped(name, detail=None, dump=None):
++        if name == 'detector_affinity':
++            rp.detector('camera_start', detail)
++        return event(name, detail, dump)
++    heat.event = wrapped
++
++
+ def need(c):
+     return ['runner', 'llama_server'] + (['robotcam'] if c['camera'] else [])
+ 
+@@ -406,7 +556,10 @@
+     why += [f'cleanup camera stop: {rec["camera_end"][k]}' for k in ('affinity_error', 'error')
+             if rec.get('camera_end', {}).get(k)]
+     if 'watch' in rec:
+-        why += b4.watch_problems(rec['watch'])
++        why += watch_problems(rec['watch'], rec.get('repins', []))
++    else:
++        why += [f're-pin failed ({e["trigger"]}, {e["process"]}): {e.get("errors")}'
++                for e in rec.get('repins', []) if not e['ok']]
+     return why
+ 
+ 
+@@ -425,8 +578,10 @@
+         rec['errors'].append('initial agent/cores check failed: no workload started')
+         rec.update(utc_end=cr.utc(), cores_after=b4.cores_ok(), agents_after=repro.agents())
+         rec['problems'], rec['label'] = arm_problems(rec, rows), 'INVALID'
++        rec['metrics'] = metrics(rec, rows, ctx['record'], out)  # the same schema as every other arm record
+         return rec, rows
+     proc = log = robot = heat = watch = th = m = None
++    rp = None
+     cam = {'on': False, 'slot': 1}
+     halt, sched = threading.Event(), {}
+     pids, targets = {'runner': os.getpid()}, {}
+@@ -450,19 +605,24 @@
+         rec['warm'] = b4.warm(prefix)
+         robot = main.Robot(None)
+         heat = heat_control.HeatControl(heat_control.HeatMonitor(), trace_dir=str(out))
++        rp = Repinner(targets)
++        record_camera_repins(heat, rp)
+         heat.start()
+         rec['heat_trace'] = Path(heat.trace_path).name
+         cam['on'] = True
+-        robot.start_camera(heat)
++        robot.start_camera(heat)  # main.py re-pins the detector (recorded through record_camera_repins)
+         targets['detector'] = robot.detector
++        rp.server('arm_start')
+         rec['camera'] = {'detector': robot.detector.config(), 'affinity_start': robot.detector.affinity()}
+         if read('start'):
+             if ctx['smoke']:  # smoke only: thresholds from this arm's start skin (timed runs: 37/35 degC)
+                 if (skin := rec['readings'][-1].get('skin')) is None:
+                     raise RuntimeError('smoke: no arm-start skin for the smoke heat thresholds')
+                 rec['heat_thresholds'] = smoke_thresholds(skin)
+-            watch = b4.Watch(targets).start()
++            watch = b4.Periodic(lambda: scan(targets, rp), b4.WATCH_S).start()
+             m = Mission(name, clock(), ctx['dur'], ctx['test']['items'])
++            start = next(c for c in rec['readings'] if c['tag'] == 'start')
++            start['t'] = m.rel(start['mono'])  # taken before t0: its real relative time, usually negative
+ 
+             def run(ev, gen):
+                 row = {'kind': 'decision', 'error': 'not run'}
+@@ -473,13 +633,16 @@
+                     add({**row, 'offered': ev['offered'], 'started': ev['started'], 'ended': ev['ended'],
+                          'fate': ev['fate']})
+             skin = lambda: (heat.monitor.readings()['dump'] or {}).get('skin')  # noqa: E731
+-            th = threading.Thread(target=scheduler, args=(m, skin, halt, run, sched), daemon=True)
+-            th.start()
+-            mission_loop(robot, heat, m, rec, add, read, cam)
++            def ready():  # start barrier: after the first heat / SEVERE assessment set the permission
++                nonlocal th
++                th = threading.Thread(target=scheduler, args=(m, skin, halt, run, sched), daemon=True)
++                th.start()
++            mission_loop(robot, heat, m, rec, add, read, cam, ready, lambda: rp.server('camera_start'))
+             rec['mission_end_s'] = min(m.rel(clock()), ctx['dur'])
+             if rec['errors']:
+                 halt.set()  # the arm failed: cancel the decision in flight
+-            th.join(JOIN_S + 5)
++            if th:
++                th.join(JOIN_S + 5)
+             rec['overrun_s'] = round(max(0.0, clock() - m.deadline), 3)
+             read('end')
+     except BaseException as e:  # recorded; cleanup below; a stop (signal) re-raises after the record is kept
+@@ -500,6 +663,8 @@
+                 add({'kind': 'event', **{k: v for k, v in ev.items() if k != 'item'}})
+         if watch:
+             b4.cleanup(rec, 'watch', lambda: rec.__setitem__('watch', watch.stop()))
++        if rp:
++            rec['repins'] = list(rp.events)
+         if robot and cam['on']:
+             b4.cleanup(rec, 'camera', lambda: rec.__setitem__('camera_end', b4.stop_camera(robot)))
+         if heat:
+@@ -538,14 +703,17 @@
+ 
+ 
+ def pauses(rows, end_t):
+-    """(count, time to the first, total s): an interval runs from leaving ACTIVE to re-entering it (or end_t)."""
++    """(count, time to the first, total s): an interval runs from the intent to leave ACTIVE (picker forbidden,
++    camera stop begins) to the successful re-entry into ACTIVE after the camera start (stage 'done'), or to end_t; a
++    failed restart is no re-entry. Camera stop and start and the pause_start reading count as pause; the pause_end
++    reading (picker allowed, camera on) as ACTIVE."""
+     out, began = [], None
+     for r in rows:
+         if r['kind'] != 'heat':
+             continue
+-        if r['from'] == 'ACTIVE':
++        if r['stage'] == 'intent' and r['from'] == 'ACTIVE' and began is None:
+             began = r['t']
+-        elif r['to'] == 'ACTIVE' and began is not None:
++        elif r['stage'] == 'done' and r['to'] == 'ACTIVE' and began is not None:
+             out.append((began, r['t']))
+             began = None
+     if began is not None:
+@@ -564,6 +732,7 @@
+                  for f in ('served', 'dropped', 'cancelled', 'unserved', 'error')} for s in ('scripted', 'real')}
+     for s in fates:
+         fates[s]['offered'] = sum(e['source'] == s for e in ev)
++    fates['real']['late_not_offered'] = rec.get('late_not_offered', 0)
+     periods = [b['t'] - a['t'] for a, b in zip(cyc, cyc[1:]) if a['slot'] == b['slot']]
+     skins = [c['skin'] for c in reads if c.get('skin') is not None]
+     scripted = [r for r in dec if r['source'] == 'scripted']
+@@ -577,7 +746,7 @@
+         'wait_s': stat([e.get('wait_s') for e in ev if e['fate'] == 'served']),
+         'decision_wall_s': stat([r['wall_s'] for r in dec]),
+         'ticks': rec.get('ticks'),
+-        'pauses': n, 'resumes': sum(r['kind'] == 'heat' and r['to'] == 'ACTIVE' for r in rows),
++        'pauses': n, 'resumes': sum(r['kind'] == 'heat' and r['stage'] == 'done' and r['to'] == 'ACTIVE' for r in rows),
+         'first_pause_s': first, 'pause_s': total, 'arm_s': round(end_t, 3),
+         'active_share': round(1 - total / end_t, 3) if end_t else None,
+         'skin': {'start': start and start.get('skin'), 'max_readings': max(skins) if skins else None,
+@@ -589,11 +758,33 @@
+                                                       for z in (320, 640)},
+         'mem_available_min_kb': min([c['avail_kb'] for c in reads if 'avail_kb' in c], default=None),
+         'energy_indicative': b4.energy(start, end) if start and end else None,
++        'repins': repin_summary(rec),
+         'agreement': {'compared': len(scripted), 'agree': len(scripted) - sum(r['top'] != record.get(r['id'])
+                                                                              for r in scripted), 'ids_differ': differ},
+     }
+ 
+ 
++def repin_summary(rec):
++    """Re-pins that changed threads or failed, per trigger and process; drifted scans per process; every CPU group
++    (cpuset / cgroup) value seen per process across the scans (more than one value: Android moved it)."""
++    samples = rec.get('watch', {}).get('samples', [])
++    acted = {}
++    for e in rec.get('repins', []):
++        if e.get('threads') or not e['ok']:
++            k = f'{e["trigger"]}/{e["process"]}'
++            acted[k] = acted.get(k, 0) + 1
++    drift = {}
++    for x in samples:
++        for p in x.get('drift', {}):
++            drift[p] = drift.get(p, 0) + 1
++    seen = {}
++    for x in samples:
++        for k, v in x.get('groups', {}).items():
++            seen.setdefault(k, set()).add(v)
++    return {'acted': acted, 'failed': sum(not e['ok'] for e in rec.get('repins', [])), 'drifted_scans': drift,
++            'groups_seen': {k: sorted(v) for k, v in seen.items()}}
++
++
+ def trace_max(path):
+     """Highest VIRTUAL-SKIN in the heat control's own trace (its 5 s dumpsys rows), or None."""
+     try:
+@@ -644,6 +835,7 @@
+               f'  load {r.get("load_s")} s; overrun {r.get("overrun_s")} s; server exit {r.get("exit_code")}, SIGKILL '
+               f'{r.get("killed")}' + ('' if r.get('exit_code') in (0, None) and not r.get('killed')
+                                       else '  FINDING (#145)'),
++              f'  re-pins {x.get("repins")}',
+               f'  watch: {len(r.get("watch", {}).get("samples", []))} scans, hits '
+               f'{sum(len(s["hits"]) for s in r.get("watch", {}).get("samples", []))}; readings '
+               + ', '.join(f'{c["tag"]}@{c.get("t")} skin {c.get("skin")} bat {c.get("battery_pct")} %'
+--- round1/test_b5.py
++++ round2/test_b5.py
+@@ -179,6 +179,53 @@
+         self.assertIn('render_s', r)
+         self.assertEqual(self.calls, ['restore'])
+ 
++    def flip_on_final(self, action):
++        """b4.post that runs action() while the second (final) /completion is in flight."""
++        n = []
++
++        def post(path, body):
++            if path == '/completion':
++                n.append(1)
++                if len(n) == 2:
++                    action()
++            return {'timings': {'prompt_n': 5}}
++        b4.post = post
++
++    def test_forbid_during_the_final_completion_cancels(self):
++        allowed = [True]
++        self.flip_on_final(lambda: allowed.__setitem__(0, False))
++        r = b5.decide(self.ev(1, ITEMS[0]), lambda: allowed[0], {('V3', 'FWD', 1): ('t', [1], {})}, {})
++        self.assertTrue(r['cancelled'])
++        self.assertNotIn('top', r)
++
++    def test_forbid_then_allow_before_the_response_still_cancels(self):
++        m = mission('B')
++        m.offer({'source': 'scripted', 'id': 1, 'item': ITEMS[0]}, 0.0)
++        ev, gen = m.start(0.0, 30.0)
++        self.flip_on_final(lambda: (m.set_ok(False), m.set_ok(True)))
++        r = b5.decide(ev, lambda: m.allowed(gen), {('V3', 'FWD', 1): ('t', [1], {})}, {})
++        self.assertTrue(r['cancelled'])
++        m.done(ev, r, 5.0)
++        self.assertIs(m.pending, ev)  # the existing requeue rule
++
++    def test_forbid_after_the_last_response_while_scoring_cancels(self):
++        allowed = [True]
++
++        def score(post, it, v, order, prompt):  # b2.score's own work after its last request
++            post('/completion', {})
++            post('/completion', {})
++            allowed[0] = False
++            return {'top': 'explore', 'reason': 'r', 'reason_tokens': 3}
++        b5.b2.score = score
++        r = b5.decide(self.ev(1, ITEMS[0]), lambda: allowed[0], {('V3', 'FWD', 1): ('t', [1], {})}, {})
++        self.assertTrue(r['cancelled'])
++
++    def test_forbid_during_the_restore_cancels(self):
++        allowed = [True]
++        b4.slot = lambda action: allowed.__setitem__(0, False) or {'action': action, 'wall_s': 0.01}
++        r = b5.decide(self.ev(5, ITEMS[0]), lambda: allowed[0], {('V3', 'FWD', 1): ('t', [1], {})}, {})
++        self.assertTrue(r['cancelled'])
++
+     def test_forbidden_before_a_request_is_cancelled(self):
+         prompts = {('V3', 'FWD', 1): ('t', [1], {})}
+         r = b5.decide(self.ev(1, ITEMS[0]), lambda: False, prompts, {})
+@@ -221,14 +268,15 @@
+ 
+ 
+ class FakeRobot:
+-    def __init__(self, clock, persons=None, fail_start=False):
+-        self.clock, self.persons, self.fail_start = clock, persons or {}, fail_start
++    def __init__(self, clock, persons=None, fail_start=False, start_s=0.0):
++        self.clock, self.persons, self.fail_start, self.start_s = clock, persons or {}, fail_start, start_s
+         self.camera_session, self.capturing, self.starts, self.stops, self.frame = 's', True, 0, 0, 0
+         self.detector, self.size_policy = self, self
+ 
+     def start_camera(self, heat=None):
+         self.starts += 1
+         self.capturing = True
++        self.clock.sleep(self.start_s)  # a restart takes time
+         if self.fail_start:
+             raise RuntimeError('RobotCam did not publish a usable frame')
+ 
+@@ -272,10 +320,11 @@
+     def tearDown(self):
+         b5.clock, b5.pause, b4.cores_ok, main.read_frame = self.saved
+ 
+-    def run_loop(self, plan, arm='B', work_s=120, status=(), persons=None, fail_start=False, battery=90):
++    def run_loop(self, plan, arm='B', work_s=120, status=(), persons=None, fail_start=False, battery=90, start_s=0.0,
++                 read_s=0.0, hook=None, ready=None):
+         t0 = self.c()
+         heat = FakeHeat(self.c, [(t0 + a, x) for a, x in plan], [(t0 + a, s) for a, s in status])
+-        robot = FakeRobot(self.c, {t0 + a: b for a, b in (persons or {}).items()}, fail_start)
++        robot = FakeRobot(self.c, {t0 + a: b for a, b in (persons or {}).items()}, fail_start, start_s)
+         main.read_frame = robot.read
+         m = b5.Mission(arm, t0, work_s, ITEMS)
+         robot.m = m
+@@ -283,21 +332,26 @@
+         cam = {'on': True, 'slot': 1}
+ 
+         def read(tag):
+-            rec['readings'].append({'tag': tag, 'camera': cam['on'], 't': m.rel(self.c())})
++            rec['readings'].append({'tag': tag, 'camera': cam['on'], 't': m.rel(self.c()), 'ok': m.ok})
++            self.c.sleep(read_s)  # a root reading takes time
++            if hook:
++                hook(tag, m)
+             if battery < b5.BATTERY_STOP_PCT:
+                 rec['errors'].append('battery')
+                 return False
+             return True
+         real_set_ok = m.set_ok
+         m.set_ok = lambda ok: (oks.append((m.rel(self.c()), ok)), real_set_ok(ok))
+-        b5.mission_loop(robot, heat, m, rec, rows.append, read, cam)
++        self.last_m = m
++        b5.mission_loop(robot, heat, m, rec, rows.append, read, cam, ready or (lambda: None))
+         return m, rec, rows, robot, heat, oks, cam
+ 
+     def test_pause_start_and_resume(self):
+         m, rec, rows, robot, heat, oks, cam = self.run_loop([(0, 'ACTIVE'), (20, 'PAUSE'), (60, 'ACTIVE')])
+         self.assertEqual(rec['errors'], [])
+-        self.assertEqual([(r['from'], r['to']) for r in rows if r['kind'] == 'heat'],
+-                         [('ACTIVE', 'PAUSE'), ('PAUSE', 'ACTIVE')])
++        self.assertEqual([(r['stage'], r['from'], r['to']) for r in rows if r['kind'] == 'heat'],
++                         [('intent', 'ACTIVE', 'PAUSE'), ('done', 'ACTIVE', 'PAUSE'), ('intent', 'PAUSE', 'ACTIVE'),
++                          ('done', 'PAUSE', 'ACTIVE')])
+         self.assertEqual((robot.stops, robot.starts, cam), (1, 1, {'on': True, 'slot': 2}))
+         self.assertIs(robot.ok_at_stop, False)  # picker forbidden before the camera stops (main.py order)
+         self.assertEqual([r['tag'] for r in rec['readings']], ['pause_start', 'pause_end'])
+@@ -310,17 +364,110 @@
+         self.assertTrue(paused and all(20 <= t < 62 for t in paused))
+         self.assertTrue(m.ok)
+         self.assertLess(self.c() - m.deadline, 2.0)  # the last move is cut at the deadline
+-        self.assertEqual(b5.pauses(rows, 120), (1, rows[[r['kind'] for r in rows].index('heat')]['t'],
+-                                                round(b5.pauses(rows, 120)[2], 3)))
+         n, first, total = b5.pauses(rows, 120)
+         self.assertTrue(n == 1 and 20 <= first < 22 and 38 < total < 42)
+ 
++    def test_start_barrier_initially_active_serves_the_0_s_mark(self):
++        got = []
++
++        def ready():  # what the scheduler's first poll does once it is started here
++            m = self.last_m
++            got.append((m.ok, m.offer_due(self.c()), m.start(self.c(), 30.0)))
++        m, *_ = self.run_loop([(0, 'ACTIVE')], arm='A', work_s=10, ready=ready)
++        self.assertEqual(len(got), 1)
++        self.assertTrue(got[0][0])
++        self.assertEqual(got[0][2][0]['id'], 1)
++        self.assertEqual(m.ticks['decided'], 1)
++
++    def test_start_barrier_initially_forbidden_does_not(self):
++        got = []
++
++        def ready():
++            m = self.last_m
++            got.append((m.ok, m.offer_due(self.c()), m.start(self.c(), 30.0)))
++        m, *_ = self.run_loop([(0, 'ACTIVE')], arm='A', work_s=10, status=[(0, 3)], ready=ready)
++        self.assertEqual((got[0][0], got[0][2], m.ticks['paused']), (False, None, 1))
++
++    def test_end_before_the_first_assessment_never_starts_the_scheduler(self):
++        got = []
++        self.run_loop([(0, 'END')], ready=lambda: got.append(1))
++        self.assertEqual(got, [])
++
++    def test_resume_allows_before_the_reading_a_mark_inside_it_is_served(self):
++        seen = {}
++
++        def hook(tag, m):  # the scheduler polling while the pause_end reading runs
++            if tag == 'pause_end':
++                m.offer_due(self.c())
++                seen['go'] = m.start(self.c(), 30.0)
++        m, rec, rows, robot, heat, oks, cam = self.run_loop([(0, 'ACTIVE'), (20, 'PAUSE'), (87, 'ACTIVE')], arm='A',
++                                                            start_s=2.0, read_s=3.0, hook=hook)
++        end = next(r for r in rec['readings'] if r['tag'] == 'pause_end')
++        self.assertTrue(end['ok'])  # allowed before the reading
++        self.assertTrue(87 < end['t'] < 90 < end['t'] + 3.0)  # the reading spans the 90 s mark
++        self.assertIsNotNone(seen['go'])
++        self.assertEqual(m.ticks['decided'], 1)
++
++    def test_resume_with_b_event_pending(self):
++        seen = {}
++
++        def hook(tag, m):
++            m.offer_due(self.c())
++            seen[tag] = m.start(self.c(), 30.0)
++        m, *_ = self.run_loop([(0, 'ACTIVE'), (20, 'PAUSE'), (60, 'ACTIVE')], start_s=2.0, read_s=3.0, hook=hook)
++        self.assertIsNone(seen['pause_start'])  # pending, forbidden
++        self.assertEqual(seen['pause_end'][0]['id'], 7)  # the newest pending event (offered at 60 s), at resume
++
++    def test_reading_failure_at_resume_forbids_at_once(self):
++        m, rec, *_ = self.run_loop([(0, 'ACTIVE'), (10, 'PAUSE')], battery=20)
++        self.assertFalse(m.ok)
++
++        def boom(tag, m):
++            if tag == 'pause_end':
++                raise RuntimeError('root read')
++        with self.assertRaises(RuntimeError):
++            self.run_loop([(0, 'ACTIVE'), (10, 'PAUSE'), (50, 'ACTIVE')], hook=boom)
++        self.assertFalse(self.last_m.ok)
++
++    def test_pause_counts_restart_time_and_failed_restart_is_no_resume(self):
++        m, rec, rows, *_ = self.run_loop([(0, 'ACTIVE'), (20, 'PAUSE'), (60, 'ACTIVE')], start_s=2.0, read_s=3.0)
++        intent = [r for r in rows if r['kind'] == 'heat' and r['stage'] == 'intent']
++        done = [r for r in rows if r['kind'] == 'heat' and r['stage'] == 'done' and r['to'] == 'ACTIVE']
++        self.assertAlmostEqual(done[0]['t'] - intent[1]['t'], 2.0, places=3)  # the restart is pause time
++        n, first, total = b5.pauses(rows, 120)
++        self.assertAlmostEqual(total, done[0]['t'] - intent[0]['t'], places=3)
++        with tempfile.TemporaryDirectory() as d:
++            x = b5.metrics({**arm_record(), 'mission_end_s': 120}, rows, {}, Path(d))
++        self.assertEqual((x['pauses'], x['resumes']), (1, 1))
++        m, rec, rows, *_ = self.run_loop([(0, 'ACTIVE'), (10, 'PAUSE'), (50, 'ACTIVE')], fail_start=True, start_s=2.0)
++        n, first, total = b5.pauses(rows, 52.0)
++        self.assertEqual((n, round(total, 3)), (1, round(52.0 - first, 3)))  # open to the arm end
++        with tempfile.TemporaryDirectory() as d:
++            x = b5.metrics({**arm_record(), 'mission_end_s': 52.0}, rows, {}, Path(d))
++        self.assertEqual(x['resumes'], 0)
++
++    def test_transition_crossing_the_deadline_starts_no_cycle(self):
++        m, rec, rows, robot, *_ = self.run_loop([(0, 'ACTIVE'), (100, 'PAUSE'), (114, 'ACTIVE')], work_s=118,
++                                                start_s=2.0, read_s=3.0)
++        self.assertEqual((rec['errors'], robot.starts), ([], 1))
++        self.assertTrue([r for r in rec['readings'] if r['tag'] == 'pause_end'])  # the transition finished
++        self.assertFalse([r for r in rows if r['kind'] == 'cycle' and r['t'] >= 100])
++
++    def test_detection_ending_after_the_deadline_offers_no_event(self):
++        m, rec, rows, *_ = self.run_loop([(0, 'ACTIVE')], work_s=5.2, persons={5.0: 'far'})
++        self.assertEqual(max(r['t'] for r in rows if r['kind'] == 'cycle'), 5.1)
++        self.assertEqual((rec['late_not_offered'], [e for e in m.events if e['source'] == 'real']), (1, []))
++        with tempfile.TemporaryDirectory() as d:
++            x = b5.metrics({**arm_record(), 'late_not_offered': 1}, rows, {}, Path(d))
++        self.assertEqual(x['events']['real']['late_not_offered'], 1)
++
+     def test_pause_open_at_the_end_counts_to_the_end(self):
+-        rows = [{'kind': 'heat', 'from': 'ACTIVE', 'to': 'PAUSE', 't': 100.0},
+-                {'kind': 'heat', 'from': 'PAUSE', 'to': 'HOLD', 't': 120.0},
+-                {'kind': 'heat', 'from': 'HOLD', 'to': 'ACTIVE', 't': 150.0},
+-                {'kind': 'heat', 'from': 'ACTIVE', 'to': 'PAUSE', 't': 1700.0}]
+-        self.assertEqual(b5.pauses(rows, 1800.0), (2, 100.0, 150.0))
++        rows = [hrow('intent', 'ACTIVE', 'PAUSE', 100.0), hrow('done', 'ACTIVE', 'PAUSE', 100.4),
++                hrow('intent', 'PAUSE', 'HOLD', 120.0), hrow('done', 'PAUSE', 'HOLD', 120.0),
++                hrow('intent', 'HOLD', 'ACTIVE', 150.0),
++                hrow('done', 'HOLD', 'ACTIVE', 152.0), hrow('intent', 'ACTIVE', 'PAUSE', 1700.0),
++                hrow('done', 'ACTIVE', 'PAUSE', 1700.4)]
++        self.assertEqual(b5.pauses(rows, 1800.0), (2, 100.0, 152.0))  # 100 -> 152 (restart done), 1700 -> end
+ 
+     def test_severe_forbids_without_a_camera_change(self):
+         m, rec, rows, robot, *_ = self.run_loop([(0, 'ACTIVE')], status=[(30, 3), (50, 0)], work_s=80)
+@@ -345,9 +492,31 @@
+         m, rec, *_ = self.run_loop([(0, 'ACTIVE'), (10, 'PAUSE')], battery=20)
+         self.assertEqual(rec['errors'], ['battery'])
+ 
++    def test_server_repinned_at_every_camera_start(self):
++        calls = []
++        t0 = self.c()
++        heat = FakeHeat(self.c, [(t0, 'ACTIVE'), (t0 + 10, 'PAUSE'), (t0 + 50, 'ACTIVE'), (t0 + 70, 'PAUSE'),
++                                 (t0 + 110, 'ACTIVE')])
++        robot = FakeRobot(self.c)
++        main.read_frame = robot.read
++        m = b5.Mission('B', t0, 120, ITEMS)
++        rec = {'errors': [], 'camera_stops': [], 'readings': []}
++        b5.mission_loop(robot, heat, m, rec, lambda r: None, lambda t: True, {'on': True, 'slot': 1},
++                        repin=lambda: calls.append(robot.capturing))
++        self.assertEqual(calls, [True, True])  # after each successful camera start
++        robot = FakeRobot(self.c, fail_start=True)
++        main.read_frame = robot.read
++        calls.clear()
++        t0 = self.c()
++        heat = FakeHeat(self.c, [(t0, 'ACTIVE'), (t0 + 10, 'PAUSE'), (t0 + 50, 'ACTIVE')])
++        b5.mission_loop(robot, heat, b5.Mission('B', t0, 120, ITEMS), {'errors': [], 'camera_stops': [],
++                        'readings': []}, lambda r: None, lambda t: True, {'on': True, 'slot': 1},
++                        repin=lambda: calls.append(1))
++        self.assertEqual(calls, [])  # a failed start is not followed by a re-pin
++
+     def test_hold_and_pause_hold(self):
+         m, rec, rows, robot, *_ = self.run_loop([(0, 'ACTIVE'), (10, 'HOLD'), (20, 'PAUSE'), (40, 'ACTIVE')])
+-        self.assertEqual([(r['from'], r['to']) for r in rows if r['kind'] == 'heat'],
++        self.assertEqual([(r['from'], r['to']) for r in rows if r['kind'] == 'heat' and r['stage'] == 'intent'],
+                          [('ACTIVE', 'HOLD'), ('HOLD', 'PAUSE'), ('PAUSE', 'ACTIVE')])
+         self.assertEqual((robot.stops, robot.starts), (1, 1))
+ 
+@@ -389,6 +558,130 @@
+ CYC = {'kind': 'cycle', 'cores_ok': True, 'slot': 1}
+ 
+ 
++def hrow(stage, frm, to, t):
++    return {'kind': 'heat', 'stage': stage, 'from': frm, 'to': to, 't': t}
++
++
++class Repin(unittest.TestCase):
++    """Owner decision 2026-11-15: re-pin like a robot; drift corrected by one re-pin is VALID and recorded."""
++
++    def setUp(self):
++        self.d = tempfile.TemporaryDirectory()
++        self.proc = Path(self.d.name)
++        for tid in (11, 12, 13):
++            (self.proc / '4242' / 'task' / str(tid)).mkdir(parents=True)
++        self.aff = {11: {0, 1, 2, 3, 4, 5, 6, 7}, 12: {4, 5, 6, 7}, 13: {0, 1, 2, 3, 4, 5, 6, 7}}
++        self.patches = [unittest.mock.patch.object(b4, 'PROC', self.proc),
++                        unittest.mock.patch.object(b5.os, 'sched_getaffinity', self.get),
++                        unittest.mock.patch.object(b5.os, 'sched_setaffinity', self.set)]
++        for p in self.patches:
++            p.start()
++        self.fail = set()
++
++    def tearDown(self):
++        for p in self.patches:
++            p.stop()
++        self.d.cleanup()
++
++    def get(self, tid):
++        if tid not in self.aff:
++            raise ProcessLookupError(tid)
++        return set(self.aff[tid])
++
++    def set(self, tid, cpus):
++        if tid in self.fail:
++            raise PermissionError('EPERM')
++        self.aff[tid] = set(cpus)
++
++    def test_server_repin_records_before_after(self):
++        rp = b5.Repinner({'server_pid': 4242})
++        e = rp.server('watch')
++        self.assertTrue(e['ok'])
++        self.assertEqual((e['threads'], e['before'][11], e['after'][11]), ([11, 13], [0, 1, 2, 3, 4, 5, 6, 7],
++                                                                           [4, 5, 6, 7]))
++        self.assertEqual({t: sorted(c) for t, c in self.aff.items()}, {t: [4, 5, 6, 7] for t in (11, 12, 13)})
++        self.assertEqual(rp.events, [e])
++
++    def test_server_repin_failure_and_vanished_thread(self):
++        self.fail.add(13)
++        del self.aff[12]  # ended after the listing: skipped
++        e = b5.Repinner({'server_pid': 4242}).server('arm_start')
++        self.assertFalse(e['ok'])
++        self.assertIn(13, e['errors'])
++        self.assertNotIn(12, e['before'])
++
++    def test_detector_repin_uses_check_affinity(self):
++        det = unittest.mock.Mock()
++        det.check_affinity.return_value = {'before': {1: [0, 1]}, 'repinned': [1], 'after': {1: [4, 5]}, 'ok': True,
++                                           'errors': {}}
++        e = b5.Repinner({'detector': det}).detector('watch')
++        self.assertEqual((e['process'], e['threads'], e['ok']), ('detector', [1], True))
++
++    def test_camera_start_detector_repin_is_recorded(self):
++        seen = []
++        heat = unittest.mock.Mock()
++        heat.event = lambda name, detail=None, dump=None: seen.append(name)
++        rp = b5.Repinner({})
++        b5.record_camera_repins(heat, rp)
++        heat.event('detector_affinity', {'before': {}, 'repinned': [7], 'after': {}, 'ok': False, 'errors': {7: 'x'}})
++        heat.event('camera_start_ok')
++        self.assertEqual(seen, ['detector_affinity', 'camera_start_ok'])
++        self.assertEqual([(e['trigger'], e['ok']) for e in rp.events], [('camera_start', False)])
++
++    def test_groups_recorded(self):
++        (self.proc / '4242' / 'cpuset').write_text('/top-app\n')
++        (self.proc / '4242' / 'cgroup').write_text('0::/uid_1/pid_4242\n')
++        g = b5.groups({'server_pid': 4242})
++        self.assertEqual((g['llama_server_cpuset'], g['llama_server_cgroup']), ('/top-app', '0::/uid_1/pid_4242'))
++        self.assertIn('Error', g['runner_cpuset'])  # not in the fake tree: error text, not a crash
++
++    def test_scan_splits_drift_and_repins_it(self):
++        hits = ['agent pid 9: claude', 'llama-server thread 11 Cpus_allowed_list:\t0-7',
++                'llama-server thread 13 affinity unreadable: x', "detector threads {5: [0, 1, 2, 3, 4, 5, 6, 7]}"]
++        rp = unittest.mock.Mock()
++        rp.server.return_value, rp.detector.return_value = {'p': 's'}, {'p': 'd'}
++        with unittest.mock.patch.object(b4, 'watch_check', lambda t: {'mono': 1.0, 'hits': list(hits), 'vanished': 0}):
++            x = b5.scan({'server_pid': 4242}, rp)
++        self.assertEqual(x['hits'], [hits[0], hits[2]])  # not drift: still hits
++        self.assertEqual(sorted(x['drift']), ['detector', 'llama_server'])
++        self.assertEqual(x['repins'], [{'p': 'd'}, {'p': 's'}])
++        self.assertIn('llama_server_cpuset', x['groups'])
++
++    def watch(self, drifts):
++        return {**test_b4.watch(), 'samples': [{'mono': 30.0 * i, 'hits': [], 'drift': {p: ['x'] for p in d}}
++                                               for i, d in enumerate(drifts)]}
++
++    def test_summary(self):
++        rec = arm_record(watch={**self.watch([['llama_server'], []]), 'samples': [
++            {'mono': 0, 'hits': [], 'drift': {'llama_server': ['x']}, 'groups': {'llama_server_cpuset': '/top-app'}},
++            {'mono': 30, 'hits': [], 'drift': {}, 'groups': {'llama_server_cpuset': '/foreground'}}]},
++            repins=[{'trigger': 'watch', 'process': 'llama_server', 'threads': [11], 'ok': True},
++                    {'trigger': 'arm_start', 'process': 'llama_server', 'threads': [], 'ok': True}])
++        x = b5.repin_summary(rec)
++        self.assertEqual(x, {'acted': {'watch/llama_server': 1}, 'failed': 0, 'drifted_scans': {'llama_server': 1},
++                             'groups_seen': {'llama_server_cpuset': ['/foreground', '/top-app']}})
++
++    def test_validity(self):
++        ok = {'trigger': 'watch', 'process': 'llama_server', 'ok': True}
++        bad = {**ok, 'ok': False, 'errors': {13: 'EPERM'}}
++        # drift corrected by one re-pin: VALID, the event recorded
++        rec = arm_record(watch=self.watch([[], ['llama_server'], [], ['detector'], []]), repins=[ok, ok])
++        self.assertEqual(b5.arm_problems(rec, [CYC]), [])
++        # the same process drifted in two consecutive scans: INVALID
++        rec = arm_record(watch=self.watch([[], ['llama_server'], ['llama_server'], []]), repins=[ok, ok])
++        self.assertTrue(any('two consecutive scans' in p for p in b5.arm_problems(rec, [CYC])))
++        # different processes in consecutive scans: each corrected once, VALID
++        rec = arm_record(watch=self.watch([['llama_server'], ['detector']]), repins=[ok, ok])
++        self.assertEqual(b5.arm_problems(rec, [CYC]), [])
++        # a failed re-pin (watch, arm start or camera start): INVALID
++        for trig in ('watch', 'arm_start', 'camera_start'):
++            rec = arm_record(watch=self.watch([[]]), repins=[{**bad, 'trigger': trig}])
++            self.assertTrue(any('re-pin failed' in p for p in b5.arm_problems(rec, [CYC])), trig)
++        rec = arm_record(repins=[bad])
++        del rec['watch']
++        self.assertTrue(any('re-pin failed' in p for p in b5.arm_problems(rec, [CYC])))
++
++
+ class Labels(unittest.TestCase):
+     def test_valid(self):
+         self.assertEqual(b5.arm_problems(arm_record(), [CYC]), [])
+@@ -426,8 +719,7 @@
+         cyc = [{**CYC, 't': 0.0, 'size': 640, 'detect_ms': 500}, {**CYC, 't': 1.7, 'size': 320, 'detect_ms': 140},
+                {**CYC, 't': 900.0, 'slot': 2, 'size': 640, 'detect_ms': 520},
+                {**CYC, 't': 901.8, 'slot': 2, 'size': 320, 'detect_ms': 150},
+-               {'kind': 'heat', 'from': 'ACTIVE', 'to': 'PAUSE', 't': 600.0},
+-               {'kind': 'heat', 'from': 'PAUSE', 'to': 'ACTIVE', 't': 899.0}]
++               hrow('intent', 'ACTIVE', 'PAUSE', 600.0), hrow('done', 'PAUSE', 'ACTIVE', 899.0)]
+         with tempfile.TemporaryDirectory() as d:
+             x = b5.metrics(arm_record(), ev + dec + cyc, {2: 'wait'}, Path(d))
+         self.assertEqual(x['decisions_served'], 2)
+@@ -568,19 +860,39 @@
+         self.assertIn('NO PAUSE HAPPENED', text)
+         self.assertIn("{'pause_c': 31.0}", text)
+         rows = [{**CYC, 't': 0.0, 'size': 320, 'detect_ms': 140},
+-                {'kind': 'heat', 'from': 'ACTIVE', 'to': 'PAUSE', 't': 61.0}]
++                hrow('intent', 'ACTIVE', 'PAUSE', 61.0)]
+         with tempfile.TemporaryDirectory() as d:
+             rec['metrics'] = b5.metrics(rec, rows, {}, Path(d))
+         text = b5.report(run, [rec])
+         self.assertIn('1 pause(s) with camera stop, 0 resume(s)', text)
+         self.assertIn('NO RESUME HAPPENED', text)
+-        rows.append({'kind': 'heat', 'from': 'PAUSE', 'to': 'ACTIVE', 't': 95.0})
++        rows.append(hrow('intent', 'PAUSE', 'ACTIVE', 93.0))  # an attempt is no resume
++        with tempfile.TemporaryDirectory() as d:
++            rec['metrics'] = b5.metrics(rec, rows, {}, Path(d))
++        self.assertIn('NO RESUME HAPPENED', b5.report(run, [rec]))
++        rows.append(hrow('done', 'PAUSE', 'ACTIVE', 95.0))
+         with tempfile.TemporaryDirectory() as d:
+             rec['metrics'] = b5.metrics(rec, rows, {}, Path(d))
+         text = b5.report(run, [rec])
+         self.assertIn('1 pause(s) with camera stop, 1 resume(s)', text)
+         self.assertNotIn('HAPPENED', text)
+ 
++    def test_early_refusal_record_saves_and_reports(self):
++        with tempfile.TemporaryDirectory() as d, unittest.mock.patch.object(b4, 'cores_ok', lambda: False), \
++                unittest.mock.patch.object(b5.repro, 'agents', lambda: ''):
++            out = Path(d)
++            rec, rows = b5.run_arm('A', out, {'session': 1, 'smoke': False, 'dur': 1800, 'test': {}, 'record': {}},
++                                   lambda r: None)
++            with open(out / 'arms.jsonl', 'a') as f:
++                f.write(json.dumps(rec) + '\n')
++            run = {'utc': 'U', 'smoke': False, 'work_s': 1800, 'git_head': 'h', 'start': test_b4.good(),
++                   'definition': {'files': {}, 'commands': {'server': 'srv'}}}
++            text = b5.report(run, b4.read_jsonl(out / 'arms.jsonl'))
++        self.assertEqual((rec['label'], rows), ('INVALID', []))
++        self.assertEqual(set(rec['metrics']), set(b5.metrics(arm_record(), [], {}, Path('.'))))
++        self.assertIn('== A: INVALID', text)
++        self.assertIn('initial agent/cores check failed', text)
++
+     def test_motors_and_serial_never_imported(self):
+         self.assertNotIn('motors', sys.modules)
+         self.assertNotIn('serial', sys.modules)
+@@ -601,10 +913,13 @@
+     def stop(self):
+         self.stopped = True
+ 
++    status = [(0, 0)]
++
+     def readings(self):
+         now = time.monotonic()
+         skin = [s for at, s in self.plan if now - self.t0 >= at][-1]
+-        return {'dump': {'t': now, 'status': 0, 'skin': skin}, 'fast': [{'t': now, 'cpu_c': 50.0, 'bat_c': 30.0}]}
++        status = [s for at, s in self.status if now - self.t0 >= at][-1]
++        return {'dump': {'t': now, 'status': status, 'skin': skin}, 'fast': [{'t': now, 'cpu_c': 50.0, 'bat_c': 30.0}]}
+ 
+ 
+ class Watcher:
+@@ -630,7 +945,9 @@
+             (b5, 'picker_setup', lambda test: ({('V3', 'FWD', it['id']): ('t', [1], {}) for it in ITEMS}, [1])),
+             (b4, 'reading', lambda pids=None, light=False, tag='': {**test_b4.good(
+                 mem=('runner', 'llama_server', 'robotcam')), 'mono': time.monotonic()}),
+-            (b4, 'Watch', Watcher), (b4, 'cores_ok', lambda: True), (b5.repro, 'agents', lambda: ''),
++            (b4, 'Periodic', lambda fn, period: Watcher(None)), (b4, 'cores_ok', lambda: True),
++            (b5.Repinner, 'server', lambda self, trigger: self.add({'trigger': trigger, 'process': 'llama_server',
++                                                                    'ok': True})), (b5.repro, 'agents', lambda: ''),
+             (b4, 'slot', lambda action: {'action': action, 'wall_s': 0.0}),
+             (b5.b2, 'score', self.score), (b5.b2, 'preflight', lambda post, s, blocks, info, tag: {
+                 ('V3', 'FWD', it['id']): ('t', [1], {}) for it in s['items']}),
+@@ -655,8 +972,8 @@
+             post('/completion', {})
+         return {'top': 'explore', 'reason': 'r', 'reason_tokens': 3}
+ 
+-    def run_arm(self, arm, skin_plan, smoke=False):
+-        FakeMonitor.plan = skin_plan
++    def run_arm(self, arm, skin_plan, smoke=False, status=((0, 0),)):
++        FakeMonitor.plan, FakeMonitor.status = skin_plan, list(status)
+         with tempfile.TemporaryDirectory() as d, unittest.mock.patch('sys.stdout', io.StringIO()), \
+                 unittest.mock.patch.object(b4, 'post', lambda path, body: {'timings': {}}):
+             ctx = {'session': 1, 'smoke': smoke, 'dur': 4.0, 'test': {'missions': {'M1': 'm'}, 'items': ITEMS},
+@@ -672,7 +989,8 @@
+         x = rec['metrics']
+         self.assertEqual(x['events']['scripted']['offered'], 20)
+         for s, f in x['events'].items():
+-            self.assertEqual(f['offered'], sum(v for k, v in f.items() if k != 'offered'), (s, f))
++            self.assertEqual(f['offered'], sum(v for k, v in f.items() if k not in ('offered', 'late_not_offered')))
++        self.assertLessEqual(rec['readings'][0]['t'], 0)  # the start reading's real relative time (before t0)
+         self.assertEqual(x['decisions_served'], sum(f['served'] for f in x['events'].values()))
+         self.assertGreater(x['decisions_served'], 0)
+         self.assertEqual(x['agreement']['ids_differ'], [])
+@@ -691,13 +1009,15 @@
+         x = rec['metrics']
+         self.assertEqual(x['pauses'], 1)
+         self.assertEqual([r['tag'] for r in rec['readings']], ['start', 'pause_start', 'pause_end', 'end'])
+-        heat = [r for r in rows if r['kind'] == 'heat']
+-        t_off, t_on = heat[0]['t'], heat[1]['t']
++        t_off = next(r['t'] for r in rows if r['kind'] == 'heat' and r['stage'] == 'intent')
++        t_on = next(r['t'] for r in rows if r['kind'] == 'heat' and r['stage'] == 'done' and r['to'] == 'ACTIVE')
+         dec = [r for r in rows if r['kind'] == 'decision']
+         self.assertFalse([r for r in dec if t_off + 0.05 < r['started'] < t_on], 'a decision started in the pause')
+         self.assertLessEqual(len(dec), 9)  # one per 0.5 s mark at most
+         self.assertIn('"camera_stop_ok"', trace)
+         self.assertEqual((self.robot.stops, self.robot.starts), (2, 2))  # pause + end; arm start + resume
++        self.assertEqual([(e['trigger'], e['process']) for e in rec['repins']],
++                         [('arm_start', 'llama_server'), ('camera_start', 'llama_server')])
+ 
+     def test_smoke_thresholds_from_the_arm_start_skin_pause_and_resume(self):
+         # the fake start reading's skin is 30.0: pause at 31.0, resume at 30.5; the deployed 37/35 never trigger here
+@@ -714,6 +1034,20 @@
+         self.assertEqual(rec['metrics']['pauses'], 0)
+         self.assertEqual((hc.SKIN_PAUSE_C, hc.SKIN_RESUME_C), (37.0, 35.0))
+ 
++    def test_arm_a_serves_every_eligible_mark(self):
++        rec, rows, trace = self.run_arm('A', [(0, 30.0)])
++        self.check_common(rec, rows)
++        self.assertEqual(rec['metrics']['ticks'], {'decided': 8, 'empty': 0, 'paused': 0, 'busy': 0})  # 0 .. 3.5 s
++        first = min((r for r in rows if r['kind'] == 'decision'), key=lambda r: r['started'])
++        self.assertEqual(first['id'], 1)
++        self.assertLess(first['started'], 0.1)
++
++    def test_arm_a_initially_severe_skips_the_forbidden_marks(self):
++        rec, rows, trace = self.run_arm('A', [(0, 30.0)], status=[(0, 3), (0.75, 0)])
++        self.check_common(rec, rows)
++        self.assertEqual(rec['metrics']['ticks'], {'decided': 6, 'empty': 0, 'paused': 2, 'busy': 0})
++        self.assertFalse([r for r in rows if r['kind'] == 'decision' and r['started'] < 0.7])
++
+     def test_arm_b_skin_above_36_holds_events(self):
+         rec, rows, trace = self.run_arm('B', [(0, 30.0), (2.0, 36.5)])
+         self.check_common(rec, rows)
+--- round1/README.md
++++ round2/README.md
+@@ -15,10 +15,20 @@
+   saved (`b4.warm`); `heat_control.HeatControl(HeatMonitor())` started (its own 1 s / 5 s root readings: essential
+   safety monitoring; trace in the run folder); `robot.start_camera(heat)`; start reading; B4's 30 s watcher.
+ - **Mission loop** = `Robot.run_mission` motors-off: heat transitions exactly as `main.py` (picker forbidden, camera
+-  stopped and shown stopped, `heat.enter`; resume: `start_camera(heat)`, `heat.enter('ACTIVE', since=before the
+-  start)`); HOLD sleeps 1 s, PAUSE the move time; ACTIVE runs B4's camera cycle (new frame, SizePolicy, detect) then
+-  the move time. Picker allowed only while ACTIVE and Android status < SEVERE; a forbid cancels a running decision
+-  before its next HTTP request, for good. Heat END, a camera start/stop failure or an unusable frame ends the arm.
++  stopped and shown stopped, `heat.enter`, then the pause-start reading; resume: `start_camera(heat)`,
++  `heat.enter('ACTIVE', since=before the start)`, picker allowed with a fresh SEVERE check, then the pause-end
++  reading; a battery stop or an error in that reading forbids the picker at once and ends the arm); HOLD sleeps 1 s,
++  PAUSE the move time; ACTIVE runs B4's camera cycle (new frame, SizePolicy, detect) then the move time. Picker
++  allowed only while ACTIVE and Android status < SEVERE; a forbid cancels a running decision (checked before and
++  after every HTTP request and before its result is accepted; a forbid followed by an allow still cancels). Heat
++  END, a camera start/stop failure or an unusable frame ends the arm.
++- **Start barrier.** The scheduler thread starts only after the mission loop's first heat / SEVERE assessment has
++  set the picker's permission, so no 30 s mark is consumed before it.
++- **Pause accounting.** Each heat transition logs an `intent` row when it begins and a `done` row when it completed.
++  A pause runs from the intent to leave ACTIVE (picker forbidden, camera stop begins) to the `done` re-entry into
++  ACTIVE (camera started); only that counts as a resume, a failed restart does not (the pause stays open to the arm
++  end). Camera stop, the pause-start reading and camera start count as pause time; the pause-end reading counts as
++  ACTIVE (camera on, picker allowed). ACTIVE share = 1 − pause time / mission time.
+ - **Events.** Scripted: the 40 B2 TEST items in id order, cycled, one every 10 s (180 per arm). Real: the most
+   confident person's area bucket per ACTIVE cycle; appear / leave / bucket change → an event line in the B2 state
+   format (mission M1, current activity exploring, memory none, all five actions; served, unscored). Pending queue of
+@@ -28,20 +38,34 @@
+   allowed and the heat control's latest VIRTUAL-SKIN < 36.0 °C. A decision: slot 0 restored before every 5th, then
+   `b2.score` unchanged (a real event's prompt is rendered first, inside its wall). A cancelled decision's event goes
+   back to pending unless a newer one is waiting. The scheduler polls every 0.1 s (latency resolution).
+-- **Deadline.** Nothing starts after it; the decision or camera cycle in flight finishes; overrun ≤ 15 s.
+-- **Readings** (`b4.reading`, per-PID memory checked): start, end, one at each heat-pause start (after the camera
+-  stop) and end (after the camera start). RobotCam memory required while the camera is on.
++- **Deadline.** Nothing starts after it: the deadline is rechecked right before each camera cycle, so a transition
++  (and its reading) that crosses it finishes but admits no cycle; the decision or camera cycle in flight finishes;
++  overrun ≤ 15 s. A person change seen by a cycle admitted before the deadline that ends after it is not offered
++  (counted `late_not_offered`).
++- **Readings** (`b4.reading`, per-PID memory checked): start (taken before the mission's t0: its relative time is
++  negative), end, one at each heat-pause start (after the camera stop) and end (after the camera start). RobotCam
++  memory required while the camera is on.
++- **Re-pin** (owner decision 2026-11-15, after the INVALID timed arm A of `20261115T002824Z`, whose llama-server
++  threads were on cores 0–7 from the first scan). At arm start, at every camera start and whenever a watcher scan
++  finds drift, every llama-server thread is re-pinned to 4–7 (`os.sched_setaffinity` per thread) and the detector to
++  4–5 (its `check_affinity`, as `main.py`; at camera start `main.py`'s own re-pin is recorded). Every re-pin is
++  recorded (time, trigger, process, threads, before/after) in the arm record and summarised in the report. Each scan
++  records `/proc/<pid>/cpuset` and `cgroup` of llama-server, the runner and the detector caller thread, to show
++  whether Android moved Termux between CPU groups. Drift corrected by one re-pin is recorded, not INVALID; a failed
++  re-pin, or the same process found drifted in two consecutive scans, is INVALID.
+ - **Gates.** Before every arm: cores 4–7, agent check, MEM-1 skin gate (launch-start skin + 1.0 °C, wait ≤ 30 min),
+   status < 3, battery < 45 °C and ≥ 30 %. A timed run needs battery ≥ 85 % at its first start and ≥ 50 % at each
+   `--resume`. Battery < 30 % at any reading ends the arm (INVALID) and the session.
+-- **Labels.** Arm VALID / INVALID by B4's rules (watcher hit, cores, missing or incomplete reading, camera failure,
+-  agent, request errors, overrun > 15 s) plus heat END and battery stop; an INVALID arm ends the session and is redone
+-  with `--resume`. A vs B descriptive (no matching claim). Energy INDICATIVE.
+-- **Metrics per arm:** decisions served; offered / served / dropped / cancelled / unserved (scripted and real);
+-  event→decision latency and decision wall median / p95; A's ticks; heat pauses, time to the first, total pause time,
+-  ACTIVE share; skin start / max (readings and heat trace) / end; minimum CPU caps at readings; camera cycle period
+-  (within one ACTIVE slot), detect ms 320 / 640; MemAvailable minimum; energy; agreement of served scripted choices
+-  with the B2 run of record (`b2_rules/runs/20261102T143251Z`, TEST V3 FWD, SHA-256 pinned).
++- **Labels.** Arm VALID / INVALID by B4's rules (watcher hit other than corrected drift, cores, missing or
++  incomplete reading, camera failure, agent, request errors, overrun > 15 s) plus heat END and battery stop; an arm
++  refused before any workload has the same record schema (empty metrics); an INVALID arm ends the session and is
++  redone with `--resume`. A vs B descriptive (no matching claim). Energy INDICATIVE.
++- **Metrics per arm:** decisions served; offered / served / dropped / cancelled / unserved (scripted and real; real
++  also late_not_offered); event→decision latency and decision wall median / p95; A's ticks; heat pauses and resumes,
++  time to the first pause, total pause time, ACTIVE share; skin start / max (readings and heat trace) / end; minimum
++  CPU caps at readings; camera cycle period (within one ACTIVE slot), detect ms 320 / 640; MemAvailable minimum;
++  energy; agreement of served scripted choices with the B2 run of record (`b2_rules/runs/20261102T143251Z`, TEST V3
++  FWD, SHA-256 pinned).
+ - **Frozen definition:** SHA-256 of `oneshot.sh`, the run of record, the TEST set, every imported module under the
+   repo, and the server command; `--resume` refuses any difference.
+ - **Run** (native Termux, no agent): `bash ~/robot/benchmark/mind_picker/b5_mission/oneshot.sh`, then `… oneshot.sh

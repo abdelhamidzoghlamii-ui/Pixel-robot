@@ -1,0 +1,106 @@
+--- round2/b5.py
++++ round3/b5.py
+@@ -435,9 +435,10 @@
+         self.targets, self.events, self.lock = targets, [], threading.Lock()
+ 
+     def add(self, ev):
++        ev = {'mono': round(time.monotonic(), 3), **ev}  # this caller's own event object
+         with self.lock:
+-            self.events.append({'mono': round(time.monotonic(), 3), **ev})
+-        return self.events[-1]
++            self.events.append(ev)
++        return ev
+ 
+     def server(self, trigger):
+         pid = self.targets.get('server_pid')
+@@ -706,7 +707,8 @@
+     """(count, time to the first, total s): an interval runs from the intent to leave ACTIVE (picker forbidden,
+     camera stop begins) to the successful re-entry into ACTIVE after the camera start (stage 'done'), or to end_t; a
+     failed restart is no re-entry. Camera stop and start and the pause_start reading count as pause; the pause_end
+-    reading (picker allowed, camera on) as ACTIVE."""
++    reading (picker allowed, camera on) as ACTIVE. The total counts mission time only: every interval is intersected
++    with [0, end_t] (a restart completing after the deadline keeps its real time in its 'done' row)."""
+     out, began = [], None
+     for r in rows:
+         if r['kind'] != 'heat':
+@@ -718,7 +720,7 @@
+             began = None
+     if began is not None:
+         out.append((began, max(began, end_t)))
+-    return len(out), (out[0][0] if out else None), round(sum(b - a for a, b in out), 3)
++    return len(out), (out[0][0] if out else None), round(sum(max(0.0, min(b, end_t) - max(a, 0.0)) for a, b in out), 3)
+ 
+ 
+ def metrics(rec, rows, record, out):
+--- round2/test_b5.py
++++ round3/test_b5.py
+@@ -453,6 +453,22 @@
+         self.assertTrue([r for r in rec['readings'] if r['tag'] == 'pause_end'])  # the transition finished
+         self.assertFalse([r for r in rows if r['kind'] == 'cycle' and r['t'] >= 100])
+ 
++    def test_restart_completing_after_the_deadline_counts_only_mission_time(self):
++        m, rec, rows, robot, *_ = self.run_loop([(0, 'ACTIVE'), (100, 'PAUSE'), (115, 'ACTIVE')], work_s=118,
++                                                start_s=5.0)
++        intent = next(r for r in rows if r['kind'] == 'heat' and r['stage'] == 'intent')
++        done = next(r for r in rows if r['kind'] == 'heat' and r['stage'] == 'done' and r['to'] == 'ACTIVE')
++        self.assertGreater(done['t'], 118)  # the real completion time is kept
++        end_t = min(m.rel(self.c()), 118)
++        n, first, total = b5.pauses(rows, end_t)
++        self.assertAlmostEqual(total, 118 - intent['t'], places=3)  # inside mission time only
++        with tempfile.TemporaryDirectory() as d:
++            x = b5.metrics({**arm_record(), 'mission_end_s': end_t}, rows, {}, Path(d))
++        self.assertEqual((x['pauses'], x['resumes'], x['pause_s']), (1, 1, round(118 - intent['t'], 3)))
++        self.assertAlmostEqual(x['active_share'], round(1 - (118 - intent['t']) / 118, 3), places=3)
++        self.assertEqual(b5.pauses([hrow('intent', 'ACTIVE', 'PAUSE', 100.0), hrow('done', 'PAUSE', 'ACTIVE', 1802.0)],
++                                   1800.0), (1, 100.0, 1700.0))
++
+     def test_detection_ending_after_the_deadline_offers_no_event(self):
+         m, rec, rows, *_ = self.run_loop([(0, 'ACTIVE')], work_s=5.2, persons={5.0: 'far'})
+         self.assertEqual(max(r['t'] for r in rows if r['kind'] == 'cycle'), 5.1)
+@@ -610,6 +626,33 @@
+         self.assertIn(13, e['errors'])
+         self.assertNotIn(12, e['before'])
+ 
++    def test_concurrent_repins_each_caller_gets_its_own_event(self):
++        class HookLock:  # releases, then lets the mission thread re-pin before the watcher's add() returns
++            def __init__(self):
++                self.lock, self.hook = threading.Lock(), None
++
++            def __enter__(self):
++                self.lock.acquire()
++
++            def __exit__(self, *exc):
++                self.lock.release()
++                hook, self.hook = self.hook, None
++                if hook:
++                    t = threading.Thread(target=hook)
++                    t.start()
++                    t.join()
++        rp = b5.Repinner({'server_pid': 4242})
++        rp.lock, got = HookLock(), {}
++        rp.lock.hook = lambda: got.__setitem__('camera', rp.server('camera_start'))
++        hit = 'llama-server thread 11 Cpus_allowed_list:\t0-7'
++        with unittest.mock.patch.object(b4, 'watch_check', lambda t: {'mono': 1.0, 'hits': [hit], 'vanished': 0}):
++            x = b5.scan({'server_pid': 4242}, rp)  # the watcher
++        self.assertEqual([(e['trigger'], e['process']) for e in x['repins']], [('watch', 'llama_server')])
++        self.assertEqual(x['repins'][0]['threads'], [11, 13])  # the watcher's correction, not the later no-op
++        self.assertEqual(got['camera']['trigger'], 'camera_start')
++        self.assertEqual([e['trigger'] for e in rp.events], ['watch', 'camera_start'])
++        self.assertIs(rp.events[0], x['repins'][0])
++
+     def test_detector_repin_uses_check_affinity(self):
+         det = unittest.mock.Mock()
+         det.check_affinity.return_value = {'before': {1: [0, 1]}, 'repinned': [1], 'after': {1: [4, 5]}, 'ok': True,
+--- round2/README.md
++++ round3/README.md
+@@ -28,7 +28,9 @@
+   A pause runs from the intent to leave ACTIVE (picker forbidden, camera stop begins) to the `done` re-entry into
+   ACTIVE (camera started); only that counts as a resume, a failed restart does not (the pause stays open to the arm
+   end). Camera stop, the pause-start reading and camera start count as pause time; the pause-end reading counts as
+-  ACTIVE (camera on, picker allowed). ACTIVE share = 1 − pause time / mission time.
++  ACTIVE (camera on, picker allowed). Pause time counts mission time only (each pause clipped to [0, mission end]; a
++  restart completing after the deadline keeps its real time in its `done` row). ACTIVE share = 1 − pause time /
++  mission time.
+ - **Events.** Scripted: the 40 B2 TEST items in id order, cycled, one every 10 s (180 per arm). Real: the most
+   confident person's area bucket per ACTIVE cycle; appear / leave / bucket change → an event line in the B2 state
+   format (mission M1, current activity exploring, memory none, all five actions; served, unscored). Pending queue of

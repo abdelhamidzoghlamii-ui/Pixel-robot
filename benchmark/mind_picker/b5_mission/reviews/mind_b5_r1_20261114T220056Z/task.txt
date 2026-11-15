@@ -1,0 +1,103 @@
+=== MIND-B5 task (Local AI / owner), verbatim ===
+EXECUTION PROFILE
+ROLE: Coder
+PLATFORM: Claude Code CLI
+MODEL: claude-opus-5-5
+EFFORT: medium
+PONYTAIL: lite
+WHY: Timed 30-min motors-off mission harness reusing B4's runner machinery and the deployed heat control.
+FALLBACK: AGY CLI | claude-opus-5-5-medium | N/A | Ponytail lite (stated explicitly)
+
+EXECUTION PROFILE
+ROLE: Reviewer
+PLATFORM: Codex CLI (fresh session)
+MODEL: gpt-6.1-sol
+EFFORT: medium
+PONYTAIL: off
+WHY: Independent model family; scheduler, heat-pause handling and validity need a careful check.
+FALLBACK: AGY CLI | gemini-3.8-flash-high | N/A | Ponytail off (full WORKFLOW AGY procedure)
+
+TASK MIND-B5 — 30-minute motors-off mission: sustainable picker rate with camera, YOLO and heat pauses
+(research only)
+
+Base: verify HEAD = origin/main = 72eac6c930f5be819a0af0ca147c0b5f5842443c (report if not).
+Read first: docs/WORKFLOW.md ("Timed benchmarks on the phone"), docs/CODER.md, docs/COMMANDS.md,
+DECISIONS #126, #135, #136, #139, #147; benchmark/mind_picker/b4_baseline/ (README, RUN_INDEX, b4.py,
+oneshot.sh, reviews/ — all three rounds' findings); b2_rules/ (V3 picker, set/b2_test.json, run of record);
+main.py, run_mission.py and benchmark/heat_control/ (adaptive 37/35 °C pause, how a motors-off dry run
+starts RobotCam/YOLO without the ESP32).
+At session start, confirm your model id is the one in the profile; if not, stop and report.
+Before writing anything, ls -la every folder you will create or write; always a new timestamped folder.
+
+QUESTION: With RobotCam + YOLO running (CAM1-MID) and the deployed adaptive heat pause in force, how many
+V3 picker decisions does the phone serve in 30 minutes, how fast after an event, how much time is lost to
+heat pauses, and does throttling change the picker's choices?
+
+DO NOT: change any deployed file or existing benchmark folder (import only); open any serial port, drive
+motors or connect to the ESP32 (report how the dry-run path guarantees this); use MTP, memory notes or
+vision; change any arm definition or threshold after the owner's run starts; commit or push. Timings count
+only from the owner's oneshot run with no agent resident.
+
+SETUP (both arms): BC/B4 b11716 server command (+ --slot-save-path; projector loaded as in B4), V3 picker
+unchanged with slot save/restore (warm once before the arm, not timed); RobotCam + detector exactly CAM1-MID;
+the deployed adaptive heat pause (37 °C pause / 35 °C resume, its own skin reading = essential safety
+monitoring) controlling camera, YOLO and picker exactly as main.py does in a motors-off run.
+EVENTS: (a) scripted: the 40 B2 TEST items, cycled in fixed order, one offered every 10 s (180 offers per
+arm); (b) real: Python turns YOLO person appear/leave/distance-bucket changes into event lines in the B2
+state format (logged, served, unscored). Pending queue size 1: the newest event replaces an older unserved
+one (count drops).
+ARMS (each 30 min of mission time, gated start as B4: launch-start skin + 1.0 °C, wait up to 30 min):
+ A FIXED: every 30 s, if not in heat pause, decide on the pending event (if any).
+ B ADAPTIVE: decide as soon as an event is pending and the previous decision has finished, only while
+   skin < 36.0 °C and not in heat pause; otherwise keep the newest event pending.
+ Order A then B; sessions/--resume as B4.
+REUSE FROM B4 (import, do not copy): launch-start refusal, root-read helper, 30 s /proc watcher (agents,
+llama-server threads 4–7, detector 4–5, vanished threads), per-PID memory checks, camera ownership/cleanup
+protection, frozen definition + resume refusal, oneshot agent/battery/screen handling. Start/end readings
+only, plus one reading at each heat-pause start and end (no extra sampler).
+METRICS per arm: decisions served; offered/served/dropped (scripted and real separately); event-to-decision
+latency median/p95; decision wall median/p95; number of heat pauses, time to first pause, total pause time,
+ACTIVE share; skin start/max/end; minimum CPU caps seen at readings; camera cycle period, detect ms 320/640;
+MemAvailable minimum over readings; energy INDICATIVE; agreement of scripted-item choices with the B2 run of
+record (count, ids that differ).
+LABELS: arm VALID / INVALID with B4's rules (watcher hit, cores, missing reading, camera failure, agent,
+overrun of the 30-min phase by more than 15 s). Arm A vs B comparisons are descriptive (no matching claim).
+Battery: start >= 85 %; stop the session cleanly (arm INVALID) if it falls below 30 %.
+
+FILES: benchmark/mind_picker/b5_mission/{b5.py, test_b5.py, oneshot.sh, README.md}. Offline tests with fakes
+and a fake clock (both schedulers, queue-of-one drops, pause start/resume, latency accounting, labels).
+Before invoking the Reviewer, check your code yourself against every finding of B4 review rounds 1–3 and list
+how each is handled.
+
+STEPS: implement -> offline tests -> give me ONE native smoke command (each arm 2 min, gate on the first arm
+only, NOT A MEASUREMENT) and stop; I run it and tell you; you read the newest smoke folder and console log
+yourself; then invoke review round 1 (Codex CLI gpt-6.1-sol, medium, Ponytail off, fresh session, source-only,
+new timestamped folder; at capacity: wait 10 min, retry once, else INCOMPLETE) with the task, your B4-findings
+checklist, the diff and the smoke evidence; freeze; return the review verbatim plus the exact owner commands
+for the timed run; stop. Save anything the review needs outside your scratchpad (/termux-home/review/...).
+
+=== Owner decision 1 (after the Coder's first report), verbatim ===
+Owner review of your choices: 1, 2, 3, 4, 6, 7, 8 accepted. Changes:
+A. Battery: >= 85 % only at the first start of a timed run; --resume requires >= 50 %. The 30 % cut-off stays.
+B. Smoke only (timed runs unchanged): run the deployed HeatControl with lowered thresholds — pause at
+   launch-start skin + 1.5 °C, resume at launch-start skin + 0.5 °C (keep its 60 s activity rule) — so at least
+   one real pause and resume with camera stop/start happens on the phone. Label it in the smoke report; if no
+   pause happened, say so.
+C. Copy b4_findings_checklist.md to a new folder /termux-home/review/mind_b5_prep_<UTC>/ (cp -p, verify hash) and
+   use that path later.
+Update README and tests, rerun the offline tests, give me the smoke command again and stop.
+
+=== Owner decision 2 (after smoke 20261114T201817Z_smoke), verbatim ===
+Do not start review round 1 yet. Smoke 20261114T201817Z_smoke: both arms paused (camera stopped) but 0 resumes,
+so the mid-arm camera restart is still untested on the phone. Cause: the smoke pause threshold (launch skin +1.5)
+was already exceeded after server load, and resume (launch skin +0.5) was never reached with the camera on.
+Smoke only, change:
+- base the smoke thresholds on each arm's own start skin (after server load): pause = arm-start skin + 1.0 °C,
+  resume = pause - 0.5 °C (min_active 60 s and min_pause 30 s unchanged);
+- smoke arms 180 s instead of 120 s.
+Timed runs unchanged. Update tests/README, rerun offline tests, give me the smoke command and stop. After my
+smoke you read it yourself; if every arm shows >= 1 pause AND >= 1 resume with camera start, run review round 1 as
+already instructed; if not, stop and report.
+
+=== Owner message 3, verbatim ===
+Smoke finished: read it yourself and run review round 1 as instructed.

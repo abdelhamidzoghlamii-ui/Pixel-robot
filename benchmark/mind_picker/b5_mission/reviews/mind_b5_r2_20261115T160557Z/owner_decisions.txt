@@ -1,0 +1,46 @@
+=== Owner decision on MIND-B5 review round 1 (2026-11-14), verbatim ===
+Owner decision on MIND-B5 review round 1 (2026-11-14): fix findings 1–8, nothing else.
+1. Recheck generation + permission after every HTTP response and after scoring; a forbid during the final request
+   cancels the decision (existing requeue/fate rules). Tests: forbid during the final completion; forbid then allow
+   before the response returns -> still cancelled.
+2. Recheck the deadline immediately before each camera cycle; a transition already underway may finish with its
+   reading, but no new cycle starts. Detections from a cycle admitted before the deadline but finishing after it
+   offer no real events (count them as "late, not offered"). Test a transition crossing the deadline.
+3. Start barrier: do the first heat/SEVERE assessment and set_ok before the scheduler thread starts or any mark is
+   consumed. Tests: initially ACTIVE arm A serves its 0 s mark; initially forbidden arm does not.
+4. Resume order as main.py: after a successful camera start and ACTIVE entry, allow the picker (fresh SEVERE check)
+   BEFORE the pause_end reading; if the reading stops the battery rule or raises, forbid at once and end the arm.
+   Tests: a reading that advances time across an A mark; B with an event pending at resume.
+5. Pause accounting: record transition intent separately from completion; a pause ends (and counts as a resume)
+   only at successful ACTIVE entry after the camera start; a failed restart is not a resume. README states how
+   stop/start and reading overhead count. Fake-clock tests with nonzero restart time and a failed restart.
+6. Every arm record has the same schema (empty metrics on early refusal); report handles it. Test the real
+   early-refusal path through save and report.
+7. Add the integration tests above (exact eligible A marks, timed restart/read, post-response cancellation,
+   deadline crossing, refusal-to-report).
+8. Start reading: give its real relative time (usually negative) or label it "setup".
+Then rerun the offline tests, save the round-1 frozen files and a test log to a new /termux-home/review/ folder,
+give me the smoke command, and stop. After my smoke you read it yourself; if both arms show >= 1 pause and >= 1
+resume, run review round 2 (Codex CLI gpt-6.1-sol, medium, Ponytail off, fresh session, source-only, new
+timestamped folder) on only these eight fixes and anything they break; stop with the review verbatim. No commit or push.
+
+=== Context: the owner then ran oneshot.sh WITHOUT --smoke on the round-2 code before the re-pin change: run
+20261115T002824Z (timed, session 1). The Coder reported: arm A INVALID (all 15 llama-server threads on cpus 0-7 in all
+62 watcher scans from t=0.1 s; detector threads also found on 0-7 at the first camera start and again near 930 s,
+re-pinned by main.py at camera starts); arm B not run. ===
+
+=== Owner decisions (2026-11-15), verbatim ===
+Owner decisions (2026-11-15): 1. Do not resume 20261115T002824Z; keep it as evidence (INVALID, unreviewed code).
+2. Add to the round-2 candidate, same scope otherwise:
+   - Re-pin like a robot would: at arm start, at every camera start, and whenever a watcher scan finds drift,
+     re-pin every llama-server thread to 4–7 (and the detector to 4–5 as main.py does), using
+     sched_setaffinity/taskset on each thread. Record every re-pin (time, process, threads, before/after).
+   - Validity change: drift that one re-pin corrects is recorded, not INVALID. INVALID if a re-pin fails, or the
+     same process is found drifted in two consecutive scans.
+   - Each scan also records /proc/<pid>/cpuset (or cgroup) of llama-server, the runner and the detector, to
+     confirm whether Android moved Termux between CPU groups.
+   - Tests: drift corrected by one re-pin -> VALID with the event recorded; drift in two consecutive scans ->
+     INVALID; failed re-pin -> INVALID.
+Rerun the offline tests, update the README, give me the SMOKE command (with --smoke) and stop. After my smoke,
+check pauses/resumes and any drift or re-pin events, then run review round 2 on the eight fixes plus this re-pin
+change, as instructed. No commit or push.

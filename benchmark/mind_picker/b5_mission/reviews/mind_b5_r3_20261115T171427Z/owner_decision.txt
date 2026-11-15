@@ -1,0 +1,17 @@
+=== Owner decision on MIND-B5 review round 2 (2026-11-15), verbatim ===
+Owner decision on MIND-B5 review round 2 (2026-11-15): fix the two findings, nothing else.
+1. P1: intersect every pause interval with the mission interval [0, end_t] before summing; keep the real transition
+   completion time and the successful-resume record separately. Extend the fake-clock deadline-crossing test:
+   camera start completing after the deadline -> pause duration and ACTIVE share computed inside mission time only.
+2. P2: build the re-pin event as a local object, append it under the lock, return that same object. Add a
+   deterministic concurrency test: watcher and mission thread re-pin at the same time -> each caller gets its own
+   event and the watcher sample keeps its own watch-triggered correction.
+Rerun the offline tests. No new smoke: these changes do not touch camera, server or timing paths.
+Then invoke review round 3 (Codex CLI gpt-6.1-sol, medium, Ponytail off, fresh session, source-only, new
+timestamped folder) with the round-2 review, this decision, the diff from the round-2 frozen files and the test
+output; scope: these two fixes and anything they break. Stop with the review verbatim.
+If round 3 is APPROVED or has only P3 notes: commit benchmark/mind_picker/b5_mission/ with copies (cp -p, cmp) of
+the review folders and the smokes and the INVALID run 20261115T002824Z (git add -f where needed), RUN_INDEX.md
+(smokes NOT A MEASUREMENT; T1 INVALID: server affinity drift, unreviewed code; reviews R1, R2, R3) and ARTIFACTS.md,
+message "MIND-B5: mission runner, reviews and smokes", push to origin/main authorized; then give me the exact
+timed-run commands and stop. If round 3 finds any P1 or P2, stop without committing.
