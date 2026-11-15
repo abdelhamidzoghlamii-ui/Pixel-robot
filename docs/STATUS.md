@@ -87,6 +87,12 @@ Gemma proposes only high-level strategy. Evaluate cached navigation context,
 relevant mission memory, picker quality, latency and MTP before deciding whether
 to allow more flexible Python operations or independently warm navigation and
 companion contexts. These interfaces and caches are NOT implemented or qualified.
+MIND series (#148–#155, research, nothing deployed): picker V3 (rules + examples +
+reason, actions explore/approach/greet/look/wait, no memory, no vision) passes its
+picker TEST at 0.90 (#150); picker and chat to use separate contexts kept warm by
+slot save/restore (#148, decided, not implemented); M2 dropped (#149); in a 30-min
+motors-off mission a temperature-paced picker (decide below 36 °C) served 46
+decisions with 4 heat pauses vs 41 and 10 for one decision per 30 s (#155).
 Whether `--no-picker` becomes the default is open. Fine-tuning (Laya, Von or
 Gemma) is deferred to a later robot version. One resident Gemma for talk and
 selection was decided in #125.
@@ -212,6 +218,11 @@ is labelled in `benchmark/thermal_char/HEAT_EVIDENCE.md`. Power map, power split
 duty-cycle and camera-power measurements (#128) and the owner's heat-pause design
 (#129; implemented in #135 except the torch) are archived in `benchmark/power_map/`,
 `benchmark/duty_cycle/` and `benchmark/camera_power/`.
+MIND-B4/B5 (#154, #155): continuous picker work heats ~2.5 °C/min; camera + YOLO
+alone ~0.9 °C/min; with camera + YOLO running, cooling is about a quarter of idle
+cooling (1.4 vs 4.7–5.2 °C in ~3 min from ~38 °C). llama-server's CPU affinity was
+found widened to 0–7 (attributed to Android); the deployed code does not re-pin it
+(open).
 
 ## Memory
 
@@ -222,6 +233,9 @@ No speed comparison between memory lengths or cache modes is COMPARABLE
 (thermal, battery and CPU caps unmatched), so no speed effect is established.
 Capacity INCOMPLETE; ctx 4096, long and freetext not run. Research only; no
 production memory feature is implied.
+MIND-B3 (#151): memory notes made the V3 picker worse (relevant note 7/20 vs 14/20
+without); memory stays out of the picker for now. Lowest MemAvailable with Gemma +
+RobotCam + YOLO: 1,917,756 kB (B4) and 1,559,732 kB (B5 arm A) (#154, #155).
 
 Reported 2026-09-11: Gemma-4-E2B Q4_K_M left approximately 0.5 GB practical
 headroom after loading, without simultaneous full perception or dialogue.
@@ -264,6 +278,10 @@ See DECISIONS #142–#145. VIS-0 (2026-10-18, BF16 projector, same research
 build) completed 40/40 image calls, but two of its server shutdowns exited with
 SIGABRT, not investigated (#145). The VIS-3C, VIS-3D, VIS-0 and M2-Q1 archives
 and catalogs are in commit `4fd2b98` (#144, #145).
+MIND-BC/BV (#152, #153): b11716 + Q8 projector matches b10194 for the picker and
+is the test build; on 61 frames vision named the room in at most 66 % vs 72 % for
+YOLO rules (person 100 % for all, distance ≤ 48 % for all): vision stays out of the
+picker for V1. Cost: 5.95 s/image at 70 tokens, 11.4 s at 140 (#154).
 
 ## Working now
 
@@ -463,7 +481,8 @@ and catalogs are in commit `4fd2b98` (#144, #145).
   measured (#130–#132); used by the picker (`relate.py`, L2, #138); model files
   stay outside the repo and are checked by SHA-256 at load; weight licence for
   shipped use not evaluated. Relation quality (M2-Q1, #145): 63 % of shown lines
-  strictly right vs the 70 % bar — M2 as built FAILS.
+  strictly right vs the 70 % bar — M2 as built FAILS. Owner dropped M2 entirely on
+  2026-11-02 (#149).
 - Picker (#138): motors-off run done (#139) — always EXPLORE, ACTIVE share 0.48;
   no qualifying prompt or model in the desk tests (#140). Open owner decision:
   make `--no-picker` the default. Next research gate (#146): design a Python-
@@ -474,6 +493,9 @@ and catalogs are in commit `4fd2b98` (#144, #145).
   memory relevance and distractors, MTP on/off, RAM, heat and mode-switch cost.
   Current picker uses cache_prompt false; two independently warm modes and
   flexible Python operations are only possibilities, not working features.
+  MIND series done (#148–#155): picker V3 qualified on its TEST; not wired into
+  main.py; open: heat scheduling decision, llama-server re-pinning, memory (#151)
+  and vision (#153) improvement, a motors-live test.
 - Gemma fine-tuning restarts from scratch; old LoRA notebooks discarded (#124).
 - VIS-3C / VIS-3D / VIS-0 / M2-Q1 archives and vision qualification
   (#142–#145): archives, catalogs, REGENERATED comparison reports and review

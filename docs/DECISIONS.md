@@ -1922,3 +1922,92 @@ Format: `NN. [area] decision — why`
      established by this run. Capacity `20261028T080156Z` INCOMPLETE (WARM_START, block 3 ENDED_EARLY); smokes are
      not measurements; ctx 4096, long and freetext never launched. Labels are the runner's; no independent grading.
      Research only; no production memory feature or code change.
+
+148. **Prefix cache and two warm contexts (MIND-B0, MIND-B0b): picker and chat to use separate contexts kept warm by slot save/restore; two slots are the fallback.**
+     2026-11-02, MIND-B0 `cac5348`, MIND-B0b `d0c9cd5`; archives `benchmark/mind_picker/b0_cache/` and `b0b_slots/`.
+     Research only; nothing deployed. Measured (counters and probabilities VALID, reproduced in both B0 runs; timings
+     NOT A MEASUREMENT, agent resident): on the one-slot b10194 ("b1609") robot server, a picker call on a growing
+     transcript (392–449 tokens) re-processed 36 / 52 / 44 tokens; a chat turn sharing the transcript 15; after a
+     separate-context chat the picker rebuilt 428 of 434 tokens. Cached vs fresh scoring: same top action 5/5, max
+     |dp| 0.016 (0.019 after restore and with a second slot, limit 0.02). The shared transcript made the chat reply
+     `greet` (the action catalogue in the shared system turn steers the chat). Slot save/restore (B0b L1): slot file
+     7,790,524 bytes (7.4 MiB) for 422 tokens; after a separate chat the restored picker re-processed 41 of 434 tokens.
+     Two slots (B0b L2, `--parallel 2`, ctx 4096, 2048 per slot) also keep the picker warm (41 tokens); RAM L2 − L0
+     INDICATIVE: Pss +286,132 kB after load / +468,008 kB at the end. Reviews: B0 R2 CHANGES REQUESTED (P2 accepted
+     as a known limitation, owner exception); B0b APPROVED WITH NOTES. **Owner decision 2026-11-02:** picker and chat
+     use separate contexts kept warm by slot save/restore; two slots are the fallback. Decided, not implemented.
+
+149. **RelateAnything M2 dropped entirely; Gemma vision instead when more scene context than YOLO is needed.**
+     Owner decision 2026-11-02 (reported by Local AI; planning only). RelateAnything M2 is dropped entirely; when the
+     picker needs more scene context than YOLO provides, Gemma vision is to be used instead (see #153 for its first
+     comparison). Supersedes the M2 use decided in #131 and wired in #138; those entries stay as written. Decided, not
+     implemented: the M2 code path in the deployed picker (#138) is unchanged.
+
+150. **Picker quality: old and new layouts FAIL (MIND-B1); rules + worked examples + one reason sentence (V3) PASS on a new owner-labelled TEST at 0.900 (MIND-B2).**
+     2026-11-02, MIND-B1 `4d0deb8`, MIND-B2 `fe8d2de`; archives `benchmark/mind_picker/b1_quality/`, `b2_rules/`.
+     Accuracy VALID (temperature 0, deterministic); timings NOT A MEASUREMENT. B1: 40 owner-labelled items, Python
+     removes forbidden actions first (eligibility); old layout (`picker.Gemma`) strict 0.350 / 0.350, acceptable
+     0.500 / 0.525 (FWD / REV), 19/40 order flips; new layout (Gemma 4 template, action names, question last) strict
+     0.475 / 0.500, acceptable 0.700 / 0.700, 6/40 flips; both FAIL (bar: acceptable ≥ 0.80 and strict ≥ 0.65 in
+     both orders, flips ≤ 4). B1's set then became DEV. B2: actions explore / approach / greet / look / wait (B1's
+     visit renamed approach; per Local AI, CONTINUE is not offered because Python keeps the current objective; rule
+     13 reads "Otherwise: keep the current activity"). V1 13 explicit rules, V2 + 13 worked examples, V3 + one reason
+     sentence before the action; V3 selected on DEV by the fixed rule (mean acceptable 0.8625) and scored once on 40
+     new owner-labelled TEST items kept outside the repo: strict 0.900 / 0.900, acceptable 0.900 / 0.900, 3 flips
+     [6, 36, 39]: **PASS**. Caveat: TEST partly resembles DEV items and the worked examples; the result holds for this
+     benchmark only, and V3's advantage over V1/V2 is shown on DEV only. Reviews: B1 CHANGES REQUESTED (P1 symlink
+     custody check, run unaffected, fixed in B2; owner exception); B2 round 1 APPROVED WITH NOTES (two P3). Per Local
+     AI: picker V1 (research) = V3 without memory. Not wired into `main.py`.
+
+151. **Memory notes make the V3 picker worse (MIND-B3, FAIL); memory stays out of the picker for now.**
+     2026-11-02, MIND-B3 `391bd55`; archive `benchmark/mind_picker/b3_memory/`. Accuracy VALID; timings NOT A
+     MEASUREMENT. B2 V3 picker with memory notes, 20 owner-written bases × 6 conditions, acceptable of 20 (FWD / REV;
+     strict equal in every block): no memory 14 / 14; relevant note 7 / 6; relevant + 4 irrelevant 6 / 5; irrelevant
+     only 12 / 15; outdated note 9 / 12; another situation's note 14 / 14: overall **FAIL**. Review APPROVED WITH
+     NOTES (one P3). **Owner decision 2026-11-02:** memory stays out of the picker for now, to be improved later.
+     Supplements #147 (MEM-1 recall), which tested memory in a question-answer setting, not in the picker.
+
+152. **Build check (MIND-BC): b11716 + Q8 projector reproduces b10194 for the picker; it becomes the TEST build for MIND work.**
+     2026-11-02, MIND-BC `c7db848`; archive `benchmark/mind_picker/bc_build/`. Counters and accuracy VALID; timings
+     NOT A MEASUREMENT; RAM INDICATIVE. Provenance: b11716 (`~/llama.cpp-vis`) and b10194 ("b1609" tree,
+     `~/llama.cpp-b1609-dotprod`) both built with `armv8.2-a+dotprod+fp16`. On b11716 + Q8_0 projector: B0 sequence
+     0/13 rows differ (max |dp| 0.016179 as on b10194); save/restore counters identical (R7 cache_n 393, prompt_n
+     41), slot file 7,790,556 vs 7,790,524 bytes; B2 TEST 0.900 in both orders with 3 flips, 0/80 choices differ;
+     one image call returns a non-empty reply; server exit 0 after SIGTERM. Review APPROVED WITH NOTES (one P3).
+     **Owner decision 2026-11-02:** b11716 + projector is the TEST build for MIND work. Not a deployment change: the
+     robot still runs b10194 (#114, #119).
+
+153. **Gemma vision vs YOLO + rules (MIND-BV): vision FAILS the room bar; vision stays out of the picker for V1.**
+     2026-11-03, MIND-BV `df2bee5`; archive `benchmark/gemma_vision/bv_compare/`. Accuracy VALID; timings NOT A
+     MEASUREMENT. 61 M2-Q1 frames, owner-confirmed draft key (caveats in RUN_INDEX: not independent, some distances
+     estimated, photos mostly not at robot height, `roomsig_*` photos favour the YOLO room rules). Room / person (61)
+     / distance (40): YOLO + rules 0.721 / 1.000 / 18; vision 70 tokens 0.508 / 1.000 / 16; 140 tokens
+     0.656 / 1.000 / 19; 70 tokens + YOLO list 0.639 / 1.000 / 19: **FAIL** (bar: best vision room ≥ 0.80 and
+     person ≥ YOLO's). Gemma never said "far" (0/10 far photos). Review CHANGES REQUESTED (P2 row-count validity
+     check, did not affect the run; owner exception). **Owner decision 2026-11-03** (reported by Local AI): vision
+     stays out of the picker for V1. Not yet tried: 280 image tokens, a describe-then-answer prompt (future BV2).
+
+154. **Timed baselines (MIND-B4): picker decision 3.79 s median; slot restore removes the 13 s cold prefix; vision 5.95 / 11.4 s per image; heat and RAM.**
+     2026-11-04, MIND-B4 `84fe2d8`, `72eac6c`; archive `benchmark/mind_picker/b4_baseline/`, run `20261104T181853Z`.
+     Owner run via `oneshot.sh` from native Termux, no agent resident; all 8 three-minute blocks VALID, single run.
+     Measured: picker decision (B2 V3) median 3.79 s (p95 5.08); cold prefix rebuild 13.0 s (prompt_n 816) vs slot
+     restore + decision 2.9 s (prompt_n 85); vision 5.95 s/image at 70 tokens, 11.4 s at 140 (wall medians); YOLO
+     detect 143 / 526 ms (320 / 640), camera cycle 1.68 s. Skin rise per 3-min block: picker +7.6 °C, vision +7.0 /
+     +6.7 °C, camera + YOLO alone +2.7 °C. With camera + YOLO still running after the picker phase, skin fell only
+     1.4 °C in ~3 min from 38.2 °C, vs 4.7–5.2 °C in the first ~3 min of the idle gate waits that started near
+     38 °C (console log; descriptive). Minimum MemAvailable with Gemma + RobotCam + YOLO: 1,917,756 kB. Monitoring
+     cost (P vs PT) NOT COMPARABLE (start skin 1.7 °C apart). Energy INDICATIVE. Review round 3 APPROVED (one P3).
+
+155. **30-min motors-off mission (MIND-B5): temperature-paced picker served 46 decisions with 4 heat pauses vs 41 and 10 for one decision per 30 s; llama-server affinity drift found.**
+     2026-11-15, MIND-B5 `edbbc35`, `04b3763`; archive `benchmark/mind_picker/b5_mission/`, run `20261115T172733Z`.
+     Owner run via `oneshot.sh`, no agent resident; both arms VALID, one run each; A vs B descriptive only (B started
+     at battery 82 % vs 99 %, after a separate cool-down); energy INDICATIVE. A fixed (one decision per 30 s): 41
+     decisions, 10 heat pauses (first after 616 s), ACTIVE 0.70, event→decision latency median 4.1 s (p95 5.3), 41/41
+     same choice as B2, min MemAvailable 1,559,732 kB. B adaptive (decide only below 36 °C skin): 46 decisions (41
+     scripted + 5 real person events), 4 pauses (first 561 s, none after the pause ending at 973 s), ACTIVE 0.87,
+     latency median 4.5 s (p95 10.6), 40/41 (id 39, one of B2's three TEST flip items), min MemAvailable 1,809,272
+     kB. Finding: in INVALID run `20261115T002824Z` (unreviewed code) all 15 llama-server threads had affinity 0–7
+     in every watcher scan from t = 0.1 s for the whole arm (attributed to Android); `main.py` re-pins only the
+     detector threads; B5 re-pins every server thread (no drift in the valid run, cpuset always `/top-app`). The
+     deployed code does not re-pin llama-server (`server_manager.py` sets no affinity): open item. Review round 3
+     APPROVED, no findings. No owner decision on heat scheduling recorded yet. Not deployed.
