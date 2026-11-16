@@ -2011,3 +2011,49 @@ Format: `NN. [area] decision — why`
      detector threads; B5 re-pins every server thread (no drift in the valid run, cpuset always `/top-app`). The
      deployed code does not re-pin llama-server (`server_manager.py` sets no affinity): open item. Review round 3
      APPROVED, no findings. No owner decision on heat scheduling recorded yet. Not deployed.
+
+156. **B5 re-analysis: the temperature-paced arm served no decision after 980 s of 1800 s; about 1 decision per minute is the rate sustained with camera + YOLO on (arm A).**
+     2026-11-16, Doc Keeper Claude Code `claude-opus-5-5`, Ponytail off. Source: project-state review by Claude Code
+     `claude-fable-5-2` (read-only, at `e529dd6`), accepted by the owner; every number recomputed by the Doc Keeper
+     from `benchmark/mind_picker/b5_mission/runs/20261115T172733Z/` (`requests.jsonl`, `heat_trace_20261115T194013Z.jsonl`
+     aligned to the mission clock by the heat-transition rows). Served decisions per 5 min (by start time): arm A FIXED
+     10 / 10 / 6 / 5 / 5 / 5 (41; 15 in the second half: about 1 per minute, with the 30 s schedule and its 10 heat
+     pauses); arm B ADAPTIVE 27 / 6 / 11 / 2 / 0 / 0 (46). B's last decision started at 980.1 s and ended at 984.2 s;
+     B's last pause had ended at 973 s and B stayed ACTIVE (camera + YOLO on) to the end. Of 165 VIRTUAL-SKIN readings
+     after 980.1 s one was below 36 °C (35.40 °C at 981.4 s, while that last decision was running); after 984.2 s all
+     163 were 36.42–36.98 °C, above B's 36.0 °C start limit and below the 37 °C pause. Events offered after B's last
+     decision started: 80 scripted and 3 real dropped, 1 scripted unserved at the end. The "decide only below 36 °C"
+     rule as tested locks the picker out once camera + YOLO hold the skin between 36 and 37 °C; #155's "46 vs 41" is
+     not evidence for it. One run per arm; descriptive. Qualifies #155 (a Local AI DOC DIFF, commit `e529dd6`), which
+     stays as written. Environment (owner-reported): nothing was installed on the phone during the MIND series
+     (2026-11-02 – 2026-11-15) except Claude Code auto-updates 2.1.319, 2.1.321 and 2.1.325.
+
+157. **The deployed llama-server is never pinned to cores 4–7; the cause of the T1 affinity drift is UNKNOWN.**
+     2026-11-16, same source and Doc Keeper as #156. `server_manager.start_server` (`server_manager.py:52-71`) launches
+     llama-server without `taskset` or any affinity call, while every MIND and MEM-1 runner launched it with
+     `taskset -c 4-7` (`mem1.command`, `benchmark/memory_context/mem1.py:234`, used by B0–B5, BC and BV). The mission
+     code re-pins only the detector threads (`main.py:231`, `check_affinity`) and the M2 thread (`picker.py:211`),
+     never llama-server. The 0–7 affinity in T1 (`20261115T002824Z`) comes from one INVALID run on unreviewed code that
+     did not yet record cpuset (no `cpuset` field in its `arms.jsonl`); "attributed to Android" in #155 is not
+     established. In the valid run B5's re-pin never changed a thread (`acted {}` in both arms) and no smoke exercised
+     a drift, so the re-pin path is untested on the phone. Corrects #155's "does not re-pin": the deployed server is
+     neither pinned at launch nor re-pinned.
+
+158. **B2 TEST caveats quantified: four TEST items repeat DEV items; V3's lead over V2 is 2 of 80 item-orders on DEV only.**
+     2026-11-16, same source and Doc Keeper as #156; checked against `benchmark/mind_picker/b2_rules/set/b2_test.json`,
+     `b1_quality/set/b1_set.json` and `b2_rules/b2.py`. TEST items 9, 19, 29 and 35 equal DEV items 2, 26, 38 and 36 in
+     mission, current activity, event, memory, allowed actions and labels (B1's `visit` read as `approach`). TEST
+     items 5 and 7 share their event text with DEV items 17 and 27; item 5's event "Nothing new happened." is also a
+     worked example (`b2.py:113`). The 40 TEST items were written in the same task text as the rules
+     (`b2_rules/reviews/mind_b2/task.txt`). DEV acceptable V3 0.875 / 0.850 vs V2 0.825 / 0.850 = 69 vs 67 of 80
+     item-orders; V2 was never scored on TEST. On B3's 20 bases V3 without memory scored 14/20 in both orders (#151),
+     below B2's 0.80 bar. Supplements #150, which stays as written.
+
+159. **Safety finding (code, not hardware-tested): in an ACTIVE cycle a stale ultrasonic reading counts as clear; must be fixed before any motors-live run. The mission loop has no speech input.**
+     2026-11-16, same source and Doc Keeper as #156; verified in `main.py`. `Robot.get_distance()` returns 999 for no
+     motors or a reading older than 1 s ("treated as clear", `main.py:283-292`). `run_cycle` passes it on
+     (`main.py:388`, `:476`), `navigate_rules` treats 999 as not blocked and returns FORWARD on a clear path
+     (`main.py:381`). Only `pause_cycle` refuses to drive on 999 (`main.py:556`). Must be fixed before any motors-live
+     run. Also recorded: `voice_command()` (`main.py:664`) is never called from `run_mission` or `run_mission.py`;
+     `warm_up` sends one fixed parse. V3's speech rules (1, 2, 4, 8 and the spoken parts of 3 and 7) therefore cannot
+     fire in a mission yet.

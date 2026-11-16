@@ -91,6 +91,7 @@ re-running the corresponding benchmark and recording the result in DECISIONS.md.
 --threads 4 --threads-batch 4    # optimal for Tensor G2; more threads = slower
 --parallel 1                     # no slot splitting
 --swa-full                       # fixes Gemma 4 SWA prompt-cache invalidation
+--cache-ram 0                    # no host-RAM prompt cache (DECISIONS #115)
 --ctx-size 2048
 ```
 

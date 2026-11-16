@@ -92,7 +92,8 @@ reason, actions explore/approach/greet/look/wait, no memory, no vision) passes i
 picker TEST at 0.90 (#150); picker and chat to use separate contexts kept warm by
 slot save/restore (#148, decided, not implemented); M2 dropped (#149); in a 30-min
 motors-off mission a temperature-paced picker (decide below 36 °C) served 46
-decisions with 4 heat pauses vs 41 and 10 for one decision per 30 s (#155).
+decisions with 4 heat pauses vs 41 and 10 for one decision per 30 s (#155); the paced arm started none after
+980 s, so about 1 decision per minute (arm A) is the sustained rate observed (#156).
 Whether `--no-picker` becomes the default is open. Fine-tuning (Laya, Von or
 Gemma) is deferred to a later robot version. One resident Gemma for talk and
 selection was decided in #125.
@@ -202,7 +203,7 @@ Archived controlled conversation rates (cold vs cached block aggregate token-wei
 VIRTUAL-SKIN-CPU-GPU is the reported HAL CPU-throttling signal (first trip
 37.0 °C); BIG/zone9 is not its HAL governor (DECISIONS #90). `run_mission` uses `heat_control.py`
 (#135): Android status and VIRTUAL-SKIN every 5 s, adaptive 37/35 °C camera-off
-pauses and the #127 stops; validated in one motors-off dry run, not with motors live. The dated device
+pauses and the #127 stops; validated in three motors-off dry runs (#135, #139), not with motors live. The dated device
 thresholds, formula, zone map, throttle checks, and evidence limitations are
 preserved in [PROTOTYPE_EVIDENCE.md](PROTOTYPE_EVIDENCE.md).
 
@@ -221,8 +222,8 @@ duty-cycle and camera-power measurements (#128) and the owner's heat-pause desig
 MIND-B4/B5 (#154, #155): continuous picker work heats ~2.5 °C/min; camera + YOLO
 alone ~0.9 °C/min; with camera + YOLO running, cooling is about a quarter of idle
 cooling (1.4 vs 4.7–5.2 °C in ~3 min from ~38 °C). llama-server's CPU affinity was
-found widened to 0–7 (attributed to Android); the deployed code does not re-pin it
-(open).
+found on 0–7 in one invalid run (cause UNKNOWN); the deployed code neither pins nor re-pins it
+(#157, open).
 
 ## Memory
 
@@ -235,7 +236,7 @@ Capacity INCOMPLETE; ctx 4096, long and freetext not run. Research only; no
 production memory feature is implied.
 MIND-B3 (#151): memory notes made the V3 picker worse (relevant note 7/20 vs 14/20
 without); memory stays out of the picker for now. Lowest MemAvailable with Gemma +
-RobotCam + YOLO: 1,917,756 kB (B4) and 1,559,732 kB (B5 arm A) (#154, #155).
+RobotCam + YOLO on research build b11716 with the Q8 projector loaded: 1,917,756 kB (B4) and 1,559,732 kB (B5 arm A) (#154, #155).
 
 Reported 2026-09-11: Gemma-4-E2B Q4_K_M left approximately 0.5 GB practical
 headroom after loading, without simultaneous full perception or dialogue.
@@ -348,6 +349,8 @@ picker for V1. Cost: 5.95 s/image at 70 tokens, 11.4 s at 140 (#154).
 
 ## Pending / untested
 
+- **Before any motors-live run:** fix 999-is-clear in ACTIVE cycles (#159), make `--no-picker`
+  the default, pin llama-server to cores 4–7 at launch (#157).
 - **Dual-rate nav merged as a rewrite. Rule-level safety branches and the current
   `run_cycle()` path are regression-tested; everything else is untested.**
   `navigate_rules` escalation ladder verified against synthetic
@@ -435,7 +438,8 @@ picker for V1. Cost: 5.95 s/image at 70 tokens, 11.4 s at 140 (#154).
   in native Termux; YOLO26 (same speed as YOLO11 at equal size; NMS-free mode
   not worth it, #121); LFM2.5 and SmolLM3-3B as conversation
   candidates, both needing a newer llama.cpp than b1609.
-- The proposed strategic selector is not wired to the robot. Apartment
+- The strategic selector is wired as the picker (#138, still on by default) and its per-cycle
+  form is shelved (#140); the redesign items that follow are not built. Apartment
   localization from 2D LiDAR, semantic room map, camera–LiDAR object/range
   association, named-person verification, eligible-script gates, safe
   interruption, and model/sensor co-residency need separate validation.
