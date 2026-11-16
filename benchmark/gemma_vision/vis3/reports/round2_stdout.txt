@@ -1,0 +1,63 @@
+No P0–P2 findings. One P3 reliability note remains. Review stayed read-only; no servers, benchmarks, motors, git mutations, or other reviewers were launched.
+
+Reviewed candidate and supporting files:
+
+| File | Lines |
+|---|---:|
+| `benchmark/gemma_vision/vis3/vis3_run.py` | 566 |
+| `benchmark/gemma_vision/vis3/test_vis3.py` | 336 |
+| `benchmark/gemma_vision/vis3/oneshot.sh` | 110 |
+| `benchmark/gemma_vision/vis3/README.md` | 81 |
+| `benchmark/gemma_vision/vis2/vis2_run.py` | 489 |
+| `benchmark/gemma_vision/vis1/vis1_run.py` | 838 |
+| `server_manager.py` | 141 |
+| `chat.py` | 395 |
+| `review_inputs/DIAGNOSIS.md` | 17 |
+
+Upstream build/source files inspected, relative to the respective llama.cpp directories:
+
+| File | OLD lines | NEW lines |
+|---|---:|---:|
+| `build/CMakeCache.txt` | 1191 | 1204 |
+| `build/CMakeFiles/4.3.2/CMakeCXXCompiler.cmake` | 102 | 102 |
+| `common/common.cpp` | 2199 | 2460 |
+| `common/speculative.cpp` | 2784 | 3115 |
+| `CMakeLists.txt` | — | 318 |
+| `tools/server/server-context.cpp` | — | 6313 |
+| `tools/server/server-schema.cpp` | — | 603 |
+| `tools/mtmd/clip.cpp` | — | 6482 |
+
+1. **P3 — Sampler detachment is best-effort, despite the README’s unconditional guarantee.**
+
+   `benchmark/gemma_vision/vis3/vis3_run.py:197`:
+   ```python
+   def detach(bridge, wait=5):
+   ```
+
+   `benchmark/gemma_vision/vis3/vis3_run.py:214`:
+   ```python
+           phase['sampler_detached'] = detach(bridge)
+   ```
+
+   `benchmark/gemma_vision/vis3/vis3_run.py:216`:
+   ```python
+           phase['server_exit'] = v1.own_stop(proc, pid)
+   ```
+
+   A successful acknowledgement resolves the original race: the monitor samples sequentially, so a completed sample begun after clearing the target also establishes that the earlier sample finished. However, shutdown proceeds when acknowledgement times out.
+
+   Concrete scenario: a native sample stalls for more than five seconds before reading the cold server’s `/proc` files. Detachment returns false, shutdown removes those files, and the delayed sample records an error. The warm gate or final sampling-error check can then reject otherwise successful work. This remains fail-closed for measurement validity, so it is nonblocking.
+
+   Make acknowledgement failure stop the block explicitly after owned-server cleanup, and describe the bounded fallback accurately. A delayed-sample lifecycle test would cover this better than the current synthetic future-timestamp test.
+
+The other round 1 findings are addressed: relevant environment overrides are rejected before server launch; pooling compares commands; the warm phase receives its own thermal gate and starting-temperature summary; foreign mapped libraries immediately reject the block; and Debian preflight checks for `requests`.
+
+The whole-candidate review found matching OLD/NEW command arguments, payloads, sampling, affinity, context and output budgets. Cold loading retains the cache-drop handshake; warm loading avoids another drop. Thermal protections remain intact, with the additional absolute ceiling. Owned-process shutdown remains scoped to processes launched by the harness. Summaries exclude invalid/smoke blocks from configuration aggregates and expose comparability separately from execution validity.
+
+The diagnosis is broadly supported by the compiler records, relevant CPU build settings, archived help, draft-thread inheritance and NEW server/projector source. The literal claim that the CMake caches differ *only* in two settings is too broad: NEW also introduces cache entries, including inactive backend options. This does not establish a CPU comparison confound.
+
+The reload proposal was closed on August 11, and the eviction proposal remains a draft focused on GPU memory swapping. [Reload PR](https://github.com/ggml-org/llama.cpp/pull/25963), [eviction PR](https://github.com/ggml-org/llama.cpp/pull/28346). I did not independently recount instruction totals, fully reproduce historical thermal figures, verify shallow-clone provenance, or verify issue #30776.
+
+Supplied outputs report VIS-3 17/17 passing, VIS-2 passing, and the disclosed pre-existing VIS-1 wrapper-contract error. My permitted VIS-3 rerun exited 182 without output; these test results were inspected but not independently reproduced. Hardware behavior and timed performance remain for the owner’s later runs.
+
+APPROVED WITH NOTES

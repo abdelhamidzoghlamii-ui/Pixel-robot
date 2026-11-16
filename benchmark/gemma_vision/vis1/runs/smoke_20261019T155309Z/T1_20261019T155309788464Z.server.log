@@ -1,0 +1,39 @@
+0.00.007.744 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.010.343 W srv  llama_server: -----------------
+0.00.010.408 W srv  llama_server: CORS is set to allow all origins ('*') and no API key is set
+0.00.010.505 W srv  llama_server: this can be a security risk (cross-origin attacks)
+0.00.010.506 W srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655
+0.00.010.564 W srv  llama_server: -----------------
+0.00.012.193 I srv    load_model: loading model '/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf'
+0.00.945.469 E llama_init_from_model: failed to initialize the context: Gemma4Assistant requires ctx_other to be set (this warning is normal during memory fitting)
+0.01.124.825 W srv    load_model: [spec] failed to measure draft model memory: failed to create llama_context from model
+0.03.100.463 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.03.110.151 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.03.160.380 W load: special_eog_ids contains '<|tool_response>', removing '</s>' token from EOG list
+0.05.269.391 W llama_kv_cache_iswa: using full-size SWA cache (ref: https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
+0.05.504.294 I common_speculative_init_result: loading draft model '/data/data/com.termux/files/home/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf'
+0.06.412.608 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.06.421.842 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.06.457.440 W load: special_eog_ids contains '<|tool_response>', removing '</s>' token from EOG list
+0.06.619.388 W llama_kv_cache_iswa: using full-size SWA cache (ref: https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
+0.06.619.521 W llama_kv_cache: layer   3: sharing with layer 34. k = 0xb4000074cc7b0000, v = 0xb4000074ccbb0000
+0.06.619.558 W llama_kv_cache: layer   0: sharing with layer 33. k = 0xb4000074cb3ad000, v = 0xb4000074cb5ad000
+0.06.619.626 W llama_kv_cache: layer   1: sharing with layer 33. k = 0xb4000074cb3ad000, v = 0xb4000074cb5ad000
+0.06.619.628 W llama_kv_cache: layer   2: sharing with layer 33. k = 0xb4000074cb3ad000, v = 0xb4000074cb5ad000
+0.06.761.635 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 4096, kv_unified = 'false'
+0.06.781.642 W srv          init: --cache-idle-slots requires --cache-ram, disabling
+0.06.809.408 I srv  llama_server: model loaded
+0.06.809.517 I srv  llama_server: listening on http://127.0.0.1:8091
+0.07.049.914 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+0.07.050.108 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+0.12.911.286 I slot print_timing: id  0 | task 0 | n_decoded =    100, tg =  18.76 t/s, tg_3s =  18.76 t/s
+0.15.996.691 I slot print_timing: id  0 | task 0 | n_decoded =    158, tg =  18.78 t/s, tg_3s =  18.80 t/s
+0.19.110.234 I slot print_timing: id  0 | task 0 | n_decoded =    217, tg =  18.82 t/s, tg_3s =  18.95 t/s
+0.22.227.092 I slot print_timing: id  0 | task 0 | n_decoded =    269, tg =  18.37 t/s, tg_3s =  16.68 t/s
+0.24.853.666 I slot print_timing: id  0 | task 0 | prompt eval time =     531.98 ms /    29 tokens (   18.34 ms per token,    54.51 tokens per second)
+0.24.853.800 I slot print_timing: id  0 | task 0 |        eval time =   17271.46 ms /   311 tokens (   55.54 ms per token,    18.01 tokens per second)
+0.24.853.887 I slot print_timing: id  0 | task 0 |       total time =   17803.44 ms /   340 tokens
+0.24.854.047 I slot print_timing: id  0 | task 0 |    graphs reused =        142
+0.24.854.055 I slot print_timing: id  0 | task 0 | draft acceptance = 0.38928 (  167 accepted /   429 generated), mean len =  2.17
+0.24.857.382 I slot      release: id  0 | task 0 | stop processing: n_tokens = 339, truncated = 0
+0.24.864.627 I srv    operator(): operator(): cleaning up before exit...

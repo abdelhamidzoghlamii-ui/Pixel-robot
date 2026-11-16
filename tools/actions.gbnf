@@ -1,0 +1,7 @@
+root        ::= "[" ws action (ws "," ws action)* ws "]"
+action      ::= navigate | find | say
+navigate    ::= "{" ws "\"type\"" ws ":" ws "\"navigate_to\"" ws "," ws "\"room\"" ws ":" ws string ws "}"
+find        ::= "{" ws "\"type\"" ws ":" ws "\"find_person\"" ws "," ws "\"name\"" ws ":" ws string ws "}"
+say         ::= "{" ws "\"type\"" ws ":" ws "\"say\"" ws "," ws "\"message\"" ws ":" ws string ws "}"
+string      ::= "\"" [^"]* "\""
+ws          ::= [ \t\n]*

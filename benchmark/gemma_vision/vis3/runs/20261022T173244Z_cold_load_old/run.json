@@ -1,0 +1,86 @@
+{
+  "manifest": {
+    "config": {
+      "test": "cold_load",
+      "build": "old",
+      "mtp": false,
+      "q8": false
+    },
+    "command": [
+      "taskset",
+      "-c",
+      "4-7",
+      "timeout",
+      "--signal=TERM",
+      "--kill-after=3",
+      "900",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server",
+      "-m",
+      "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+      "--port",
+      "8091",
+      "--ctx-size",
+      "2048",
+      "--threads",
+      "4",
+      "--threads-batch",
+      "4",
+      "--parallel",
+      "1",
+      "--swa-full",
+      "--cache-ram",
+      "0",
+      "--host",
+      "127.0.0.1"
+    ],
+    "payload_sha256": {},
+    "code_sha256": {
+      "benchmark/gemma_vision/vis3/vis3_run.py": "f7cdd0154e58bc9b18020129a5dfa5bb4bbf8915e8f1a9cd2735edb1b6793d06",
+      "benchmark/gemma_vision/vis3/oneshot.sh": "58b2d678d22f8887e8fe0dc6893a69e3e922b9256407bb2e413800a784ece17a",
+      "benchmark/gemma_vision/vis2/vis2_run.py": "ed6e969e85ac253da8deb0c6dec6cec1a220008ffbfa894d4977fbf7fadb709f",
+      "benchmark/gemma_vision/vis2/oneshot.sh": "0514d2457b715dada0f530d371c905cefe3ee04c93fecd87db3189fe4a5a9db3",
+      "benchmark/gemma_vision/vis1/vis1_run.py": "28c96089f98b00b6d931986ff78c24e5e9246c8148f9dd0f903f0a32181d29a7",
+      "benchmark/gemma_vision/vis0/vis0.py": "ea3d1e38477b0ff2f85a04ed828da3c60ce7264d805b409f7c0d84e010aec50a",
+      "benchmark/llm_objective_setting/bench.py": "0792beeed813d94df2a1d9ce7bffe2f5e2a00a564de4a32aaecfa0182b8e6f8f",
+      "benchmark/campaign/power.py": "9babcb652efb60925cc623f6b32700993fabcbf3c970339b9e1d1089d800bc1b",
+      "benchmark/campaign/runtime.py": "a91990297ec8851056958d3829e4b8baad0deb0333b52d54b39538147ccb18d0",
+      "chat.py": "5f08a9d65d2a1f8fb5b77cb40050a009b8729480327def91be19ec44bf835348",
+      "server_manager.py": "4f63062a4dbc842538b72d1c28a8b2a721a0664a1a2bed8d2936e712984d84aa"
+    },
+    "weight_sha256": {
+      "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf": "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52"
+    },
+    "binary_sha256": {
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/llama-server": "77eb35a0e716dff307e0d33b0b45ce0ed91e216a20db9411a7b9dc94e6624053",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libggml-base.so": "0f0ba8b6603eacd6c2dee49b316507035955654bbd2de78adb804471674fe13b",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libggml-base.so.0": "0f0ba8b6603eacd6c2dee49b316507035955654bbd2de78adb804471674fe13b",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libggml-base.so.0.18.0": "0f0ba8b6603eacd6c2dee49b316507035955654bbd2de78adb804471674fe13b",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libggml-cpu.so": "a4ef0d97e741f5902919af5e9cef95f808bd98581be76bca66fcee3f4ac8a0dd",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libggml-cpu.so.0": "a4ef0d97e741f5902919af5e9cef95f808bd98581be76bca66fcee3f4ac8a0dd",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libggml-cpu.so.0.18.0": "a4ef0d97e741f5902919af5e9cef95f808bd98581be76bca66fcee3f4ac8a0dd",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libggml.so": "d168dd8ae5971457a0c206023b20368ada0542d1c2f1cd1b3f5161bd0b1a00e4",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libggml.so.0": "d168dd8ae5971457a0c206023b20368ada0542d1c2f1cd1b3f5161bd0b1a00e4",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libggml.so.0.18.0": "d168dd8ae5971457a0c206023b20368ada0542d1c2f1cd1b3f5161bd0b1a00e4",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libllama-common.so": "a2d842ef57a4e7bbaf2769a484fae34dbeba73f9bb3690448e904e65bb2961ac",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libllama-common.so.0": "a2d842ef57a4e7bbaf2769a484fae34dbeba73f9bb3690448e904e65bb2961ac",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libllama-common.so.0.0.1609": "a2d842ef57a4e7bbaf2769a484fae34dbeba73f9bb3690448e904e65bb2961ac",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libllama-server-impl.so": "9f560899cd63bbdbbd439759e70061e8cd2106d103e8fad3e7351bc64f61ad37",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libllama.so": "5fae808a94b84f3254f267da3b315ebf57ede496c76450e1e29f5072cd7ab44c",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libllama.so.0": "5fae808a94b84f3254f267da3b315ebf57ede496c76450e1e29f5072cd7ab44c",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libllama.so.0.0.1609": "5fae808a94b84f3254f267da3b315ebf57ede496c76450e1e29f5072cd7ab44c",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libmtmd.so": "b9d641c7b853e111be4fdfb7c7a17bec74a757c6d2475964895051bb15a33f84",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libmtmd.so.0": "b9d641c7b853e111be4fdfb7c7a17bec74a757c6d2475964895051bb15a33f84",
+      "/data/data/com.termux/files/home/llama.cpp-b1609-dotprod/build/bin/libmtmd.so.0.0.1609": "b9d641c7b853e111be4fdfb7c7a17bec74a757c6d2475964895051bb15a33f84"
+    },
+    "constants": {
+      "rounds": 4,
+      "first_n": 16,
+      "image_tokens": 70,
+      "test_cap_s": 600
+    },
+    "base_commit": "685a44be63aa88c30e09386ce8e5e196ebf11abc",
+    "git_status": "?? benchmark/relate_anything/quality1/reports/round1_stderr.txt\n?? benchmark/relate_anything/quality1/reports/round2_stderr.txt\n"
+  },
+  "repeat": false,
+  "note": "One independent measurement; no thermal-equivalence gate. Compare with --report A B, which states whether start conditions matched."
+}

@@ -1,0 +1,14 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# Start agy in the existing Debian environment from native Termux.
+if [[ ! -x /data/data/com.termux/files/usr/bin/proot-distro ]]; then
+    printf '%s\n' 'robot-agy: proot-distro is unavailable.' >&2
+    exit 127
+fi
+exec /data/data/com.termux/files/usr/bin/proot-distro login debian --bind /data/data/com.termux/files/home:/termux-home -- /bin/bash -lc '
+    cd /termux-home/robot || exit 1
+    if [[ ! -f "$1" || ! -x "$1" ]]; then
+        printf "Executable unavailable in Debian: %s\n" "$1" >&2
+        exit 127
+    fi
+    exec "$@"
+' robot-agy /root/.local/bin/agy "$@"

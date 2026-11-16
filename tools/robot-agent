@@ -1,0 +1,18 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# Select one agent; returning from it returns to the Termux prompt.
+if (( $# )); then
+    printf '%s\n' 'Usage: robot-agent (or use robot-codex, robot-agy, robot-claude with arguments)' >&2
+    exit 2
+fi
+while true; do
+    printf '%s\n' '1) Codex' '2) AGY' '3) Claude' 'q) Quit'
+    printf 'Choose an agent: '
+    IFS= read -r choice || exit 0
+    case "$choice" in
+        1) exec /data/data/com.termux/files/home/bin/robot-codex ;;
+        2) exec /data/data/com.termux/files/home/bin/robot-agy ;;
+        3) exec /data/data/com.termux/files/home/bin/robot-claude ;;
+        q|Q) exit 0 ;;
+        *) printf '%s\n\n' 'Invalid choice. Enter 1, 2, 3, or q.' >&2 ;;
+    esac
+done

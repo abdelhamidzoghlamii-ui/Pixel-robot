@@ -1,0 +1,66 @@
+No P0–P2 findings. The three round 1 fixes are addressed. One nonblocking P3 reporting issue remains.
+
+1. **P3 — Cap summaries hide time without coverage, potentially understating capping on short tests.**
+
+   `benchmark/gemma_vision/vis3/vis3_run.py:456`:
+   ```python
+           caps={k: round(v['percent']) for k, v in m.get('caps', {}).items()},
+   ```
+
+   The reused calculation retains coverage uncertainty in `benchmark/gemma_vision/vis1/vis1_run.py:509`:
+   ```python
+           result['caps'][policy] = dict(percent=100*capped/(end-start),unknown_s=(end-start)-known)
+   ```
+
+   Concrete scenario: a three-second measurement remains capped throughout, but its last interior sample arrives at two seconds. The calculation reports about 67% capped and one second unknown; the summary prints only 67%. With no interior sample, it can print 0% despite having no coverage.
+
+   Preserve `unknown_s` in the summary, or report coverage alongside the percentage. A sparse-sample test would cover this. Raw results already retain the uncertainty, so this does not block owner execution.
+
+The round 2 changes correctly compare both manifests, separate configuration comparability from operating conditions, hash only the selected configuration’s weights and build, and derive folder suffixes from normalized arguments.
+
+The full candidate preserves independent test selection. Load tests send no inference requests; cold loading drops caches, while other tests prime selected files. First-response measures the complete first request with a 16-token budget and no harness warm-up. Generation and MTP use identical measured payloads. Frequency counters bracket requests; power and cap calculations use the saved measurement interval.
+
+I found no weakening of the reused battery, thermal, telemetry freshness, agent, abort, affinity, owned-process cleanup or memory/LMK observation paths beyond the authorized gate removals. Historical VIS-3 folders do not satisfy VIS-3B completion detection.
+
+Reviewed candidate files:
+
+| File under `benchmark/gemma_vision/vis3/` | Lines |
+|---|---:|
+| `vis3_run.py` | 581 |
+| `test_vis3.py` | 411 |
+| `oneshot.sh` | 101 |
+| `README.md` | 89 |
+
+Supporting files inspected, including targeted excerpts:
+
+| File | Lines |
+|---|---:|
+| `benchmark/gemma_vision/vis2/vis2_run.py` | 489 |
+| `benchmark/gemma_vision/vis1/vis1_run.py` | 838 |
+| `benchmark/campaign/power.py` | 138 |
+| `server_manager.py` | 141 |
+| `chat.py` | 395 |
+| `docs/HANDOFF.md` | 68 |
+| `docs/WORKFLOW.md` | 303 |
+| `docs/REVIEWER.md` | 15 |
+| `docs/CLAUDE.md` | 127 |
+| `docs/STATUS.md` | 468 |
+| `docs/DECISION_INDEX.md` | 57 |
+| `docs/DECISIONS.md` | 1770 |
+| `review_inputs/base_commit.txt` | 1 |
+| `review_inputs/candidate.diff` | 1206 |
+| `review_inputs/approved_to_vis3b.diff` | 1424 |
+| `review_inputs/round1_to_round2.diff` | 260 |
+| `review_inputs/oneshot_vis2_to_vis3.diff` | 116 |
+| `review_inputs/approved_round2_review.txt` | 63 |
+| `review_inputs/vis3b_round1_review.txt` | 117 |
+| `review_inputs/test_vis3_output.txt` | 20 |
+| `review_inputs/test_vis2_output.txt` | 10 |
+| `review_inputs/test_vis1_output.txt` | 44 |
+| `review_inputs/dry_run.txt` | 408 |
+
+Supplied evidence reports VIS-3 20/20 passing, VIS-2 passing and the disclosed pre-existing VIS-1 wrapper-contract error. The added tests cover the three fixes; shell integration coverage remains source-based.
+
+I did not run the temporary-file-writing suite. Read-only Python and shell syntax checks exited 182 without diagnostics. No files were written, and no servers, benchmarks, motors, git mutations or other reviewers were launched. Hardware behavior and timed performance remain unverified.
+
+APPROVED WITH NOTES

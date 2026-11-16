@@ -1,0 +1,113 @@
+Found five P2 issues that should be addressed before timed owner runs. No P0 or P1 finding. Review remained read-only; no servers, benchmarks, motors, or other reviewers were launched.
+
+Reviewed candidate and shared harness line counts:
+
+| File | Lines |
+|---|---:|
+| `benchmark/gemma_vision/vis3/vis3_run.py` | 530 |
+| `benchmark/gemma_vision/vis3/test_vis3.py` | 288 |
+| `benchmark/gemma_vision/vis3/oneshot.sh` | 110 |
+| `benchmark/gemma_vision/vis3/README.md` | 75 |
+| `benchmark/gemma_vision/vis2/vis2_run.py` | 489 |
+| `benchmark/gemma_vision/vis1/vis1_run.py` | 838 |
+| `review_inputs/DIAGNOSIS.md` | 16 |
+
+Below, `vis3_run.py` means `benchmark/gemma_vision/vis3/vis3_run.py`.
+
+1. **P2 — Effective runtime settings can differ while pooled runs pass comparability.**
+
+   `vis3_run.py:337`:
+   ```python
+        if os.environ.get('LD_LIBRARY_PATH'):
+   ```
+
+   `vis3_run.py:403`:
+   ```python
+    keys = ('code_sha256', 'payload_sha256', 'weight_sha256', 'binary_sha256', 'rounds', 'first_n', 'skin_start_max')
+   ```
+
+   Preflight checks library search paths, but neither rejects nor records llama/OpenMP environment overrides. Batch size, ubatch size, flash attention, and loading mode remain implicit. Both upstream argument parsers accept environment overrides for these settings.
+
+   Concrete scenario: separately launched O and N folders use different container environment settings for `LLAMA_ARG_UBATCH`. Their manifests still compare equal, and identical token counts do not reveal the different prompt-processing configuration. A legacy mmap environment override can also affect OLD while NEW has removed that option.
+
+   Reject relevant overrides or explicitly control and record effective settings; include them in pooling checks. Add a regression covering different effective configurations.
+
+2. **P2 — Warm-phase throughput can be thermally confounded without the summary exposing its starting conditions.**
+
+   `vis3_run.py:237`:
+   ```python
+        for name in ('cold', 'warm'):  # warm = immediate relaunch, files still in the page cache
+   ```
+
+   `vis3_run.py:383`:
+   ```python
+        gate_skin=(d.get('gate') or {}).get('skin'), phases=phase,
+   ```
+
+   The strengthened gate runs before the cold phase. Cold loading, initialization, and the first completion then heat the phone before the immediate warm launch. The summary’s start-skin comparison uses the earlier gate reading, rather than either phase’s actual launch temperature.
+
+   Concrete scenario: OLD and NEW both pass at 31 °C, but their cold initialization leaves different temperatures or frequency caps. Warm throughput then differs partly because of that carry-over, while reported start-skin spread is zero.
+
+   Gate the warm launch without dropping caches, and assess actual per-phase starting temperatures/caps. The existing CRITICAL and battery stops remain intact; this finding concerns comparison validity.
+
+3. **P2 — A failed mapped-library check does not reject the block.**
+
+   `vis3_run.py:248`:
+   ```python
+            phase['libs'] = mapped_libs(pid, build)
+   ```
+
+   `vis3_run.py:274`:
+   ```python
+        record.update(label=SMOKE_LABEL if smoke else 'VALID', reason='completed cold + warm sequence')
+   ```
+
+   A false `libs['ok']` is only reported later by summary checks. Execution continues through the measurement sequence and can receive `VALID`; aggregate configuration medians and NEW/OLD ratios still include it.
+
+   Concrete scenario: a launcher maps a ggml/llama library from another build directory. The harness detects the mismatch but continues measuring a configuration outside the intended OLD/NEW comparison.
+
+   Raise immediately on a failed library check, preserving the evidence in the failed record. Add a lifecycle test with `mapped_libs(...).ok == False`.
+
+4. **P2 — The added intermediate shutdown races with the native memory sampler.**
+
+   `vis3_run.py:198`:
+   ```python
+    v1.write(bridge/'target.json', dict(pid=None))
+   ```
+
+   `vis3_run.py:289`:
+   ```python
+            if [e for e in v1.rows(bridge/'errors.jsonl') if record['phase_start'] <= e['t'] <= record['stop_start']]:
+   ```
+
+   Clearing `target.json` does not acknowledge that an already-running monitor sample has finished. That sample may still hold the cold server PID when shutdown removes its `/proc` files. The reused monitor then records a sampling failure.
+
+   Unlike VIS-2’s final shutdown, this cold-phase shutdown occurs inside the interval checked for sampling errors. A normal, clean exit can therefore invalidate the completed block, or transient error telemetry can abort the warm launch.
+
+   Synchronize sampler detachment before stopping the server. Keep sampling failures during live measurement fatal. Add a test covering an in-flight sample during cold-to-warm shutdown.
+
+5. **P2 — Preflight can declare readiness with a required Python dependency missing.**
+
+   `vis3_run.py:351`:
+   ```python
+    print('PREFLIGHT OK', flush=True)
+   ```
+
+   `chat.py:1`:
+   ```python
+import sys, os, requests, time, subprocess, shutil
+   ```
+
+   VIS-3 removed the Debian dependency check inherited by VIS-2, but payload construction still reaches `chat.py` through `v1.text_payload()`.
+
+   Concrete scenario: Debian lacks `requests`. Both wrapper preflights pass and readiness is announced; the owner subsequently waits through the five-minute idle before payload construction fails.
+
+   Check the dependencies actually needed by this text-only harness before reporting readiness. Pillow need not remain required. Add a missing-`requests` preflight test.
+
+The diagnosis is broadly supported for the listed compiler/CPU build settings, draft-thread inheritance, disabled per-request speculative adjustments, buffered projector reads, combined teardown, and disabled subprocess support. However, “identical logic” overstates the speculative conversion comparison: NEW contains additional behavior, although its thread-inheritance branch matches OLD. The archived help also distinguishes OLD’s `mmap` default from NEW’s `auto`; equivalent behavior on this CPU should be described separately from identical defaults.
+
+The upstream reload PR was closed on August 11, and the projector/draft eviction proposal remains a draft aimed at GPU memory swapping. [Reload PR](https://github.com/ggml-org/llama.cpp/pull/25963), [eviction PR](https://github.com/ggml-org/llama.cpp/pull/28346). I could not verify issue #30776, independently recount the instruction totals, or fully reproduce the historical thermal figures.
+
+The supplied outputs report VIS-3 13/13 and VIS-2 passing, plus the disclosed VIS-1 wrapper-contract error. My permitted VIS-3 rerun exited 182 without output, so those results were inspected but not independently reproduced. Current tests cover command parity and the happy lifecycle, but miss the failure scenarios above. The wrapper adaptation preserves the existing thermal stops and owned-process handling; I found no deliberate unrelated-process termination path.
+
+CHANGES REQUESTED

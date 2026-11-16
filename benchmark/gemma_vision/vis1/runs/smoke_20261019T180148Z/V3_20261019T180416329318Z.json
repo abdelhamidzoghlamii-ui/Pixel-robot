@@ -1,0 +1,119 @@
+{
+  "block": "V3",
+  "label": "SMOKE \u2014 NOT VALID TIMING",
+  "command": [
+    "taskset",
+    "-c",
+    "4-7",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=3",
+    "900",
+    "/data/data/com.termux/files/home/llama.cpp-vis/build/bin/llama-server",
+    "-m",
+    "/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "8091",
+    "--ctx-size",
+    "4096",
+    "--threads",
+    "4",
+    "--threads-batch",
+    "4",
+    "--parallel",
+    "1",
+    "--swa-full",
+    "--cache-ram",
+    "0",
+    "--mmproj",
+    "/data/data/com.termux/files/home/models/vis0/mmproj-gemma-4-E2B-it-Q8_0.gguf",
+    "--image-min-tokens",
+    "140",
+    "--image-max-tokens",
+    "140",
+    "--reasoning",
+    "off",
+    "-lv",
+    "4"
+  ],
+  "started_epoch": 1792433056.3283842,
+  "server_started": true,
+  "reply_received": true,
+  "exit_clean": true,
+  "image_tokens": 154,
+  "reason": null,
+  "allow_agent": true,
+  "reading": {
+    "status": 0,
+    "skin": 36.8587,
+    "thermal_at": 104943.542272107,
+    "agent": false,
+    "agent_detail": [],
+    "t_start": 104943.833099337,
+    "t": 104944.03336895,
+    "current_now_uA": -1268125,
+    "voltage_now_uV": 3920312,
+    "battery_w": 4.971445655,
+    "battery_status": "Discharging",
+    "capacity": 72,
+    "bat_c": 28.7,
+    "max": {
+      "policy0": 1598000,
+      "policy4": 2130000,
+      "policy6": 2048000
+    },
+    "cpuinfo_max_khz": {
+      "policy0": 1803000,
+      "policy4": 2348000,
+      "policy6": 2850000
+    },
+    "cpu_mc": [
+      76000,
+      75000,
+      75000
+    ],
+    "pid": null,
+    "mem_available_kib": 4015092
+  },
+  "requests": [
+    {
+      "input": "bench_photos__blocked_1",
+      "started": 104951.184170182,
+      "ended": 104970.406925359,
+      "wall_ms": 19222.75517700473,
+      "reply": "In front of the robot is a wooden dining table with a laptop, various cups, a vase, and some potted plants. There are also chairs and a couch visible around the table.",
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 359,
+        "prompt_ms": 14469.076,
+        "prompt_per_token_ms": 40.30383286908078,
+        "prompt_per_second": 24.81153599580236,
+        "predicted_n": 38,
+        "predicted_ms": 4672.229,
+        "predicted_per_token_ms": 126.27645945945946,
+        "predicted_per_second": 7.919132388416749
+      },
+      "prompt_tokens": 359,
+      "prompt_ms": 14469.076,
+      "generated_tokens": 38,
+      "predicted_per_second": 7.919132388416749,
+      "draft_n": null,
+      "draft_n_accepted": null,
+      "image_encode_ms": 6249.371,
+      "image_tokens": 154,
+      "usage": {
+        "completion_tokens": 38,
+        "prompt_tokens": 359,
+        "total_tokens": 397,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "budget": 140,
+      "mmproj": "Q8_0"
+    }
+  ],
+  "server_exit": 0
+}

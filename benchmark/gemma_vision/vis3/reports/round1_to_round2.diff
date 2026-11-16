@@ -1,0 +1,320 @@
+--- /data/data/com.termux/files/home/review/vis3/round1_copy/benchmark/gemma_vision/vis3/vis3_run.py	2026-10-22 14:39:31.000000000 +0000
++++ benchmark/gemma_vision/vis3/vis3_run.py	2026-10-22 14:51:16.499803631 +0000
+@@ -194,10 +194,24 @@
+     return time.monotonic()-began
+ 
+ 
+-def stop(live, bridge, phase):
++def detach(bridge, wait=5):
++    """Clear the monitor target, then wait for a sample begun after that, so no in-flight sample still reads the
++    server's /proc files when it exits (the cold stop lies inside the block's sampling-error window)."""
+     v1.write(bridge/'target.json', dict(pid=None))
++    after, deadline = time.monotonic(), time.monotonic() + wait
++    while time.monotonic() < deadline:
++        if any(s.get('t_start', -1) > after for s in v1.rows(bridge/'samples.jsonl')[-3:]):
++            return True
++        time.sleep(.1)
++    return False
++
++
++def stop(live, bridge, phase):
+     proc, pid = live.pop('proc', None), live.pop('pid', None)
+-    if proc is not None:
++    if proc is None:
++        v1.write(bridge/'target.json', dict(pid=None))
++    else:
++        phase['sampler_detached'] = detach(bridge)
+         began = time.monotonic()
+         phase['server_exit'] = v1.own_stop(proc, pid)
+         phase['stop_s'] = time.monotonic()-began
+@@ -234,8 +248,10 @@
+         if not smoke:  # cold: the GGUF and libraries leave the page cache
+             drop_caches(bridge)
+             record['gate_after_drop'] = gate(bridge, idle)
+-        for name in ('cold', 'warm'):  # warm = immediate relaunch, files still in the page cache
++        for name in ('cold', 'warm'):  # warm = relaunch without a cache drop, files still in the page cache
+             phase = record['phases'][name] = {}
++            if name == 'warm' and not smoke:  # cold load and first reply heat the phone: gate again
++                phase['gate'] = gate(bridge, idle)
+             d = v2.telemetry(bridge)
+             phase['start'] = dict(skin=d['skin'], status=d['status'], capacity=d['capacity'],
+                                   voltage_now_uV=d['voltage_now_uV'], mem_available_kib=d.get('mem_available_kib'),
+@@ -246,6 +262,8 @@
+             v1.check_cores(pid)
+             phase['reported'] = verify(block)
+             phase['libs'] = mapped_libs(pid, build)
++            if not phase['libs']['ok']:
++                raise RuntimeError(f'server mapped libraries outside its build: {phase["libs"]["libs"]}')
+             phase['pss_after_load'] = v2.fresh_pss(bridge, pid)
+             phase['first'] = timed(bridge, pid, logpath, 'first', first[0], '/completion', first[1], REQ_TIMEOUT_S)
+             if name == 'warm':
+@@ -314,6 +332,17 @@
+                 git_status=subprocess.check_output(['git', 'status', '--porcelain=v1'], cwd=REPO, text=True))
+ 
+ 
++ENV_OVERRIDE = re.compile(r'^(LLAMA_|GGML_|OMP_|KMP_|LD_LIBRARY_PATH$|LD_PRELOAD$)')
++
++
++def check_env(env=os.environ):
++    """Both servers read LLAMA_ARG_* (batch, ubatch, flash attention, mmap, ...) and OpenMP variables from the
++    environment, which the command line would not show; refuse any so both run on their defaults."""
++    found = sorted(k for k in env if ENV_OVERRIDE.match(k))
++    if found:
++        raise SystemExit('environment overrides server settings; unset: ' + ', '.join(found))
++
++
+ def preflight():
+     """Before and after the 5-minute idle: ports, agents, files/hashes, no shadowing libs, plus Debian or native checks."""
+     v1.free_ports()
+@@ -334,8 +363,9 @@
+         raise SystemExit('Termux $PREFIX/lib would shadow the build libraries: ' + ', '.join(shadow))
+     freq_state()
+     if Path('/termux-home').is_dir():
+-        if os.environ.get('LD_LIBRARY_PATH'):
+-            raise SystemExit('LD_LIBRARY_PATH is set; unset it so each launcher loads its own build')
++        check_env()
++        if importlib.util.find_spec('requests') is None:
++            raise SystemExit('Debian python3 is missing requests (chat.py imports it) — run: apt-get install python3-requests')
+     else:
+         if subprocess.run(['su', '-c', 'id'], capture_output=True, timeout=10).returncode != 0:
+             raise SystemExit('no root (su) access; telemetry needs root')
+@@ -399,8 +429,13 @@
+         caps={k: round(v['percent']) for k, v in m.get('caps', {}).items()}, power=m.get('power'))
+ 
+ 
++def spread(xs):
++    return round(max(xs) - min(xs), 2) if xs and None not in xs else None
++
++
+ def comparable(manifests):
+-    keys = ('code_sha256', 'payload_sha256', 'weight_sha256', 'binary_sha256', 'rounds', 'first_n', 'skin_start_max')
++    keys = ('code_sha256', 'payload_sha256', 'weight_sha256', 'binary_sha256', 'commands', 'rounds', 'first_n',
++            'skin_start_max')
+     return all({k: x[k] for k in keys} == {k: manifests[0][k] for k in keys} for x in manifests)
+ 
+ 
+@@ -439,7 +474,8 @@
+                                            if x['build'] == build and x['mtp'] == mtp]),
+                 mean_battery_w=med([(x['power'] or {}).get('mean_battery_w') for _, x in valid
+                                     if x['build'] == build and x['mtp'] == mtp]),
+-                start_skin=[x['gate_skin'] for _, x in valid if x['build'] == build and x['mtp'] == mtp])
++                start_skin={n: [x['phases'][n]['start_skin'] for _, x in valid if x['build'] == build and x['mtp'] == mtp]
++                            for n in ('cold', 'warm')})
+     for c in configs.values():
+         print(json.dumps(dict(config=c)), flush=True)
+     ratio = {}
+@@ -460,8 +496,7 @@
+             both_builds=len(g) == 2, balanced=len({len(v) for v in g.values()}) == 1,
+             prompt_n_identical=len({json.dumps(x['prompt_n'], sort_keys=True) for x in xs}) <= 1,
+             gen_tokens_identical=len({json.dumps(x['gen_tokens'], sort_keys=True) for x in xs}) <= 1,
+-            start_skin_spread=round(max(x['gate_skin'] for x in xs) - min(x['gate_skin'] for x in xs), 2)
+-            if all(x['gate_skin'] is not None for x in xs) else None,
++            start_skin_spread={n: spread([x['phases'][n]['start_skin'] for x in xs]) for n in ('cold', 'warm')},
+             all_checks_pass=all(all(x['checks'].values()) for x in xs))
+     print(json.dumps(dict(new_over_old=ratio, comparability=comp)), flush=True)
+     return lines, configs, comp
+@@ -498,6 +533,7 @@
+         raise SystemExit('missing owner wrapper receipt')
+     if v1.agent_found(log=True):
+         raise SystemExit('agent found; no server started')
++    check_env()
+     v1.free_ports()
+     v2.telemetry(bridge)
+     os.sched_setaffinity(0, {4, 5, 6, 7})
+--- /data/data/com.termux/files/home/review/vis3/round1_copy/benchmark/gemma_vision/vis3/test_vis3.py	2026-10-22 14:40:56.000000000 +0000
++++ benchmark/gemma_vision/vis3/test_vis3.py	2026-10-22 14:51:42.711803644 +0000
+@@ -154,7 +154,7 @@
+         return None
+ 
+ 
+-def fake_run(tmp, fail_verify=False):
++def fake_run(tmp, fail_verify=False, libs_ok=True):
+     out = Path(tmp)
+     log = T1_LOG.read_text(errors='replace')
+     stops = []
+@@ -175,14 +175,17 @@
+         return dict(vision=False, speculative=[False], n_ctx=[2048], build_info='b')
+     tele = dict(skin=30., status=0, capacity=70, voltage_now_uV=4e6, mem_available_kib=1, max={})
+     gen, unc, cached, first = v.payloads()
++    gates = []
+     with patched((v, 'launch', launch), (v, 'timed', timed), (v, 'verify', verify),
+-                 (v, 'mapped_libs', lambda pid, b: dict(libs=['x'], ok=True)),
+-                 (v, 'gate', lambda b, i: dict(skin=30.)), (v, 'drop_caches', lambda b: None),
++                 (v, 'mapped_libs', lambda pid, b: dict(libs=['/elsewhere/libllama.so'], ok=libs_ok)),
++                 (v, 'gate', lambda b, i: gates.append(i) or dict(skin=30.)), (v, 'drop_caches', lambda b: None),
++                 (v, 'detach', lambda b: True),
+                  (v2, 'telemetry', lambda b: tele), (v2, 'fresh_pss', lambda b, p: dict(pss_kib=2048)),
+                  (v1, 'check_cores', lambda pid: None), (v1, 'agent_found', lambda log=False: False),
+                  (v1, 'own_stop', lambda proc, pid=None: stops.append(pid) or 0), (v1, 'group_alive', lambda g: False),
+                  (v1, 'lmk_request', lambda b, e: dict(ok=True)), (v1, 'metrics', lambda r: {})):
+         rec = v.run_block('N', 3, out, out, 30., v.sequence(False, gen, unc, cached), first, False)
++    rec['gates'] = gates
+     return rec, stops, out
+ 
+ 
+@@ -198,6 +201,8 @@
+         assert ph['load_s'] == 1.5 and ph['exit_clean'] and ph['first']['kind'] == 'first'
+         assert set(ph['markers']) == set(v.MARKERS)
+     assert len(rec['requests']) == 3 * v.ROUNDS and 'pss_end' in rec['phases']['warm']
++    assert len(rec['gates']) == 3 and 'gate' in rec['phases']['warm'], 'gate, gate after drop, gate before warm'
++    assert all(ph['sampler_detached'] for ph in rec['phases'].values())
+     assert any(f.endswith('.cold.server.log') for f in files) and any(f.endswith('.warm.server.log') for f in files)
+     assert saved['label'] == 'VALID' and target == dict(pid=None)
+ 
+@@ -209,6 +214,48 @@
+     assert stops == [99] and rec['phases']['cold']['server_exit'] == 0 and 'warm' not in rec['phases']
+ 
+ 
++def test_run_block_rejects_foreign_libraries():
++    with tempfile.TemporaryDirectory() as tmp:
++        rec, stops, _ = fake_run(tmp, libs_ok=False)
++    assert rec['label'] == 'NOT VALID' and 'outside its build' in rec['reason']
++    assert stops == [99] and not rec['requests'] and 'first' not in rec['phases']['cold']
++
++
++def test_detach_waits_for_a_later_sample():
++    with tempfile.TemporaryDirectory() as tmp:
++        bridge = Path(tmp)
++        assert v.detach(bridge, wait=.3) is False, 'no sample after the clear: not detached'
++        (bridge/'samples.jsonl').write_text(json.dumps(dict(t_start=1e12, t=1e12, pid=None)) + '\n')
++        assert v.detach(bridge, wait=.3) is True
++        assert json.loads((bridge/'target.json').read_text()) == dict(pid=None)
++
++
++def test_env_overrides_refused():
++    v.check_env({'HOME': '/root', 'PATH': '/bin', 'LD_PRELOADX': '1'})
++    for key in ('LLAMA_ARG_UBATCH', 'LLAMA_ARG_MMAP', 'GGML_NTHREADS', 'OMP_WAIT_POLICY', 'KMP_BLOCKTIME',
++                'LD_LIBRARY_PATH', 'LD_PRELOAD'):
++        try:
++            v.check_env({'HOME': '/root', key: '1'})
++        except SystemExit as e:
++            assert key in str(e)
++        else:
++            raise AssertionError(key)
++
++
++def test_preflight_requires_requests():
++    real = v.importlib.util.find_spec
++    with patched((v1, 'free_ports', lambda: None), (v1, 'agent_matches', lambda: []),
++                 (v1, 'sha', lambda p: v.WEIGHTS[p]), (v, 'check_env', lambda: None),
++                 (v.importlib.util, 'find_spec', lambda m: None if m == 'requests' else real(m))):
++        try:
++            with contextlib.redirect_stdout(io.StringIO()) as out:
++                v.preflight()
++        except SystemExit as e:
++            assert 'requests' in str(e) and 'PREFLIGHT OK' not in out.getvalue()
++        else:
++            raise AssertionError('preflight must refuse without requests')
++
++
+ def record(block, index, build, mtp, gen_tps, load, skin, tokens=5):
+     req = lambda kind, name, **kw: dict(dict(kind=kind, input=name, wall_ms=100., prompt_ms=50., prompt_tokens=10,
+                                              generated_tokens=tokens, predicted_per_second=gen_tps,
+@@ -235,8 +282,8 @@
+ 
+ 
+ def test_summarize_pools_folders():
+-    man = dict(code_sha256={'a': 1}, payload_sha256={}, weight_sha256={}, binary_sha256={}, rounds=4, first_n=16,
+-               skin_start_max=32.0)
++    man = dict(code_sha256={'a': 1}, payload_sha256={}, weight_sha256={}, binary_sha256={}, commands={'O': ['x']},
++               rounds=4, first_n=16, skin_start_max=32.0)
+     with tempfile.TemporaryDirectory() as tmp:
+         f1 = write_folder(tmp, 'r1', [record('O', 0, 'b1609-dotprod', False, 12., 9., 30.),
+                                       record('N', 1, 'vis', False, 9., 12., 30.5)], man)
+@@ -245,14 +292,15 @@
+         out = io.StringIO()
+         with contextlib.redirect_stdout(out):
+             lines, configs, comp = v.summarize(f1, f2)
+-        bad = write_folder(tmp, 'r3', [], dict(man, rounds=6))
+-        try:
+-            with contextlib.redirect_stdout(io.StringIO()):
+-                v.summarize(f1, bad)
+-        except SystemExit as e:
+-            assert 'not pooled' in str(e)
+-        else:
+-            raise AssertionError('mismatched manifests must not pool')
++        for i, other in enumerate((dict(man, rounds=6), dict(man, commands={'O': ['x', '-ub', '256']}))):
++            bad = write_folder(tmp, f'r{3 + i}', [], other)
++            try:
++                with contextlib.redirect_stdout(io.StringIO()):
++                    v.summarize(f1, bad)
++            except SystemExit as e:
++                assert 'not pooled' in str(e)
++            else:
++                raise AssertionError('mismatched manifests must not pool')
+     assert len(lines) == 4 and all(x['checks']['libs_ok'] for x in lines)
+     old, new = configs[('b1609-dotprod', False)], configs[('vis', False)]
+     assert old['blocks'] == new['blocks'] == 2 and old['gen_tok_s'] == 12 and new['load_cold_s'] == 12
+@@ -261,7 +309,7 @@
+     assert last['new_over_old']['base']['gen_tok_s'] == .75 and last['new_over_old']['base']['load_cold_s'] == 1.333
+     c = comp['base']
+     assert c['both_builds'] and c['balanced'] and c['prompt_n_identical'] and c['all_checks_pass']
+-    assert c['gen_tokens_identical'] is False and c['start_skin_spread'] == 1.0
++    assert c['gen_tokens_identical'] is False and c['start_skin_spread'] == dict(cold=1.0, warm=1.0)
+ 
+ 
+ def test_dry_run():
+--- /data/data/com.termux/files/home/review/vis3/round1_copy/benchmark/gemma_vision/vis3/README.md	2026-10-22 14:41:57.000000000 +0000
++++ benchmark/gemma_vision/vis3/README.md	2026-10-22 14:52:15.375803660 +0000
+@@ -8,9 +8,10 @@
+ 
+ The builds are equivalent: same Clang 21.1.8, `-O3`, `-march=armv8.2-a+dotprod+fp16`, OpenMP, REPACK, LLAMAFILE,
+ shared libraries, no KleidiAI. Both have `sdot` (1045 vs 1117) and the same 456 FP16 `fmla .8h`. The CMake caches
+-differ only in `LLAMA_BUILD_IS_DEV` (version string) and `LLAMA_BUILD_UI`. The runtime defaults are also the same on both:
+-mmap loading, flash attention `auto` (enabled), batch 2048, ubatch 512, `--fit on`, the MTP draft inheriting the
+-target's threads, `--swa-full` and `--cache-ram 0` honoured. b11716 creates an explicit ggml threadpool. Under OpenMP this
++differ only in `LLAMA_BUILD_IS_DEV` (version string) and `LLAMA_BUILD_UI`. The effective runtime defaults also match: mmap loading
++(OLD default `mmap`, NEW default `auto` = mmap on CPU, logged `load_mode = mmap`), flash attention `auto` (enabled), batch 2048,
++ubatch 512, `--fit on`, `--swa-full` and `--cache-ram 0` honoured. In `common_base_params_to_speculative`, the branch that
++gives the MTP draft the target's threads is the same in both builds, but NEW adds other behaviour to that function. b11716 creates an explicit ggml threadpool. Under OpenMP this
+ is plausibly neutral, but that is unverified.
+ 
+ The earlier OLD vs NEW numbers come from different thermal conditions. The VIS gate is idle + 1.5 °C, and session idles were
+@@ -27,6 +28,10 @@
+ | N | `~/llama.cpp-vis` (b11716) | off |
+ | OM / NM (optional) | as O / N | `--model-draft … --spec-type draft-mtp --spec-draft-n-max 3` |
+ 
++The runner and the Debian preflight refuse `LLAMA_*`, `GGML_*`, `OMP_*`, `KMP_*`, `LD_LIBRARY_PATH` and `LD_PRELOAD`
++environment variables, because both servers read hidden settings from them. Each server stops only after the monitor has
++detached from it. A server that maps a library from outside its own build fails the block.
++
+ Command = `server_manager.start_setup('setup_q4')` (or `setup_q4_mtp`) exactly, with `taskset -c 4-7`, `timeout 900`
+ and port 8091. A test checks this against `server_manager.py`. OLD and NEW differ only in the binary path. No projector
+ and no `--reasoning` flag: `/completion` with the raw chat.py prompt never uses the chat template.
+@@ -34,7 +39,7 @@
+ Per block: the strengthened gate (skin ≤ idle + 1.5 °C **and** ≤ `SKIN_START_MAX` = 32.0 °C, waiting up to 30 min), then a
+ cache drop and the gate again. **Cold phase:** launch, readiness, `/props` and `/slots` checks (no vision, intended MTP,
+ n_ctx 2048), the mapped libraries in `/proc/<pid>/maps` must come from the block's own build, PSS, then the first response
+-(gen[0] prompt, 16 tokens), then a clean stop. **Warm phase:** immediate relaunch (files still cached), the same checks
++(gen[0] prompt, 16 tokens), then a clean stop. **Warm phase:** the gate again (no cache drop), relaunch (files still cached), the same checks
+ and first response, then 4 rounds of U (≈1005-token uncached log, 8 tokens), K (cached prefix, 8 tokens) and G (VIS-1
+ prompt, greedy, up to 128 tokens), then a clean stop. Requests are greedy (temperature 0, top_k 1, seed 0) and identical
+ for every block.
+@@ -46,7 +51,8 @@
+ 
+ `VALID` means only that execution conditions held. `--summarize` prints per-config medians, NEW/OLD ratios and the
+ comparability checks: both builds present, balanced, identical prompt token counts (tokenization), identical generated
+-lengths, start-skin spread, and every check passing. Draw conclusions only after that assessment.
++lengths, cold and warm start-skin spread, and every check passing. The summary pools folders only when their code, payloads, weights, binaries, commands
++and constants match. Draw conclusions only after that assessment.
+ 
+ ## Owner commands (native Termux, no agent running, battery ≥ 50 % and unplugged, screen on, Termux in front)
+ 
+@@ -58,14 +64,14 @@
+ ```
+ 
+ Expected time for `O,N,N,O`: 5 min idle, then about 4 min active per block (cold + warm load about 25 s, 4 rounds about
+-170 s), plus cooling to the gate between blocks (typically 5–15 min each). That is about 35–75 min in total. If the phone
++170 s), plus cooling to the gate before each block and each warm phase (typically 5–15 min each). That is about 45–100 min in total. If the phone
+ idles above 32 °C the gate cannot pass: cool the room or remove the case. Never raise the ceiling just to make a run pass.
+ 
+ Each launch writes one folder, `vis3/runs/<UTC>/` (or `smoke_<UTC>/`). It holds `run.json` (commands, code, payload,
+ weight and binary/library hashes, base commit, git status), one JSON per block, `.cold.server.log` / `.warm.server.log`,
+ `samples.jsonl` and `console.log`. A failed block stops the launch and the earlier blocks stay. Rerun only the missing blocks, as a
+-new folder (e.g. `--blocks N,O`). The summary pools folders and refuses if their code, payloads, weights, binaries or
+-constants differ:
++new folder (e.g. `--blocks N,O`). The summary pools folders and refuses if their code, payloads, weights, binaries,
++commands or constants differ:
+ 
+ ```bash
+ python3 -B ~/robot/benchmark/gemma_vision/vis3/vis3_run.py --summarize <folder> [<folder> ...]

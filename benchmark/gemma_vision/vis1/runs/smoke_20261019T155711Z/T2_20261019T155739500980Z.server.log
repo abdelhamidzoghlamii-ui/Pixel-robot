@@ -1,0 +1,39 @@
+0.00.009.589 I srv  llama_server: initializing ...
+0.00.012.063 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.013.994 W srv  llama_server: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.017.480 I srv    load_model: loading model '/data/data/com.termux/files/home/models/gemma-4-E2B-it-Q4_0.gguf'
+0.02.392.656 E llama_init_from_model: failed to initialize the context: Gemma4Assistant requires ctx_other to be set (this warning is normal during memory fitting)
+0.02.610.888 W operator(): failed to measure the memory of the extra model, fitting without it: failed to create llama_context from model
+0.03.626.479 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.03.639.234 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.03.695.447 W load: '</s>' is a normal token here, removing it from EOG list
+0.05.379.358 W llama_kv_cache_iswa: using full-size SWA cache (ref: https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
+0.05.416.418 I cmn          init: llama threadpool init, n_threads = 4
+0.05.595.454 I common_speculative_init_result: loading draft model '/data/data/com.termux/files/home/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf'
+0.06.625.530 W load: control-looking token:     50 '<|tool_response>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.06.636.259 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.06.681.326 W load: '</s>' is a normal token here, removing it from EOG list
+0.06.803.665 W llama_kv_cache_iswa: using full-size SWA cache (ref: https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
+0.06.803.793 W llama_kv_cache: layer   3: sharing with layer 34. k = 0xb4000071ebdcf000, v = 0xb4000071ec1cf000
+0.06.804.076 W llama_kv_cache: layer   0: sharing with layer 33. k = 0xb4000071ea9cc000, v = 0xb4000071eabcc000
+0.06.804.079 W llama_kv_cache: layer   1: sharing with layer 33. k = 0xb4000071ea9cc000, v = 0xb4000071eabcc000
+0.06.804.081 W llama_kv_cache: layer   2: sharing with layer 33. k = 0xb4000071ea9cc000, v = 0xb4000071eabcc000
+0.06.939.782 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 4096, kv_unified = 'false'
+0.06.954.050 W srv          init: --cache-idle-slots requires --cache-ram, disabling
+0.06.974.718 I srv  llama_server: model loaded
+0.06.974.792 I srv  llama_server: listening on http://127.0.0.1:8091
+0.07.037.151 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = -1
+0.07.037.457 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+0.12.891.438 I slot print_timing: id  0 | task 0 | n_gen =    100, tg =  18.50 t/s, tg_3s =  18.68 t/s
+0.16.044.148 I slot print_timing: id  0 | task 0 | n_gen =    151, tg =  17.64 t/s, tg_3s =  16.18 t/s
+0.19.134.952 I slot print_timing: id  0 | task 0 | n_gen =    198, tg =  16.99 t/s, tg_3s =  15.21 t/s
+0.22.148.723 I slot print_timing: id  0 | task 0 | n_gen =    246, tg =  16.77 t/s, tg_3s =  15.93 t/s
+0.25.270.038 I slot print_timing: id  0 | task 0 | n_gen =    293, tg =  16.47 t/s, tg_3s =  15.06 t/s
+0.26.851.805 I slot print_timing: id  0 | task 0 | prompt eval time =     501.43 ms /    29 tokens (   17.29 ms per token,    57.83 tokens per second)
+0.26.852.256 I slot print_timing: id  0 | task 0 |        eval time =   19312.78 ms /   312 tokens (   62.10 ms per token,    16.10 tokens per second)
+0.26.852.259 I slot print_timing: id  0 | task 0 |       total time =   19814.21 ms /   341 tokens
+0.26.852.261 I slot print_timing: id  0 | task 0 |    graphs reused =        133
+0.26.852.262 I slot print_timing: id  0 | task 0 |   graph reallocs =          0    /     0        (same size) / (changed size)
+0.26.852.271 I slot print_timing: id  0 | task 0 | draft acceptance = 0.44030 (  177 accepted /   402 generated), mean len =  2.32
+0.26.852.808 I slot      release: id  0 | task 0 | stop processing: n_tokens = 340, truncated = 0
+0.26.858.361 I srv    operator(): operator(): cleaning up before exit...

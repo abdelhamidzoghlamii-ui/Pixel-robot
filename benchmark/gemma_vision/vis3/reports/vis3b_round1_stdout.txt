@@ -1,0 +1,117 @@
+Found **two P2 issues and one P3 issue**. No P0/P1 safety regression identified.
+
+1. **P2 — Cross-run reports no longer verify comparable configurations or provenance.**
+
+   `benchmark/gemma_vision/vis3/vis3_run.py:416`:
+   ```python
+       d = json.loads((Path(folder)/'result.json').read_text())
+   ```
+
+   `benchmark/gemma_vision/vis3/vis3_run.py:452`:
+   ```python
+           same_test=a['test'] == b['test'],
+   ```
+
+   `benchmark/gemma_vision/vis3/vis3_run.py:461`:
+   ```python
+       return dict(c, matched=all(c.values()), start_skin=[sa['skin'], sb['skin']], measured_mean_mhz=mhz,
+   ```
+
+   The report never reads the saved manifests. Two `prompt` runs can therefore produce ratios and `matched: true` when one includes the drafter and the other does not, or when their payloads, context settings, weights, or harness code differ. Identical token counts do not establish identical prompts.
+
+   Restore a separate, explicit comparability assessment using the manifests, allowing the intended configuration differences. Keep operating-condition matching separate. Add tests covering different MTP/projector settings and different payload/code hashes.
+
+2. **P2 — Unused artifacts prevent independent tests and defeat repeat detection.**
+
+   `benchmark/gemma_vision/vis3/vis3_run.py:336`:
+   ```python
+                   weight_sha256={str(p): v1.sha(p) for p in WEIGHTS},
+   ```
+
+   `benchmark/gemma_vision/vis3/vis3_run.py:337`:
+   ```python
+                   binary_sha256={str(p): v1.sha(p) for b in BUILDS.values() for p in [v1.BINS[b]] + libs_of(b)},
+   ```
+
+   Every test hashes all three weights and both builds, including artifacts it never uses. Consequently:
+
+   - An OLD text-only test fails during Debian preflight if the unused NEW executable or Q8 projector is absent.
+   - Rebuilding only NEW changes the fingerprint of an already completed OLD test, permitting that unchanged OLD measurement to run again without `--repeat`.
+
+   Hash and validate the artifacts used by the selected configuration for execution and repeat detection. An optional broader inventory should not determine completion identity. Add tests for missing unused artifacts and changes to the unselected build.
+
+3. **P3 — Folder names depend on argument spelling and order.**
+
+   `benchmark/gemma_vision/vis3/oneshot.sh:17`:
+   ```bash
+     case "$PREV" in --test|--build) SUFFIX="${SUFFIX}_$ARG" ;; esac
+   ```
+
+   `benchmark/gemma_vision/vis3/oneshot.sh:36`:
+   ```bash
+   NAME=$(date -u +%Y%m%dT%H%M%SZ)$SUFFIX
+   ```
+
+   Argparse accepts `--test=gen --build=new`, but the wrapper produces a timestamp-only folder. Reversing the ordinary arguments produces `_new_gen`; repeated options can put superseded values into the name. This undermines the documented configuration-labelled archive.
+
+   Derive the suffix from the validated, normalized configuration. Test both argument forms and reversed ordering; the current wrapper test only checks source strings.
+
+The measurement selection otherwise follows the requested design: load tests send no inference requests; cold loading uses the cache-drop handshake; other tests prime their selected files; first-response has no harness warm-up; generation and MTP use the same measured payloads. Frequency counters bracket individual requests, and reused power/capping calculations use the saved measurement interval. First-response is explicitly full-response latency for up to 16 generated tokens, not time to first token.
+
+The candidate retains the reused battery, thermal, telemetry freshness, abort, agent, affinity, owned-process cleanup, and memory/LMK observation paths. Removing sampler detachment does not recreate the previous intermediate cold-to-warm failure: this runner has one server phase, with shutdown outside its sampling-error validity window. Historical run folders are excluded from completion detection by their old record layout.
+
+Reviewed candidate files:
+
+| File under `benchmark/gemma_vision/vis3/` | Lines |
+|---|---:|
+| `vis3_run.py` | 551 |
+| `test_vis3.py` | 356 |
+| `oneshot.sh` | 106 |
+| `README.md` | 85 |
+
+Supporting files inspected, including targeted source excerpts:
+
+| File | Lines |
+|---|---:|
+| `benchmark/gemma_vision/vis2/vis2_run.py` | 489 |
+| `benchmark/gemma_vision/vis1/vis1_run.py` | 838 |
+| `benchmark/gemma_vision/vis0/vis0.py` | 1437 |
+| `benchmark/campaign/power.py` | 138 |
+| `server_manager.py` | 141 |
+| `chat.py` | 395 |
+| `benchmark/gemma_vision/vis3/reports/DIAGNOSIS.md` | 17 |
+| `benchmark/gemma_vision/vis3/reports/VIS3_CODER_REPORT.md` | 197 |
+| `benchmark/gemma_vision/vis1/runs/20261019T222505Z/V2_20261021T090516344998Z.server.log` | 888 |
+| `review_inputs/base_commit.txt` | 1 |
+| `review_inputs/REVIEW_REQUEST.md` | 43 |
+| `review_inputs/candidate.diff` | 1122 |
+| `review_inputs/approved_to_vis3b.diff` | 1424 |
+| `review_inputs/oneshot_vis2_to_vis3.diff` | 116 |
+| `review_inputs/approved_round2_review.txt` | 63 |
+| `review_inputs/test_vis3_output.txt` | 17 |
+| `review_inputs/test_vis2_output.txt` | 10 |
+| `review_inputs/test_vis1_output.txt` | 44 |
+| `review_inputs/dry_run.txt` | 408 |
+| `docs/HANDOFF.md` | 68 |
+| `docs/WORKFLOW.md` | 303 |
+| `docs/REVIEWER.md` | 15 |
+| `docs/STATUS.md` | 468 |
+| `docs/DECISION_INDEX.md` | 57 |
+| `docs/CLAUDE.md` | 127 |
+| `docs/DECISIONS.md` | 1770 |
+
+Upstream excerpts inspected under `/data/data/com.termux/files/home/llama.cpp-vis/`:
+
+| File | Lines |
+|---|---:|
+| `tools/server/server-context.cpp` | 6313 |
+| `tools/server/server-common.cpp` | 2092 |
+| `tools/server/server-schema.cpp` | 603 |
+| `common/chat.cpp` | 1782 |
+| `common/arg.cpp` | 4813 |
+| `common/common.h` | 1326 |
+| `models/templates/google-gemma-4-31B-it.jinja` | 347 |
+
+The supplied outputs show VIS-3 17/17 and VIS-2 passing, with the disclosed VIS-1 wrapper-contract error. They do not cover the failure scenarios above. I did not rerun the temporary-file-writing suite under the no-write constraint; attempted read-only syntax checks were blocked with exit 182. No files were changed, and no servers, benchmarks, motors, or other reviewers were launched. Hardware behavior remains unverified.
+
+CHANGES REQUESTED
