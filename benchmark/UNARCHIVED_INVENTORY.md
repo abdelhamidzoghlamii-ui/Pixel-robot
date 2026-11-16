@@ -1,4 +1,10 @@
-# Unarchived evidence inventory
+# Unarchived evidence inventory — historical snapshot (2026-10-11)
+
+This is the dated P23D sweep, not a current inventory; it has not been maintained
+since. Many source files were removed after the 2026-10-26 Drive upload and the
+2026-11-16 cleanup. Current archive manifests and restore instructions are in
+[archive_manifests/](../archive_manifests/README.md) (DECISIONS #160); this table
+does not cover the later `/tmp` and `~/review` inventory.
 
 Offline P23D sweep. Paths, sizes and hashes describe source bytes. Likely benchmark is always a guess. No listed file was silently redacted. Complete sweep decisions, including identical files and new archive destinations: [sweep_decisions.json](campaign/checks/p23d/sweep_decisions.json).
 

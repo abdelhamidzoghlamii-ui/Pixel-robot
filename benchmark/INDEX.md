@@ -51,6 +51,19 @@ P23D keeps rerun commands/instructions and raw-data locations in each folder REA
 | [strategic_selector/picker_prompt/runs/](strategic_selector/picker_prompt/runs/README.md) | PICKPROMPT-1/2 desk tests and interrupted attempt; [run index](strategic_selector/picker_prompt/runs/RUN_INDEX.md), [artifacts](strategic_selector/picker_prompt/runs/ARTIFACTS.md) | 2026-10-16/17 | NO VARIANT QUALIFIES in either run; best macro recall 0.53 V4 / 0.61 A4; TEST unscored; B1 repeated-whitespace limit; one in-flight DEV request UNKNOWN | Accuracy VALID; timings NOT measurements; PICKPROMPT-1 no procedurally clean review, owner accepted round 1 |
 | [llm_objective_setting/conversation/chat_mtp/runs/archive2/](llm_objective_setting/conversation/chat_mtp/runs/archive2/README.md) | E4B Q4_0 MTP OFF/ON and E4B-UP evidence; [run index](llm_objective_setting/conversation/chat_mtp/runs/archive2/RUN_INDEX.md), [artifacts](llm_objective_setting/conversation/chat_mtp/runs/archive2/ARTIFACTS.md) | 2026-10-17 | gen 7.31 -> 10.57 tok/s (+45 %); acceptance 43.0 %; max PSS 3,898 / 4,948 MiB; J/token indicative; reply quality NOT EVALUATED | OFF VALID single run; ON INDICATIVE WARM START; smokes untimed, NOT measurements |
 
+## Template fix and VIS-1/2/3B catalog completion (2026-11-16)
+
+VIS-1/2/3B were archived in `6af0812` (#160). Their RUN_INDEX files identify the
+saved runs and provenance; the preparation-era READMEs predate the results.
+These catalog rows do not establish new timing or comparability conclusions.
+
+| Folder | What | Date | Key result | Status |
+|---|---|---|---|---|
+| [tplfix/](tplfix/) | TPL-FIX: native Gemma template/stop-token and voice-parser comparison; [coder report](tplfix/reports/TPLFIX_CODER_REPORT.md), [latest results](tplfix/runs/20261019T062853Z/results.md) | 2026-10-18/19 | thinking-OFF follow-up: NEW chat answers 10/10 with no token leaks; one no-system greeting hits the cap after answering | functional outputs; NOT A MEASUREMENT (agent resident); final round 4 APPROVED |
+| [gemma_vision/vis1/](gemma_vision/vis1/RUN_INDEX.md) | VIS-1: owner-timed text/vision blocks T1, T2, V1–V4, motors off; [artifacts](gemma_vision/vis1/ARTIFACTS.md) | 2026-10-19–21 | saved timed run, 10 telemetry bridges and 7 smokes now catalogued | archived; per-block evidence retained; no new aggregate verdict |
+| [gemma_vision/vis2/](gemma_vision/vis2/RUN_INDEX.md) | VIS-2: Q8 projector residency vs text speed, MTP on/off; [artifacts](gemma_vision/vis2/ARTIFACTS.md) | 2026-10-22 | two timed-run folders and one smoke now catalogued | archived; per-block evidence retained; no new comparability verdict |
+| [gemma_vision/vis3/](gemma_vision/vis3/RUN_INDEX.md) | VIS-3 / VIS-3B: b1609-dotprod vs b11716; [artifacts](gemma_vision/vis3/ARTIFACTS.md) | 2026-10-22/23 | 11 VIS-3B one-test runs, earlier multi-phase attempt and smoke preserved | archived; earlier multi-phase attempt missed the 32 °C gate; pre-VIS-3B code differs from archived runner |
+
 ## VIS-3C / VIS-3D additions (2026-10-23)
 
 | Folder | What | Date | Key result | Status |

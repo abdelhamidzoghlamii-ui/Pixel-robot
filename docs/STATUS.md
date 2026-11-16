@@ -21,8 +21,8 @@ single test cycle against a photo with no motors attached; it does not run missi
 **Development tools** (not part of the robot path): `nav_test.py` (nav rule harness,
 no hardware), `log_run.py` (ultrasonic motion logger, needs root), `identify_it1.py`
 (IT1 fit, numpy only), `build_bench.py` (A/B latency bench vs whatever server is on
-8080), `capture_bench.py` (guided photo capture via the same `termux-camera-photo`
-path `main.py` uses), `focal_calibrate.py` (FOCAL_PX derivation), `bench_photos/` +
+8080), `capture_bench.py` (guided photo capture via `termux-camera-photo`,
+`main.py`'s rollback camera path), `focal_calibrate.py` (FOCAL_PX derivation), `bench_photos/` +
 `labels.csv` (38 labelled captures: 15 room-signature, 14 person, 5 empty, 4
 blocked), `FILES.md` (dependency map), `BENCHMARK_PLAN.md` (replacement-benchmark
 design, not implemented), ~/json_mechanism_test.py (bounded read-only diagnostic,
@@ -34,7 +34,8 @@ writes).
 `~/llama.cpp-upstream` built and SWA-verified b2233 (commit 4d917609) in
 DECISIONS #77, then was rebuilt in place to b2351-790cf51a. The b2233 binary
 is gone, but source commit 4d917609 remains reachable for a rebuild
-(DECISIONS #107). `~/llama.cpp` (b1609) is the documented deployed server.
+(DECISIONS #107). `~/llama.cpp-b1609-dotprod` is the deployed server (#114);
+`~/llama.cpp` is the original b1609 tree kept as rollback.
 The 1609-vs-2233 comparison remains open, not cancelled (DECISIONS #77, #107).
 `~/robot` is a Git repository. The earlier `fe14be2` snapshot is historical;
 it does not identify the current checkout.
@@ -52,9 +53,19 @@ to determine the current revision and local state; do not maintain a "current
 commit" literal here. The `af66fab` sync was historical (2026-09-05).
 Remote-tracking refs reflect the last locally known remote state.
 
-`.gitignore` excludes model weights (`.onnx`/`.gguf`/`.bin`), `bench_photos/`,
-and run artifacts; those stay on the phone only. `test_photos/` remains tracked
+Model weights stay outside Git. `.gitignore` also excludes `bench_photos/` and
+run artifacts, but benchmark archives include force-added files: 851 tracked
+files match ignore rules (checked 2026-11-16). New files matching those rules
+need `git add -f`; they do not show as untracked. `test_photos/` remains tracked
 from earlier commits.
+
+The private Drive archive `gdrive:pixel-robot-archive` holds older evidence and
+review records; manifests and restore instructions are in
+[archive_manifests/README.md](../archive_manifests/README.md) (#160, #161).
+VIS-1/2/3B are now archived in the repo (`6af0812`); operator-script copies are
+in `tools/`, while the originals remain in use. The 2026-11-16 phone cleanup
+removed 58,683 files in total (not all duplicates); free space rose from 41 to
+50 GB (#160). Mistral 7B Q4_K_M was deleted; all other models were kept (#161).
 
 **Per-cycle flow** (`main.py: Robot.run_cycle`):
 ```
@@ -301,7 +312,7 @@ picker for V1. Cost: 5.95 s/image at 70 tokens, 11.4 s at 140 (#154).
 - Manual selector playground `robot-jevlike`
   (`benchmark/strategic_selector/manual/jevlike/`): runs one input through any
   installed selector model side by side. Research only, not a benchmark.
-- **Standalone chat** (`robot-chat`): Menu filters against installed models (Gemma E2B Q4_0, Gemma E4B Q4_K_M/Q4_0, Qwen3.5 2B Q4_K_M, Qwen3.5 4B Q4_K_M/Q5_K_M/Q6_K, Mistral 7B Q4_K_M). None of the menu entries other than the robot's deployed model (Gemma E2B Q4_0) are deployed to the robot loop. Image chat is unavailable in this interface. The Gemma E2B Q4_0 and Gemma E4B Q4_0 entries run their MTP drafters (#137, #141); without the drafter file chat warns and starts without it. The menu shows only models present on disk.
+- **Standalone chat** (`robot-chat`): Menu filters against installed models (Gemma E2B Q4_0, Gemma E4B Q4_K_M/Q4_0, Qwen3.5 2B Q4_K_M, Qwen3.5 4B Q4_K_M/Q5_K_M/Q6_K). None of the menu entries other than the robot's deployed model (Gemma E2B Q4_0) are deployed to the robot loop. Image chat is unavailable in this interface. The Gemma E2B Q4_0 and Gemma E4B Q4_0 entries run their MTP drafters (#137, #141); without the drafter file chat warns and starts without it. The menu shows only models present on disk.
 - Benchmark archive index: `benchmark/INDEX.md` lists every archive folder,
   its key result and status.
 - Root restored on Android 17; real SoC temps readable (zone9 BIG / 10 MID /
@@ -403,12 +414,14 @@ picker for V1. Cost: 5.95 s/image at 70 tokens, 11.4 s at 140 (#154).
   DECISIONS #84's stated `git rm` did not occur in the checked repository; retain
   all seven until an explicit future removal task. `get_temp.py`/`thermal_guard.py` (#75) and `mission_test.py` remain
   deliberately kept; `nav_sim.py` was deleted (#118). 420 MB of unused ONNX models remains untouched.
-- **Heat control (#135) is validated motors-off only.** One unattended `--dry`
-  run (5 h, 67 pauses, 0 rule violations) ended by low battery; emergency rules
+- **Heat control (#135, #139) is validated motors-off only.** Three unattended
+  `--dry` runs: HEAT-A (5 h, 67 pauses, ended by low battery), CAM1-MID
+  (5.26 h, 29 pauses) and PICKER-1 (3.64 h, 98 pauses), all with 0 transition-rule
+  violations; the latter two ended by Ctrl-C. Emergency rules
   (CRITICAL hold, battery 45 °C, CPU fault) have not fired on hardware. Pause
   FORWARD speed 100 is uncalibrated. `thermal_guard.py` (82/86) and `get_temp.py`
   remain orphans; `main.py` no longer has `get_temp()`. See DECISIONS #126, #127,
-  #129, #135.
+  #129, #135, #139.
 - **Battery thermal zone number unconfirmed.** STATUS previously implied zone
   22; a later enumeration reported zone 25. Neither is canonical until a
   direct thermal_zoneN/type read confirms it.

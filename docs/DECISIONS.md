@@ -2057,3 +2057,27 @@ Format: `NN. [area] decision — why`
      run. Also recorded: `voice_command()` (`main.py:664`) is never called from `run_mission` or `run_mission.py`;
      `warm_up` sends one fixed parse. V3's speech rules (1, 2, 4, 8 and the spoken parts of 3 and 7) therefore cannot
      fire in a mission yet.
+
+160. **Project inventory and cleanup (2026-11-16).**
+     Read-only inventory by Claude Code `claude-fable-5-2`, effort medium, in
+     `/termux-home/review/project_inventory_20261116T031413Z/REPORT.md` (base `555348b`).
+     Private Drive archive `gdrive:pixel-robot-archive` confirmed: 29 tars from 2026-10-26 match
+     `archive_manifests/UPLOADED.txt` (names, bytes, MD5), and extended with single_copies and strays;
+     manifests and verification/restore notes are in `archive_manifests/README.md`.
+     VIS-1/2/3B archived in the repo and operator scripts copied to `tools/` (`6af0812`); originals
+     remain in use. Phone cleanup logged 58,683 deleted files in total (`029a6f6`,
+     `archive_manifests/DELETED_20261116_20261116T125443Z.tsv`): 40,096 verified against Git blobs
+     or Drive manifests (rules a/b), 18,164 old session files (C5), 422 regenerated/stub files (C6),
+     and the one Mistral model (D1, #161). The total is not a duplicate-only count.
+     Tag `keep/failclosed-e5b4394` protects `e5b4394`; free space rose from 41 to 50 GB
+     (inventory before, phone `df -h` after; rounded filesystem display).
+
+161. **Owner decisions (2026-11-16): retention, public repository and pending password change.**
+     Mistral 7B Q4_K_M deleted: `~/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf`, 4,368,439,584 bytes,
+     SHA-256 `3e0039fd0273fcbebb49228943b17831aadd55cbcbf56f0af00499be2040ccf9`;
+     reference check in `archive_manifests/DELETED_MODELS.md`: no live use; the chat menu hides absent
+     files. All other models kept. Old review records kept on private Drive with manifests in the
+     repo, rather than adding those old records to Git. Personal names/photos stay in the repo;
+     the repo stays public for now and will be made private when the project ends. The ESP32
+     soft-AP password in `firmware/mode1_simple/mode1_simple.ino` is to be changed: pending,
+     part of the next code task.

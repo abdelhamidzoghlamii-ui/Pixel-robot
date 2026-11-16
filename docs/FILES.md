@@ -15,8 +15,8 @@ are marked *(entry point)*.
 | `detect_person.py` | YOLO11s ONNX inference at 320/640: `detect_scene`, `scene_to_text`, `person_direction`, cached sessions, legacy `detect_person` shim. | `main.py`, `mission_test.py`, `stereo_depth.py`, `test_suite.py`, `test_suite_m.py` |
 | `stereo_depth.py` | Two-frame stereo + object-height→distance estimation (`stereo_scan`, `scene_with_depth`, `estimate_distance_single`). | `main.py`, `mission_test.py` |
 | `run_mission.py` | Autonomous launcher: wires `Motors`+`Robot`, runs a mission from argv (`--dry` = no motors). | nobody *(entry point)* |
-| `picker.py` | Mission picker (#138): `Gemma` letter scoring (S1O, MIT-derived prompt builder), `Cadence`, `Picker` worker thread (M2 then Gemma, pinned to cpus 6–7). | `main.py`, `run_mission.py`, `test_picker.py`, `test_run_mission.py`, `test_heat_control.py` |
-| `relate.py` | RelateAnything M2 head for the picker (#138): SHA-256 gate, ORT worker + caller pinned to cpus 6–7, `relations()`/`context()`. | `run_mission.py`, `test_picker.py`, `test_run_mission.py` |
+| `picker.py` | Mission picker (#138): `Gemma` letter scoring (S1O, MIT-derived prompt builder), `Cadence`, `Picker` worker thread (M2 then Gemma, pinned to cpus 6–7). M2 dropped by #149, code unchanged. | `main.py`, `run_mission.py`, `test_picker.py`, `test_run_mission.py`, `test_heat_control.py` |
+| `relate.py` | RelateAnything M2 head for the picker (#138): SHA-256 gate, ORT worker + caller pinned to cpus 6–7, `relations()`/`context()`. Dropped by #149, code unchanged; still loaded by the default picker. | `run_mission.py`, `test_picker.py`, `test_run_mission.py` |
 | `teleop.py` | HTTP server for manual driving — web UI, obstacle-gated forward, camera passthrough. | nobody *(entry point)* |
 | `chat.py` | Interactive terminal chat client for the local llama-server: model menu, server start/kill, camera/vision. | nobody *(entry point)* |
 | `robotcam_reader.py` | RobotCam JPEG-only, fail-closed frame reader. | `main.py` |
@@ -29,6 +29,9 @@ are marked *(entry point)*.
 |---|---|---|
 | `log_run.py` | Drive forward at a duty toward a wall, log travel-vs-time to CSV via ultrasonic. | nobody *(entry point)* |
 | `identify_it1.py` | Fit an IT1 (integrator+lag+deadtime) motion model to `log_run.py`'s CSV; print duration-for-distance table. | nobody *(entry point)* |
+| `capture_bench.py` | Guided labelled captures via `termux-camera-photo` (the rollback camera path), saved to ignored `bench_photos/` + `labels.csv`. | nobody *(entry point)* |
+| `focal_calibrate.py` | Read-only FOCAL_PX analysis from labelled person photos; prints estimates without changing calibration. | nobody *(entry point)* |
+| `take_stereo.sh` | Guided pair of photos 5 cm apart, then calls `stereo_depth.py`. | nobody *(entry point)* |
 
 ## Hardware bring-up / diagnostics
 
@@ -37,7 +40,8 @@ are marked *(entry point)*.
 | `cp2102_test.py` | CP2102 USB enumerate + interface-claim smoke test (current adapter). | nobody *(entry point)* |
 | `dist_raw.py` | Dump raw ultrasonic serial lines from the CP2102 for 5 s. | nobody *(entry point)* |
 | `ch340_test.py` | Same idea for the **old CH340** adapter, replaying a Wireshark init sequence. | nobody — **superseded** |
-| `diagnose_yolo.py` | One-shot YOLO ONNX diagnostic (prints I/O shapes, runs one image). | nobody — **stale** (defaults to `yolov8n.onnx`; stack uses `yolo11m`) |
+| `diagnose_yolo.py` | One-shot YOLO ONNX diagnostic (prints I/O shapes, runs one image). | nobody — **stale** (defaults to `yolov8n.onnx`; stack uses `yolo11s`) |
+| `motors.py.ch340.bak` | Historical CH340 motor-driver backup; retained, superseded by CP2102 `motors.py`. | nobody *(backup)* |
 
 ## Thermal (six overlapping files)
 
@@ -60,7 +64,7 @@ are marked *(entry point)*.
 | `system_benchmark.py` | Bench end-to-end llama-server tok/s with temp logging, 10 runs. | nobody *(benchmark)* |
 | `full_benchmark.py` | Broad LLM bench (multi-zone temp scan + timed calls). | nobody *(benchmark)* |
 | `benchmark_compare.py` | Compare command-parser prompt variants (JSON action array) across models. | nobody *(benchmark)* |
-| `benchmark_lora.py` | Bench a LoRA-tuned parser against the short training-format prompt + test set. | nobody *(benchmark)* |
+| `benchmark_lora.py` | Historical LoRA parser benchmark; earlier notebooks failed training or had bad data, and fine-tuning restarts from scratch (#124). | nobody *(benchmark)* |
 | `json_benchmark.py` | Bench JSON command-parsing accuracy/latency. | nobody *(benchmark)* — overlaps `benchmark_compare.py` |
 | `quality_benchmark2.py` | Bench Gemma answer *quality* on nav/vision prompts (150 tok). | nobody *(benchmark)* |
 | `quality_benchmark.py` | Earlier version (80 tok). | nobody — **superseded** by `quality_benchmark2.py` |
@@ -81,6 +85,8 @@ are marked *(entry point)*.
 | `test_detector_robotcam.py`, `test_run_mission.py`, `test_chat_mtp.py`, `test_picker.py`, `test_e4b_mtp.py` | Detector/RobotCam (incl. `PinnedDetector`), mission, chat/server MTP (E2B and E4B) and picker/M2 unit tests. | nobody *(tests)* |
 | `benchmark/robotcam/`, `benchmark/yolo_speed/` | RobotCam test and YOLO benchmark tools. | nobody *(tools)* |
 | `.github/workflows/robotcam.yml` | CI APK build for RobotCam. | GitHub Actions |
+| `run_cycle_safety_test.py` | Regression tests for rule-selected moves, no LLM call and failed-capture STOP (#111), with fake external operations. | `test_tplfix.py` imports its loader |
+| `test_tplfix.py` | Gemma template/stop-token and voice-parser contract tests; Qwen/Mistral format regressions. | nobody *(tests)* |
 
 ## Other utilities
 
@@ -90,6 +96,13 @@ are marked *(entry point)*.
 | `llm.py` | Old command parser: GBNF-grammar-constrained JSON actions via ChatML `<|im_start|>` prompt; needs `~/actions.gbnf`. | nobody — **superseded** by `main.parse_command` (Gemma `<start_of_turn>` format, no grammar) |
 | `voice.py` | Standalone `listen(duration)`: mic → ffmpeg → whisper-cli transcription. | nobody — **superseded**: `main.listen()` is a copy with the same paths |
 | `detect_scene.py` | Earlier YOLO module: `detect()→(results, elapsed)`, 4-tuple detections, no session cache. | nobody — **superseded** by `detect_person.py` (only the *symbol* `detect_scene`, defined in `detect_person.py`, is used) |
+| `robot-chat` | Native Termux launcher for `chat.py`. | operator via `~/bin/robot-chat` symlink *(entry point)* |
+| `synth_test.csv` | Synthetic travel-vs-time data for IT1 fitting (`identify_it1.py`; COMMANDS §6). | operator-supplied input |
+| `test_results.json`, `test_results_m.json` | Saved detection-test outputs. | written by `test_suite.py`, `test_suite_m.py`, respectively |
+| `configs/` | Historical setup A–D configuration/prompt modules; separate from current `server_manager.py` setups. | historical benchmark configuration |
+| `results/` | Historical setup A–D JSON benchmark outputs (2026-04-09). | saved results |
+| `tools/` | Archived operator-script/launcher copies; originals in `~` and `~/bin` remain in use. | see [tools/README.md](../tools/README.md) |
+| `archive_manifests/` | Private Drive archive manifests, restore instructions and 2026-11-16 deletion logs; archived content stays on Drive. | see [archive_manifests/README.md](../archive_manifests/README.md) |
 
 ## Retention and overlap
 
