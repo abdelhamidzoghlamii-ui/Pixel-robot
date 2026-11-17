@@ -145,40 +145,31 @@ class CadenceTest(unittest.TestCase):
         self.assertEqual(c.due(5, False, True, True), 'person_left')
 
 
-class FakeRelate:
-    cpus = {6, 7}
-    worker_tids = [11]
-
-    def __init__(self, fail_pin=False):
-        self.fail_pin = fail_pin
-        self.caller_tid = None
-        self.check = {'ok': True, 'repinned': [], 'errors': {}}
-        self.relations = Mock(return_value=('M2 relations:\n- person [0] next to chair [1].', 2, 1, 640.0))
-
-    def pin_caller(self):
-        if self.fail_pin:
-            raise RuntimeError('refusing to pin')
-        self.caller_tid = threading.get_native_id()
-
-    def check_affinity(self):
-        return self.check
-
-    def affinity(self):
-        return {11: [6, 7], self.caller_tid: [6, 7]}
+def fake_worker(test, gemma):
+    """Keep real worker/cancellation logic; never read or set CPU affinity."""
+    for target, value in (
+        ('detect_person.pin', Mock()),
+        ('detect_person.PinnedDetector.affinity', Mock(return_value={11: [6, 7]})),
+        ('detect_person.PinnedDetector.check_affinity', Mock(return_value={'ok': True, 'repinned': [], 'errors': {}})),
+    ):
+        mocked = patch(target, value)
+        mocked.start()
+        test.addCleanup(mocked.stop)
+    p = P.Picker(gemma)
+    test.addCleanup(p.stop)
+    return p
 
 
 def request(eligible=('EXPLORE', 'APPROACH', 'GREET', 'LOOK'), slot=1):
-    return {'slot': slot, 'trigger': 'start', 'eligible': list(eligible), 'frame_640': ('image', ['boxes']),
-            'situation': 'Mission: m'}
+    return {'slot': slot, 'trigger': 'start', 'eligible': list(eligible), 'situation': 'Mission: m'}
 
 
 class PickerTest(unittest.TestCase):
-    def make(self, probs=None, relate=None):
+    def make(self, probs=None):
         gemma = SimpleNamespace(prompt_tokens=99, decide=Mock(return_value=probs or {
             'keep exploring': .1, 'go toward the person': .2, 'stop and greet the person': .6,
             'look around in place': .1}))
-        p = P.Picker(gemma, relate or FakeRelate())
-        self.addCleanup(p.stop)
+        p = fake_worker(self, gemma)
         p.allow()
         return p, gemma
 
@@ -191,51 +182,40 @@ class PickerTest(unittest.TestCase):
             threading.Event().wait(0.01)
         self.fail('no result')
 
-    def test_pick_runs_m2_then_gemma_in_the_pinned_worker(self):
-        p, gemma = self.make()
-        self.assertNotEqual(p.relate.caller_tid, threading.get_native_id())  # the worker, not the main thread
-        r = self.run_pick(p, request())
-        self.assertEqual((r['mode'], r['fallback'], r['m2_boxes'], r['m2_relations'], r['m2_ms']),
-                         ('GREET', None, 2, 1, 640.0))
+    def test_pick_uses_only_navigation_text_without_m2(self):
+        with patch.dict(sys.modules, {'relate': None}):
+            p, gemma = self.make()
+            r = self.run_pick(p, request())  # no frame required by the worker
+        self.assertNotEqual(p.caller_tid, threading.get_native_id())
+        import detect_person
+        detect_person.pin.assert_called_once_with(p.caller_tid, {6, 7})
+        self.assertEqual((r['mode'], r['fallback']), ('GREET', None))
+        self.assertTrue(all(r[k] is None for k in ('m2_boxes', 'm2_relations', 'm2_ms', 'm2_repinned')))
         self.assertEqual(r['eligible'], list(P.MODES.values()))
         self.assertEqual(r['prompt_tokens'], 99)
-        p.relate.relations.assert_called_once_with('image', ['boxes'])
-        gemma.decide.assert_called_once_with(
-            'Mission: m\nM2 relations:\n- person [0] next to chair [1].', list(P.MODES.values()))
+        gemma.decide.assert_called_once_with('Mission: m', list(P.MODES.values()))
 
     def test_ties_go_to_the_first_offered(self):
         p, _ = self.make({'keep exploring': .5, 'look around in place': .5})
         self.assertEqual(self.run_pick(p, request(('EXPLORE', 'LOOK')))['mode'], 'EXPLORE')
 
     def test_failures_fall_back_to_explore(self):
-        for name in ('m2', 'affinity', 'gemma', 'phase'):
+        for name in ('affinity', 'gemma', 'phase'):
             with self.subTest(name=name):
                 p, gemma = self.make()
-                if name == 'm2':
-                    p.relate.relations.side_effect = RuntimeError('ort')
-                elif name == 'affinity':
-                    p.relate.check = {'ok': False, 'repinned': [11], 'errors': {11: 'gone'}}
+                if name == 'affinity':
+                    p.check_affinity = lambda: {'ok': False, 'repinned': [], 'errors': {11: 'gone'}}
                 elif name == 'gemma':
                     gemma.decide.side_effect = TimeoutError('timed out')
                 else:
                     p.forbid()
                 r = self.run_pick(p, request())
                 self.assertEqual(r['mode'], 'EXPLORE')
-                self.assertTrue(r['fallback'].startswith({'m2': 'M2: RuntimeError', 'affinity': 'M2: RuntimeError: affinity',
-                                                          'gemma': 'Gemma: TimeoutError', 'phase': 'M2: Cancelled'}[name]))
+                self.assertTrue(r['fallback'].startswith({'affinity': 'worker: RuntimeError: affinity',
+                                                          'gemma': 'Gemma: TimeoutError', 'phase': 'worker: Cancelled'}[name]))
                 self.assertEqual(r['cancelled'], name == 'phase')
-                if name in ('m2', 'affinity', 'phase'):
+                if name != 'gemma':
                     gemma.decide.assert_not_called()
-                if name == 'phase':
-                    p.relate.relations.assert_not_called()
-
-    def test_phase_left_during_m2_skips_gemma(self):
-        p, gemma = self.make()
-        p.relate.relations.side_effect = lambda *a: (p.forbid(), ('M2 relations:', 2, 0, 1.0))[1]
-        r = self.run_pick(p, request())
-        self.assertEqual((r['mode'], r['cancelled']), ('EXPLORE', True))
-        self.assertTrue(r['fallback'].startswith('M2: Cancelled'))
-        gemma.decide.assert_not_called()
 
     def real_gemma(self, during_tokenize):
         """A real Gemma on the fake server; during_tokenize(n) runs inside the n-th /tokenize after setup."""
@@ -254,8 +234,7 @@ class PickerTest(unittest.TestCase):
     def test_forbid_during_tokenization_sends_no_further_request(self):
         holder = {}
         g, post = self.real_gemma(lambda n: n == 2 and holder['p'].forbid())
-        p = P.Picker(g, FakeRelate())
-        self.addCleanup(p.stop)
+        p = fake_worker(self, g)
         holder['p'] = p
         p.allow()
         before = len(post.calls)
@@ -277,8 +256,7 @@ class PickerTest(unittest.TestCase):
                 release.wait(2)
             return inner(path, body)
         g.post = blocking
-        p = P.Picker(g, FakeRelate())
-        self.addCleanup(p.stop)
+        p = fake_worker(self, g)
         p.allow()
         p.submit(request(('EXPLORE', 'LOOK')))
         self.assertTrue(entered.wait(2))
@@ -301,7 +279,7 @@ class PickerTest(unittest.TestCase):
                 entered.set()
                 release.wait(2)
         g, post = self.real_gemma(slow)
-        p = P.Picker(g, FakeRelate())
+        p = fake_worker(self, g)
         p.allow()
         before = len(post.calls)
         p.submit(request(('EXPLORE', 'LOOK')))
@@ -312,18 +290,18 @@ class PickerTest(unittest.TestCase):
         self.assertEqual([c[0] for c in post.calls[before:]], ['/tokenize'])  # nothing after the stop
         self.assertTrue(p.result()['cancelled'])
 
-    def test_forbid_during_affinity_check_runs_no_m2(self):
+    def test_forbid_during_affinity_check_skips_gemma(self):
         p, gemma = self.make()
-        ok = p.relate.check
-        p.relate.check_affinity = lambda: (p.forbid(), ok)[1]
+        check = p.check_affinity
+        p.check_affinity = lambda: (p.forbid(), check())[1]
         r = self.run_pick(p, request())
         self.assertEqual((r['mode'], r['cancelled']), ('EXPLORE', True))
-        p.relate.relations.assert_not_called()
         gemma.decide.assert_not_called()
 
     def test_worker_pin_failure_raises(self):
-        with self.assertRaises(RuntimeError):
-            P.Picker(SimpleNamespace(), FakeRelate(fail_pin=True))
+        with patch('detect_person.pin', side_effect=RuntimeError('refusing to pin')):
+            with self.assertRaises(RuntimeError):
+                P.Picker(SimpleNamespace())
 
     def test_stop_ends_worker(self):
         p, _ = self.make()
@@ -334,8 +312,8 @@ class PickerTest(unittest.TestCase):
     def test_config(self):
         p, _ = self.make()
         c = p.config()
-        self.assertEqual((c['url'], c['timeout_s'], c['options'], c['m2']['cpus'], c['m2']['threads']),
-                         ('http://127.0.0.1:8080', 10, list(P.MODES.values()), [6, 7], 2))
+        self.assertEqual((c['url'], c['timeout_s'], c['options'], c['worker']['cpus']),
+                         ('http://127.0.0.1:8080', 10, list(P.MODES.values()), [6, 7]))
         self.assertEqual((c['cadence']['min_gap_s'], c['cadence']['heartbeat_s']), (5, 20))
 
 

@@ -1,5 +1,6 @@
 """Autonomous entry point. --dry uses RobotCam without opening motor USB.
---no-picker: today's rules (incl. person approach) and person-stop; neither the Gemma client nor M2 is loaded."""
+Python navigation rules (incl. person approach) and person-stop are the default.
+--picker enables the legacy Gemma picker; --no-picker explicitly keeps the default."""
 import signal
 import sys
 import time
@@ -17,15 +18,14 @@ def build_picker():
     """(Picker, None), or (None, reason) when it cannot run: the mission then continues in EXPLORE without picks
     (a fallback, never a stop). The owner starts the server with setup_q4 first."""
     import picker
-    import relate
     try:
         gemma = picker.Gemma()
     except Exception as exc:
         return None, f'llama-server at {picker.URL} not ready ({type(exc).__name__}: {exc}); run setup_q4 first'
     try:
-        return picker.Picker(gemma, relate.Relate()), None
+        return picker.Picker(gemma), None
     except Exception as exc:
-        return None, f'M2 not available ({type(exc).__name__}: {exc})'
+        return None, f'picker worker not available ({type(exc).__name__}: {exc})'
 
 
 def main(argv=None):
@@ -33,7 +33,7 @@ def main(argv=None):
     dry = '--dry' in argv
     camera_source = 'termux_photo' if '--termux-photo' in argv else 'robotcam'
     person_search = '--person-search' in argv
-    use_picker = '--no-picker' not in argv
+    use_picker = '--picker' in argv and '--no-picker' not in argv
     args = [a for a in argv if not a.startswith('--')]
     mission = args[0] if args else 'explore and map the rooms'
 
@@ -47,8 +47,7 @@ def main(argv=None):
         # Before the motor reader and heat threads exist, so the ORT thread diff sees only ORT workers;
         # raises (mission not started) when the workers or their affinity cannot be verified.
         R.get_detector(pinned=True)
-        # Also before those threads: Relate's ORT thread diff must see only its own worker.
-        pick, picker_off = build_picker() if use_picker else (None, '--no-picker')
+        pick, picker_off = build_picker() if use_picker else (None, '--no-picker' if '--no-picker' in argv else 'Python rules (default)')
         if use_picker and pick is None:
             print(f'[PICKER] disabled: {picker_off} — the mission continues in EXPLORE')
         if not dry:

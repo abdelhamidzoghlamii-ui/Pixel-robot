@@ -542,7 +542,7 @@ class PickerMissionTest(unittest.TestCase):
         """Real Picker, fake transport: a tokenization is in flight when the monitor first reports SEVERE. While this
         cycle's detection is still blocked, the released worker must send no further HTTP request."""
         import picker as P
-        from test_picker import FakeRelate, fake_server
+        from test_picker import fake_worker, fake_server
         post = fake_server({'A': .5, 'B': .5})
         gemma = P.Gemma(post)
         entered, release = threading.Event(), threading.Event()
@@ -553,8 +553,7 @@ class PickerMissionTest(unittest.TestCase):
                 release.wait(5)
             return post(path, body)
         gemma.post = hooked
-        p = P.Picker(gemma, FakeRelate())
-        self.addCleanup(p.stop)
+        p = fake_worker(self, gemma)
         self.robot.picker = p
         self.robot.set_mode('EXPLORE', 'mission start')
         seen = {}

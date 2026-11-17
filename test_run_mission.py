@@ -182,15 +182,20 @@ class PickerStartTest(unittest.TestCase):
         return SimpleNamespace(stop=Mock(side_effect=lambda: events.append('picker_stop') or True),
                                config=Mock(return_value={'url': 'u'}))
 
-    def test_no_picker_loads_nothing_and_keeps_the_legacy_rules(self):
-        events, trace, robot, _ = self.run_main(['--dry', '--no-picker'])
-        self.assertEqual((robot.picker, robot.mode), (None, None))  # mode None: navigate_rules with person approach
-        self.assertEqual(trace, [('picker_config', {'enabled': False, 'reason': '--no-picker'})])
-        self.assertEqual(events, ['detector', 'heat_start', 'start', 'run', 'stop_camera', 'heat_stop'])
+    def test_default_and_no_picker_keep_python_rules(self):
+        for flags in ([], ['--no-picker'], ['--picker', '--no-picker']):
+            with self.subTest(flags=flags):
+                build = Mock(side_effect=AssertionError('picker built'))
+                events, trace, robot, _ = self.run_main(['--dry'] + flags, build)
+                build.assert_not_called()
+                self.assertEqual((robot.picker, robot.mode), (None, None))
+                reason = '--no-picker' if '--no-picker' in flags else 'Python rules (default)'
+                self.assertEqual(trace, [('picker_config', {'enabled': False, 'reason': reason})])
+                self.assertEqual(events, ['detector', 'heat_start', 'start', 'run', 'stop_camera', 'heat_stop'])
 
     def test_server_down_is_a_fallback_not_a_stop(self):
         build = Mock(return_value=(None, 'llama-server not ready'))
-        events, trace, robot, out = self.run_main(['--dry'], build)
+        events, trace, robot, out = self.run_main(['--dry', '--picker'], build)
         self.assertEqual((robot.picker, robot.mode), (None, 'EXPLORE'))
         self.assertIn('run', events)
         self.assertEqual(trace, [('picker_config', {'enabled': False, 'reason': 'llama-server not ready'})])
@@ -210,7 +215,7 @@ class PickerStartTest(unittest.TestCase):
                 stops = []
                 p = SimpleNamespace(stop=Mock(side_effect=lambda: stops.append('picker_stop') or True),
                                     config=Mock(return_value={'url': 'u'}))
-                events, trace, robot, _ = self.run_main(['--dry'], Mock(return_value=(p, None)), run)
+                events, trace, robot, _ = self.run_main(['--dry', '--picker'], Mock(return_value=(p, None)), run)
                 p.stop.assert_called_once_with()
                 self.assertIs(robot.picker, p)
                 self.assertEqual(robot.mode, 'EXPLORE')
@@ -231,20 +236,30 @@ class PickerStartTest(unittest.TestCase):
             def disconnect(self): pass
         with patch.dict(sys.modules, {'motors': SimpleNamespace(Motors=Motors)}), \
                 patch.object(run_mission.time, 'sleep'):
-            events, *_ = self.run_main([], build)
+            events, *_ = self.run_main(['--picker'], build)
         self.assertEqual(order, ['picker', 'motors'])
         self.assertLess(events.index('detector'), events.index('heat_start'))
 
     def test_build_picker_fallback_reasons(self):
         import picker
-        import relate
         with patch.object(picker, 'Gemma', side_effect=OSError('refused')):
             p, reason = run_mission.build_picker()
         self.assertIsNone(p)
         self.assertIn('run setup_q4 first', reason)
-        with patch.object(picker, 'Gemma'), patch.object(relate, 'Relate', side_effect=RuntimeError('STOP M2: x')):
+        with patch.object(picker, 'Gemma'), patch.object(picker, 'Picker', side_effect=RuntimeError('pin failed')):
             p, reason = run_mission.build_picker()
-        self.assertEqual((p, reason), (None, 'M2 not available (RuntimeError: STOP M2: x)'))
+        self.assertEqual((p, reason), (None, 'picker worker not available (RuntimeError: pin failed)'))
+
+    def test_build_picker_does_not_import_relate(self):
+        import picker
+        gemma = object()
+        with patch.dict(sys.modules, {'relate': None}), patch.object(picker, 'Gemma', return_value=gemma), \
+                patch.object(picker, 'Picker') as worker:
+            p, reason = run_mission.build_picker()
+        worker.assert_called_once_with(gemma)
+        self.assertIs(p, worker.return_value)
+        self.assertIsNone(reason)
+
 
 
 if __name__ == '__main__':

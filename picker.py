@@ -50,7 +50,7 @@ def eligible(person_visible):
 
 
 def situation(mission, results, distance, mode, mode_s, last_moves, rooms):
-    """The picker's state text without the M2 block (the worker appends it). results: legacy detection tuples."""
+    """The picker's YOLO/navigation state text. results: legacy detection tuples."""
     scene = ', '.join(f'{r[0]} ({r[2]}, {r[3]})' for r in results) or 'nothing detected'
     return '\n'.join([
         f'Mission: {mission}',
@@ -156,15 +156,18 @@ class Cancelled(Exception):
 
 
 class Picker:
-    """One background worker thread runs each pick: M2 (relate.Relate) on the latest 640 frame, then Gemma. It gets
-    plain data in a request and returns a result; it never touches motors, camera, heat state or the robot. Any
-    failure becomes an EXPLORE result with the reason (a fallback, never a stop). The mission thread calls allow()
-    while ACTIVE and below SEVERE and forbid() otherwise; a running pick checks before M2, after M2 and before every
-    HTTP request, and a forbid() cancels it for good (a later allow() does not revive it). Only a request already
-    sent (<= TIMEOUT_S) or an M2 inference already started can still finish."""
+    """One background worker scores the navigation situation with Gemma. Failures fall back to EXPLORE.
+    The mission calls allow() while ACTIVE and below SEVERE, forbid() otherwise. Each HTTP request checks
+    permission; forbid() cancels a pick permanently, even if allow() follows. An in-flight HTTP request can finish.
+    """
 
-    def __init__(self, gemma, relate):
-        self.gemma, self.relate = gemma, relate
+    def __init__(self, gemma):
+        from detect_person import PinnedDetector
+        self.gemma = gemma
+        # Keep the existing picker worker placement without loading an M2 session or its ORT worker.
+        self.cpus, self.worker_tids, self.caller_tid = {6, 7}, [], None
+        self.affinity = lambda: PinnedDetector.affinity(self)
+        self.check_affinity = lambda: PinnedDetector.check_affinity(self)
         self.requests, self.results = queue.Queue(), queue.Queue()
         self.allowed = threading.Event()
         self.generation = 0  # forbid() bumps it; a pick runs only while it is unchanged
@@ -178,7 +181,9 @@ class Picker:
 
     def loop(self, ready):
         try:
-            self.relate.pin_caller()  # this thread runs M2: BIG 6-7, verified
+            from detect_person import pin
+            self.caller_tid = threading.get_native_id()
+            pin(self.caller_tid, self.cpus)  # same picker worker placement: BIG 6-7, verified
         except BaseException as e:
             ready.put(e)
             return
@@ -205,20 +210,17 @@ class Picker:
             if generation != self.generation or not self.allowed.is_set():
                 raise Cancelled('optional work not allowed (left ACTIVE, SEVERE or stop)')
         self.gemma.check = check
-        stage = 'M2'
+        stage = 'worker'
         try:
             check()
-            affinity = self.relate.check_affinity()
-            out['m2_repinned'] = affinity['repinned']
+            affinity = self.check_affinity()
             if not affinity['ok']:
                 raise RuntimeError(f"affinity: {affinity['errors']}")
-            check()  # a forbid() during the affinity check: no M2 run
-            text, out['m2_boxes'], out['m2_relations'], out['m2_ms'] = self.relate.relations(*request['frame_640'])
             check()
             stage = 'Gemma'
             phrases = out['eligible']
             started = time.perf_counter()
-            dist = self.gemma.decide(request['situation'] + '\n' + text, phrases)
+            dist = self.gemma.decide(request['situation'], phrases)
             check()  # a forbid() while /completion was in flight cancels it too
             out['picker_ms'] = (time.perf_counter() - started) * 1000
             out['probs'] = dist
@@ -252,6 +254,5 @@ class Picker:
         return {'url': URL, 'options': list(MODES.values()), 'instruction': INSTRUCTION, 'timeout_s': TIMEOUT_S,
                 'cadence': {'events': ['person_appeared', 'person_left', 'blocked'], 'min_gap_s': MIN_GAP_S,
                             'heartbeat_s': HEARTBEAT_S, 'phases': ['ACTIVE'], 'not_at_status': 'SEVERE or above'},
-                'm2': {'cpus': sorted(self.relate.cpus), 'threads': 2, 'worker_tids': self.relate.worker_tids,
-                       'caller_tid': self.relate.caller_tid, 'affinity': self.relate.affinity(),
-                       'parity': 'graph SHA-256 equals the parity-passed graph (#130)'}}
+                'worker': {'cpus': sorted(self.cpus), 'caller_tid': self.caller_tid,
+                           'affinity': self.affinity()}}
