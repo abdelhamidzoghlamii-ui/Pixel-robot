@@ -2081,3 +2081,22 @@ Format: `NN. [area] decision — why`
      the repo stays public for now and will be made private when the project ends. The ESP32
      soft-AP password in `firmware/mode1_simple/mode1_simple.ino` is to be changed: pending,
      part of the next code task.
+
+162. **E2: Python navigation rules are the default; the legacy picker is opt-in and no longer depends on M2.**
+     2026-11-17, commit `7dd6015d31f126deb302a797f6fbf82b484d0e51`,
+     verified as GitHub main HEAD during this handoff.
+     `run_mission.py` uses Python navigation rules, including person approach,
+     and person-stop by default. `--picker` explicitly enables the legacy
+     Gemma picker; `--no-picker` remains supported and takes precedence when
+     both flags are supplied. The picker scores YOLO/navigation context without
+     importing, loading or running RelateAnything M2. `relate.py` and archived
+     M2/picker evidence remain.
+     Supersedes #138's picker-on default and M2 runtime integration, and the
+     L2 picker-runtime choice in #131. Implements the picker-runtime removal
+     planned in #149; Gemma vision and the MIND V3 picker are not integrated.
+     Historical decisions, benchmarks and their limitations remain unchanged.
+     Verification reported in the owner's E2 handoff: 107 hardware-free unit
+     tests passed; independent AGY Argon Medium review APPROVED.
+     No hardware, sensor-safety or motors-live verification was performed.
+     The stale-ultrasonic safety finding in #159 remains open; E2 does not
+     establish readiness for a motors-live run.

@@ -69,25 +69,26 @@ removed 58,683 files in total (not all duplicates); free space rose from 41 to
 
 **Per-cycle flow** (`main.py: Robot.run_cycle`):
 ```
-RobotCam frame (640×480, 1/s, fail-closed reader) → YOLO yolo11s (320, 640 every 5 s or in person search; 2 threads on MID cores 4–5) → navigate_rules (pure Python, instant; shaped by the picker's mode) → person-stop (area bucket) → execute move
-Picker (background worker, BIG cpus 6–7; ACTIVE only, never at Android status SEVERE): RelateAnything M2 on the latest 640 frame → Gemma letter scoring of EXPLORE / APPROACH / GREET / LOOK → mode for the next cycles (events, min gap 5 s; heartbeat 20 s). In the motors-off run it always chose EXPLORE (#139, #140).
+RobotCam frame (640×480, 1/s, fail-closed reader) → YOLO yolo11s (320, 640 every 5 s or in person search; 2 threads on MID cores 4–5) → navigate_rules (pure Python, including person approach by default) → person-stop (area bucket) → execute move
+Opt-in --picker (background worker, BIG cpus 6–7; ACTIVE only, below Android status SEVERE): YOLO/navigation context → Gemma letter scoring of EXPLORE / APPROACH / GREET / LOOK → mode for the next cycles (events, min gap 5 s; heartbeat 20 s). No M2 dependency; --no-picker takes precedence (#162).
 ```
 
 | Layer | Handles | Cost |
 |---|---|---|
 | YOLO yolo11s (320/640 policy, both sessions resident; yolo11m kept for rollback) | object/person detection, position, coarse distance | every cycle |
 | RobotCam app (Camera2 foreground service) | 640×480 frames, 1/s (#136); missing/old/repeated frame → STOP | continuous while a mission runs |
-| Python `navigate_rules` | obstacle stop, person approach (APPROACH mode or `--no-picker`), room signature logging | every cycle, 0ms |
+| Python `navigate_rules` | obstacle stop, person approach (default rules or picker APPROACH mode), room signature logging | every cycle, 0ms |
 | Person-stop (#79, #138) | any person in bucket `close`/`very close` turns a forward move into HOLD (stop for the cycle; the mission continues) | every cycle |
-| Gemma 4 E2B (Q4_0, default since 2026-09-26) | mission picker (letter scoring of the offered modes, #138) and voice→intent; never a motor command | picker: median 2.8 s per pick in the motors-off run (#139) |
-| RelateAnything M2 (relsgg-vits16, fp32, `relate.py`) | object-relation text for the picker (layout L2, #131, #138) | before each pick; median 0.73 s in the motors-off run (#139) |
+| Gemma 4 E2B (Q4_0, default model since 2026-09-26) | opt-in legacy picker (`--picker`, #162) and voice→intent; never a motor command | historical picker median 2.8 s in the pre-E2 motors-off run (#139); E2 timing unmeasured |
+| RelateAnything M2 (relsgg-vits16, fp32, `relate.py`) | retained code and archived evidence; removed from picker runtime (#162) | historical median 0.73 s before each pick in the pre-E2 motors-off run (#139) |
 | Whisper.cpp (base) | 5s voice capture → text | on demand |
 | Gemma `PARSE_SYS` | voice text → JSON action array | on demand |
 | `termux-tts-speak` | speech output | on demand |
 
-The high-level selector (#109) is wired into the mission loop as the picker
-(#138, `2ce2b3b`), on by default; `--no-picker` keeps the old rules. In the
-motors-off run it chose EXPLORE every time and cut the ACTIVE share to 0.48
+The high-level selector (#109) remains wired as the legacy picker (#138),
+explicitly enabled by `--picker`. E2 (#162) makes Python navigation rules the
+default; `--no-picker` remains supported and overrides `--picker`. M2 is no
+longer a picker runtime dependency. In the pre-E2 motors-off run it chose EXPLORE every time and cut the ACTIVE share to 0.48
 (#139); desk tests found no prompt or model that qualifies (#140). Owner
 direction (#140): Gemma becomes the robot's "mind", called at events (talk,
 describe, remember, plan); Python keeps every move. Updated owner direction
@@ -105,7 +106,8 @@ slot save/restore (#148, decided, not implemented); M2 dropped (#149); in a 30-m
 motors-off mission a temperature-paced picker (decide below 36 °C) served 46
 decisions with 4 heat pauses vs 41 and 10 for one decision per 30 s (#155); the paced arm started none after
 980 s, so about 1 decision per minute (arm A) is the sustained rate observed (#156).
-Whether `--no-picker` becomes the default is open. Fine-tuning (Laya, Von or
+E2 implements the Python-rules default and M2 picker-runtime removal (#162);
+it does not deploy the MIND research picker or Gemma vision. Fine-tuning (Laya, Von or
 Gemma) is deferred to a later robot version. One resident Gemma for talk and
 selection was decided in #125.
 The current repo describes a mecanum prototype; the phone-mounted RC car with
@@ -118,7 +120,7 @@ The current repo describes a mecanum prototype; the phone-mounted RC car with
 OBSTACLE_DIST     25 cm     hard stop threshold
 PERSON_STOP_BUCKETS ('close', 'very close')  any person in these area buckets → forward move becomes HOLD (#79, #138)
 LOOK_CYCLES       4         LOOK rotates in place, then EXPLORE (#138)
-picker            on by default; `--no-picker` = old rules; server from setup_q4 (#138)
+picker            off by default (Python rules); `--picker` enables legacy Gemma picker; `--no-picker` wins; opt-in server from setup_q4; no M2 dependency (#162)
 STEREO_BASELINE   5.0 cm    strafe distance for depth   (UNVERIFIED)
 MOTOR_SPEED       130       FORWARD/BACK
 rotation speed    120       hardcoded literal in Robot.move(), not a constant
@@ -360,8 +362,10 @@ picker for V1. Cost: 5.95 s/image at 70 tokens, 11.4 s at 140 (#154).
 
 ## Pending / untested
 
-- **Before any motors-live run:** fix 999-is-clear in ACTIVE cycles (#159), make `--no-picker`
-  the default, pin llama-server to cores 4–7 at launch (#157).
+- **Before any motors-live run:** fix 999-is-clear in ACTIVE cycles (#159);
+  llama-server launch pinning to cores 4–7 remains open (#157).
+  E2 completed the Python-rules default (#162), with no hardware,
+  sensor-safety or motors-live validation.
 - **Dual-rate nav merged as a rewrite. Rule-level safety branches and the current
   `run_cycle()` path are regression-tested; everything else is untested.**
   `navigate_rules` escalation ladder verified against synthetic
@@ -451,8 +455,9 @@ picker for V1. Cost: 5.95 s/image at 70 tokens, 11.4 s at 140 (#154).
   in native Termux; YOLO26 (same speed as YOLO11 at equal size; NMS-free mode
   not worth it, #121); LFM2.5 and SmolLM3-3B as conversation
   candidates, both needing a newer llama.cpp than b1609.
-- The strategic selector is wired as the picker (#138, still on by default) and its per-cycle
-  form is shelved (#140); the redesign items that follow are not built. Apartment
+- The strategic selector remains wired as the legacy picker (#138), now opt-in
+  with `--picker` (#162); its per-cycle form was shelved (#140).
+  The redesign items that follow are not built. Apartment
   localization from 2D LiDAR, semantic room map, camera–LiDAR object/range
   association, named-person verification, eligible-script gates, safe
   interruption, and model/sensor co-residency need separate validation.
@@ -495,14 +500,21 @@ picker for V1. Cost: 5.95 s/image at 70 tokens, 11.4 s at 140 (#154).
 - RobotCam screen-off capture is untested; frame loss ends a mission
   (fail-closed, no retry by design).
 - RelateAnything M2 (relsgg-vits16, our fp32 export): speed, RAM and co-residency
-  measured (#130–#132); used by the picker (`relate.py`, L2, #138); model files
+  measured (#130–#132); historically used by the picker (`relate.py`, L2, #138).
+  E2 removes it from the picker runtime (#162); `relate.py` and archived
+  evidence remain. Retained M2 model files
   stay outside the repo and are checked by SHA-256 at load; weight licence for
   shipped use not evaluated. Relation quality (M2-Q1, #145): 63 % of shown lines
   strictly right vs the 70 % bar — M2 as built FAILS. Owner dropped M2 entirely on
-  2026-11-02 (#149).
+  2026-11-02 (#149); E2 implements the picker-runtime removal without adding
+  Gemma vision.
 - Picker (#138): motors-off run done (#139) — always EXPLORE, ACTIVE share 0.48;
-  no qualifying prompt or model in the desk tests (#140). Open owner decision:
-  make `--no-picker` the default. Next research gate (#146): design a Python-
+  no qualifying prompt or model in the desk tests (#140). These are pre-E2
+  results. E2 (#162) makes Python rules the default, retains the legacy picker
+  behind `--picker`, and removes its M2 dependency. Owner handoff reports
+  107 hardware-free unit tests passed and independent AGY Argon Medium review
+  APPROVED; no hardware, sensor-safety or motors-live validation.
+  Next research gate (#146): design a Python-
   mediated mind interface and compare the old picker with event-driven, cached,
   memory-aware high-level selection using independently labeled motors-off cases.
   Measure quality before accepting speed gains; include option-order changes,
