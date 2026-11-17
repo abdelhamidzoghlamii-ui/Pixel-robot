@@ -1,11 +1,11 @@
-"""MTP-A offline tests: setup_q4 unchanged, opt-in setup_q4_mtp, chat.py's drafter flags, fallback and payload.
+"""Launcher tests: E3A affinity, opt-in MTP, chat drafter flags, fallback and payload.
 Fakes only (os.system, subprocess.Popen, os.path, HTTP); nothing is launched."""
 import io
 import os
-import shlex
 import tempfile
 import unittest
 from contextlib import redirect_stdout
+from pathlib import Path
 from unittest import mock
 
 import chat
@@ -15,9 +15,9 @@ H = '/data/data/com.termux/files/home'
 SERVER = H + '/llama.cpp-b1609-dotprod/build/bin/llama-server'
 DRAFT = H + '/models/mtp/mtp-gemma-4-E2B-it-Q8_0.gguf'
 G1 = ['--model-draft', DRAFT, '--spec-type', 'draft-mtp', '--spec-draft-n-max', '3']  # DECISIONS #120 run json
-# server_manager.start_setup('setup_q4') at e208aaf, as passed to os.system
-BASE_SETUP_Q4 = (SERVER + ' -m ' + H + '/models/gemma-4-E2B-it-Q4_0.gguf --port 8080 --ctx-size 2048 --threads 4'
-                 ' --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --host 127.0.0.1  2>/dev/null &')
+BASE_SETUP_Q4 = ['taskset', '-c', '4-7', SERVER, '-m', H + '/models/gemma-4-E2B-it-Q4_0.gguf',
+                 '--port', '8080', '--ctx-size', '2048', '--threads', '4', '--threads-batch', '4',
+                 '--parallel', '1', '--swa-full', '--cache-ram', '0', '--host', '127.0.0.1']
 
 
 def base_chat_cmd(file, ctx):
@@ -63,12 +63,15 @@ class ServerManagerTest(unittest.TestCase):
         calls = []
         with Patches(fake_fs(draft_size) + [mock.patch.object(sm.os, 'system', calls.append),
                                             mock.patch.object(sm.time, 'sleep'),
+                                            mock.patch.object(sm.shutil, 'which', return_value='taskset'),
+                                            mock.patch.object(sm.subprocess, 'Popen', side_effect=lambda cmd, **kw: calls.append(cmd) or mock.Mock()),
+                                            mock.patch.object(sm, 'verify_server_affinity'),
                                             mock.patch.object(sm, 'wait_for_server', return_value=True)]), \
                 redirect_stdout(io.StringIO()) as out:
             ok = sm.start_setup(setup)
-        return ok, [c for c in calls if 'pkill' not in c], out.getvalue()
+        return ok, [c for c in calls if isinstance(c, list)], out.getvalue()
 
-    def test_setup_q4_command_unchanged(self):
+    def test_setup_q4_flags_preserved_with_taskset(self):
         for size in (sm.MTP_DRAFT_SIZE, None, 1):  # the drafter's state never touches setup_q4
             ok, cmds, _ = self.launch('setup_q4', size)
             self.assertTrue(ok)
@@ -77,9 +80,7 @@ class ServerManagerTest(unittest.TestCase):
     def test_setup_q4_mtp_is_setup_q4_plus_exactly_g1(self):
         ok, cmds, _ = self.launch('setup_q4_mtp')
         self.assertTrue(ok)
-        self.assertEqual(cmds, [BASE_SETUP_Q4.replace(' --host 127.0.0.1  2>/dev/null &',
-                                                      ' --host 127.0.0.1 ' + ' '.join(G1) + ' 2>/dev/null &')])
-        self.assertEqual(shlex.split(cmds[0])[:-2], shlex.split(BASE_SETUP_Q4)[:-2] + G1)
+        self.assertEqual(cmds, [BASE_SETUP_Q4 + G1])
 
     def test_setup_q4_mtp_refuses_missing_or_wrong_size_drafter(self):
         for size in (None, sm.MTP_DRAFT_SIZE - 1, sm.MTP_DRAFT_SIZE + 1, 0):
@@ -109,6 +110,84 @@ class ServerManagerTest(unittest.TestCase):
         self.assertIs(ok, False)
         self.assertEqual(cmds, [])
         self.assertIn('setup_q4, setup_q4_mtp, setup_e4b, stop', out)
+
+
+class LaunchAffinityTest(unittest.TestCase):
+    def test_verification_checks_all_threads_and_cpuset(self):
+        proc = mock.Mock(pid=4242)
+        proc.poll.return_value = None
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            for tid in (4242, 4243):
+                task = root / '4242' / 'task' / str(tid)
+                task.mkdir(parents=True)
+                (task / 'cpuset').write_text('/top-app')
+            with mock.patch.object(sm, 'Path', return_value=root), \
+                    mock.patch.object(sm.os.path, 'realpath', return_value=SERVER), \
+                    mock.patch.object(sm.os, 'sched_getaffinity', return_value={4, 5, 6, 7}) as get, \
+                    redirect_stdout(io.StringIO()) as out:
+                sm.verify_server_affinity(proc)
+                self.assertEqual(get.call_args_list, [mock.call(4242), mock.call(4243)])
+                self.assertIn('/top-app', out.getvalue())
+                for mask in ({4, 5}, set(range(8))):
+                    get.side_effect = [{4, 5, 6, 7}, mask]
+                    with self.assertRaisesRegex(RuntimeError, 'thread 4243 CPUs'):
+                        sm.verify_server_affinity(proc)
+                get.side_effect = PermissionError('denied')
+                with self.assertRaises(PermissionError):
+                    sm.verify_server_affinity(proc)
+                get.side_effect = None
+                with mock.patch.object(sm.os.path, 'realpath', side_effect=['/wrong/executable', SERVER]):
+                    with self.assertRaisesRegex(RuntimeError, 'not running'):
+                        sm.verify_server_affinity(proc)
+                with mock.patch.object(Path, 'iterdir', side_effect=[
+                        [Path('4242'), Path('4243')], [Path('4242')]]):
+                    with self.assertRaisesRegex(RuntimeError, 'thread list changed'):
+                        sm.verify_server_affinity(proc)
+                (root / '4242' / 'task' / '4242' / 'cpuset').unlink()
+                sm.verify_server_affinity(proc)  # effective affinity still verifies when cpuset is unreadable
+                proc.poll.return_value = 1
+                with self.assertRaisesRegex(RuntimeError, 'not running'):
+                    sm.verify_server_affinity(proc)
+                proc.poll.return_value = None
+                for t in (root / '4242' / 'task').iterdir():
+                    for f in t.iterdir():
+                        f.unlink()
+                    t.rmdir()
+                with self.assertRaisesRegex(RuntimeError, 'empty'):
+                    sm.verify_server_affinity(proc)
+
+    def test_launch_failure_is_reported_and_exact_child_cleaned_up(self):
+        for failure in ('missing', 'popen', 'readiness', 'affinity', 'exited', 'kill'):
+            with self.subTest(failure=failure):
+                proc = mock.Mock(pid=4242)
+                proc.poll.return_value = 1 if failure == 'exited' else None
+                if failure == 'kill':
+                    proc.wait.side_effect = [sm.subprocess.TimeoutExpired('server', 5), 0]
+                with mock.patch.object(sm, 'kill_servers') as kill_old, \
+                        mock.patch.object(sm.shutil, 'which', return_value=None if failure == 'missing' else 'taskset'), \
+                        mock.patch.object(sm.subprocess, 'Popen', side_effect=OSError('launch failed') if failure == 'popen' else None, return_value=proc) as popen, \
+                        mock.patch.object(sm, 'wait_for_server', return_value=failure != 'readiness'), \
+                        mock.patch.object(sm, 'verify_server_affinity', side_effect=RuntimeError('bad affinity')), \
+                        redirect_stdout(io.StringIO()) as out:
+                    self.assertFalse(sm.start_server('/model with spaces'))
+                self.assertIn('ERROR', out.getvalue())
+                if failure == 'missing':
+                    kill_old.assert_not_called()
+                    popen.assert_not_called()
+                elif failure not in ('popen', 'exited'):
+                    proc.terminate.assert_called_once()
+                    self.assertEqual(popen.call_args.args[0][0:4], ['taskset', '-c', '4-7', SERVER])
+                    self.assertIn('/model with spaces', popen.call_args.args[0])
+                if failure == 'kill':
+                    proc.kill.assert_called_once()
+
+    def test_exited_child_cannot_pass_health_check(self):
+        proc = mock.Mock(returncode=1)
+        proc.poll.return_value = 1
+        with mock.patch.object(sm.urllib.request, 'urlopen') as request, redirect_stdout(io.StringIO()):
+            self.assertFalse(sm.wait_for_server(process=proc))
+        request.assert_not_called()
 
 
 class Response:

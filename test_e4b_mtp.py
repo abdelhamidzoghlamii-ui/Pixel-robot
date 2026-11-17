@@ -62,22 +62,24 @@ class E4BSetupTest(unittest.TestCase):
     def launch(self, setup, size=98653248):
         calls = []
         with old.Patches(old.fake_fs(sm.MTP_DRAFT_SIZE, size) + [
-                mock.patch.object(sm.os, 'system', calls.append), mock.patch.object(sm.time, 'sleep'),
+                mock.patch.object(sm, 'kill_servers'),
+                mock.patch.object(sm.shutil, 'which', return_value='taskset'),
+                mock.patch.object(sm.subprocess, 'Popen', side_effect=lambda cmd, **kw: calls.append(cmd) or mock.Mock()),
+                mock.patch.object(sm, 'verify_server_affinity'),
                 mock.patch.object(sm, 'wait_for_server', return_value=True)]), redirect_stdout(io.StringIO()) as out:
             result = sm.start_setup(setup)
         return result, calls, out.getvalue()
 
     def test_new_commands_and_unchanged_old_setups(self):
-        e4b = old.BASE_SETUP_Q4.replace('gemma-4-E2B-it-Q4_0.gguf', E4B)
-        mtp = lambda cmd, args: cmd.replace(' --host 127.0.0.1  2>/dev/null &',
-                                          ' --host 127.0.0.1 ' + ' '.join(args) + ' 2>/dev/null &')
+        e4b = [s.replace('gemma-4-E2B-it-Q4_0.gguf', E4B) for s in old.BASE_SETUP_Q4]
+        mtp = lambda cmd, args: cmd + args
         expected = {'setup_e4b_q4': e4b, 'setup_e4b_q4_mtp': mtp(e4b, ARGS),
                     'setup_q4': old.BASE_SETUP_Q4, 'setup_q4_mtp': mtp(old.BASE_SETUP_Q4, old.G1),
-                    'setup_e4b': old.BASE_SETUP_Q4.replace('gemma-4-E2B-it-Q4_0.gguf', 'gemma-4-e4b-it-q4_k_m.gguf')}
+                    'setup_e4b': [s.replace('gemma-4-E2B-it-Q4_0.gguf', 'gemma-4-e4b-it-q4_k_m.gguf') for s in old.BASE_SETUP_Q4]}
         for setup, cmd in expected.items():
             result, calls, _ = self.launch(setup)
             self.assertTrue(result)
-            self.assertEqual(calls, ['pkill -f llama-server 2>/dev/null', cmd])
+            self.assertEqual(calls, [cmd])
 
     def test_robot_refuses_bad_draft_without_killing_or_starting(self):
         for size in (None, 0, 98653247, 98653249):

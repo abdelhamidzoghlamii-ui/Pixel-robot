@@ -1,4 +1,8 @@
 import os
+import shlex
+import shutil
+import subprocess
+from pathlib import Path
 import time
 import urllib.request
 
@@ -35,8 +39,11 @@ def kill_servers():
     time.sleep(2)
     print("[SERVER] All servers stopped")
 
-def wait_for_server(port=8080, timeout=60):
+def wait_for_server(port=8080, timeout=60, process=None):
     for i in range(timeout):
+        if process is not None and process.poll() is not None:
+            print(f'[SERVER] ERROR: launched process exited: {process.returncode}')
+            return False
         time.sleep(1)
         try:
             r = urllib.request.urlopen(
@@ -49,26 +56,61 @@ def wait_for_server(port=8080, timeout=60):
     print("[SERVER] ERROR: failed to load in " + str(timeout) + "s")
     return False
 
+def verify_server_affinity(proc):
+    # taskset execs llama-server, so Popen's PID identifies the exact instance.
+    root = Path('/proc') / str(proc.pid)
+    if proc.poll() is not None or os.path.realpath(root / 'exe') != os.path.realpath(LLAMA_SERVER):
+        raise RuntimeError('launched llama-server is not running')
+    tasks = root / 'task'
+    tids = sorted(int(p.name) for p in tasks.iterdir())
+    if not tids:
+        raise RuntimeError('server thread list is empty')
+    for tid in tids:
+        try:
+            cpuset = (tasks / str(tid) / 'cpuset').read_text().strip()
+        except OSError as e:
+            cpuset = 'unreadable: ' + str(e)
+        mask = os.sched_getaffinity(tid)
+        if mask != {4, 5, 6, 7}:
+            raise RuntimeError(f'thread {tid} CPUs {sorted(mask)}, expected 4-7; cpuset {cpuset}')
+        print(f'[SERVER] thread {tid}: CPUs 4-7; cpuset {cpuset}')
+    if proc.poll() is not None or tids != sorted(int(p.name) for p in tasks.iterdir()):
+        raise RuntimeError('server exited or thread list changed during affinity verification')
+
+
 def start_server(model_path, port=8080, ctx=2048, extra_args=""):
+    if not shutil.which('taskset'):
+        print('[SERVER] ERROR: taskset unavailable; nothing started')
+        return False
+    cmd = ['taskset', '-c', '4-7', LLAMA_SERVER, '-m', model_path,
+           '--port', str(port), '--ctx-size', str(ctx), '--threads', THREADS,
+           '--threads-batch', BATCH_THREADS, '--parallel', '1', '--swa-full',
+           '--cache-ram', '0', '--host', '127.0.0.1'] + shlex.split(extra_args)
     kill_servers()
-    cmd = (
-        LLAMA_SERVER +
-        " -m " + model_path +
-        " --port " + str(port) +
-        " --ctx-size " + str(ctx) +
-        " --threads " + THREADS +
-        " --threads-batch " + BATCH_THREADS +
-        " --parallel 1" +
-        " --swa-full" +
-        " --cache-ram 0" +
-        " --host 127.0.0.1 " +
-        extra_args +
-        " 2>/dev/null &"
-    )
-    os.system(cmd)
-    print("[SERVER] Starting: " + model_path.split("/")[-1])
-    print("[SERVER] Waiting...")
-    return wait_for_server(port)
+    proc = None
+    try:
+        proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                start_new_session=True)
+        print("[SERVER] Starting: " + model_path.split("/")[-1])
+        print("[SERVER] Waiting...")
+        if not wait_for_server(port, process=proc):
+            raise RuntimeError('server did not become ready')
+        verify_server_affinity(proc)
+        print('[SERVER] Launch affinity verified for all threads')
+        return True
+    except (OSError, RuntimeError) as e:
+        print(f'[SERVER] ERROR: {e}')
+        if proc is not None and proc.poll() is None:
+            try:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait(timeout=5)
+            except (OSError, subprocess.TimeoutExpired) as cleanup_error:
+                print(f'[SERVER] ERROR: failed to stop rejected server: {cleanup_error}')
+        return False
 
 def start_setup(setup_name):
     print("\n" + "="*50)
@@ -138,4 +180,4 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python3 server_manager.py [setup_q4|setup_q4_mtp|setup_e4b|setup_e4b_q4|setup_e4b_q4_mtp|stop]")
         sys.exit(1)
-    start_setup(sys.argv[1])
+    sys.exit(0 if start_setup(sys.argv[1]) else 1)
