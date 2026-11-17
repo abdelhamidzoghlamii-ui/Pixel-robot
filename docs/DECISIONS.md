@@ -2100,3 +2100,26 @@ Format: `NN. [area] decision — why`
      No hardware, sensor-safety or motors-live verification was performed.
      The stale-ultrasonic safety finding in #159 remains open; E2 does not
      establish readiness for a motors-live run.
+
+163. **E3A: llama-server launch affinity is enforced; restricted-mask rejection verified, successful live 4–7 startup unverified.**
+     2026-11-17, committed and pushed as `69a29ab40512c574e650564af250a5ba02273d76`.
+     `server_manager.py` launches with `taskset -c 4-7`, then verifies every
+     thread of the exact launched child after health readiness, including
+     executable identity and stable thread enumeration. Every effective mask
+     must equal 4–7; incorrect affinity or failed verification rejects startup
+     and cleans up that child. Qualifies #157's launch-pinning status; the
+     historical T1 0–7 cause remains UNKNOWN. Periodic monitoring/re-pinning
+     was not implemented.
+     Evidence: Coder's `/termux-home/review/e3a_completion/DOC_DIFF.md` and
+     `/sdcard/Download/E3A_evidence/` (`manifest.sha256`). All 19 offline unit
+     tests passed; independent AGY Argon Medium (`gemini-4-argon-medium`)
+     review APPROVED after completion of the initially sandbox-blocked checks.
+     One controlled live `setup_q4` attempt reached health readiness, but
+     Android `/foreground` restricted effective affinity to cores 4–5. The
+     launcher correctly rejected and stopped its child (`child_stopped: true`,
+     exit 0). The live check was FAIL for positive startup; no inference
+     request was executed. Successful live 4–7 startup and post-request
+     affinity remain unverified. No motor or hardware validation occurred.
+     Ultrasonic safety defect #159 remains open; E3A does not establish
+     readiness for a motors-live run. Historical decisions and benchmarks
+     remain unchanged.

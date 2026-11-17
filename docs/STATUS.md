@@ -156,6 +156,7 @@ REAL_HEIGHTS: person 170, refrigerator 180, chair 90, couch 85, dining table 75,
 **LLM server** (`server_manager.py`)
 ```
 --threads 4 --threads-batch 4 --parallel 1 --swa-full --cache-ram 0 --ctx-size 2048
+launch: taskset -c 4-7; every server thread verified after readiness; incorrect affinity rejects startup and stops that child (#163)
 setup_q4     Gemma 4 E2B Q4_0    2.8GB  ~12 gen tok/s  ← robot default (since 2026-09-26)
 setup_q4_mtp setup_q4 + MTP drafter  opt-in, not the robot default (#137)
 Gemma E2B Q4_0 on this build: selector letter-scoring 1408 ms median (DECISIONS #119). MTP drafter measured +46% gen speed, +609 MiB, identical output (DECISIONS #120); on in robot-chat, opt-in for the robot (`setup_q4_mtp`), not in the robot default (#137). At chat settings: +43% gen speed, memory cost not established (#137). Build names: b1609 = upstream b10194, b2351 = upstream b10936 (#119).
@@ -167,6 +168,13 @@ Qwen3.5 2B and 4B GGUFs at ~/models/qwen35/ are eval-only, not wired into
 server_manager; Qwen3.5-0.8B was deleted. See DECISIONS #106, #115.
 #104's navigation removal was implemented in #111.)
 ```
+
+E3A (`69a29ab`, #163): 19 offline unit tests passed; independent AGY Argon
+Medium review APPROVED. The live attempt reached readiness, but Android
+`/foreground` restricted affinity to cores 4–5; startup was correctly rejected
+and the child stopped. No inference request was executed. Successful live 4–7
+startup and post-request affinity remain unverified. Periodic monitoring/re-pinning
+was not implemented. No motor or hardware validation occurred; #159 remains open.
 
 Current llama.cpp build: commit e1a1abb7, version 1609, **rebuilt 2026-09-26
 with `GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16`** at `~/llama.cpp-b1609-dotprod`
@@ -235,8 +243,9 @@ duty-cycle and camera-power measurements (#128) and the owner's heat-pause desig
 MIND-B4/B5 (#154, #155): continuous picker work heats ~2.5 °C/min; camera + YOLO
 alone ~0.9 °C/min; with camera + YOLO running, cooling is about a quarter of idle
 cooling (1.4 vs 4.7–5.2 °C in ~3 min from ~38 °C). llama-server's CPU affinity was
-found on 0–7 in one invalid run (cause UNKNOWN); the deployed code neither pins nor re-pins it
-(#157, open).
+found on 0–7 in one invalid run (cause UNKNOWN, #157). E3A implements launch
+pinning and verification (#163); successful live 4–7 startup remains unverified,
+and periodic re-pinning remains absent.
 
 ## Memory
 
@@ -363,7 +372,9 @@ picker for V1. Cost: 5.95 s/image at 70 tokens, 11.4 s at 140 (#154).
 ## Pending / untested
 
 - **Before any motors-live run:** fix 999-is-clear in ACTIVE cycles (#159);
-  llama-server launch pinning to cores 4–7 remains open (#157).
+  E3A launch pinning/verification is implemented (#163), but successful live
+  4–7 startup and post-request affinity still need verification when Android
+  permits those cores. Periodic re-pinning was not implemented.
   E2 completed the Python-rules default (#162), with no hardware,
   sensor-safety or motors-live validation.
 - **Dual-rate nav merged as a rewrite. Rule-level safety branches and the current
